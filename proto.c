@@ -251,8 +251,11 @@ result_t send_set_node(char *msg_uuid, node_t *node)
 	w = buffer + 4;
 
 	sprintf(key, "node-%s", node->node_id);
+	// TODO: set uri and control uri when support for incoming connections and
+	// the control api has been added
 	sprintf(data,
-		    "{\"attributes\": {\"indexed_public\": [\"/node/attribute/node_name/////mbed\"], \"public\": {}}, \"control_uri\": \"%s\", \"uri\": [\"%s\"]}",
+		    "{\"attributes\": {\"indexed_public\": [\"/node/attribute/node_name/////%s\"], \"public\": {}}, \"control_uri\": \"%s\", \"uri\": [\"%s\"]}",
+	        node->name,
 	        "",
 	        "");
 
