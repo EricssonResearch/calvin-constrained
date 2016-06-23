@@ -24,7 +24,7 @@
 #ifdef NRF51
 int main(void)
 {
-    if (create_node(1, 1, "mbed", "fe80::21a:7dff:feda:710b", 5000) == SUCCESS) {
+    if (create_node(1, 1, "nRF51", "fe80::21a:7dff:feda:710b", 5000) == SUCCESS) {
     	platform_init();
     }
     return 0;
