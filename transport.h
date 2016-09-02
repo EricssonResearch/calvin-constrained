@@ -61,6 +61,7 @@ typedef struct transport_client_t {
     int buffer_pos;
 } transport_client_t;
 
+result_t discover_proxy(char *iface, char *ip, int *port);
 transport_client_t *client_connect(const char *address, int port);
 result_t client_send(transport_client_t *client, char *data, size_t len);
 result_t wait_for_data(transport_client_t **client, uint32_t timeout);

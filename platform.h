@@ -55,6 +55,7 @@ typedef struct calvin_timer_t {
 } calvin_timer_t;
 
 void platform_init();
+result_t discover(char *iface, char *ip, int *port);
 calvin_timer_t *create_recurring_timer(double interval);
 void stop_timer(calvin_timer_t *timer);
 bool check_timer(calvin_timer_t *timer);

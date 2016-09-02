@@ -28,6 +28,28 @@ result_t send_buffer(send_buffer_t *buf);
 
 static transport_client_t *m_client = NULL;
 
+// iface is the MAC address, convert it to a ipv6 
+// link-local address.
+result_t discover_proxy(char *iface, char *ip, int *port)
+{
+    long col1, col2, col3, col4, col5, col6;
+
+    col1 = (unsigned char)strtol(iface, NULL, 16);
+    col1 ^= 1 << 1;
+    col2 = (unsigned char)strtol(iface + 3, NULL, 16);
+    col3 = (unsigned char)strtol(iface + 6, NULL, 16);
+    col4 = (unsigned char)strtol(iface + 9, NULL, 16);
+    col5 = (unsigned char)strtol(iface + 12, NULL, 16);
+    col6 = (unsigned char)strtol(iface + 15, NULL, 16);
+
+    sprintf(ip,
+        "fe80::%02lx%02lx:%02lxff:fe%02lx:%02lx%02lx",
+        col1, col2, col3, col4, col5, col6);
+
+    *port = 5000;
+
+    return SUCCESS;
+}
 
 static err_t tcp_write_complete(void *p_arg, struct tcp_pcb *p_pcb, u16_t len)
 {

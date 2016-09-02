@@ -16,6 +16,8 @@
 #include <stdlib.h>
 #include "platform.h"
 
+
+
 calvin_timer_t *create_recurring_timer(double interval)
 {
 	calvin_timer_t *calvin_timer = NULL;

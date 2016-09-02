@@ -24,7 +24,7 @@
 #ifdef NRF51
 int main(void)
 {
-    if (create_node(1, 1, "nRF51", "fe80::21a:7dff:feda:710b", 5000) == SUCCESS) {
+    if (create_node(1, 1, "nRF51") == SUCCESS) {
     	platform_init();
     }
     return 0;
@@ -32,29 +32,23 @@ int main(void)
 #else
 int main(int argc, char *argv[])
 {
-	char *name = NULL, *address = NULL;
-	int c = -1, port = 0;
+	char *name = NULL;
+	int c = -1;
 
-	while ((c = getopt(argc, argv, "n:i:p:")) != -1) {
+	while ((c = getopt(argc, argv, "n:")) != -1) {
 	        switch (c) {
 	        case 'n':
 	                name = strdup(optarg);
 	                break;
-	        case 'i':
-	                address = strdup(optarg);
-	                break;
-	        case 'p':
-	                port = atoi(optarg);
-	                break;
 	        default:
-	                printf("Usage: %s -n NAME -i PROXY_ADDRESS -p PROXY_PORT\n", argv[0]);
+	                printf("Usage: %s -n NAME\n", argv[0]);
 	                break;
 	    }
 	}
 
-	if (name != NULL && address != NULL && port != 0) {
-		if (create_node(1, 1, name, address, port) == SUCCESS) {
-			if (start_node() == SUCCESS) {
+	if (name != NULL) {
+		if (create_node(1, 1, name) == SUCCESS) {
+			if (start_node("0.0.0.0") == SUCCESS) {
 				node_run();
 			} else {
 				log_error("Failed to start node");
@@ -63,7 +57,7 @@ int main(int argc, char *argv[])
 			log_error("Failed to create node");
 		}
 	} else {
-		printf("Usage: %s -n NAME -i PROXY_ADDRESS -p PROXY_PORT\n", argv[0]);
+		printf("Usage: %s -n NAME\n", argv[0]);
 	}
 
     return 0;

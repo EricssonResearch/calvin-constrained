@@ -52,7 +52,7 @@ typedef struct node_t {
 	char *node_id;
 	char *schema;
 	char *name;
-	char *proxy_ip;
+	char proxy_ip[40];
 	int proxy_port;
 	transport_client_t *client;
 	tunnel_t *storage_tunnel;
@@ -70,10 +70,10 @@ result_t handle_token(char *port_id, token_t *token, uint32_t sequencenbr);
 void handle_token_reply(char *port_id, bool acked);
 result_t handle_tunnel_connected(char *tunnel_id);
 void handle_data(char *data, int len, transport_client_t *connection);
-result_t create_node(uint32_t vid, uint32_t pid, char *name, char *address, int port);
-result_t start_node();
+result_t create_node(uint32_t vid, uint32_t pid, char *name);
+result_t start_node(char *address);
 void node_run();
 result_t loop_once();
-void stop_node();
+void stop_node(bool terminate);
 
 #endif /* NODE_H */

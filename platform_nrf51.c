@@ -34,9 +34,10 @@
 #include "node.h"
 #include "transport.h"
 
-#define DEVICE_NAME                         "Calvin"
+#define DEVICE_NAME                         "calvin-constrained"
 #define APP_TIMER_PRESCALER                 NRF51_DRIVER_TIMER_PRESCALER
 #define LWIP_SYS_TIMER_INTERVAL             APP_TIMER_TICKS(100, APP_TIMER_PRESCALER)
+#define APP_CALVIN_INITTIMER_INTERVAL       APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)
 #define APP_CALVIN_TIMER_INTERVAL           APP_TIMER_TICKS(1000, APP_TIMER_PRESCALER)
 #define SCHED_MAX_EVENT_DATA_SIZE           128
 #define SCHED_QUEUE_SIZE                    12
@@ -58,8 +59,9 @@
 eui64_t                                     eui64_local_iid;
 static ble_gap_adv_params_t                 m_adv_params;
 static app_timer_id_t                       m_sys_timer_id;
+static app_timer_id_t                       m_calvin_inittimer_id;
 static app_timer_id_t                       m_calvin_timer_id;
-
+static char                                 m_mac[20]; // MAC address of connected peer
 
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t * p_file_name)
 {
@@ -81,6 +83,11 @@ static void leds_init(void)
     LEDS_OFF(ALL_APP_LED);
 }
 
+void start_calvin_inittimer()
+{
+    uint32_t err_code = app_timer_start(m_calvin_inittimer_id, APP_CALVIN_INITTIMER_INTERVAL, NULL);
+    APP_ERROR_CHECK(err_code);
+}
 void start_calvin_timer()
 {
     uint32_t err_code = app_timer_start(m_calvin_timer_id, APP_CALVIN_TIMER_INTERVAL, NULL);
@@ -90,45 +97,6 @@ void start_calvin_timer()
 void stop_calvin_timer()
 {
     uint32_t err_code = app_timer_stop(m_calvin_timer_id);
-    APP_ERROR_CHECK(err_code);
-}
-
-static void button_event_handler(uint8_t pin_no, uint8_t button_action)
-{
-    if (button_action == APP_BUTTON_PUSH) {
-        switch (pin_no) {
-            case BSP_BUTTON_0:
-            {
-                // TODO: Start node when interface is up and proxy is found
-                if (start_node() == SUCCESS) {
-                    start_calvin_timer();
-                } else {
-                    log_error("Failed to start node");
-                }
-                break;
-            }
-            default:
-                break;
-        }
-    }
-}
-
-static void button_init(void)
-{
-    uint32_t err_code;
-
-    static app_button_cfg_t buttons[] =
-    {
-        {BSP_BUTTON_0, false, BUTTON_PULL, button_event_handler},
-        {BSP_BUTTON_1, false, BUTTON_PULL, button_event_handler}
-    };
-
-    #define BUTTON_DETECTION_DELAY APP_TIMER_TICKS(50, APP_TIMER_PRESCALER)
-
-    err_code = app_button_init(buttons, sizeof(buttons) / sizeof(buttons[0]), BUTTON_DETECTION_DELAY);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = app_button_enable();
     APP_ERROR_CHECK(err_code);
 }
 
@@ -199,7 +167,14 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            log_debug("BLE connected");
+            sprintf(m_mac, "%02x:%02x:%02x:%02x:%02x:%02x",
+                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[5], 
+                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[4], 
+                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[3],
+                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[2], 
+                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[1], 
+                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[0]);
+            log_debug("Connected to: %s", m_mac);
             break;
         case BLE_GAP_EVT_DISCONNECTED:
             log_debug("BLE disconnected");
@@ -248,6 +223,18 @@ static void system_timer_callback(void *p_context)
     sys_check_timeouts();
 }
 
+static void calvin_inittimer_callback(void *p_context)
+{
+    UNUSED_VARIABLE(p_context);
+    if (start_node(m_mac) == SUCCESS) {
+        LEDS_OFF(CONNECTED_LED);
+        LEDS_ON(TCP_CONNECTED_LED);
+        start_calvin_timer();
+    } else {
+        log_error("Failed to start node");
+    }
+}
+
 static void calvin_timer_callback(void *p_context)
 {
     UNUSED_VARIABLE(p_context);
@@ -263,12 +250,16 @@ static void timers_init(void)
     err_code = app_timer_create(&m_sys_timer_id,
                                 APP_TIMER_MODE_REPEATED,
                                 system_timer_callback);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_create(&m_calvin_inittimer_id,
+                                APP_TIMER_MODE_SINGLE_SHOT,
+                                calvin_inittimer_callback);
+    APP_ERROR_CHECK(err_code);
 
     err_code = app_timer_create(&m_calvin_timer_id,
                                 APP_TIMER_MODE_REPEATED,
                                 calvin_timer_callback);
-
-
     APP_ERROR_CHECK(err_code);
 }
 
@@ -285,9 +276,10 @@ void nrf51_driver_interface_up(void)
 
     LEDS_OFF(ADVERTISING_LED);
     LEDS_ON(CONNECTED_LED);
+
+    start_calvin_inittimer();
 }
 
-// TODO: Reconnect
 void nrf51_driver_interface_down(void)
 {
     uint32_t err_code;
@@ -310,7 +302,6 @@ void platform_init()
     app_trace_init();
     leds_init();
     timers_init();
-    button_init();
     ble_stack_init();
     advertising_init();
     ip_stack_init();

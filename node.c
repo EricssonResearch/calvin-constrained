@@ -104,7 +104,7 @@ result_t send_join_request(transport_client_t *client, char *node_id, const char
 
 	msg_id = gen_uuid("MSGID_");
 	size = sprintf(message + 4,
-		"{\"cmd\": \"JOIN_REQUEST\", \"id\": \"%s\", \"sid\": \"%s\", \"serializers\": \"[%s]\"}",
+		"{\"cmd\": \"JOIN_REQUEST\", \"id\": \"%s\", \"sid\": \"%s\", \"serializers\": [\"%s\"]}",
 		node_id,
 		msg_id,
 		serializer);
@@ -278,7 +278,7 @@ node_t *get_node()
 	return m_node;
 }
 
-result_t create_node(uint32_t vid, uint32_t pid, char *name, char *address, int port)
+result_t create_node(uint32_t vid, uint32_t pid, char *name)
 {
 	int i = 0;
 
@@ -304,17 +304,22 @@ result_t create_node(uint32_t vid, uint32_t pid, char *name, char *address, int 
 	m_node->name = name;
 	m_node->client = NULL;
 	m_node->storage_tunnel = NULL;
-	m_node->proxy_ip = address;
-	m_node->proxy_port = port;
 
 	return SUCCESS;
 }
 
-result_t start_node()
+result_t start_node(char *interface)
 {
+	if (discover_proxy(interface, m_node->proxy_ip, &m_node->proxy_port) != SUCCESS) {
+		log_error("No proxy found");
+		return FAIL;
+	}
+
+	log_debug("Found proxy %s:%d", m_node->proxy_ip, m_node->proxy_port);
+
 	m_node->client = client_connect(m_node->proxy_ip, m_node->proxy_port);
 	if (m_node->client == NULL) {
-		log_error("Failed to connect to server");
+		log_error("Failed to connect to proxy");
 		return FAIL;
 	}
 
@@ -357,37 +362,33 @@ void node_run()
 	// TODO: Set timeout based on active timers
 	uint32_t timeout = 1;
 	while (1) {
-		wait_for_data(&m_node->client, timeout);
-		loop_once();
+		if (wait_for_data(&m_node->client, timeout) == SUCCESS) {
+			loop_once();
+		}
+
+		if (m_node->client == NULL || (m_node->client != NULL
+			&& m_node->client->state == TRANSPORT_DISCONNECTED)) {
+			stop_node(false);
+//			start_node();
+		}
 	}
 }
 
-void stop_node()
+void stop_node(bool terminate)
 {
 	pending_msg_t *tmp_msg = NULL;
 	int i_actor = 0, i_tunnel = 0;
 
-
 	log_debug("Stopping node");
-
-	if (m_node->node_id != NULL) {
-		free(m_node->node_id);
-	}
-
-	if (m_node->name != NULL) {
-		free(m_node->name);
-	}
-
-	if (m_node->proxy_ip != NULL) {
-		free(m_node->proxy_ip);
-	}
 
 	if (m_node->client != NULL) {
 		free_client(m_node->client);
+		m_node->client = NULL;
 	}
 
 	if (m_node->storage_tunnel != NULL) {
 		free_tunnel(m_node->storage_tunnel);
+		m_node->storage_tunnel = NULL;
 	}
 
 	if (m_node->pending_msgs != NULL) {
@@ -397,17 +398,32 @@ void stop_node()
 			free(tmp_msg);
 			tmp_msg = m_node->pending_msgs;
 		}
+		m_node->pending_msgs = NULL;
 	}
 
+	// TODO: If not terminating, try to reconnect actors
+	// when new proxy connection is made.
 	for (i_actor = 0; i_actor < MAX_ACTORS; i_actor++) {
 		free_actor(m_node->actors[i_actor], false);
+		m_node->actors[i_actor] = NULL;
 	}
 
 	for (i_tunnel = 0; i_tunnel < MAX_TUNNELS; i_tunnel++) {
 		free_tunnel(m_node->tunnels[i_tunnel]);
+		m_node->tunnels[i_tunnel] = NULL;
 	}
 
-	free(m_node);
+	if (terminate) {
+		if (m_node->node_id != NULL) {
+			free(m_node->node_id);
+		}
 
-	exit(EXIT_SUCCESS);
+		if (m_node->name != NULL) {
+			free(m_node->name);
+		}
+
+		free(m_node);
+
+		exit(EXIT_SUCCESS);
+	}
 }
