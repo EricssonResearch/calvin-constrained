@@ -93,22 +93,12 @@ tunnel_t *get_token_tunnel(char *peer_id)
 result_t tunnel_connected(char *tunnel_id)
 {
 	result_t result = SUCCESS;
-	char *msg_uuid = NULL;
 	int i_tunnel = 0, i_actor = 0;
 	node_t *node = get_node();
 
 	if (strcmp(tunnel_id, node->storage_tunnel->tunnel_id) == 0) {
 		log_debug("Storage tunnel connected");
 		node->storage_tunnel->state = TUNNEL_CONNECTED;
-		msg_uuid = gen_uuid("MSGID_");
-
-		if (send_set_node(msg_uuid, node) != SUCCESS) {
-			log_error("Failed to store node");
-			free(msg_uuid);
-			return FAIL;
-		} else {
-			return add_pending_msg(STORAGE_SET, msg_uuid);
-		}
 	} else {
 		for (i_tunnel = 0; i_tunnel < MAX_TUNNELS; i_tunnel++) {
 			if (node->tunnels[i_tunnel] != NULL) {

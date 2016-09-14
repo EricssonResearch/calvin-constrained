@@ -27,7 +27,7 @@
 
 // TODO: Handle all commands and return proper error codes
 
-result_t send_node_setup(char *msg_uuid, char *node_id, char *to_rt_uuid, uint32_t vid, uint32_t pid, transport_client_t *connection)
+result_t send_node_setup(char *msg_uuid, char *node_id, char *to_rt_uuid, uint32_t vid, uint32_t pid, char *name, transport_client_t *connection)
 {
 	char *buffer = NULL, *w = NULL;
 
@@ -39,7 +39,7 @@ result_t send_node_setup(char *msg_uuid, char *node_id, char *to_rt_uuid, uint32
 
 	w = buffer + 4;
 
-	w = mp_encode_map(w, 6);
+	w = mp_encode_map(w, 7);
 	{
 		w = encode_str(&w, "msg_uuid", msg_uuid);
 		w = encode_str(&w, "from_rt_uuid", node_id);
@@ -47,6 +47,7 @@ result_t send_node_setup(char *msg_uuid, char *node_id, char *to_rt_uuid, uint32
 		w = encode_str(&w, "cmd", "PROXY_CONFIG");
 		w = encode_uint(&w, "vid", vid);
 		w = encode_uint(&w, "pid", pid);
+		w = encode_str(&w, "name", name);
 	}
 
 	return client_send(connection, buffer, w - buffer - 4);
@@ -236,45 +237,6 @@ result_t send_port_disconnect(char *msg_uuid, char *node_id, port_t *port)
 	}
 
 	return client_send(port->tunnel->connection, buffer, w - buffer - 4);
-}
-
-result_t send_set_node(char *msg_uuid, node_t *node)
-{
-	char *buffer = NULL, *w = NULL, key[50] = "", data[150] = "";
-
-	buffer = malloc(SEND_BUFFER_SIZE);
-	if (buffer == NULL) {
-		log_error("Failed to allocate memory");
-		return FAIL;
-	}
-
-	w = buffer + 4;
-
-	sprintf(key, "node-%s", node->node_id);
-	// TODO: set uri and control uri when support for incoming connections and
-	// the control api has been added
-	sprintf(data,
-		    "{\"attributes\": {\"indexed_public\": [\"/node/attribute/node_name/////%s\"], \"public\": {}}, \"control_uri\": \"%s\", \"uri\": [\"%s\"]}",
-	        node->name,
-	        "",
-	        "");
-
-	w = mp_encode_map(w, 5);
-	{
-		w = encode_str(&w, "to_rt_uuid", node->storage_tunnel->peer_id);
-		w = encode_str(&w, "from_rt_uuid", node->node_id);
-		w = encode_str(&w, "cmd", "TUNNEL_DATA");
-		w = encode_str(&w, "tunnel_id", node->storage_tunnel->tunnel_id);
-		w = encode_map(&w, "value", 4);
-		{
-			w = encode_str(&w, "cmd", "SET");
-			w = encode_str(&w, "key", key);
-			w = encode_str(&w, "value", data);
-			w = encode_str(&w, "msg_uuid", msg_uuid);
-		}
-	}
-
-	return client_send(node->storage_tunnel->connection, buffer, w - buffer - 4);
 }
 
 result_t send_remove_node(char *msg_uuid, node_t *node)
@@ -696,9 +658,10 @@ result_t parse_token_reply(node_t *node, char *root)
 
 result_t parse_tunnel_data(node_t *node, char *root)
 {
-	char *msg_uuid = NULL, *value = NULL, *key = NULL, *cmd = NULL, *r = root;
+	char *msg_uuid = NULL, *value = NULL, *key = NULL, *cmd = NULL, *r = root, *msg_uuid_node_setup = NULL;
 	pending_msg_t *pending_msgs = node->pending_msgs;
 	bool status = false;
+	result_t result = FAIL;
 
 	if (get_value_from_map(&r, "value", &value) == SUCCESS) {
 		if (has_key(&value, "msg_uuid")) {
@@ -710,6 +673,22 @@ result_t parse_tunnel_data(node_t *node, char *root)
 								if (decode_bool_from_map(&value, "value", &status) == SUCCESS) {
 									if (!status) {
 										log_error("Failed to store '%s'", key);
+									}
+									if (strstr(key, node->node_id) != NULL) {
+										msg_uuid_node_setup = gen_uuid("MSGID_");
+										result = send_node_setup(msg_uuid_node_setup,
+											node->node_id,
+											node->storage_tunnel->peer_id,
+											node->vid,
+											node->pid,
+											node->name,
+											node->client);
+										if (result == SUCCESS) {
+											result = add_pending_msg(PROXY_CONFIG, msg_uuid_node_setup);
+										} else {
+											log_error("Failed send node setup request");
+											free(msg_uuid_node_setup);
+										}
 									}
 								}
 								free(key);

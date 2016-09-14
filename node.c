@@ -116,7 +116,7 @@ result_t send_join_request(transport_client_t *client, char *node_id, const char
 result_t handle_join_reply(char *data)
 {
 	result_t result = SUCCESS;
-	char *msg_uuid_tunnel = NULL, *msg_uuid_node_setup = NULL, id[50] = "", serializer[20] = "", sid[50] = "";
+	char *msg_uuid_tunnel = NULL, id[50] = "", serializer[20] = "", sid[50] = "";
 
 	sscanf(data, "{\"cmd\": \"JOIN_REPLY\", \"id\": \"%[^\"]\", \"serializer\": \"%[^\"]\", \"sid\": \"%[^\"]\"}",
 		id, serializer, sid);
@@ -138,17 +138,6 @@ result_t handle_join_reply(char *data)
 		result = FAIL;
 	} else {
 		result = add_pending_msg(TUNNEL_NEW, msg_uuid_tunnel);
-	}
-
-	if (result == SUCCESS) {
-		msg_uuid_node_setup = gen_uuid("MSGID_");
-		result = send_node_setup(msg_uuid_node_setup, m_node->node_id, id, m_node->vid, m_node->pid, m_node->client);
-		if (result == SUCCESS) {
-			result = add_pending_msg(PROXY_CONFIG, msg_uuid_node_setup);
-		} else {
-			log_error("Failed send node setup request");
-			free(msg_uuid_node_setup);
-		}
 	}
 
 	return result;

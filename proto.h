@@ -24,13 +24,12 @@
 #include "token.h"
 #include "actor.h"
 
-result_t send_node_setup(char *msg_uuid, char *node_id, char *to_rt_uuid, uint32_t vid, uint32_t pid, transport_client_t *connection);
+result_t send_node_setup(char *msg_uuid, char *node_id, char *to_rt_uuid, uint32_t vid, uint32_t pid, char *name, transport_client_t *connection);
 result_t send_tunnel_request(char *msg_uuid, tunnel_t *tunnel, char *node_id, const char *type);
 result_t send_port_connect(char *msg_uuid, char *node_id, port_t *port);
 result_t send_port_disconnect(char *msg_uuid, char *node_id, port_t *port);
 result_t send_token(char *node_id, port_t *port, token_t *token);
 result_t send_token_reply(char *node_id, port_t *port, uint32_t sequencenbr, char *status);
-result_t send_set_node(char *msg_uuid, node_t *node);
 result_t send_set_actor(char *msg_uuid, tunnel_t *tunnel, char *node_id, actor_t *actor);
 result_t send_set_port(char *msg_uuid, tunnel_t *tunnel, char *node_id, actor_t *actor, port_t *port);
 result_t send_remove_node(char *msg_uuid, node_t *node);
