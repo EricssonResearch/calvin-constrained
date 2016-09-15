@@ -22,6 +22,7 @@
 #include "tunnel.h"
 
 struct actor_t;
+struct node_t;
 
 typedef enum {
 	IN,
@@ -45,18 +46,17 @@ typedef struct port_t {
 	bool is_local;
 	struct port_t *local_connection;
 	struct port_t *next;
+	struct actor_t *actor;
 } port_t;
 
-result_t create_port(port_t **port, port_t **head, char *obj_port, char *obj_prev_connections, port_direction_t direction);
-void free_port(port_t *port, bool remove_from_storage);
-result_t add_ports(struct actor_t *actor, port_t *ports);
-port_t *get_inport(char *port_id);
-port_t *get_outport(char *port_id);
-port_t *get_inport_from_peer(char *port_id);
-result_t connect_port(port_t *port);
-result_t disconnect_port(port_t *port);
-result_t handle_port_disconnect(char *port_id);
-result_t port_connected(char *port_peer_id);
-result_t handle_port_connect(char *port_id, char *peer_port_id);
+result_t create_port(struct node_t *node, struct actor_t *actor, port_t **port, port_t **head, char *obj_port, char *obj_prev_connections, port_direction_t direction);
+void free_port(struct node_t *node, port_t *port, bool remove_from_storage);
+result_t add_ports(struct node_t *node, struct actor_t *actor, port_t *ports);
+port_t *get_inport(struct node_t *node, const char *port_id);
+port_t *get_outport(struct node_t *node, const char *port_id);
+result_t connect_port(struct node_t *node, port_t *port, tunnel_t *tunnel);
+result_t disconnect_port(struct node_t *node, port_t *port);
+result_t handle_port_disconnect(struct node_t *node, const char *port_id);
+result_t handle_port_connect(struct node_t *node, const char *port_id, const char *tunnel_id);
 
 #endif /* PORT_H */

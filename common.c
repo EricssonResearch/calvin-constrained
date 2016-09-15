@@ -46,7 +46,7 @@ char *gen_uuid(const char *prefix) {
 	return str;
 }
 
-unsigned int get_message_len(char *buffer)
+unsigned int get_message_len(const char *buffer)
 {
     unsigned int value =
         ((buffer[3] & 0xFF) <<  0) |

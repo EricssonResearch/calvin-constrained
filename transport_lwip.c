@@ -30,7 +30,7 @@ static transport_client_t *m_client = NULL;
 
 // iface is the MAC address, convert it to a ipv6 
 // link-local address.
-result_t discover_proxy(char *iface, char *ip, int *port)
+result_t discover_proxy(const char *iface, char *ip, int *port)
 {
     long col1, col2, col3, col4, col5, col6;
 
@@ -96,7 +96,7 @@ result_t send_buffer(send_buffer_t *buf)
     return result;
 }
 
-result_t client_send(transport_client_t *client, char *data, size_t len)
+result_t client_send(const transport_client_t *client, char *data, size_t len)
 {
     result_t result = SUCCESS;
     send_buffer_t *new_buf = NULL, *tmp_buf = m_client->send_list;
@@ -146,7 +146,7 @@ err_t tcp_recv_data_handler(void *p_arg, struct tcp_pcb *p_pcb, struct pbuf *p_b
                 msg_size = get_message_len(p_buffer->payload + read_pos);
                 read_pos += 4; // Skip header
                 if (msg_size <= p_buffer->tot_len - read_pos) {
-                    handle_data(p_buffer->payload +read_pos, msg_size, m_client);
+                    handle_data(p_buffer->payload +read_pos, msg_size);
                     read_pos += msg_size;
                 } else {
                     m_client->buffer = malloc(msg_size);
@@ -163,7 +163,7 @@ err_t tcp_recv_data_handler(void *p_arg, struct tcp_pcb *p_pcb, struct pbuf *p_b
                 msg_size = m_client->msg_size;
                 if (msg_size - m_client->buffer_pos <= p_buffer->tot_len - read_pos) {
                     memcpy(m_client->buffer + m_client->buffer_pos, p_buffer->payload + read_pos, msg_size - m_client->buffer_pos);
-                    handle_data(m_client->buffer, msg_size, m_client);
+                    handle_data(m_client->buffer, msg_size);
                     free(m_client->buffer);
                     m_client->buffer = NULL;
                     read_pos += msg_size - m_client->buffer_pos;

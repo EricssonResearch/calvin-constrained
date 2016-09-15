@@ -16,12 +16,15 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#define STORAGE_TUNNEL "storage"
+#define TOKEN_TUNNEL "token"
+
 typedef enum {
 	SUCCESS,
 	FAIL
 } result_t;
 
 char *gen_uuid(const char *prefix);
-unsigned int get_message_len(char *buffer);
+unsigned int get_message_len(const char *buffer);
 
 #endif /* COMMON_H */

@@ -32,10 +32,10 @@ typedef struct fifo_t {
 
 result_t create_fifo(fifo_t **fifo, char *obj_fifo);
 void free_fifo(fifo_t *fifo);
-bool fifo_can_read(fifo_t *fifo);
+bool fifo_can_read(const fifo_t *fifo);
 token_t *fifo_read(fifo_t *fifo);
 void fifo_commit_read(fifo_t *fifo, bool commit, bool delete_token);
-bool fifo_can_write(fifo_t *fifo);
+bool fifo_can_write(const fifo_t *fifo);
 result_t fifo_write(fifo_t *fifo, token_t *token);
 
 #endif /* FIFO_H */

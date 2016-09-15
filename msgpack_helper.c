@@ -18,42 +18,42 @@
 
 result_t decode_str(char **buffer, char **value);
 
-char *encode_str(char **buffer, char *key, char *value)
+char *encode_str(char **buffer, const char *key, const char *value)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));
 	*buffer = mp_encode_str(*buffer, value, strlen(value));
 	return *buffer;
 }
 
-char *encode_uint(char **buffer, char *key, uint32_t value)
+char *encode_uint(char **buffer, const char *key, uint32_t value)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));
 	*buffer = mp_encode_uint(*buffer, value);
 	return *buffer;
 }
 
-char *encode_nil(char **buffer, char *key)
+char *encode_nil(char **buffer, const char *key)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));
 	*buffer = mp_encode_nil(*buffer);
 	return *buffer;
 }
 
-char *encode_map(char **buffer, char *key, int keys)
+char *encode_map(char **buffer, const char *key, int keys)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));
 	*buffer = mp_encode_map(*buffer, keys);
 	return *buffer;
 }
 
-char *encode_array(char **buffer, char *key, int keys)
+char *encode_array(char **buffer, const char *key, int keys)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));
 	*buffer = mp_encode_array(*buffer, keys);
 	return *buffer;
 }
 
-char *encode_value(char **buffer, char *key, char *value, size_t size)
+char *encode_value(char **buffer, const char *key, const char *value, size_t size)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));
 	memcpy(*buffer, value, size);
@@ -61,7 +61,7 @@ char *encode_value(char **buffer, char *key, char *value, size_t size)
 	return *buffer;
 }
 
-bool has_key(char **buffer, char *key)
+bool has_key(char **buffer, const char *key)
 {
 	char *r = *buffer, *tmp = NULL;;
 	uint32_t i = 0, map_size = 0;
@@ -105,7 +105,7 @@ result_t get_value_from_array(char **buffer, int index, char **value)
 	return FAIL;
 }
 
-result_t get_value_from_map(char **buffer, char *key, char **value)
+result_t get_value_from_map(char **buffer, const char *key, char **value)
 {
 	char *r = *buffer;
 	uint32_t i = 0, map_size = 0;
@@ -139,7 +139,14 @@ result_t get_value_from_map(char **buffer, char *key, char **value)
 result_t decode_str(char **buffer, char **value)
 {
 	uint32_t len;
-	const char *tmp = mp_decode_str((const char **)buffer, &len);
+	const char *tmp = NULL;
+
+	if (mp_typeof(**buffer) != MP_STR) {
+		*value = NULL;
+		return SUCCESS;
+	}
+
+	tmp = mp_decode_str((const char **)buffer, &len);
 
 	*value = (char*)malloc(len + 1);
 	if (*value != NULL) {
@@ -152,7 +159,7 @@ result_t decode_str(char **buffer, char **value)
 	return FAIL;
 }
 
-result_t decode_string_from_map(char **buffer, char *key, char **value)
+result_t decode_string_from_map(char **buffer, const char *key, char **value)
 {
 	char *r = *buffer, *tmp = NULL;;
 	uint32_t i = 0, map_size = 0;
@@ -195,7 +202,7 @@ result_t decode_string_from_array(char **buffer, int index, char **value)
 	return FAIL;
 }
 
-result_t decode_uint_from_map(char **buffer, char *key, uint32_t *value)
+result_t decode_uint_from_map(char **buffer, const char *key, uint32_t *value)
 {
 	char *r = *buffer;
 	uint32_t i = 0, map_size = 0;
@@ -225,7 +232,7 @@ result_t decode_uint_from_map(char **buffer, char *key, uint32_t *value)
 	return FAIL;
 }
 
-result_t decode_bool_from_map(char **buffer, char *key, bool *value)
+result_t decode_bool_from_map(char **buffer, const char *key, bool *value)
 {
 	char *r = *buffer;
 	uint32_t i = 0, map_size = 0;
@@ -254,7 +261,7 @@ result_t decode_bool_from_map(char **buffer, char *key, bool *value)
 	return FAIL;
 }
 
-result_t decode_double_from_map(char **buffer, char *key, double *value)
+result_t decode_double_from_map(char **buffer, const char *key, double *value)
 {
 	char *r = *buffer;
 	uint32_t i = 0, map_size = 0;
@@ -284,7 +291,7 @@ result_t decode_double_from_map(char **buffer, char *key, double *value)
 	return FAIL;
 }
 
-result_t copy_value(char **buffer, char *key, char **value, size_t *size)
+result_t copy_value(char **buffer, const char *key, char **value, size_t *size)
 {
 	char *r = *buffer, *tmp = NULL, *start = NULL;
 	uint32_t i = 0, map_size = 0;

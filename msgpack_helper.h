@@ -19,21 +19,21 @@
 #include <stdbool.h>
 #include "common.h"
 
-char *encode_str(char **buffer, char *key, char *value);
-char *encode_map(char **buffer, char *key, int keys);
-char *encode_array(char **buffer, char *key, int keys);
-char *encode_uint(char **buffer, char *key, uint32_t value);
-char *encode_nil(char **buffer, char *key);
-char *encode_value(char **buffer, char *key, char *value, size_t size);
-bool has_key(char **buffer, char *key);
+char *encode_str(char **buffer, const char *key, const char *value);
+char *encode_map(char **buffer, const char *key, int keys);
+char *encode_array(char **buffer, const char *key, int keys);
+char *encode_uint(char **buffer, const char *key, uint32_t value);
+char *encode_nil(char **buffer, const char *key);
+char *encode_value(char **buffer, const char *key, const char *value, size_t size);
+bool has_key(char **buffer, const char *key);
 result_t get_value_from_array(char **buffer, int index, char **value);
-result_t get_value_from_map(char **buffer, char *key, char **value);
+result_t get_value_from_map(char **buffer, const char *key, char **value);
 result_t decode_str(char **buffer, char **value);
-result_t decode_string_from_map(char **buffer, char *key, char **value);
+result_t decode_string_from_map(char **buffer, const char *key, char **value);
 result_t decode_string_from_array(char **buffer, int index, char **value);
-result_t decode_uint_from_map(char **buffer, char *key, uint32_t *value);
-result_t decode_bool_from_map(char **buffer, char *key, bool *value);
-result_t decode_double_from_map(char **buffer, char *key, double *value);
-result_t copy_value(char **buffer, char *key, char **value, size_t *size);
+result_t decode_uint_from_map(char **buffer, const char *key, uint32_t *value);
+result_t decode_bool_from_map(char **buffer, const char *key, bool *value);
+result_t decode_double_from_map(char **buffer, const char *key, double *value);
+result_t copy_value(char **buffer, const char *key, char **value, size_t *size);
 
 #endif /* MSGPACK_HELPER_H */

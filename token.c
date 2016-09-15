@@ -87,7 +87,7 @@ void free_token(token_t *token)
 	}
 }
 
-void print_token(token_t *token)
+void print_token(const token_t *token)
 {
 	char *value = NULL;
 

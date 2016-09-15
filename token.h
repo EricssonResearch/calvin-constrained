@@ -29,6 +29,6 @@ result_t create_uint_token(uint32_t value, token_t **token);
 result_t decode_token(char *obj_token, token_t **token);
 char *encode_token(char **buffer, token_t *token, bool with_key);
 void free_token(token_t *token);
-void print_token(token_t *token);
+void print_token(const token_t *token);
 
 #endif /* TOKEN_H */

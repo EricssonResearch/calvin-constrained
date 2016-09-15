@@ -298,6 +298,7 @@ void nrf51_driver_interface_down(void)
 void platform_init()
 {
     uint32_t err_code;
+    uint8_t rnd_seed;
 
     app_trace_init();
     leds_init();
@@ -307,7 +308,19 @@ void platform_init()
     ip_stack_init();
     scheduler_init();
 
+    do
+    {
+        err_code = sd_rand_application_vector_get(&rnd_seed, 1);
+    } while (err_code == NRF_ERROR_SOC_RAND_NOT_ENOUGH_VALUES);
+
+    srand(rnd_seed);
+
     log_debug("Init done");
+}
+
+void platform_run()
+{
+    uint32_t err_code;
 
     advertising_start();
 

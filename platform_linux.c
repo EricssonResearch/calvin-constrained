@@ -14,9 +14,18 @@
  * limitations under the License.
  */
 #include <stdlib.h>
+#include <time.h>
 #include "platform.h"
 
+void platform_init()
+{
+    srand(time(NULL));
+}
 
+void platform_run()
+{
+	// node_run is the main loop
+}
 
 calvin_timer_t *create_recurring_timer(double interval)
 {

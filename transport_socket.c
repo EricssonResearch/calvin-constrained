@@ -34,7 +34,7 @@
 #define SSDP_PORT           1900
 #define SERVICE_UUID        "1693326a-abb9-11e4-8dfb-9cb654a16426"
 
-result_t discover_location(char *interface, char *location)
+static result_t discover_location(const char *interface, char *location)
 {
     int sock;
     size_t ret;
@@ -98,9 +98,12 @@ result_t discover_location(char *interface, char *location)
         if (location_start != NULL) {
             location_end = strstr(location_start, "\r\n");
             if (location_end != NULL) {
-                strncpy(location, location_start + 10, location_end - (location_start + 10));
-                location[location_end - (location_start + 10)] = '\0';
-                return SUCCESS;
+                if (strncpy(location, location_start + 10, location_end - (location_start + 10)) != NULL) {
+                    location[location_end - (location_start + 10)] = '\0';
+                    return SUCCESS;
+                } else {
+                    log_error("Failed to allocate memory");
+                }
             } else {
                 log_error("Failed to parse ssdp response");
             }
@@ -114,7 +117,7 @@ result_t discover_location(char *interface, char *location)
     return FAIL;
 }
 
-result_t get_ip_uri(char *address, int port, char *url, char *uri)
+static result_t get_ip_uri(const char *address, int port, const char *url, char *uri)
 {
     struct sockaddr_in server;
     int fd, len;
@@ -184,7 +187,7 @@ result_t get_ip_uri(char *address, int port, char *url, char *uri)
  * @param  port  returned port
  * @return       result SUCCESS/FAIL
  */
-result_t discover_proxy(char *iface, char *ip, int *port)
+result_t discover_proxy(const char *iface, char *ip, int *port)
 {
     int control_port;
     char location[LOCATION_SIZE];
@@ -243,7 +246,7 @@ transport_client_t *client_connect(const char *address, int port)
     return client;
 }
 
-result_t client_send(transport_client_t *client, char *data, size_t len)
+result_t client_send(const transport_client_t *client, char *data, size_t len)
 {
     result_t result = SUCCESS;
 
@@ -306,7 +309,7 @@ result_t wait_for_data(transport_client_t **client, uint32_t timeout)
                     msg_size = get_message_len(buffer + read_pos);
                     read_pos += 4; // Skip header
                     if (msg_size <= status - read_pos) {
-                        handle_data(buffer +read_pos, msg_size, *client);
+                        handle_data(buffer +read_pos, msg_size);
                         read_pos += msg_size;
                     } else {
                         (*client)->buffer = malloc(msg_size);
@@ -323,7 +326,7 @@ result_t wait_for_data(transport_client_t **client, uint32_t timeout)
                     msg_size = (*client)->msg_size;
                     if (msg_size - (*client)->buffer_pos <= status - read_pos) {
                         memcpy((*client)->buffer + (*client)->buffer_pos, buffer + read_pos, msg_size - (*client)->buffer_pos);
-                        handle_data((*client)->buffer, msg_size, *client);                        
+                        handle_data((*client)->buffer, msg_size);
                         free((*client)->buffer);
                         (*client)->buffer = NULL;
                         read_pos += msg_size - (*client)->buffer_pos;

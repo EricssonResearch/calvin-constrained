@@ -20,6 +20,8 @@
 #include "common.h"
 #include "port.h"
 
+struct node_t;
+
 typedef struct managed_attributes_t {
 	char *attribute;
 	struct managed_attributes_t *next;
@@ -46,13 +48,15 @@ typedef struct actor_t {
 	char *(*serialize_state)(actor_state_t *state, char **buffer);
 } actor_t;
 
-result_t create_actor(char *root, actor_t **actor);
-result_t disconnect_actor(actor_t *actor);
-void free_actor(actor_t *actor, bool remove_from_storage);
-char *serialize_actor(actor_t *actor, char **buffer);
-result_t add_actor(actor_t *actor);
-void delete_actor(actor_t *actor, bool remove_from_storage);
-actor_t *get_actor(char *actor_id);
-result_t connect_actor(actor_t *actor, char *tunnel_id);
+result_t create_actor(struct node_t *node, char *root, actor_t **actor);
+result_t disconnect_actor(struct node_t *node, actor_t *actor);
+void free_actor(struct node_t *node, actor_t *actor, bool remove_from_storage);
+char *serialize_actor(const actor_t *actor, char **buffer);
+result_t add_actor(struct node_t *node, actor_t *actor);
+void delete_actor(struct node_t *node, actor_t *actor, bool remove_from_storage);
+actor_t *get_actor(struct node_t *node, const char *actor_id);
+result_t connect_actor(struct node_t *node, actor_t *actor, tunnel_t *tunnel);
+void enable_actor(actor_t *actor);
+void disable_actor(actor_t *actor);
 
 #endif /* ACTORS_H */

@@ -44,7 +44,7 @@ struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] =
 	{"std.Identity", NULL, NULL, NULL, actor_identity},
 };
 
-result_t create_actor_from_type(char *type, actor_t **actor)
+static result_t create_actor_from_type(char *type, actor_t **actor)
 {
 	int i = 0;
 
@@ -78,26 +78,28 @@ result_t create_actor_from_type(char *type, actor_t **actor)
 	return FAIL;
 }
 
-result_t store_actor(actor_t *actor)
+result_t set_actor_reply_handler(char *data, void *msg_data)
 {
-	node_t *node = get_node();
-	char *msg_uuid = gen_uuid("MSGID_");
-	result_t result = send_set_actor(msg_uuid, node->storage_tunnel, node->node_id, actor);
+	log_debug("TODO: set_actor_reply_handler does nothing");
+	return SUCCESS;
+}
 
-	if (result == SUCCESS) {
-		result = add_pending_msg(STORAGE_SET, msg_uuid);
-	} else {
-		free(msg_uuid);
+result_t store_actor(const node_t *node, const actor_t *actor)
+{
+	result_t result = FAIL;
+
+	result = send_set_actor(node, actor, set_actor_reply_handler);
+	if (result != SUCCESS) {
+		log_error("Failed to store actor %s", actor->name);
 	}
 
 	return result;
 }
 
-result_t add_actor(actor_t *actor)
+result_t add_actor(node_t *node, actor_t *actor)
 {
 	result_t result = FAIL;
 	int i_actor = 0;
-	node_t *node = get_node();
 
 	for (i_actor = 0; i_actor < MAX_ACTORS; i_actor++) {
 		if (node->actors[i_actor] == NULL) {
@@ -108,21 +110,21 @@ result_t add_actor(actor_t *actor)
 	}
 
 	if (result == SUCCESS) {
-		result = add_ports(actor, actor->inports);
+		result = add_ports(node, actor, actor->inports);
 	}
 
 	if (result == SUCCESS) {
-		result = add_ports(actor, actor->outports);
+		result = add_ports(node, actor, actor->outports);
 	}
 
 	if (result == SUCCESS) {
-		result = store_actor(actor);
+		result = store_actor(node, actor);
 	}
 
 	return result;
 }
 
-result_t create_actor(char *root, actor_t **actor)
+result_t create_actor(node_t *node, char *root, actor_t **actor)
 {
 	result_t result = SUCCESS;
 	port_t *port = NULL;
@@ -197,7 +199,7 @@ result_t create_actor(char *root, actor_t **actor)
 					map_size = mp_decode_map((const char **)&obj_ports);
 					for (i_port = 0; i_port < map_size; i_port++) {
 						mp_next((const char **)&obj_ports);
-						result = create_port(&port, &(*actor)->inports, obj_ports, obj_prev_connections, IN);
+						result = create_port(node, *actor, &port, &(*actor)->inports, obj_ports, obj_prev_connections, IN);
 						if (result != SUCCESS) {
 							log_error("Failed to create port");
 							break;
@@ -217,7 +219,7 @@ result_t create_actor(char *root, actor_t **actor)
 					map_size = mp_decode_map((const char **)&obj_ports);
 					for (i_port = 0; i_port < map_size; i_port++) {
 						mp_next((const char **)&obj_ports);
-						result = create_port(&port, &(*actor)->outports, obj_ports, obj_prev_connections, OUT);
+						result = create_port(node, *actor, &port, &(*actor)->outports, obj_ports, obj_prev_connections, OUT);
 						if (result != SUCCESS) {
 							log_error("Failed to create port");
 							break;
@@ -236,7 +238,7 @@ result_t create_actor(char *root, actor_t **actor)
 	}
 
 	if (result == SUCCESS) {
-		result = add_actor(*actor);
+		result = add_actor(node, *actor);
 	}
 
 	if (result == SUCCESS) {
@@ -245,19 +247,19 @@ result_t create_actor(char *root, actor_t **actor)
 		if (type != NULL) {
 			free(type);
 		}
-		free_actor(*actor, false);
+		free_actor(node, *actor, false);
 	}
 
 	return SUCCESS;
 }
 
-result_t disconnect_actor(actor_t *actor)
+result_t disconnect_actor(node_t *node, actor_t *actor)
 {
 	result_t result = SUCCESS;
 	port_t *port = NULL, *tmp_port = NULL;
 
 	if (actor != NULL) {
-		log_debug("Disconnecting actor '%s'", actor->id);
+		log_debug("Disconnecting actor '%s'", actor->name);
 
 		actor->enabled = false;
 
@@ -265,7 +267,7 @@ result_t disconnect_actor(actor_t *actor)
 		while (port != NULL) {
 			tmp_port = port;
 			port = port->next;
-			if (disconnect_port(tmp_port) != SUCCESS) {
+			if (disconnect_port(node, tmp_port) != SUCCESS) {
 				result = FAIL;
 			}
 		}
@@ -274,7 +276,7 @@ result_t disconnect_actor(actor_t *actor)
 		while (port != NULL) {
 			tmp_port = port;
 			port = port->next;
-			if (disconnect_port(tmp_port) != SUCCESS) {
+			if (disconnect_port(node, tmp_port) != SUCCESS) {
 				result = FAIL;
 			}
 		}
@@ -285,19 +287,23 @@ result_t disconnect_actor(actor_t *actor)
 	return result;
 }
 
-void free_actor(actor_t *actor, bool remove_from_storage)
+result_t remove_actor_reply_handler(char *data, void *msg_data)
+{
+	log_debug("remove_actor_reply_handler");
+	return SUCCESS;
+}
+
+void free_actor(node_t *node, actor_t *actor, bool remove_from_storage)
 {
 	port_t *port = NULL, *tmp_port = NULL;
 	managed_attributes_t *managed_attr = NULL;
-	char *msg_uuid = NULL;
-	node_t *node = get_node();
 
 	if (actor != NULL) {
 		log_debug("Freeing actor '%s'", actor->id);
 		if (remove_from_storage && node != NULL) {
-			msg_uuid = gen_uuid("MSGID_");
-			send_remove_actor(msg_uuid, node->storage_tunnel, node->node_id, actor);
-			add_pending_msg(STORAGE_SET, msg_uuid);
+			if (send_remove_actor(node, actor, remove_actor_reply_handler) != SUCCESS) {
+				log_error("Failed to remove actor '%s'", actor->name);
+			}
 		}
 
 		free(actor->id);
@@ -316,14 +322,14 @@ void free_actor(actor_t *actor, bool remove_from_storage)
 		while (port != NULL) {
 			tmp_port = port;
 			port = port->next;
-			free_port(tmp_port, remove_from_storage);
+			free_port(node, tmp_port, remove_from_storage);
 		}
 
 		port = actor->outports;
 		while (port != NULL) {
 			tmp_port = port;
 			port = port->next;
-			free_port(tmp_port, remove_from_storage);
+			free_port(node, tmp_port, remove_from_storage);
 		}
 
 		if (actor->state != NULL && actor->free_state != NULL) {
@@ -334,7 +340,7 @@ void free_actor(actor_t *actor, bool remove_from_storage)
 	}
 }
 
-int get_number_of_ports(port_t *port)
+static int get_number_of_ports(port_t *port)
 {
 	int i = 0;
 	port_t *tmp_port = port;
@@ -347,7 +353,7 @@ int get_number_of_ports(port_t *port)
 	return i;
 }
 
-int get_number_of_managed_attributes(managed_attributes_t *managed_attr)
+static int get_number_of_managed_attributes(managed_attributes_t *managed_attr)
 {
 	int i = 0;
 	managed_attributes_t* tmp_attr = managed_attr;
@@ -360,7 +366,7 @@ int get_number_of_managed_attributes(managed_attributes_t *managed_attr)
 	return i;
 }
 
-char *serialize_actor(actor_t *actor, char **buffer)
+char *serialize_actor(const actor_t *actor, char **buffer)
 {
 	port_t *tmp_port = NULL;
 	int nbr_inports = 0, nbr_outports = 0, i_token = 0;
@@ -524,24 +530,22 @@ char *serialize_actor(actor_t *actor, char **buffer)
 	return *buffer;
 }
 
-void delete_actor(actor_t *actor, bool remove_from_storage)
+void delete_actor(node_t *node, actor_t *actor, bool remove_from_storage)
 {
 	int i_actor = 0;
-	node_t *node = get_node();
 
 	for (i_actor = 0; i_actor < MAX_ACTORS; i_actor++) {
 		if (node->actors[i_actor] != NULL && strcmp(node->actors[i_actor]->id, actor->id) == 0) {
-			free_actor(actor, remove_from_storage);
+			free_actor(node, actor, remove_from_storage);
 			node->actors[i_actor] = NULL;
 			return;
 		}
 	}
 }
 
-actor_t *get_actor(char *actor_id)
+actor_t *get_actor(node_t *node, const char *actor_id)
 {
 	int i_actor = 0;
-	node_t *node = get_node();
 
 	for (i_actor = 0; i_actor < MAX_ACTORS; i_actor++) {
 		if (node->actors[i_actor] != NULL && strcmp(node->actors[i_actor]->id, actor_id) == 0) {
@@ -552,15 +556,15 @@ actor_t *get_actor(char *actor_id)
 	return NULL;
 }
 
-result_t connect_actor(actor_t *actor, char *tunnel_id)
+result_t connect_actor(node_t *node, actor_t *actor, tunnel_t *tunnel)
 {
 	result_t result = SUCCESS;
 	port_t *port = NULL;
 
 	port = actor->inports;
 	while (port != NULL && result == SUCCESS) {
-		if (strcmp(tunnel_id, port->tunnel->tunnel_id) == 0) {
-			result = connect_port(port);
+		if (strcmp(tunnel->peer_id, port->peer_id) == 0) {
+			result = connect_port(node, port, tunnel);
 			if (result != SUCCESS) {
 				log_error("Failed to connect port '%s'", port->port_id);
 			}
@@ -570,8 +574,8 @@ result_t connect_actor(actor_t *actor, char *tunnel_id)
 
 	port = actor->outports;
 	while (port != NULL && result == SUCCESS) {
-		if (strcmp(tunnel_id, port->tunnel->tunnel_id) == 0) {
-			result = connect_port(port);
+		if (strcmp(tunnel->peer_id, port->peer_id) == 0) {
+			result = connect_port(node, port, tunnel);
 			if (result != SUCCESS) {
 				log_error("Failed to connect port '%s'", port->port_id);
 			}
@@ -579,9 +583,34 @@ result_t connect_actor(actor_t *actor, char *tunnel_id)
 		port = port->next;
 	}
 
-	if (result == SUCCESS) {
-		actor->enabled = true;
+	return result;
+}
+
+void enable_actor(actor_t *actor)
+{
+	port_t *port = NULL;
+	bool connected = true;
+
+	port = actor->inports;
+	while (port != NULL && connected) {
+		connected = port->state == PORT_CONNECTED ? true : false;
+		port = port->next;
 	}
 
-	return result;
+	port = actor->outports;
+	while (port != NULL && connected) {
+		connected = port->state == PORT_CONNECTED ? true : false;
+		port = port->next;
+	}
+
+	if (connected) {
+		log_debug("Actor '%s' enabled", actor->name);
+	}
+	actor->enabled = connected;
+}
+
+void disable_actor(actor_t *actor)
+{
+	log_debug("Actor '%s' disabled", actor->name);
+	actor->enabled = false;
 }

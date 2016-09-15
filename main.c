@@ -18,48 +18,30 @@
 #ifndef NRF51
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #endif
 
-#ifdef NRF51
 int main(void)
 {
-    if (create_node(1, 1, "nRF51") == SUCCESS) {
-    	platform_init();
-    }
-    return 0;
-}
+    char name[20];
+
+	platform_init();
+
+    sprintf(name, "rt%d", rand());
+
+    if (create_node(1, 1, name) == SUCCESS) {
+#ifdef NRF51
+    	// Node is started with timer
+        platform_run();
 #else
-int main(int argc, char *argv[])
-{
-	char *name = NULL;
-	int c = -1;
-
-	while ((c = getopt(argc, argv, "n:")) != -1) {
-	        switch (c) {
-	        case 'n':
-	                name = strdup(optarg);
-	                break;
-	        default:
-	                printf("Usage: %s -n NAME\n", argv[0]);
-	                break;
-	    }
-	}
-
-	if (name != NULL) {
-		if (create_node(1, 1, name) == SUCCESS) {
-			if (start_node("0.0.0.0") == SUCCESS) {
-				node_run();
-			} else {
-				log_error("Failed to start node");
-			}
-		} else {
-			log_error("Failed to create node");
-		}
-	} else {
-		printf("Usage: %s -n NAME\n", argv[0]);
-	}
+        if (start_node("0.0.0.0") == SUCCESS) {
+        	node_run();
+        } else {
+        	log_error("Failed to start node");
+        }
+#endif
+    } else {
+    	log_error("Failed to create node");
+    }
 
     return 0;
 }
-#endif

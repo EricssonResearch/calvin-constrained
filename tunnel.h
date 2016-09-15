@@ -26,14 +26,14 @@ typedef enum {
 typedef struct tunnel_t {
 	char *tunnel_id;
 	char *peer_id;
-	transport_client_t *connection;
 	tunnel_state_t state;
-	int ref_count; // TODO: Disconnect tunnel if ref_count == 0
+	uint32_t ref_count;
 } tunnel_t;
 
-tunnel_t *create_tunnel(char *peer_id, transport_client_t *connection);
-void free_tunnel(tunnel_t* tunnel);
-tunnel_t *get_token_tunnel(char *peer_id);
-result_t tunnel_connected(char *tunnel_id);
+tunnel_t *create_tunnel(const char *peer_id);
+tunnel_t *create_tunnel_with_id(const char *peer_id, const char *tunnel_id);
+void free_tunnel(tunnel_t *tunnel);
+void tunnel_client_connected(tunnel_t *tunnel);
+void tunnel_client_disconnected(tunnel_t *tunnel);
 
 #endif /* TUNNEL_H */
