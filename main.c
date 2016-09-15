@@ -30,7 +30,8 @@ int main(void)
 
     if (create_node(1, 1, name) == SUCCESS) {
 #ifdef NRF51
-    	// Node is started with timer
+    	// Node is started in platform_nrf51.c when interface is up to get mac address
+        // of the connected peer. 
         platform_run();
 #else
         if (start_node("0.0.0.0") == SUCCESS) {

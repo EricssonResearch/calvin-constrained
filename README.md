@@ -61,7 +61,7 @@ Start calvin-base:
 
 Start calvin-constrained:
 
-    ./calvin_c -n <name>
+    ./calvin_c
 
 The calvin-constrained runtime discovers a calvin-base runtime and connects to it.
 
@@ -87,6 +87,12 @@ Sequence:
                                     +------------------------->
                                            REPLY
                                     <-------------------------+
+
+    Create a link to calvin-constrained:
+                                           ROUTE_REQUEST
+                                    <-------------------------+
+                                           REPLY
+                                    +------------------------->
 
     Migrate actor to calvin-constrained:
                                            ACTOR_NEW
@@ -152,6 +158,33 @@ JOIN_REQUEST:
       'id': '<NODE_ID>',                                # ID of replying node
       'serializer': '<SERIALIZER>',                     # Selected serializer used for all subsequent commands
       'sid': '<MESSAGE_ID>'                             # sid from JOIN_REQUEST
+    }
+
+ROUTE_REQUEST:
+
+    {
+      'cmd': 'ROUTE_REQUEST',
+      'msg_uuid': '<NODE_ID>',                          # Message id
+      'from_rt_uuid': <NODE_ID>,                        # ID of sending node
+      'to_rt_uuid': '<NODE_ID>',                        # ID of receiving node
+      'dest_peer_id': '<NODE_ID>',                      # ID of destination node to which the link should be created
+      'org_peer_id': '<NODE_ID>'                        # ID of node requesting the link
+    }
+
+    {
+      'cmd': 'REPLY',
+      'to_rt_uuid': '<NODE_ID>',                        # Destination node id
+      'from_rt_uuid': '<NODE_ID>',                      # Source node id
+      'msg_uuid': '<MESSAGE_ID>',                       # msg_uuid from ROUTE_REQUEST command
+      'value':
+      {
+        'status': 200,
+        'success_list': [200, 201, 202, 203, 204, 205, 206],
+        'data':
+        {
+          'peer_id': '<NODE_ID>'                        # ID of node sending the reply
+        }
+      }
     }
 
 TUNNEL_NEW:
