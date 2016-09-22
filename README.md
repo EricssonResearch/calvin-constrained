@@ -398,7 +398,7 @@ PORT_CONNECT:
         'nbr_peers': <NBR_PEERS>,                       # Number of peers connected to this port
         'direction': '<DIRECTION>',                     # Values: in/out
         'routing': '<TYPE>'                             # Values: default/fanout
-      },      
+      },
       'tunnel_id': '<TUNNEL_ID>',                       # Token tunnel id
       'port_id': '<PORT_ID>',                           # ID of source port
       'peer_port_id': '<PEER_PORT_ID>',                 # ID of destination port

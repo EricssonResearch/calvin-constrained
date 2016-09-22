@@ -23,29 +23,29 @@
 struct node_t;
 
 typedef struct managed_attributes_t {
-	char *attribute;
-	struct managed_attributes_t *next;
+    char *attribute;
+    struct managed_attributes_t *next;
 } managed_attributes_t;
 
 typedef struct actor_state_t {
-	int nbr_attributes;
-	void *state;
+    int nbr_attributes;
+    void *state;
 } actor_state_t;
 
 typedef struct actor_t {
-	char *id;
-	char *name;
-	char *type;
-	char *signature;
-	bool enabled;
-	struct port_t *inports;
-	struct port_t *outports;
-	managed_attributes_t *managed_attr;
-	actor_state_t *state;
-	result_t (*init_actor)(char *obj, actor_state_t **state);
-	result_t (*fire)(struct actor_t *actor);
-	void (*free_state)(struct actor_t *actor);
-	char *(*serialize_state)(actor_state_t *state, char **buffer);
+    char *id;
+    char *name;
+    char *type;
+    char *signature;
+    bool enabled;
+    struct port_t *inports;
+    struct port_t *outports;
+    managed_attributes_t *managed_attr;
+    actor_state_t *state;
+    result_t (*init_actor)(char *obj, actor_state_t **state);
+    result_t (*fire)(struct actor_t *actor);
+    void (*free_state)(struct actor_t *actor);
+    char *(*serialize_state)(actor_state_t *state, char **buffer);
 } actor_t;
 
 result_t create_actor(struct node_t *node, char *root, actor_t **actor);

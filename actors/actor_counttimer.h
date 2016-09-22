@@ -21,10 +21,10 @@
 #include "../platform.h"
 
 typedef struct state_count_timer_t {
-	uint32_t count;
-	uint32_t sleep;
-	uint32_t steps;
-	calvin_timer_t *timer;
+    uint32_t count;
+    uint32_t sleep;
+    uint32_t steps;
+    calvin_timer_t *timer;
 } state_count_timer_t;
 
 result_t actor_count_timer_init(char *obj_actor_state, actor_state_t **state);

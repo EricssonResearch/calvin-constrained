@@ -24,10 +24,10 @@ typedef enum {
 } tunnel_state_t;
 
 typedef struct tunnel_t {
-	char *tunnel_id;
-	char *peer_id;
-	tunnel_state_t state;
-	uint32_t ref_count;
+    char *tunnel_id;
+    char *peer_id;
+    tunnel_state_t state;
+    uint32_t ref_count;
 } tunnel_t;
 
 tunnel_t *create_tunnel(const char *peer_id);

@@ -51,7 +51,7 @@ typedef struct transport_client_t {
     transport_state_t state;
 #ifdef NRF51
     struct tcp_pcb *tcp_port;
-	tcp_state_t tcp_state;
+    tcp_state_t tcp_state;
     send_buffer_t *send_list;
 #else
     int fd;

@@ -20,22 +20,22 @@
 
 result_t actor_identity(struct actor_t *actor)
 {
-	port_t *port = actor->inports;
-	token_t *token = NULL;
-	result_t result = SUCCESS;
+    port_t *port = actor->inports;
+    token_t *token = NULL;
+    result_t result = SUCCESS;
 
-	if (port->fifo != NULL) {
-		while (result == SUCCESS && fifo_can_read(port->fifo)) {
-			token = fifo_read(port->fifo);
-			result = fifo_write(actor->outports->fifo, token);
-			if (result != SUCCESS) {
-				fifo_commit_read(port->fifo, false, false);
-				result = FAIL;
-			} else {
-				fifo_commit_read(port->fifo, true, false);
-			}
-		}
-	}
+    if (port->fifo != NULL) {
+        while (result == SUCCESS && fifo_can_read(port->fifo)) {
+            token = fifo_read(port->fifo);
+            result = fifo_write(actor->outports->fifo, token);
+            if (result != SUCCESS) {
+                fifo_commit_read(port->fifo, false, false);
+                result = FAIL;
+            } else {
+                fifo_commit_read(port->fifo, true, false);
+            }
+        }
+    }
 
-	return result;
+    return result;
 }

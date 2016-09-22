@@ -25,26 +25,26 @@
 #define MAX_TUNNELS 10
 
 typedef struct pending_msg_t {
-	char *msg_uuid;
-	result_t (*handler)(char *data, void *msg_data);
-	void *msg_data;
-	struct pending_msg_t *next;
+    char *msg_uuid;
+    result_t (*handler)(char *data, void *msg_data);
+    void *msg_data;
+    struct pending_msg_t *next;
 } pending_msg_t;
 
 typedef struct node_t {
-	uint32_t vid;
-	uint32_t pid;
-	char *node_id;
-	char *proxy_node_id;
-	char *schema;
-	char *name;
-	char proxy_ip[40];
-	int proxy_port;
-	transport_client_t *transport;
-	tunnel_t *storage_tunnel;
-	pending_msg_t *pending_msgs;
-	actor_t *actors[MAX_ACTORS];
-	tunnel_t *tunnels[MAX_TUNNELS];
+    uint32_t vid;
+    uint32_t pid;
+    char *node_id;
+    char *proxy_node_id;
+    char *schema;
+    char *name;
+    char proxy_ip[40];
+    int proxy_port;
+    transport_client_t *transport;
+    tunnel_t *storage_tunnel;
+    pending_msg_t *pending_msgs;
+    actor_t *actors[MAX_ACTORS];
+    tunnel_t *tunnels[MAX_TUNNELS];
 } node_t;
 
 node_t *get_node();

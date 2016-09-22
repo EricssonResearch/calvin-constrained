@@ -28,7 +28,7 @@ result_t send_buffer(send_buffer_t *buf);
 
 static transport_client_t *m_client = NULL;
 
-// iface is the MAC address, convert it to a ipv6 
+// iface is the MAC address, convert it to a ipv6
 // link-local address.
 result_t discover_proxy(const char *iface, char *ip, int *port)
 {
@@ -169,7 +169,7 @@ err_t tcp_recv_data_handler(void *p_arg, struct tcp_pcb *p_pcb, struct pbuf *p_b
                     read_pos += msg_size - m_client->buffer_pos;
                     m_client->buffer = 0;
                     m_client->msg_size = 0;
-                    m_client->buffer_pos = 0;                        
+                    m_client->buffer_pos = 0;
                 } else {
                     memcpy(m_client->buffer + m_client->buffer_pos, p_buffer->payload + read_pos, p_buffer->tot_len - read_pos);
                     m_client->buffer_pos += p_buffer->tot_len - read_pos;
@@ -244,7 +244,7 @@ transport_client_t *client_connect(const char *address, int port)
     m_client->state = TRANSPORT_DISCONNECTED;
     m_client->send_list = NULL;
     m_client->msg_size = 0;
-    m_client->buffer = NULL;    
+    m_client->buffer = NULL;
     m_client->buffer_pos = 0;
 
     err_t err = tcp_connect_ip6(m_client->tcp_port, &ipv6_addr, port, tcp_connection_callback);

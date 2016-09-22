@@ -332,7 +332,7 @@ result_t wait_for_data(transport_client_t **client, uint32_t timeout)
                         read_pos += msg_size - (*client)->buffer_pos;
                         (*client)->buffer = 0;
                         (*client)->msg_size = 0;
-                        (*client)->buffer_pos = 0;                        
+                        (*client)->buffer_pos = 0;
                     } else {
                         memcpy((*client)->buffer + (*client)->buffer_pos, buffer + read_pos, status - read_pos);
                         (*client)->buffer_pos += status - read_pos;

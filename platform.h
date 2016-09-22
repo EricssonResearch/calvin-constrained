@@ -46,11 +46,11 @@
 #endif
 
 typedef struct calvin_timer_t {
-	double interval;
+    double interval;
 #ifdef NRF51
-	uint32_t last_triggered;
+    uint32_t last_triggered;
 #else
-	time_t last_triggered;
+    time_t last_triggered;
 #endif
 } calvin_timer_t;
 

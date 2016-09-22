@@ -24,24 +24,24 @@ int main(void)
 {
     char name[20];
 
-	platform_init();
+    platform_init();
 
     sprintf(name, "rt%d", rand());
 
     if (create_node(1, 1, name) == SUCCESS) {
 #ifdef NRF51
-    	// Node is started in platform_nrf51.c when interface is up to get mac address
-        // of the connected peer. 
+        // Node is started in platform_nrf51.c when interface is up to get mac address
+        // of the connected peer.
         platform_run();
 #else
         if (start_node("0.0.0.0") == SUCCESS) {
-        	node_run();
+            node_run();
         } else {
-        	log_error("Failed to start node");
+            log_error("Failed to start node");
         }
 #endif
     } else {
-    	log_error("Failed to create node");
+        log_error("Failed to create node");
     }
 
     return 0;

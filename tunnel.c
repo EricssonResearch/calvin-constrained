@@ -22,56 +22,56 @@
 
 tunnel_t *create_tunnel_with_id(const char *peer_id, const char *tunnel_id)
 {
-	tunnel_t *tunnel = (tunnel_t*)malloc(sizeof(tunnel_t));
-	if (tunnel == NULL) {
-		log_error("Failed to allocate memory");
-		return NULL;
-	}
+    tunnel_t *tunnel = (tunnel_t*)malloc(sizeof(tunnel_t));
+    if (tunnel == NULL) {
+        log_error("Failed to allocate memory");
+        return NULL;
+    }
 
-	log_debug("Tunnel '%s' created to '%s'", tunnel_id, peer_id);
+    log_debug("Tunnel '%s' created to '%s'", tunnel_id, peer_id);
 
-	tunnel->tunnel_id = strdup(tunnel_id);
-	tunnel->peer_id = strdup(peer_id);
-	tunnel->state = TUNNEL_DISCONNECTED;
-	tunnel->ref_count = 0;
-	return tunnel;
+    tunnel->tunnel_id = strdup(tunnel_id);
+    tunnel->peer_id = strdup(peer_id);
+    tunnel->state = TUNNEL_DISCONNECTED;
+    tunnel->ref_count = 0;
+    return tunnel;
 }
 
 tunnel_t *create_tunnel(const char *peer_id)
 {
-	tunnel_t *tunnel = NULL;
-	char *tunnel_id = gen_uuid("TUNNEL_");
+    tunnel_t *tunnel = NULL;
+    char *tunnel_id = gen_uuid("TUNNEL_");
 
-	tunnel = create_tunnel_with_id(peer_id, tunnel_id);
-	free(tunnel_id);
+    tunnel = create_tunnel_with_id(peer_id, tunnel_id);
+    free(tunnel_id);
 
-	return tunnel;
+    return tunnel;
 }
 
 void free_tunnel(tunnel_t* tunnel)
 {
-	if (tunnel != NULL) {
-		log_debug("Freeing tunnel '%s'", tunnel->tunnel_id);
-		free(tunnel->tunnel_id);
-		free(tunnel->peer_id);
-		free(tunnel);
-	}
+    if (tunnel != NULL) {
+        log_debug("Freeing tunnel '%s'", tunnel->tunnel_id);
+        free(tunnel->tunnel_id);
+        free(tunnel->peer_id);
+        free(tunnel);
+    }
 }
 
 void tunnel_client_connected(tunnel_t *tunnel)
 {
-	if (tunnel != NULL) {
-		tunnel->ref_count++;
-	}
+    if (tunnel != NULL) {
+        tunnel->ref_count++;
+    }
 }
 
 void tunnel_client_disconnected(tunnel_t *tunnel)
 {
-	if (tunnel != NULL) {
-		tunnel->ref_count--;
-		if (tunnel->ref_count == 0) {
-			remove_token_tunnel(tunnel->tunnel_id);
-			free_tunnel(tunnel);
-		}
-	}
+    if (tunnel != NULL) {
+        tunnel->ref_count--;
+        if (tunnel->ref_count == 0) {
+            remove_token_tunnel(tunnel->tunnel_id);
+            free_tunnel(tunnel);
+        }
+    }
 }

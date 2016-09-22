@@ -168,11 +168,11 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
     {
         case BLE_GAP_EVT_CONNECTED:
             sprintf(m_mac, "%02x:%02x:%02x:%02x:%02x:%02x",
-                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[5], 
-                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[4], 
+                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[5],
+                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[4],
                 p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[3],
-                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[2], 
-                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[1], 
+                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[2],
+                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[1],
                 p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[0]);
             log_debug("Connected to: %s", m_mac);
             break;
