@@ -22,7 +22,7 @@
 
 typedef struct state_count_timer_t {
     uint32_t count;
-    uint32_t sleep;
+    double sleep;
     uint32_t steps;
     calvin_timer_t *timer;
 } state_count_timer_t;

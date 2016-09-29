@@ -17,6 +17,7 @@
 #include "actor_counttimer.h"
 #include "../msgpack_helper.h"
 #include "../fifo.h"
+#include "../msgpuck/msgpuck.h"
 
 result_t actor_count_timer_init(char *obj_actor_state, actor_state_t **state)
 {
@@ -39,7 +40,7 @@ result_t actor_count_timer_init(char *obj_actor_state, actor_state_t **state)
     result = decode_uint_from_map(&obj_actor_state, "steps", &count_state->steps);
 
     if (result == SUCCESS) {
-        result = decode_uint_from_map(&obj_actor_state, "sleep", &count_state->sleep);
+        result = decode_double_from_map(&obj_actor_state, "sleep", &count_state->sleep);
     }
 
     if (result == SUCCESS) {
