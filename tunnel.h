@@ -19,21 +19,23 @@
 #include "transport.h"
 
 typedef enum {
-    TUNNEL_DISCONNECTED,
-    TUNNEL_CONNECTED
+	TUNNEL_DISCONNECTED,
+	TUNNEL_CONNECTED
 } tunnel_state_t;
 
 typedef struct tunnel_t {
-    char *tunnel_id;
-    char *peer_id;
-    tunnel_state_t state;
-    uint32_t ref_count;
+	char *tunnel_id;
+	char *peer_id;
+	tunnel_state_t state;
+	uint32_t ref_count;
 } tunnel_t;
+
+struct node_t;
 
 tunnel_t *create_tunnel(const char *peer_id);
 tunnel_t *create_tunnel_with_id(const char *peer_id, const char *tunnel_id);
-void free_tunnel(tunnel_t *tunnel);
+void free_tunnel(struct node_t *node, tunnel_t *tunnel);
 void tunnel_client_connected(tunnel_t *tunnel);
-void tunnel_client_disconnected(tunnel_t *tunnel);
+void tunnel_client_disconnected(struct node_t *node, tunnel_t *tunnel);
 
 #endif /* TUNNEL_H */

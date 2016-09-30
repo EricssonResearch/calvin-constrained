@@ -18,27 +18,24 @@
 #include "common.h"
 
 // TODO: Generate a proper uuid
-char *gen_uuid(const char *prefix) {
+char *gen_uuid(const char *prefix)
+{
 	char *str = NULL;
 	int i, len_prefix = 0;
 	const char *hex_digits = "0123456789abcdef";
 
-	if (prefix != NULL) {
+	if (prefix != NULL)
 		len_prefix = strlen(prefix);
-	}
 
-	str = (char*)malloc((37 + len_prefix) * sizeof(char));
-	if (str == NULL) {
+	str = (char *)malloc((37 + len_prefix) * sizeof(char));
+	if (str == NULL)
 		return NULL;
-	}
 
-	for (i = 0; i < len_prefix; i++) {
+	for (i = 0; i < len_prefix; i++)
 		str[i] = prefix[i];
-	}
 
-	for (i = 0; i < 36; i++) {
+	for (i = 0; i < 36; i++)
 		str[i + len_prefix] = hex_digits[(rand() % 16)];
-	}
 
 	str[8 + len_prefix] = str[13 + len_prefix] = str[18 + len_prefix] = str[23 + len_prefix] = '-';
 	str[36 + len_prefix] = '\0';
@@ -48,10 +45,10 @@ char *gen_uuid(const char *prefix) {
 
 unsigned int get_message_len(const char *buffer)
 {
-    unsigned int value =
-        ((buffer[3] & 0xFF) <<  0) |
-        ((buffer[2] & 0xFF) <<  8) |
-        ((buffer[1] & 0xFF) << 16) |
-        ((buffer[0] & 0xFF) << 24);
-    return value;
+	unsigned int value =
+		((buffer[3] & 0xFF) <<  0) |
+		((buffer[2] & 0xFF) <<  8) |
+		((buffer[1] & 0xFF) << 16) |
+		((buffer[0] & 0xFF) << 24);
+	return value;
 }

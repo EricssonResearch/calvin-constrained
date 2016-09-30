@@ -17,48 +17,47 @@
 #define TRANSPORT_H
 
 #include "common.h"
+#include <stdint.h>
+#include <stddef.h>
 #ifdef NRF51
 #include "lwip/tcp.h"
-#else
-#include <netinet/in.h>
 #endif
 
 typedef enum {
-    TRANSPORT_DISCONNECTED,
-    TRANSPORT_CONNECTED,
-    TRANSPORT_JOINED
+	TRANSPORT_DISCONNECTED,
+	TRANSPORT_CONNECTED,
+	TRANSPORT_JOINED
 } transport_state_t;
 
 #ifdef NRF51
-typedef enum
-{
-    TCP_STATE_IDLE,
-    TCP_STATE_REQUEST_CONNECTION,
-    TCP_STATE_CONNECTED,
-    TCP_STATE_DATA_TX_IN_PROGRESS,
-    TCP_STATE_TCP_SEND_PENDING,
-    TCP_STATE_DISCONNECTED
+typedef enum {
+	TCP_STATE_IDLE,
+	TCP_STATE_REQUEST_CONNECTION,
+	TCP_STATE_CONNECTED,
+	TCP_STATE_DATA_TX_IN_PROGRESS,
+	TCP_STATE_TCP_SEND_PENDING,
+	TCP_STATE_DISCONNECTED
 } tcp_state_t;
 
 typedef struct send_buffer_t {
-    char *data;
-    unsigned int length;
-    struct send_buffer_t *next;
+	char *data;
+	unsigned int length;
+	struct send_buffer_t *next;
 } send_buffer_t;
 #endif
 
 typedef struct transport_client_t {
-    transport_state_t state;
+	transport_state_t state;
 #ifdef NRF51
-    struct tcp_pcb *tcp_port;
-    tcp_state_t tcp_state;
-    send_buffer_t *send_list;
+	struct tcp_pcb *tcp_port;
+	tcp_state_t tcp_state;
+	send_buffer_t *send_list;
 #else
-    int fd;
+	int fd;
 #endif
-    int msg_size;
-    char *buffer;
-    int buffer_pos;
+	int msg_size;
+	char *buffer;
+	int buffer_pos;
 } transport_client_t;
 
 result_t discover_proxy(const char *iface, char *ip, int *port);

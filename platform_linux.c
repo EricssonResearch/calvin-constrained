@@ -17,55 +17,53 @@
 #include <time.h>
 #include "platform.h"
 
-void platform_init()
+void platform_init(void)
 {
-    srand(time(NULL));
+	srand(time(NULL));
 }
 
-void platform_run()
+void platform_run(void)
 {
-    // node_run is the main loop
+	// node_run is the main loop
 }
 
 calvin_timer_t *create_recurring_timer(double interval)
 {
-    calvin_timer_t *calvin_timer = NULL;
+	calvin_timer_t *calvin_timer = NULL;
 
-    calvin_timer = (calvin_timer_t*)malloc(sizeof(calvin_timer_t));
-    if (calvin_timer == NULL) {
-        log_error("Failed to allocate memory");
-        return NULL;
-    }
+	calvin_timer = (calvin_timer_t *)malloc(sizeof(calvin_timer_t));
+	if (calvin_timer == NULL) {
+		log_error("Failed to allocate memory");
+		return NULL;
+	}
 
-    calvin_timer->interval = interval;
-    time(&calvin_timer->last_triggered);
+	calvin_timer->interval = interval;
+	time(&calvin_timer->last_triggered);
 
-    return calvin_timer;
+	return calvin_timer;
 }
 
 void stop_timer(calvin_timer_t *timer)
 {
-    if (timer != NULL) {
-        free(timer);
-    }
+	if (timer != NULL)
+		free(timer);
 }
 
 bool check_timer(calvin_timer_t *timer)
 {
-    time_t now;
-    double diff;
+	time_t now;
+	double diff;
 
-    if (timer != NULL) {
-        time(&now);
-        diff = difftime(now, timer->last_triggered);
-        if (diff > timer->interval) {
-            timer->last_triggered = now;
-            return true;
-        }
+	if (timer != NULL) {
+		time(&now);
+		diff = difftime(now, timer->last_triggered);
+		if (diff > timer->interval) {
+			timer->last_triggered = now;
+			return true;
+		}
 
-    } else {
-        log_error("timer is NULL");
-    }
+	} else
+		log_error("timer is NULL");
 
-    return false;
+	return false;
 }

@@ -28,7 +28,7 @@ result_t create_fifo(fifo_t **fifo, char *obj_fifo)
 	int i_token = 0;
 	token_t *token = NULL;
 
-	*fifo = (fifo_t*)malloc(sizeof(fifo_t));
+	*fifo = (fifo_t *)malloc(sizeof(fifo_t));
 	if (*fifo == NULL) {
 		log_error("Failed to allocate memory");
 		return FAIL;
@@ -39,9 +39,8 @@ result_t create_fifo(fifo_t **fifo, char *obj_fifo)
 	(*fifo)->read_pos = 0;
 	(*fifo)->tentative_read_pos = 0;
 
-	for (i_token = 0; i_token < MAX_TOKENS; i_token++) {
+	for (i_token = 0; i_token < MAX_TOKENS; i_token++)
 		(*fifo)->tokens[i_token] = NULL;
-	}
 
 	result = decode_string_from_map(&r, "queuetype", &queuetype);
 	if (result == SUCCESS && strcmp("fanout_fifo", queuetype) != 0) {
@@ -49,37 +48,29 @@ result_t create_fifo(fifo_t **fifo, char *obj_fifo)
 		result = FAIL;
 	}
 
-	if (result == SUCCESS) {
+	if (result == SUCCESS)
 		result = get_value_from_map(&r, "readers", &obj_readers);
-	}
 
-	if (result == SUCCESS) {
+	if (result == SUCCESS)
 		result = decode_string_from_array(&obj_readers, 0, &reader);
-	}
 
-	if (result == SUCCESS) {
+	if (result == SUCCESS)
 		result = decode_uint_from_map(&r, "N", &(*fifo)->size);
-	}
 
-	if (result == SUCCESS) {
+	if (result == SUCCESS)
 		result = decode_uint_from_map(&r, "write_pos", &(*fifo)->write_pos);
-	}
 
-	if (result == SUCCESS) {
+	if (result == SUCCESS)
 		result = get_value_from_map(&r, "tentative_read_pos", &obj_tentative_read_pos);
-	}
 
-	if (result == SUCCESS) {
+	if (result == SUCCESS)
 		result = decode_uint_from_map(&obj_tentative_read_pos, reader, &(*fifo)->tentative_read_pos);
-	}
 
-	if (result == SUCCESS) {
+	if (result == SUCCESS)
 		result = get_value_from_map(&r, "read_pos", &obj_read_pos);
-	}
 
-	if (result == SUCCESS) {
+	if (result == SUCCESS)
 		result = decode_uint_from_map(&obj_read_pos, reader, &(*fifo)->read_pos);
-	}
 
 	if (result == SUCCESS) {
 		if ((*fifo)->tentative_read_pos != (*fifo)->write_pos) {
@@ -100,17 +91,14 @@ result_t create_fifo(fifo_t **fifo, char *obj_fifo)
 		}
 	}
 
-	if (result != SUCCESS) {
+	if (result != SUCCESS)
 		free_fifo(*fifo);
-	}
 
-	if (reader != NULL) {
+	if (reader != NULL)
 		free(reader);
-	}
 
-	if (queuetype != NULL) {
+	if (queuetype != NULL)
 		free(queuetype);
-	}
 
 	return result;
 }
@@ -121,9 +109,8 @@ void free_fifo(fifo_t *fifo)
 
 	if (fifo != NULL) {
 		for (i_token = 0; i_token < fifo->size; i_token++) {
-			if (fifo->tokens[i_token] != NULL) {
+			if (fifo->tokens[i_token] != NULL)
 				free_token(fifo->tokens[i_token]);
-			}
 		}
 	}
 
@@ -146,7 +133,7 @@ token_t *fifo_read(fifo_t *fifo)
 	return token;
 }
 
-void fifo_commit_read(fifo_t* fifo, bool commit, bool delete_token)
+void fifo_commit_read(fifo_t *fifo, bool commit, bool delete_token)
 {
 	token_t *token = NULL;
 
@@ -154,9 +141,8 @@ void fifo_commit_read(fifo_t* fifo, bool commit, bool delete_token)
 		if (commit) {
 			token = fifo->tokens[fifo->read_pos % fifo->size];
 			if (token != NULL) {
-				if (delete_token) {
+				if (delete_token)
 					free_token(token);
-				}
 				fifo->tokens[fifo->read_pos % fifo->size] = NULL;
 				fifo->read_pos += 1;
 			} else {
@@ -177,15 +163,13 @@ bool fifo_can_write(const fifo_t *fifo)
 
 result_t fifo_write(fifo_t *fifo, token_t *token)
 {
-    if (!fifo_can_write(fifo)) {
-    	return FAIL;
-    }
+	if (!fifo_can_write(fifo))
+		return FAIL;
 
-    if (fifo->tokens[fifo->write_pos % fifo->size] != NULL) {
-    	free_token(fifo->tokens[fifo->write_pos % fifo->size]);
-    }
+	if (fifo->tokens[fifo->write_pos % fifo->size] != NULL)
+		free_token(fifo->tokens[fifo->write_pos % fifo->size]);
 
-    fifo->tokens[fifo->write_pos % fifo->size] = token;
-    fifo->write_pos++;
-    return SUCCESS;
+	fifo->tokens[fifo->write_pos % fifo->size] = token;
+	fifo->write_pos++;
+	return SUCCESS;
 }

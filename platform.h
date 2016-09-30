@@ -28,34 +28,34 @@
 
 #ifdef NRF51
 #ifdef DEBUG
-#define log_debug(a, args...) app_trace_log("DEBUG: %s(%s:%d) "a"\r\n",  __func__,__FILE__, __LINE__, ##args)
+#define log_debug(a, args...) app_trace_log("DEBUG: %s(%s:%d) "a"\r\n",  __func__, __FILE__, __LINE__, ##args)
 #else
 #define log_debug(fmt, ...) do {} while (0)
 #endif
-#define log_error(a, args...) app_trace_log("ERROR: %s(%s:%d) "a"\r\n",  __func__,__FILE__, __LINE__, ##args)
+#define log_error(a, args...) app_trace_log("ERROR: %s(%s:%d) "a"\r\n",  __func__, __FILE__, __LINE__, ##args)
 #define log_dump app_trace_dump
 #define log(a, args...) app_trace_log(a"\r\n", ##args)
 #else
 #ifdef DEBUG
-#define log_debug(a, args...) printf("DEBUG: %s(%s:%d) "a"\n",  __func__,__FILE__, __LINE__, ##args)
+#define log_debug(a, args...) printf("DEBUG: %s(%s:%d) "a"\n",  __func__, __FILE__, __LINE__, ##args)
 #else
 #define log_debug(fmt, ...) do {} while (0)
 #endif
-#define log_error(a, args...) printf("ERROR: %s(%s:%d) "a"\n",  __func__,__FILE__, __LINE__, ##args)
+#define log_error(a, args...) printf("ERROR: %s(%s:%d) "a"\n",  __func__, __FILE__, __LINE__, ##args)
 #define log(a, args...) printf(a"\r\n", ##args)
 #endif
 
 typedef struct calvin_timer_t {
-    double interval;
+	double interval;
 #ifdef NRF51
-    uint32_t last_triggered;
+	uint32_t last_triggered;
 #else
-    time_t last_triggered;
+	time_t last_triggered;
 #endif
 } calvin_timer_t;
 
-void platform_init();
-void platform_run();
+void platform_init(void);
+void platform_run(void);
 calvin_timer_t *create_recurring_timer(double interval);
 void stop_timer(calvin_timer_t *timer);
 bool check_timer(calvin_timer_t *timer);

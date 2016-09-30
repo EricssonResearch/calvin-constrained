@@ -20,16 +20,16 @@
 
 result_t actor_print(struct actor_t *actor)
 {
-    port_t *port = actor->inports;
-    token_t *token = NULL;
+	port_t *port = actor->inports;
+	token_t *token = NULL;
 
-    if (port->fifo != NULL) {
-        while (fifo_can_read(port->fifo)) {
-            token = fifo_read(port->fifo);
-            print_token(token);
-            fifo_commit_read(port->fifo, true, true);
-        }
-    }
+	if (port->fifo != NULL) {
+		while (fifo_can_read(port->fifo)) {
+			token = fifo_read(port->fifo);
+			print_token(token);
+			fifo_commit_read(port->fifo, true, true);
+		}
+	}
 
-    return SUCCESS;
+	return SUCCESS;
 }

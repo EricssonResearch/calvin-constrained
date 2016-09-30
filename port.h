@@ -25,33 +25,33 @@ struct actor_t;
 struct node_t;
 
 typedef enum {
-    IN,
-    OUT
+	IN,
+	OUT
 } port_direction_t;
 
 typedef enum {
-    PORT_DISCONNECTED,
-    PORT_CONNECTED
+	PORT_DISCONNECTED,
+	PORT_CONNECTED
 } port_state_t;
 
 typedef struct port_t {
-    char *port_id;
-    char *peer_id;
-    char *peer_port_id;
-    char *port_name;
-    port_direction_t direction;
-    tunnel_t *tunnel;
-    port_state_t state;
-    fifo_t *fifo;
-    bool is_local;
-    struct port_t *local_connection;
-    struct port_t *next;
-    struct actor_t *actor;
+	char *port_id;
+	char *peer_id;
+	char *peer_port_id;
+	char *port_name;
+	port_direction_t direction;
+	tunnel_t *tunnel;
+	port_state_t state;
+	fifo_t *fifo;
+	bool is_local;
+	struct port_t *local_connection;
+	struct port_t *next;
+	struct actor_t *actor;
 } port_t;
 
 result_t create_port(struct node_t *node, struct actor_t *actor, port_t **port, port_t **head, char *obj_port, char *obj_prev_connections, port_direction_t direction);
 void free_port(struct node_t *node, port_t *port, bool remove_from_storage);
-result_t add_ports(struct node_t *node, struct actor_t *actor, port_t *ports);
+result_t connect_ports(struct node_t *node, struct actor_t *actor, port_t *ports);
 port_t *get_inport(struct node_t *node, const char *port_id);
 port_t *get_outport(struct node_t *node, const char *port_id);
 result_t connect_port(struct node_t *node, port_t *port, tunnel_t *tunnel);

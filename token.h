@@ -21,8 +21,8 @@
 #include "common.h"
 
 typedef struct token_t {
-    char *value; // Pointer to serialized msgpack buffer
-    size_t size; // Buffer size
+	char *value; // Pointer to serialized msgpack buffer
+	size_t size; // Buffer size
 } token_t;
 
 result_t create_uint_token(uint32_t value, token_t **token);

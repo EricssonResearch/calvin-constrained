@@ -28,3 +28,5 @@ PYTHONPATH=calvin-base py.test -sv test/test.py
 deactivate
 kill -9 $RT1_PID
 kill -9 $CONSTRAINED_RT_PID
+cd calvin-base
+git checkout calvin/csparser/parsetab.py

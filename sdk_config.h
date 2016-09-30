@@ -184,7 +184,7 @@
  * @{
  * @details This section defines configuration of nRF51 lwIP driver.
  */
- 
+
 /**
  * @brief Disable debug trace in the module.
  *

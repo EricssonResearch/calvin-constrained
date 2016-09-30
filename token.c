@@ -22,83 +22,77 @@
 
 result_t create_uint_token(uint32_t value, token_t **token)
 {
-    *token = (token_t*)malloc(sizeof(token_t));
-    if (*token == NULL) {
-        log_error("Failed to allocate memory");
-        return FAIL;
-    }
+	*token = (token_t *)malloc(sizeof(token_t));
+	if (*token == NULL) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
 
-    (*token)->size = mp_sizeof_uint(value);
+	(*token)->size = mp_sizeof_uint(value);
 
-    (*token)->value = malloc((*token)->size);
-    if ((*token)->value == NULL) {
-        log_error("Failed to allocate memory");
-        free(*token);
-        return FAIL;
-    }
+	(*token)->value = malloc((*token)->size);
+	if ((*token)->value == NULL) {
+		log_error("Failed to allocate memory");
+		free(*token);
+		return FAIL;
+	}
 
-    mp_encode_uint((*token)->value, value);
+	mp_encode_uint((*token)->value, value);
 
-    return SUCCESS;
+	return SUCCESS;
 }
 
 result_t decode_token(char *obj_token, token_t **token)
 {
-    *token = (token_t*)malloc(sizeof(token_t));
-    if (*token == NULL) {
-        log_error("Failed to allocate memory");
-        return FAIL;
-    }
+	*token = (token_t *)malloc(sizeof(token_t));
+	if (*token == NULL) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
 
-    if (copy_value(&obj_token, "data", &(*token)->value, &(*token)->size) == SUCCESS) {
-        return SUCCESS;
-    } else {
-        log_error("Failed to copy token");
-    }
+	if (copy_value(&obj_token, "data", &(*token)->value, &(*token)->size) == SUCCESS)
+		return SUCCESS;
 
-    return FAIL;
+	log_error("Failed to copy token");
+
+	return FAIL;
 }
 
 char *encode_token(char **buffer, token_t *token, bool with_key)
 {
-    if (with_key) {
-        *buffer = encode_map(buffer, "token", 2);
-    } else {
-        *buffer = mp_encode_map(*buffer, 2);
-    }
+	if (with_key)
+		*buffer = encode_map(buffer, "token", 2);
+	else
+		*buffer = mp_encode_map(*buffer, 2);
 
-    *buffer = encode_str(buffer, "type", "Token");
-    if (token != NULL && token->value != NULL) {
-        *buffer = encode_value(buffer, "data", token->value, token->size);
-    } else {
-        *buffer = encode_nil(buffer, "data");
-    }
+	*buffer = encode_str(buffer, "type", "Token");
+	if (token != NULL && token->value != NULL)
+		*buffer = encode_value(buffer, "data", token->value, token->size);
+	else
+		*buffer = encode_nil(buffer, "data");
 
-    return *buffer;
+	return *buffer;
 }
 
 void free_token(token_t *token)
 {
-    if (token != NULL) {
-        if (token->value != NULL) {
-            free(token->value);
-        }
-        free(token);
-    }
+	if (token != NULL) {
+		if (token->value != NULL)
+			free(token->value);
+		free(token);
+	}
 }
 
 void print_token(const token_t *token)
 {
-    char *value = NULL;
+	char *value = NULL;
 
-    if (token != NULL && token->value != NULL) {
-        value = token->value;
-        if (mp_typeof(*value) == MP_UINT) {
-            log("%lu", (unsigned long)mp_decode_uint((const char **)&value));
-        } else {
-            log_error("Unsupported type");
-        }
-    } else {
-        log_error("NULL token");
-    }
+	if (token != NULL && token->value != NULL) {
+		value = token->value;
+		if (mp_typeof(*value) == MP_UINT)
+			log("%lu", (unsigned long)mp_decode_uint((const char **)&value));
+		else
+			log_error("Unsupported type");
+	} else
+		log_error("NULL token");
 }
