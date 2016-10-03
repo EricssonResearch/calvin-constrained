@@ -38,6 +38,13 @@ char *encode_double(char **buffer, const char *key, double value)
 	return *buffer;
 }
 
+char *encode_bool(char **buffer, const char *key, bool value)
+{
+	*buffer = mp_encode_str(*buffer, key, strlen(key));
+	*buffer = mp_encode_bool(*buffer, true);
+	return *buffer;
+}
+
 char *encode_nil(char **buffer, const char *key)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));

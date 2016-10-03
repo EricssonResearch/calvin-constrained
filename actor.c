@@ -54,9 +54,9 @@ struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 	},
 	{
 		"std.Identity",
-		NULL,
-		NULL,
-		NULL,
+		actor_identity_init,
+		free_identity_state,
+		serialize_identity,
 		actor_identity
 	}
 };

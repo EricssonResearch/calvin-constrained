@@ -20,6 +20,7 @@
 #include "transport.h"
 #include "tunnel.h"
 #include "actor.h"
+#include "port.h"
 
 #define MAX_ACTORS 4
 #define MAX_TUNNELS 10
@@ -59,7 +60,7 @@ result_t token_tunnel_reply_handler(char *data, void *msg_data);
 result_t request_tunnel(const char *peer_id, const char *type, void *handler);
 void client_connected(void);
 result_t handle_token(char *port_id, token_t *token, uint32_t sequencenbr);
-void handle_token_reply(char *port_id, bool acked);
+void handle_token_reply(char *port_id, port_reply_type_t reply_type);
 result_t handle_tunnel_connected(char *tunnel_id);
 void handle_data(char *data, int len);
 result_t create_node(uint32_t vid, uint32_t pid, char *name);

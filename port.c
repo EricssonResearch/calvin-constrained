@@ -269,7 +269,7 @@ static result_t get_peer_port_reply_handler(char *data, void *msg_data)
 		}
 	}
 
-	return FAIL;
+	return result;
 }
 
 result_t connect_ports(node_t *node, actor_t *actor, port_t *ports)

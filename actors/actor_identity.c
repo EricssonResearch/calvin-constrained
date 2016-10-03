@@ -17,6 +17,39 @@
 #include "actor_identity.h"
 #include "../port.h"
 #include "../token.h"
+#include "../msgpack_helper.h"
+#include "../platform.h"
+
+result_t actor_identity_init(char *obj_actor_state, actor_state_t **state)
+{
+	result_t result = SUCCESS;
+	state_identity_t *identity_state = NULL;
+
+	*state = (actor_state_t *)malloc(sizeof(actor_state_t));
+	if (*state == NULL) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	identity_state = (state_identity_t *)malloc(sizeof(state_identity_t));
+	if (identity_state == NULL) {
+		log_error("Failed to allocate memory");
+		free(*state);
+		return FAIL;
+	}
+
+	result = decode_bool_from_map(&obj_actor_state, "dump", &identity_state->dump);
+
+	if (result == SUCCESS) {
+		(*state)->nbr_attributes = 1;
+		(*state)->state = (void *)identity_state;
+	} else {
+		free(*state);
+		free(identity_state);
+	}
+
+	return result;
+}
 
 result_t actor_identity(struct actor_t *actor)
 {
@@ -38,4 +71,22 @@ result_t actor_identity(struct actor_t *actor)
 	}
 
 	return result;
+}
+
+char *serialize_identity(actor_state_t *state, char **buffer)
+{
+	*buffer = encode_bool(buffer, "dump", false);
+
+	return *buffer;
+}
+
+void free_identity_state(actor_t *actor)
+{
+	state_identity_t *state = NULL;
+
+	if (actor->state != NULL) {
+		if (actor->state->state != NULL)
+			free(state);
+		free(actor->state);
+	}
 }

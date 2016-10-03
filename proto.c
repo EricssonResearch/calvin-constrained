@@ -23,7 +23,7 @@
 #define STRING_FALSE "false"
 #define STRING_IN "in"
 #define STRING_OUT "out"
-#define SEND_BUFFER_SIZE 1400
+#define SEND_BUFFER_SIZE 1800
 #define NBR_OF_COMMANDS 9
 
 struct command_handler_t {
@@ -1089,11 +1089,16 @@ static result_t parse_token_reply(node_t *node, char *root)
 			if (decode_string_from_map(&value, "value", &status) == SUCCESS) {
 				if (decode_uint_from_map(&value, "sequencenbr", &sequencenbr) == SUCCESS) {
 					if (strcmp(status, "ACK") == 0) {
-						handle_token_reply(port_id, true);
+						handle_token_reply(port_id, PORT_REPLY_TYPE_ACK);
+						result = SUCCESS;
+					} else if (strcmp(status, "NACK") == 0) {
+						handle_token_reply(port_id, PORT_REPLY_TYPE_NACK);
+						result = SUCCESS;
+					} else if (strcmp(status, "ABORT") == 0) {
+						handle_token_reply(port_id, PORT_REPLY_TYPE_ABORT);
 						result = SUCCESS;
 					} else {
-						handle_token_reply(port_id, false);
-						log_error("Received '%s' for token with sequencenbr '%ld' on port '%s'",
+						log_error("Received unknown token reply '%s' for token with sequencenbr '%ld' on port '%s'",
 							status, (unsigned long)sequencenbr, port_id);
 					}
 				}

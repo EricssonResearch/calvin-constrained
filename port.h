@@ -34,6 +34,12 @@ typedef enum {
 	PORT_CONNECTED
 } port_state_t;
 
+typedef enum {
+	PORT_REPLY_TYPE_ACK,
+	PORT_REPLY_TYPE_NACK,
+	PORT_REPLY_TYPE_ABORT
+} port_reply_type_t;
+
 typedef struct port_t {
 	char *port_id;
 	char *peer_id;

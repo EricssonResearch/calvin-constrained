@@ -368,13 +368,16 @@ void handle_data(char *data, int len)
 	}
 }
 
-void handle_token_reply(char *port_id, bool acked)
+void handle_token_reply(char *port_id, port_reply_type_t reply_type)
 {
 	port_t *port = get_outport(m_node, port_id);
 
-	if (port != NULL)
-		fifo_commit_read(port->fifo, acked, true);
-	else
+	if (port != NULL) {
+		if (reply_type == PORT_REPLY_TYPE_ACK)
+			fifo_commit_read(port->fifo, true, true);
+		else if (reply_type == PORT_REPLY_TYPE_ABORT)
+			log_error("TODO: handle ABORT");
+	} else
 		log_error("No port with id '%s'", port_id);
 }
 
