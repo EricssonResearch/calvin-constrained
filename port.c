@@ -21,22 +21,8 @@
 #include "msgpack_helper.h"
 #include "node.h"
 
-static result_t port_connected(node_t *node, char *port_peer_id);
-
-static port_t *get_port(node_t *node, const char *port_id)
-{
-	port_t *port = NULL;
-
-	port = get_inport(node, port_id);
-	if (port != NULL)
-		return port;
-
-	port = get_outport(node, port_id);
-	if (port != NULL)
-		return port;
-
-	return port;
-}
+static result_t iniate_port_connect(node_t *node, port_t *port);
+static result_t store_port(node_t *node, port_t *port);
 
 static void add_port(port_t **head, port_t *port)
 {
@@ -165,8 +151,10 @@ result_t create_port(node_t *node, actor_t *actor, port_t **port, port_t **head,
 	if (result == SUCCESS) {
 		log_debug("Port '%s' created", (*port)->port_id);
 		add_port(head, (*port));
-	} else
+	} else {
+		log_error("Failed to create port");
 		free_port(node, (*port), false);
+	}
 
 	return result;
 }
@@ -186,7 +174,7 @@ void free_port(node_t *node, port_t *port, bool remove_from_storage)
 				log_error("Failed to send remove port request");
 		}
 		if (port->tunnel != NULL)
-			tunnel_client_disconnected(node, port->tunnel);
+			tunnel_remove_ref(node, port->tunnel);
 		free(port->port_id);
 		free(port->port_name);
 		free(port->peer_id);
@@ -194,122 +182,6 @@ void free_port(node_t *node, port_t *port, bool remove_from_storage)
 		free_fifo(port->fifo);
 		free(port);
 	}
-}
-
-static result_t set_port_reply_handler(char *data, void *msg_data)
-{
-	log_debug("TODO: set_port_reply_handler does nothing");
-	return SUCCESS;
-}
-
-static result_t store_port(node_t *node, actor_t *actor, port_t *port)
-{
-	result_t result = FAIL;
-
-	result = send_set_port(node, actor, port, set_port_reply_handler);
-	if (result != SUCCESS)
-		log_error("Failed to store port '%s'", port->port_id);
-
-	return result;
-}
-
-static result_t get_peer_port_reply_handler(char *data, void *msg_data)
-{
-	port_t *port = NULL;
-	char *value = NULL, *value_value = NULL, *node_id = NULL;
-	char *tmp = NULL, *end = NULL;
-	tunnel_t *tunnel = NULL;
-	result_t result = FAIL;
-	node_t *node = get_node();
-
-	if (msg_data != NULL) {
-		port = get_port(node, (char *)msg_data);
-		if (port == NULL) {
-			log_error("No port with id '%s'", (char *)msg_data);
-			return FAIL;
-		}
-	} else {
-		log_error("Expected msg_data");
-		return FAIL;
-	}
-
-	if (get_value_from_map(&data, "value", &value) == SUCCESS) {
-		if (decode_string_from_map(&value, "value", &value_value) == SUCCESS) {
-			tmp = strstr(value_value, "\"node_id\": \"");
-			if (tmp != NULL) {
-				tmp += strlen("\"node_id\": \"");
-				end = strstr(tmp, "\"");
-				if (end != NULL) {
-					node_id = malloc(end + 1 - tmp);
-					if (node_id == NULL) {
-						log_error("Failed to allocate memory");
-						return FAIL;
-					}
-					if (strncpy(node_id, tmp, end - tmp) != NULL) {
-						node_id[end - tmp] = '\0';
-						port->peer_id = node_id;
-						tunnel = get_token_tunnel_from_peerid(node_id);
-						if (tunnel != NULL) {
-							port->tunnel = tunnel;
-							if (tunnel->state == TUNNEL_CONNECTED) {
-								result = connect_port(node, port, tunnel);
-								if (result != SUCCESS)
-									log_error("Failed to connect port '%s'", port->port_id);
-							}
-						} else {
-							if (strcmp(node_id, node->proxy_node_id) == 0)
-								result = request_tunnel(port->peer_id, TOKEN_TUNNEL, token_tunnel_reply_handler);
-							else
-								result = send_route_request(node, port->peer_id, route_request_handler);
-						}
-					}
-				}
-			}
-			free(value_value);
-		}
-	}
-
-	return result;
-}
-
-result_t connect_ports(node_t *node, actor_t *actor, port_t *ports)
-{
-	result_t result = SUCCESS;
-	tunnel_t *tunnel = NULL;
-	port_t *port = NULL;
-
-	port = ports;
-	while (port != NULL && result == SUCCESS) {
-		if (!port->is_local) {
-			tunnel = get_token_tunnel_from_peerid(port->peer_id);
-			if (tunnel != NULL) {
-				port->tunnel = tunnel;
-				if (tunnel->state == TUNNEL_CONNECTED) {
-					result = connect_port(node, port, tunnel);
-					if (result != SUCCESS) {
-						log_error("Failed to connect port '%s'", port->port_id);
-						break;
-					}
-				}
-			} else {
-				if (port->peer_id != NULL) {
-					if (strcmp(port->peer_id, node->proxy_node_id) == 0)
-						result = request_tunnel(port->peer_id, TOKEN_TUNNEL, token_tunnel_reply_handler);
-					else
-						result = send_route_request(node, port->peer_id, route_request_handler);
-				} else
-					result = send_get_port(node, port->peer_port_id, get_peer_port_reply_handler, port->port_id);
-			}
-		} else
-			port->state = PORT_CONNECTED;
-
-		if (result == SUCCESS)
-			result = store_port(node, actor, port);
-
-		port = port->next;
-	}
-
-	return result;
 }
 
 port_t *get_inport(node_t *node, const char *port_id)
@@ -350,6 +222,142 @@ port_t *get_outport(node_t *node, const char *port_id)
 	return NULL;
 }
 
+static port_t *get_port(node_t *node, const char *port_id)
+{
+	port_t *port = NULL;
+
+	port = get_inport(node, port_id);
+	if (port != NULL)
+		return port;
+
+	port = get_outport(node, port_id);
+	if (port != NULL)
+		return port;
+
+	return port;
+}
+
+static result_t enable_port(node_t *node, port_t *port, tunnel_t *tunnel)
+{
+	if (port == NULL) {
+		log_error("Port is NULL");
+		return FAIL;
+	}
+
+	if (port->state == PORT_CONNECTED) {
+		log_error("Port '%s' already connected", port->port_id);
+		return FAIL;
+	}
+
+	if (!port->is_local) {
+		if (tunnel == NULL) {
+			log_error("Tunnel is NULL");
+			return FAIL;
+		}
+
+		if (port->tunnel == NULL) {
+			port->tunnel = tunnel;
+			if (port->peer_id != NULL)
+				free(port->peer_id);
+			port->peer_id = strdup(tunnel->link->peer_id);
+			tunnel_add_ref(tunnel);
+		} else {
+			if (strcmp(port->tunnel->tunnel_id, tunnel->tunnel_id) != 0) {
+				log_debug("Port '%s' connected to new tunnel '%s'", port->port_id, tunnel->tunnel_id);
+				tunnel_remove_ref(node, port->tunnel);
+				port->tunnel = tunnel;
+				if (port->peer_id != NULL)
+					free(port->peer_id);
+				port->peer_id = strdup(tunnel->link->peer_id);
+				tunnel_add_ref(tunnel);
+			}
+		}
+	}
+
+	log_debug("Port '%s' connected", port->port_id);
+
+	port->state = PORT_CONNECTED;
+	enable_actor(port->actor);
+	return store_port(node, port);
+}
+
+static result_t disable_port(node_t *node, port_t *port)
+{
+	if (port->tunnel != NULL) {
+		tunnel_remove_ref(node, port->tunnel);
+		port->tunnel = NULL;
+	}
+
+	port->state = PORT_DISCONNECTED;
+	disable_actor(port->actor);
+
+	return store_port(node, port);
+}
+
+static result_t get_peer_port_reply_handler(char *data, void *msg_data)
+{
+	port_t *port = NULL;
+	char *value = NULL, *value_value = NULL, *node_id = NULL;
+	char *tmp = NULL, *end = NULL;
+	node_t *node = get_node();
+
+	if (msg_data != NULL) {
+		port = get_port(node, (char *)msg_data);
+		if (port == NULL) {
+			log_error("No port with id '%s'", (char *)msg_data);
+			return FAIL;
+		}
+	} else {
+		log_error("Expected msg_data");
+		return FAIL;
+	}
+
+	if (get_value_from_map(&data, "value", &value) == SUCCESS) {
+		if (decode_string_from_map(&value, "value", &value_value) == SUCCESS) {
+			tmp = strstr(value_value, "\"node_id\": \"");
+			if (tmp != NULL) {
+				tmp += strlen("\"node_id\": \"");
+				end = strstr(tmp, "\"");
+				if (end != NULL) {
+					node_id = malloc(end + 1 - tmp);
+					if (node_id == NULL)
+						log_error("Failed to allocate memory");
+					else {
+						if (strncpy(node_id, tmp, end - tmp) != NULL)
+							node_id[end - tmp] = '\0';
+					}
+				}
+			}
+			free(value_value);
+		}
+	}
+
+	if (node_id != NULL) {
+		// Port migrated to new peer?
+		if (port->peer_id == NULL)
+			port->peer_id = node_id;
+		else {
+			if (strcmp(port->peer_port_id, node_id) != 0) {
+				free(port->peer_id);
+				port->peer_id = node_id;
+			} else
+				free(node_id);
+		}
+
+		// Unreference old tunnel
+		if (port->tunnel != NULL && strcmp(port->tunnel->link->peer_id, port->peer_id) != 0) {
+			tunnel_remove_ref(node, port->tunnel);
+			port->tunnel = NULL;
+		}
+
+		return iniate_port_connect(node, port);
+	}
+
+	log_error("Failed to parse port information");
+
+	return FAIL;
+}
+
 static result_t port_connect_reply_handler(char *data, void *msg_data)
 {
 	result_t result = FAIL;
@@ -358,12 +366,10 @@ static result_t port_connect_reply_handler(char *data, void *msg_data)
 	port_t *port = (port_t *)msg_data;
 	node_t *node = get_node();
 
-	log_debug("port_connect_reply_handler");
-
 	if (get_value_from_map(&data, "value", &value) == SUCCESS) {
 		if (decode_uint_from_map(&value, "status", &status) == SUCCESS) {
 			if (status == 200)
-				result = port_connected(node, port->peer_port_id);
+				result = enable_port(node, port, port->tunnel);
 			else {
 				log_debug("Failed to connect port %s, getting port info and retrying", port->port_id);
 				result = send_get_port(node, port->peer_port_id, get_peer_port_reply_handler, port->port_id);
@@ -374,15 +380,105 @@ static result_t port_connect_reply_handler(char *data, void *msg_data)
 	return result;
 }
 
-result_t connect_port(node_t *node, port_t *port, tunnel_t *tunnel)
+static result_t iniate_port_connect(node_t *node, port_t *port)
 {
-	result_t result = SUCCESS;
+	link_t *link = NULL;
+	tunnel_t *tunnel = NULL;
+
+	// port connected form other end?
+	if (port->state == PORT_CONNECTED)
+		return SUCCESS;
+
+	if (port->peer_id == NULL) {
+		// Get port information and connect when reply has been received.
+		return send_get_port(node, port->peer_port_id, get_peer_port_reply_handler, port->port_id);
+	}
+
+	link = get_link(node, port->peer_id);
+	if (link == NULL) {
+		link = create_link(port->peer_id, LINK_PENDING);
+		if (link == NULL) {
+			log_error("Failed to create link");
+			return FAIL;
+		}
+
+		if (add_link(node, link) != SUCCESS) {
+			log_error("Failed to add link");
+			return FAIL;
+		}
+
+		if (request_link(node, link) != SUCCESS) {
+			log_error("Failed to request link");
+			return FAIL;
+		}
+	}
+
+	tunnel = get_tunnel_from_peerid(node, port->peer_id);
+	if (tunnel == NULL) {
+		tunnel = create_tunnel(link, TUNNEL_TYPE_TOKEN, TUNNEL_PENDING);
+		if (tunnel == NULL) {
+			log_error("Failed to create tunnel");
+			return FAIL;
+		}
+
+		if (add_tunnel(node, tunnel) != SUCCESS) {
+			log_error("Failed to add tunnel");
+			return FAIL;
+		}
+
+		if (link->state == LINK_WORKING) {
+			if (request_token_tunnel(node, tunnel) != SUCCESS) {
+				log_error("Failed to send tunnel request");
+				return FAIL;
+			}
+		}
+	}
 
 	port->tunnel = tunnel;
+	tunnel_add_ref(tunnel);
 
-	result = send_port_connect(node, port, port_connect_reply_handler);
+	// Ports with pending tunnels will be connected when the tunnel is working
+	if (tunnel->state == TUNNEL_WORKING) {
+		if (send_port_connect(node, port, port_connect_reply_handler) != SUCCESS) {
+			log_error("Failed to send port connect request to '%s'", port->peer_id);
+			log_error("TODO: Handle send communcation failures");
+			return FAIL;
+		}
+	}
+
+	return SUCCESS;
+}
+
+static result_t store_port_reply_handler(char *data, void *msg_data)
+{
+	log_debug("TODO: store_port_reply_handler does nothing");
+	return SUCCESS;
+}
+
+static result_t store_port(node_t *node, port_t *port)
+{
+	result_t result = FAIL;
+
+	result = send_set_port(node, port, store_port_reply_handler);
 	if (result != SUCCESS)
-		log_error("Failed to connect port '%s'", port->port_name);
+		log_error("Failed to store port '%s'", port->port_id);
+
+	return result;
+}
+
+result_t connect_ports(node_t *node, port_t *ports)
+{
+	result_t result = SUCCESS;
+	port_t *port = NULL;
+
+	port = ports;
+	while (port != NULL && result == SUCCESS) {
+		if (!port->is_local)
+			result = iniate_port_connect(node, port);
+		else
+			result = enable_port(node, port, NULL);
+		port = port->next;
+	}
 
 	return result;
 }
@@ -395,21 +491,38 @@ static result_t port_disconnect_reply_handler(char *data, void *msg_data)
 
 result_t disconnect_port(node_t *node, port_t *port)
 {
-	result_t result = SUCCESS;
-
-	disable_actor(port->actor);
-
-	if (port->state == PORT_CONNECTED) {
-		result = send_port_disconnect(node, port, port_disconnect_reply_handler);
-		if (result != SUCCESS)
+	if (port->state == PORT_CONNECTED && !port->is_local) {
+		if (send_port_disconnect(node, port, port_disconnect_reply_handler) != SUCCESS) {
 			log_error("Failed to send port disconnect for port '%s'", port->port_name);
-
-		port->state = PORT_DISCONNECTED;
-		tunnel_client_disconnected(node, port->tunnel);
-		port->tunnel = NULL;
+			return FAIL;
+		}
 	}
 
-	return result;
+	return disable_port(node, port);
+}
+
+result_t handle_port_connect(node_t *node, const char *port_id, const char *tunnel_id)
+{
+	port_t *port = NULL;
+	tunnel_t *tunnel = NULL;
+
+	tunnel = get_tunnel(node, tunnel_id);
+	if (tunnel == NULL) {
+		log_error("Failed to connect port '%s', no tunnel with id '%s'.", port_id, tunnel_id);
+		return FAIL;
+	}
+
+	port = get_inport(node, port_id);
+	if (port != NULL)
+		return enable_port(node, port, tunnel);
+
+	port = get_outport(node, port_id);
+	if (port != NULL)
+		return enable_port(node, port, tunnel);
+
+	log_error("No port with id '%s'", port_id);
+
+	return FAIL;
 }
 
 result_t handle_port_disconnect(node_t *node, const char *port_id)
@@ -417,20 +530,15 @@ result_t handle_port_disconnect(node_t *node, const char *port_id)
 	port_t *port = NULL;
 
 	port = get_port(node, port_id);
-	if (port != NULL) {
-		port->state = PORT_DISCONNECTED;
-		disable_actor(port->actor);
-		tunnel_client_disconnected(node, port->tunnel);
-		port->tunnel = NULL;
-		return SUCCESS;
-	}
+	if (port != NULL)
+		return disable_port(node, port);
 
-	log_error("Disconnected port '%s'", port_id);
+	log_error("No port with id '%s'", port_id);
 
 	return FAIL;
 }
 
-static result_t port_connected(node_t *node, char *port_peer_id)
+result_t tunnel_connected(node_t *node, tunnel_t *tunnel)
 {
 	int i_actor = 0;
 	port_t *port = NULL;
@@ -439,71 +547,29 @@ static result_t port_connected(node_t *node, char *port_peer_id)
 		if (node->actors[i_actor] != NULL) {
 			port = node->actors[i_actor]->inports;
 			while (port != NULL) {
-				if (strcmp(port->peer_port_id, port_peer_id) == 0) {
-					log_debug("Port '%s' connected", port->port_id);
-					port->state = PORT_CONNECTED;
-					tunnel_client_connected(port->tunnel);
-					enable_actor(node->actors[i_actor]);
-					store_port(node, port->actor, port);
-					return SUCCESS;
+				if (strcmp(port->peer_id, tunnel->link->peer_id) == 0) {
+					port->tunnel = tunnel;
+					if (send_port_connect(node, port, port_connect_reply_handler) != SUCCESS) {
+						log_error("Failed to send port connect request to '%s'", port->peer_id);
+						log_error("TODO: Handle send communcation failures");
+					}
 				}
 				port = port->next;
 			}
 
 			port = node->actors[i_actor]->outports;
 			while (port != NULL) {
-				if (strcmp(port->peer_port_id, port_peer_id) == 0) {
-					log_debug("Port '%s' connected", port->port_id);
-					port->state = PORT_CONNECTED;
-					tunnel_client_connected(port->tunnel);
-					enable_actor(node->actors[i_actor]);
-					store_port(node, port->actor, port);
-					return SUCCESS;
+				if (strcmp(port->peer_id, tunnel->link->peer_id) == 0) {
+					port->tunnel = tunnel;
+					if (send_port_connect(node, port, port_connect_reply_handler) != SUCCESS) {
+						log_error("Failed to send port connect request to '%s'", port->peer_id);
+						log_error("TODO: Handle send communcation failures");
+					}
 				}
 				port = port->next;
 			}
 		}
 	}
 
-	log_error("No port with peer port id '%s'", port_peer_id);
-
-	return FAIL;
-}
-
-result_t handle_port_connect(node_t *node, const char *port_id, const char *tunnel_id)
-{
-	port_t *port = NULL;
-	tunnel_t *tunnel = NULL;
-
-	tunnel = get_token_tunnel(tunnel_id);
-	if (tunnel == NULL) {
-		log_error("Failed to connect port '%s', no tunnel with id '%s'.", port_id, tunnel_id);
-		return FAIL;
-	}
-
-	port = get_inport(node, port_id);
-	if (port != NULL) {
-		port->state = PORT_CONNECTED;
-		port->tunnel = tunnel;
-		tunnel_client_connected(tunnel);
-		port->peer_id = strdup(tunnel->peer_id);
-		enable_actor(port->actor);
-		store_port(node, port->actor, port);
-		return SUCCESS;
-	}
-
-	port = get_outport(node, port_id);
-	if (port != NULL) {
-		port->state = PORT_CONNECTED;
-		port->tunnel = tunnel;
-		tunnel_client_connected(port->tunnel);
-		port->peer_id = strdup(tunnel->peer_id);
-		enable_actor(port->actor);
-		store_port(node, port->actor, port);
-		return SUCCESS;
-	}
-
-	log_error("No port with id '%s'", port_id);
-
-	return FAIL;
+	return SUCCESS;
 }

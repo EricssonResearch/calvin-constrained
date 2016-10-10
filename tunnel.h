@@ -16,26 +16,38 @@
 #ifndef TUNNEL_H
 #define TUNNEL_H
 
-#include "transport.h"
-
-typedef enum {
-	TUNNEL_DISCONNECTED,
-	TUNNEL_CONNECTED
-} tunnel_state_t;
-
-typedef struct tunnel_t {
-	char *tunnel_id;
-	char *peer_id;
-	tunnel_state_t state;
-	uint32_t ref_count;
-} tunnel_t;
+#include "link.h"
 
 struct node_t;
 
-tunnel_t *create_tunnel(const char *peer_id);
-tunnel_t *create_tunnel_with_id(const char *peer_id, const char *tunnel_id);
+typedef enum {
+	TUNNEL_PENDING,
+	TUNNEL_WORKING,
+	TUNNEL_TERMINATED
+} tunnel_state_t;
+
+typedef enum {
+	TUNNEL_TYPE_STORAGE,
+	TUNNEL_TYPE_TOKEN
+} tunnel_type_t;
+
+typedef struct tunnel_t {
+	char *tunnel_id;
+	link_t *link;
+	tunnel_state_t state;
+	int ref_count;
+	tunnel_type_t type;
+} tunnel_t;
+
+tunnel_t *create_tunnel_from_id(link_t *link, tunnel_type_t type, tunnel_state_t state, const char *tunnel_id);
+tunnel_t *create_tunnel(link_t *link, tunnel_type_t type, tunnel_state_t state);
+result_t add_tunnel(struct node_t *node, tunnel_t *tunnel);
+result_t remove_tunnel(struct node_t *node, const char *tunnel_id);
 void free_tunnel(struct node_t *node, tunnel_t *tunnel);
-void tunnel_client_connected(tunnel_t *tunnel);
-void tunnel_client_disconnected(struct node_t *node, tunnel_t *tunnel);
+void tunnel_add_ref(tunnel_t *tunnel);
+void tunnel_remove_ref(struct node_t *node, tunnel_t *tunnel);
+tunnel_t *get_tunnel(struct node_t *node, const char *tunnel_id);
+tunnel_t *get_tunnel_from_peerid(struct node_t *node, const char *peer_id);
+result_t request_token_tunnel(struct node_t *node, tunnel_t *tunnel);
 
 #endif /* TUNNEL_H */

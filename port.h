@@ -30,6 +30,7 @@ typedef enum {
 } port_direction_t;
 
 typedef enum {
+	PORT_PENDING,
 	PORT_DISCONNECTED,
 	PORT_CONNECTED
 } port_state_t;
@@ -57,12 +58,12 @@ typedef struct port_t {
 
 result_t create_port(struct node_t *node, struct actor_t *actor, port_t **port, port_t **head, char *obj_port, char *obj_prev_connections, port_direction_t direction);
 void free_port(struct node_t *node, port_t *port, bool remove_from_storage);
-result_t connect_ports(struct node_t *node, struct actor_t *actor, port_t *ports);
+result_t connect_ports(struct node_t *node, port_t *ports);
+result_t disconnect_port(struct node_t *node, port_t *port);
 port_t *get_inport(struct node_t *node, const char *port_id);
 port_t *get_outport(struct node_t *node, const char *port_id);
-result_t connect_port(struct node_t *node, port_t *port, tunnel_t *tunnel);
-result_t disconnect_port(struct node_t *node, port_t *port);
 result_t handle_port_disconnect(struct node_t *node, const char *port_id);
 result_t handle_port_connect(struct node_t *node, const char *port_id, const char *tunnel_id);
+result_t tunnel_connected(struct node_t *node, tunnel_t *tunnel);
 
 #endif /* PORT_H */

@@ -126,10 +126,10 @@ result_t add_actor(node_t *node, actor_t *actor)
 	}
 
 	if (result == SUCCESS)
-		result = connect_ports(node, actor, actor->inports);
+		result = connect_ports(node, actor->inports);
 
 	if (result == SUCCESS)
-		result = connect_ports(node, actor, actor->outports);
+		result = connect_ports(node, actor->outports);
 
 	if (result == SUCCESS)
 		result = store_actor(node, actor);
@@ -204,13 +204,9 @@ result_t create_actor(node_t *node, char *root, actor_t **actor)
 			if (result == SUCCESS) {
 				if (mp_typeof(*obj_ports) == MP_MAP) {
 					map_size = mp_decode_map((const char **)&obj_ports);
-					for (i_port = 0; i_port < map_size; i_port++) {
+					for (i_port = 0; i_port < map_size && result == SUCCESS; i_port++) {
 						mp_next((const char **)&obj_ports);
 						result = create_port(node, *actor, &port, &(*actor)->inports, obj_ports, obj_prev_connections, IN);
-						if (result != SUCCESS) {
-							log_error("Failed to create port");
-							break;
-						}
 					}
 				} else {
 					log_error("'inports' is not a map");
@@ -224,13 +220,9 @@ result_t create_actor(node_t *node, char *root, actor_t **actor)
 			if (result == SUCCESS) {
 				if (mp_typeof(*obj_ports) == MP_MAP) {
 					map_size = mp_decode_map((const char **)&obj_ports);
-					for (i_port = 0; i_port < map_size; i_port++) {
+					for (i_port = 0; i_port < map_size && result == SUCCESS; i_port++) {
 						mp_next((const char **)&obj_ports);
 						result = create_port(node, *actor, &port, &(*actor)->outports, obj_ports, obj_prev_connections, OUT);
-						if (result != SUCCESS) {
-							log_error("Failed to create port");
-							break;
-						}
 					}
 				} else {
 					log_error("'outports' is not a map");
@@ -308,10 +300,17 @@ void free_actor(node_t *node, actor_t *actor, bool remove_from_storage)
 				log_error("Failed to remove actor '%s'", actor->name);
 		}
 
-		free(actor->id);
-		free(actor->type);
-		free(actor->name);
-		free(actor->signature);
+		if (actor->id != NULL)
+			free(actor->id);
+
+		if (actor->type != NULL)
+			free(actor->type);
+
+		if (actor->name != NULL)
+			free(actor->name);
+
+		if (actor->signature != NULL)
+			free(actor->signature);
 
 		while (actor->managed_attr != NULL) {
 			managed_attr = actor->managed_attr;
@@ -551,34 +550,6 @@ actor_t *get_actor(node_t *node, const char *actor_id)
 	}
 
 	return NULL;
-}
-
-result_t connect_actor(node_t *node, actor_t *actor, tunnel_t *tunnel)
-{
-	result_t result = SUCCESS;
-	port_t *port = NULL;
-
-	port = actor->inports;
-	while (port != NULL && result == SUCCESS) {
-		if (strcmp(tunnel->peer_id, port->peer_id) == 0) {
-			result = connect_port(node, port, tunnel);
-			if (result != SUCCESS)
-				log_error("Failed to connect port '%s'", port->port_id);
-		}
-		port = port->next;
-	}
-
-	port = actor->outports;
-	while (port != NULL && result == SUCCESS) {
-		if (strcmp(tunnel->peer_id, port->peer_id) == 0) {
-			result = connect_port(node, port, tunnel);
-			if (result != SUCCESS)
-				log_error("Failed to connect port '%s'", port->port_id);
-		}
-		port = port->next;
-	}
-
-	return result;
 }
 
 void enable_actor(actor_t *actor)

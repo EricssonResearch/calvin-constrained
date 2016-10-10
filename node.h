@@ -21,9 +21,11 @@
 #include "tunnel.h"
 #include "actor.h"
 #include "port.h"
+#include "link.h"
 
 #define MAX_ACTORS 4
 #define MAX_TUNNELS 10
+#define MAX_LINKS 10
 
 typedef struct pending_msg_t {
 	char *msg_uuid;
@@ -36,28 +38,22 @@ typedef struct node_t {
 	uint32_t vid;
 	uint32_t pid;
 	char *node_id;
-	char *proxy_node_id;
 	char *schema;
 	char *name;
 	char proxy_ip[40];
 	int proxy_port;
 	transport_client_t *transport;
-	tunnel_t *storage_tunnel;
 	pending_msg_t *pending_msgs;
-	actor_t *actors[MAX_ACTORS];
+	link_t *proxy_link;
+	link_t *links[MAX_LINKS];
+	tunnel_t *storage_tunnel;
 	tunnel_t *tunnels[MAX_TUNNELS];
+	actor_t *actors[MAX_ACTORS];
 } node_t;
 
 node_t *get_node();
 result_t add_pending_msg(char *msg_uuid, result_t (*handler)(char *data, void *msg_data), void *msg_data);
 result_t remove_pending_msg(char *msg_uuid);
-tunnel_t *get_token_tunnel(const char *tunnel_id);
-tunnel_t *get_token_tunnel_from_peerid(const char *peer_id);
-result_t add_token_tunnel(tunnel_t *tunnel);
-result_t route_request_handler(char *data, void *msg_data);
-result_t remove_token_tunnel(const char *peer_id);
-result_t token_tunnel_reply_handler(char *data, void *msg_data);
-result_t request_tunnel(const char *peer_id, const char *type, void *handler);
 void client_connected(void);
 result_t handle_token(char *port_id, token_t *token, uint32_t sequencenbr);
 void handle_token_reply(char *port_id, port_reply_type_t reply_type);

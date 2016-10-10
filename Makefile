@@ -3,12 +3,12 @@ PROJECT_NAME = calvin_c
 
 CFLAGS += -g -Wall
 CFLAGS += --std=gnu99
-CFLAGS += -D DEBUG
+#CFLAGS += -D DEBUG
 CFLAGS += -lrt
 
 C_SOURCE_FILES += main.c platform_linux.c common.c node.c proto.c transport_socket.c \
-				  tunnel.c actor.c port.c fifo.c token.c actors/actor_counttimer.c \
-				  actors/actor_print.c actors/actor_identity.c msgpack_helper.c msgpuck/msgpuck.c
+				  tunnel.c link.c actor.c port.c fifo.c token.c actors/actor_counttimer.c \
+				  actors/actor_print.c actors/actor_identity.c msgpack_helper.c msgpuck/msgpuck.c  
 
 c_calvin: $(C_SOURCE_FILES)
 	$(CC) -o $(PROJECT_NAME) $(C_SOURCE_FILES) $(CFLAGS)

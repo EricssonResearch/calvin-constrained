@@ -78,14 +78,14 @@ result_t create_fifo(fifo_t **fifo, char *obj_fifo)
 			if (result == SUCCESS) {
 				for (i_token = ((*fifo)->read_pos % (*fifo)->size); i_token < ((*fifo)->write_pos % (*fifo)->size); i_token++) {
 					result = get_value_from_array(&obj_tokens, i_token, &obj_token);
-					if (result == SUCCESS) {
-						result = decode_token(obj_token, &token);
-						if (result != SUCCESS) {
-							log_error("Failed to create token");
-							break;
-						}
-						(*fifo)->tokens[i_token] = token;
-					}
+					if (result != SUCCESS)
+						break;
+
+					result = decode_token(obj_token, &token);
+					if (result != SUCCESS)
+						log_error("Failed to create token");
+
+					(*fifo)->tokens[i_token] = token;
 				}
 			}
 		}

@@ -24,7 +24,7 @@
 #include "platform.h"
 #include "node.h"
 
-result_t send_buffer(send_buffer_t *buf);
+static result_t send_buffer(send_buffer_t *buf);
 
 static transport_client_t *m_client;
 
@@ -68,7 +68,7 @@ static err_t tcp_write_complete(void *p_arg, struct tcp_pcb *p_pcb, u16_t len)
 	return ERR_OK;
 }
 
-result_t send_buffer(send_buffer_t *buf)
+static result_t send_buffer(send_buffer_t *buf)
 {
 	result_t result = SUCCESS;
 	err_t err = ERR_OK;

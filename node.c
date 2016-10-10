@@ -81,161 +81,6 @@ result_t remove_pending_msg(char *msg_uuid)
 	return SUCCESS;
 }
 
-result_t add_token_tunnel(tunnel_t *tunnel)
-{
-	int i_tunnel = 0;
-
-	for (i_tunnel = 0; i_tunnel < MAX_TUNNELS; i_tunnel++) {
-		if (m_node->tunnels[i_tunnel] == NULL) {
-			m_node->tunnels[i_tunnel] = tunnel;
-			log_debug("Tunnel '%s' added", tunnel->tunnel_id);
-			return SUCCESS;
-		}
-	}
-
-	log_error("Failed to add tunnel '%s'", tunnel->tunnel_id);
-
-	return FAIL;
-}
-
-result_t remove_token_tunnel(const char *tunnel_id)
-{
-	int i_tunnel = 0;
-
-	for (i_tunnel = 0; i_tunnel < MAX_TUNNELS; i_tunnel++) {
-		if (m_node->tunnels[i_tunnel] != NULL) {
-			if (strcmp(m_node->tunnels[i_tunnel]->tunnel_id, tunnel_id) == 0) {
-				log_debug("Tunnel '%s' removed", tunnel_id);
-				m_node->tunnels[i_tunnel] = NULL;
-				return SUCCESS;
-			}
-		}
-	}
-
-	return FAIL;
-}
-
-tunnel_t *get_token_tunnel(const char *tunnel_id)
-{
-	int i_tunnel = 0;
-
-	if (tunnel_id == NULL)
-		return NULL;
-
-	for (i_tunnel = 0; i_tunnel < MAX_TUNNELS; i_tunnel++) {
-		if (m_node->tunnels[i_tunnel] != NULL) {
-			if (strcmp(m_node->tunnels[i_tunnel]->tunnel_id, tunnel_id) == 0)
-				return m_node->tunnels[i_tunnel];
-		}
-	}
-
-	return NULL;
-}
-
-tunnel_t *get_token_tunnel_from_peerid(const char *peer_id)
-{
-	int i_tunnel = 0;
-
-	if (peer_id == NULL)
-		return NULL;
-
-	for (i_tunnel = 0; i_tunnel < MAX_TUNNELS; i_tunnel++) {
-		if (m_node->tunnels[i_tunnel] != NULL) {
-			if (strcmp(m_node->tunnels[i_tunnel]->peer_id, peer_id) == 0)
-				return m_node->tunnels[i_tunnel];
-		}
-	}
-
-	return NULL;
-}
-
-static result_t connect_actors(tunnel_t *tunnel)
-{
-	int i_actor = 0;
-	result_t result = SUCCESS;
-
-	for (i_actor = 0; i_actor < MAX_ACTORS && result == SUCCESS; i_actor++) {
-		if (m_node->actors[i_actor] != NULL)
-			result = connect_actor(m_node, m_node->actors[i_actor], tunnel);
-	}
-
-	return result;
-}
-
-result_t token_tunnel_reply_handler(char *data, void *msg_data)
-{
-	uint32_t status;
-	char *from_rt_uuid = NULL, *value = NULL, *tunnel_id = NULL, *data_value = NULL;
-	result_t result = FAIL;
-	tunnel_t *tunnel = NULL;
-
-	if (decode_string_from_map(&data, "from_rt_uuid", &from_rt_uuid) == SUCCESS) {
-		if (get_token_tunnel_from_peerid(from_rt_uuid) != NULL) {
-			log_debug("Tunnel already exists to '%s'", from_rt_uuid);
-			result = SUCCESS;
-		} else {
-			if (get_value_from_map(&data, "value", &value) == SUCCESS) {
-				if (get_value_from_map(&value, "data", &data_value) == SUCCESS) {
-					if (decode_string_from_map(&data_value, "tunnel_id", &tunnel_id) == SUCCESS) {
-						if (decode_uint_from_map(&value, "status", &status) == SUCCESS) {
-							if (status == 200) {
-								tunnel = create_tunnel_with_id(from_rt_uuid, tunnel_id);
-								if (tunnel != NULL) {
-									if (add_token_tunnel(tunnel) == SUCCESS) {
-										tunnel->state = TUNNEL_CONNECTED;
-										result = connect_actors(tunnel);
-									}
-								}
-							}
-						}
-						free(tunnel_id);
-					}
-				}
-			}
-		}
-		free(from_rt_uuid);
-	}
-
-	return result;
-}
-
-result_t request_tunnel(const char *peer_id, const char *type, void *reply_handler)
-{
-	result_t result = FAIL;
-	char *tunnel_id = gen_uuid("TUNNEL_");
-
-	result = send_tunnel_request(m_node, peer_id, tunnel_id, type, reply_handler);
-	free(tunnel_id);
-
-	return result;
-}
-
-result_t route_request_handler(char *data, void *msg_data)
-{
-	result_t result = FAIL;
-	char *value = NULL, *peer_id = NULL, *value_data = NULL;
-	uint32_t status;
-
-	if (get_value_from_map(&data, "value", &value) == SUCCESS) {
-		if (decode_uint_from_map(&value, "status", &status) == SUCCESS) {
-			if (get_value_from_map(&value, "data", &value_data) == SUCCESS) {
-				if (decode_string_from_map(&value_data, "peer_id", &peer_id) == SUCCESS) {
-					if (status == 200) {
-						if (request_tunnel(peer_id, TOKEN_TUNNEL, token_tunnel_reply_handler) == SUCCESS)
-							result = SUCCESS;
-						else
-							log_error("Failed to request token tunnel to '%s'", peer_id);
-					} else
-						log_error("Failed to setup route to '%s'", peer_id);
-					free(peer_id);
-				}
-			}
-		}
-	}
-
-	return result;
-}
-
 static result_t send_join_request(void)
 {
 	char *message, *msg_id;
@@ -266,7 +111,7 @@ static result_t node_setup_reply_handler(char *data, void *msg_data)
 	if (get_value_from_map(&data, "value", &value) == SUCCESS) {
 		if (decode_uint_from_map(&value, "status", &status) == SUCCESS) {
 			if (status == 200) {
-				log_debug("Node configured");
+				log("Node started and configured");
 				return SUCCESS;
 			}
 		}
@@ -283,27 +128,29 @@ static result_t storage_tunnel_reply_handler(char *data, void *msg_data)
 	char *value = NULL, *tunnel_id = NULL, *data_value = NULL;
 	result_t result = FAIL;
 
-	if (get_value_from_map(&data, "value", &value) == SUCCESS) {
-		if (get_value_from_map(&value, "data", &data_value) == SUCCESS) {
-			if (decode_string_from_map(&data_value, "tunnel_id", &tunnel_id) == SUCCESS) {
-				if (decode_uint_from_map(&value, "status", &status) == SUCCESS) {
-					if (status == 200) {
-						m_node->storage_tunnel = create_tunnel_with_id(m_node->proxy_node_id, tunnel_id);
-						if (m_node->storage_tunnel != NULL) {
-							log_debug("Storage tunnel created");
-							m_node->storage_tunnel->state = TUNNEL_CONNECTED;
+	result = get_value_from_map(&data, "value", &value);
 
-							// Request node to be configured
-							result = send_node_setup(m_node, node_setup_reply_handler);
-							if (result != SUCCESS)
-								log_error("Failed send node setup request");
-						}
-					}
-				}
-				free(tunnel_id);
-			}
-		}
+	if (result == SUCCESS)
+		result = get_value_from_map(&value, "data", &data_value);
+
+	if (result == SUCCESS)
+		result = decode_string_from_map(&data_value, "tunnel_id", &tunnel_id);
+
+	if (result == SUCCESS)
+		result = decode_uint_from_map(&value, "status", &status);
+
+	if (result != SUCCESS)
+		log_error("Failed to parse storage reply");
+
+	if (result == SUCCESS && status == 200) {
+		m_node->storage_tunnel->state = TUNNEL_WORKING;
+		result = send_node_setup(m_node, node_setup_reply_handler);
+		if (result != SUCCESS)
+			log_error("Failed send node setup request");
 	}
+
+	if (tunnel_id != NULL)
+		free(tunnel_id);
 
 	return result;
 }
@@ -323,19 +170,39 @@ static result_t handle_join_reply(char *data)
 		return FAIL;
 	}
 
-	log_debug("Joined node %s", id);
-
 	m_node->transport->state = TRANSPORT_JOINED;
-	m_node->proxy_node_id = strdup(id);
 
-	return request_tunnel(m_node->proxy_node_id, STORAGE_TUNNEL, storage_tunnel_reply_handler);
+	m_node->proxy_link = create_link(id, LINK_WORKING);
+	if (m_node->proxy_link == NULL) {
+		log_error("Failed to create link for proxy '%s'", id);
+		return FAIL;
+	}
+
+	log_debug("Link created to proxy '%s'", id);
+
+	m_node->storage_tunnel = create_tunnel(m_node->proxy_link, TUNNEL_TYPE_STORAGE, TUNNEL_PENDING);
+	if (m_node->storage_tunnel == NULL) {
+		log_error("Failed to create storage tunnel");
+		free_link(m_node->proxy_link);
+		m_node->proxy_link = NULL;
+		return FAIL;
+	}
+
+	if (send_tunnel_request(m_node, m_node->storage_tunnel, storage_tunnel_reply_handler) != SUCCESS) {
+		log_error("Failed to request storage tunnel");
+		free_tunnel(m_node, m_node->storage_tunnel);
+		m_node->storage_tunnel = NULL;
+		return FAIL;
+	}
+
+	return SUCCESS;
 }
 
 result_t handle_token(char *port_id, token_t *token, uint32_t sequencenbr)
 {
 	port_t *port = get_inport(m_node, port_id);
 
-	if (port != NULL) {
+	if (port != NULL && port->state == PORT_CONNECTED) {
 		if (fifo_write(port->fifo, token) == SUCCESS) {
 			return send_token_reply(m_node,
 				port,
@@ -407,23 +274,19 @@ static result_t send_tokens(actor_t *actor)
 	token_t *token = NULL;
 
 	port = actor->outports;
-	while (port != NULL && result == SUCCESS) {
-		if (port->fifo != NULL) {
-			while (fifo_can_read(port->fifo) && result == SUCCESS) {
-				token = fifo_read(port->fifo);
-				if (token != NULL) {
-					if (port->is_local) {
-						result = move_token(port, token);
-						if (result == SUCCESS)
-							fifo_commit_read(port->fifo, true, false);
-					} else
-						// commited when ACK received
-						result = send_token(m_node, port, token);
-
-					if (result == FAIL)
-						fifo_commit_read(port->fifo, false, false);
+	while (port != NULL && port->fifo != NULL && result == SUCCESS) {
+		while (fifo_can_read(port->fifo) && result == SUCCESS) {
+			token = fifo_read(port->fifo);
+			if (token != NULL) {
+				if (port->is_local) {
+					result = move_token(port, token);
+					if (result == SUCCESS)
+						fifo_commit_read(port->fifo, true, false);
 				} else
-					result = FAIL;
+					result = send_token(m_node, port, token);
+
+				if (result == FAIL)
+					fifo_commit_read(port->fifo, false, false);
 			}
 		}
 		port = port->next;
@@ -463,16 +326,20 @@ result_t create_node(uint32_t vid, uint32_t pid, char *name)
 	for (i = 0; i < MAX_TUNNELS; i++)
 		m_node->tunnels[i] = NULL;
 
+	for (i = 0; i < MAX_LINKS; i++)
+		m_node->links[i] = NULL;
+
 	m_node->vid = vid;
 	m_node->pid = pid;
 	m_node->node_id = gen_uuid(NULL);
-	log_debug("Node id '%s'", m_node->node_id);
 	m_node->schema = SCHEMA;
 	m_node->pending_msgs = NULL;
 	m_node->name = name;
 	m_node->transport = NULL;
 	m_node->storage_tunnel = NULL;
-	m_node->proxy_node_id = NULL;
+	m_node->proxy_link = NULL;
+
+	log_debug("Created node with id '%s'", m_node->node_id);
 
 	return SUCCESS;
 }
@@ -540,23 +407,46 @@ void node_run(void)
 void stop_node(bool terminate)
 {
 	pending_msg_t *tmp_msg = NULL;
-	int i_actor = 0, i_tunnel = 0;
+	int i = 0;
 
 	log_debug("Stopping node");
 
-	if (m_node->transport != NULL) {
-		free_client(m_node->transport);
-		m_node->transport = NULL;
+	// TODO: If not terminating, try to reconnect actors
+	// when new proxy connection is made.
+	for (i = 0; i < MAX_ACTORS; i++) {
+		if (m_node->actors[i] != NULL) {
+			free_actor(m_node, m_node->actors[i], false);
+			m_node->actors[i] = NULL;
+		}
 	}
 
-	if (m_node->proxy_node_id) {
-		free(m_node->proxy_node_id);
-		m_node->proxy_node_id = NULL;
+	for (i = 0; i < MAX_TUNNELS; i++) {
+		if (m_node->tunnels[i] != NULL) {
+			free_tunnel(m_node, m_node->tunnels[i]);
+			m_node->tunnels[i] = NULL;
+		}
+	}
+
+	for (i = 0; i < MAX_LINKS; i++) {
+		if (m_node->links[i] != NULL) {
+			free_link(m_node->links[i]);
+			m_node->links[i] = NULL;
+		}
 	}
 
 	if (m_node->storage_tunnel != NULL) {
 		free_tunnel(m_node, m_node->storage_tunnel);
 		m_node->storage_tunnel = NULL;
+	}
+
+	if (m_node->proxy_link != NULL) {
+		free_link(m_node->proxy_link);
+		m_node->proxy_link = NULL;
+	}
+
+	if (m_node->transport != NULL) {
+		free_client(m_node->transport);
+		m_node->transport = NULL;
 	}
 
 	if (m_node->pending_msgs != NULL) {
@@ -567,18 +457,6 @@ void stop_node(bool terminate)
 			tmp_msg = m_node->pending_msgs;
 		}
 		m_node->pending_msgs = NULL;
-	}
-
-	// TODO: If not terminating, try to reconnect actors
-	// when new proxy connection is made.
-	for (i_actor = 0; i_actor < MAX_ACTORS; i_actor++) {
-		free_actor(m_node, m_node->actors[i_actor], false);
-		m_node->actors[i_actor] = NULL;
-	}
-
-	for (i_tunnel = 0; i_tunnel < MAX_TUNNELS; i_tunnel++) {
-		free_tunnel(m_node, m_node->tunnels[i_tunnel]);
-		m_node->tunnels[i_tunnel] = NULL;
 	}
 
 	if (terminate) {

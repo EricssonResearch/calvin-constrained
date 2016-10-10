@@ -41,15 +41,6 @@
 #define APP_CALVIN_TIMER_INTERVAL           APP_TIMER_TICKS(1000, APP_TIMER_PRESCALER)
 #define SCHED_MAX_EVENT_DATA_SIZE           128
 #define SCHED_QUEUE_SIZE                    12
-#define ADVERTISING_LED                     BSP_LED_0_MASK
-#define CONNECTED_LED                       BSP_LED_1_MASK
-#define TCP_CONNECTED_LED                   BSP_LED_2_MASK
-#define DISPLAY_LED_0                       BSP_LED_0_MASK
-#define DISPLAY_LED_1                       BSP_LED_1_MASK
-#define DISPLAY_LED_2                       BSP_LED_2_MASK
-#define DISPLAY_LED_3                       BSP_LED_3_MASK
-#define ALL_APP_LED                        (BSP_LED_0_MASK | BSP_LED_1_MASK | \
-											BSP_LED_2_MASK | BSP_LED_3_MASK)
 #define APP_TIMER_MAX_TIMERS                3
 #define APP_TIMER_OP_QUEUE_SIZE             3
 #define APP_ADV_TIMEOUT                     0
@@ -67,7 +58,6 @@ void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_
 {
 	log_debug("[** ASSERT **]: Error 0x%08lX, Line %ld, File %s", error_code, line_num, p_file_name);
 
-	LEDS_ON(ALL_APP_LED);
 	for (;;) {
 	}
 }
@@ -75,12 +65,6 @@ void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_
 void assert_nrf_callback(uint16_t line_num, const uint8_t *p_file_name)
 {
 	app_error_handler(DEAD_BEEF, line_num, p_file_name);
-}
-
-static void leds_init(void)
-{
-	LEDS_CONFIGURE(ALL_APP_LED);
-	LEDS_OFF(ALL_APP_LED);
 }
 
 void start_calvin_inittimer(void)
@@ -164,8 +148,6 @@ static void advertising_start(void)
 
 	err_code = sd_ble_gap_adv_start(&m_adv_params);
 	APP_ERROR_CHECK(err_code);
-
-	LEDS_ON(ADVERTISING_LED);
 }
 
 static void on_ble_evt(ble_evt_t *p_ble_evt)
@@ -233,13 +215,10 @@ static void system_timer_callback(void *p_context)
 static void calvin_inittimer_callback(void *p_context)
 {
 	UNUSED_VARIABLE(p_context);
-	if (start_node(m_mac) == SUCCESS) {
-		LEDS_OFF(CONNECTED_LED);
-		LEDS_ON(TCP_CONNECTED_LED);
+	if (start_node(m_mac) == SUCCESS)
 		start_calvin_timer();
-	} else {
+	else
 		log_error("Failed to start node");
-	}
 }
 
 static void calvin_timer_callback(void *p_context)
@@ -281,9 +260,6 @@ void nrf51_driver_interface_up(void)
 	err_code = app_timer_start(m_sys_timer_id, LWIP_SYS_TIMER_INTERVAL, NULL);
 	APP_ERROR_CHECK(err_code);
 
-	LEDS_OFF(ADVERTISING_LED);
-	LEDS_ON(CONNECTED_LED);
-
 	start_calvin_inittimer();
 }
 
@@ -297,9 +273,6 @@ void nrf51_driver_interface_down(void)
 
 	err_code = app_timer_stop(m_sys_timer_id);
 	APP_ERROR_CHECK(err_code);
-
-	LEDS_OFF((DISPLAY_LED_0 | DISPLAY_LED_1 | DISPLAY_LED_2 | DISPLAY_LED_3));
-	LEDS_ON(ADVERTISING_LED);
 }
 
 void platform_init(void)
@@ -308,7 +281,6 @@ void platform_init(void)
 	uint8_t rnd_seed;
 
 	app_trace_init();
-	leds_init();
 	timers_init();
 	ble_stack_init();
 	advertising_init();
@@ -348,18 +320,16 @@ calvin_timer_t *create_recurring_timer(double interval)
 	}
 
 	calvin_timer->interval = interval;
-	if (app_timer_cnt_get(&calvin_timer->last_triggered) != NRF_SUCCESS) {
+	if (app_timer_cnt_get(&calvin_timer->last_triggered) != NRF_SUCCESS)
 		log_error("Failed to get time");
-	}
 
 	return calvin_timer;
 }
 
 void stop_timer(calvin_timer_t *timer)
 {
-	if (timer != NULL) {
+	if (timer != NULL)
 		free(timer);
-	}
 }
 
 bool check_timer(calvin_timer_t *timer)

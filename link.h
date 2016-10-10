@@ -13,18 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef LINK_H
+#define LINK_H
 
-#define STORAGE_TUNNEL "storage"
-#define TOKEN_TUNNEL "token"
+#include "common.h"
+
+struct node_t;
 
 typedef enum {
-	SUCCESS,
-	FAIL
-} result_t;
+	LINK_PENDING,
+	LINK_WORKING
+} link_state_t;
 
-char *gen_uuid(const char *prefix);
-unsigned int get_message_len(const char *buffer);
+typedef struct link_t {
+	char *peer_id;
+	link_state_t state;
+} link_t;
 
-#endif /* COMMON_H */
+link_t *create_link(char *peer_id, link_state_t state);
+result_t add_link(struct node_t *node, link_t *link);
+link_t *get_link(struct node_t *node, char *peer_id);
+result_t request_link(struct node_t *node, link_t *link);
+void remove_link(struct node_t *node, link_t *link);
+void free_link(link_t *link);
+
+#endif /* LINK_H */

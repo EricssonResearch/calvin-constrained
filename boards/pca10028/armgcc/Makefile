@@ -56,6 +56,7 @@ $(SDK_PATH)/components/drivers_nrf/gpiote/nrf_drv_gpiote.c \
 ../../../main.c \
 ../../../common.c \
 ../../../node.c \
+../../../link.c \
 ../../../proto.c \
 ../../../transport_lwip.c \
 ../../../tunnel.c \

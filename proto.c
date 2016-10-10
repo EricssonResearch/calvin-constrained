@@ -18,6 +18,7 @@
 #include "msgpack_helper.h"
 #include "transport.h"
 #include "platform.h"
+#include "link.h"
 
 #define STRING_TRUE "true"
 #define STRING_FALSE "false"
@@ -83,7 +84,7 @@ result_t send_node_setup(const node_t *node, result_t (*handler)(char*, void*))
 	{
 		w = encode_str(&w, "msg_uuid", msg_uuid);
 		w = encode_str(&w, "from_rt_uuid", node->node_id);
-		w = encode_str(&w, "to_rt_uuid", node->proxy_node_id);
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id);
 		w = encode_str(&w, "cmd", "PROXY_CONFIG");
 		w = encode_uint(&w, "vid", node->vid);
 		w = encode_uint(&w, "pid", node->pid);
@@ -132,7 +133,7 @@ result_t send_route_request(const node_t *node, char *dest_peer_id, result_t (*h
 	{
 		w = encode_str(&w, "msg_uuid", msg_uuid);
 		w = encode_str(&w, "from_rt_uuid", node->node_id);
-		w = encode_str(&w, "to_rt_uuid", node->proxy_node_id);
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id);
 		w = encode_str(&w, "cmd", "ROUTE_REQUEST");
 		w = encode_str(&w, "dest_peer_id", dest_peer_id);
 		w = encode_str(&w, "org_peer_id", node->node_id);
@@ -150,7 +151,7 @@ result_t send_route_request(const node_t *node, char *dest_peer_id, result_t (*h
 	return result;
 }
 
-result_t send_tunnel_request(const node_t *node, const char *to_rt_uuid, const char *tunnel_id, const char *type, result_t (*handler)(char*, void*))
+result_t send_tunnel_request(const node_t *node, tunnel_t *tunnel, result_t (*handler)(char*, void*))
 {
 	result_t result = FAIL;
 	char *buffer = NULL, *w = NULL, *msg_uuid = NULL;
@@ -180,10 +181,10 @@ result_t send_tunnel_request(const node_t *node, const char *to_rt_uuid, const c
 	{
 		w = encode_str(&w, "msg_uuid", msg_uuid);
 		w = encode_str(&w, "from_rt_uuid", node->node_id);
-		w = encode_str(&w, "to_rt_uuid", to_rt_uuid);
+		w = encode_str(&w, "to_rt_uuid", tunnel->link->peer_id);
 		w = encode_str(&w, "cmd", "TUNNEL_NEW");
-		w = encode_str(&w, "tunnel_id", tunnel_id);
-		w = encode_str(&w, "type", (char *)type);
+		w = encode_str(&w, "tunnel_id", tunnel->tunnel_id);
+		w = encode_str(&w, "type", tunnel->type == TUNNEL_TYPE_STORAGE ? STORAGE_TUNNEL : TOKEN_TUNNEL);
 		w = encode_map(&w, "policy", 0);
 	}
 
@@ -643,7 +644,7 @@ result_t send_remove_node(const node_t *node, result_t (*handler)(char*, void*))
 
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "to_rt_uuid", node->proxy_node_id);
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id);
 		w = encode_str(&w, "from_rt_uuid", node->node_id);
 		w = encode_str(&w, "cmd", "TUNNEL_DATA");
 		w = encode_str(&w, "tunnel_id", node->storage_tunnel->tunnel_id);
@@ -727,7 +728,7 @@ result_t send_set_actor(const node_t *node, const actor_t *actor, result_t (*han
 	w = mp_encode_map(w, 5);
 	{
 		w = encode_str(&w, "from_rt_uuid", node->node_id);
-		w = encode_str(&w, "to_rt_uuid", node->proxy_node_id);
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id);
 		w = encode_str(&w, "cmd", "TUNNEL_DATA");
 		w = encode_str(&w, "tunnel_id", node->storage_tunnel->tunnel_id);
 		w = encode_map(&w, "value", 4);
@@ -782,7 +783,7 @@ result_t send_remove_actor(const node_t *node, actor_t *actor, result_t (*handle
 	w = mp_encode_map(w, 5);
 	{
 		w = encode_str(&w, "from_rt_uuid", node->node_id);
-		w = encode_str(&w, "to_rt_uuid", node->proxy_node_id);
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id);
 		w = encode_str(&w, "cmd", "TUNNEL_DATA");
 		w = encode_str(&w, "tunnel_id", node->storage_tunnel->tunnel_id);
 		w = encode_map(&w, "value", 4);
@@ -806,7 +807,7 @@ result_t send_remove_actor(const node_t *node, actor_t *actor, result_t (*handle
 	return result;
 }
 
-result_t send_set_port(const node_t *node, actor_t *actor, port_t *port, result_t (*handler)(char*, void*))
+result_t send_set_port(const node_t *node, port_t *port, result_t (*handler)(char*, void*))
 {
 	result_t result = FAIL;
 	char *buffer = NULL, *w = NULL, key[50] = "", data[400] = "", *msg_uuid = NULL;
@@ -839,11 +840,11 @@ result_t send_set_port(const node_t *node, actor_t *actor, port_t *port, result_
 			port->port_name,
 			node->node_id,
 			port->state == PORT_CONNECTED ? STRING_TRUE : STRING_FALSE,
-			actor->id);
+			port->actor->id);
 
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "to_rt_uuid", node->proxy_node_id);
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id);
 		w = encode_str(&w, "from_rt_uuid", node->node_id);
 		w = encode_str(&w, "cmd", "TUNNEL_DATA");
 		w = encode_str(&w, "tunnel_id", node->storage_tunnel->tunnel_id);
@@ -898,7 +899,7 @@ result_t send_get_port(const node_t *node, char *port_id, result_t (*handler)(ch
 
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "to_rt_uuid", node->proxy_node_id);
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id);
 		w = encode_str(&w, "from_rt_uuid", node->node_id);
 		w = encode_str(&w, "cmd", "TUNNEL_DATA");
 		w = encode_str(&w, "tunnel_id", node->storage_tunnel->tunnel_id);
@@ -952,7 +953,7 @@ result_t send_remove_port(const node_t *node, port_t *port, result_t (*handler)(
 
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "to_rt_uuid", node->proxy_node_id);
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id);
 		w = encode_str(&w, "from_rt_uuid", node->node_id);
 		w = encode_str(&w, "cmd", "TUNNEL_DATA");
 		w = encode_str(&w, "tunnel_id", node->storage_tunnel->tunnel_id);
@@ -1058,22 +1059,35 @@ static result_t parse_token(node_t *node, char *root)
 	uint32_t sequencenbr = 0;
 	token_t *token = NULL;
 
-	if (decode_string_from_map(&r, "from_rt_uuid", &from_rt_uuid) == SUCCESS) {
-		if (get_value_from_map(&r, "value", &obj_value) == SUCCESS) {
-			if (decode_string_from_map(&obj_value, "peer_port_id", &port_id) == SUCCESS) {
-				if (decode_uint_from_map(&obj_value, "sequencenbr", &sequencenbr) == SUCCESS) {
-					if (get_value_from_map(&obj_value, "token", &obj_token) == SUCCESS) {
-						if (decode_token(obj_token, &token) == SUCCESS)
-							result = handle_token(port_id, token, sequencenbr);
-						else
-							log_error("Failed to create token");
-					}
-				}
-				free(port_id);
-			}
-		}
-		free(from_rt_uuid);
+	result = decode_string_from_map(&r, "from_rt_uuid", &from_rt_uuid);
+
+	if (result == SUCCESS)
+		result = get_value_from_map(&r, "value", &obj_value);
+
+	if (result == SUCCESS)
+		result = decode_string_from_map(&obj_value, "peer_port_id", &port_id);
+
+	if (result == SUCCESS)
+		result = decode_uint_from_map(&obj_value, "sequencenbr", &sequencenbr);
+
+	if (result == SUCCESS)
+		result = get_value_from_map(&obj_value, "token", &obj_token);
+
+	if (result != SUCCESS)
+		log_error("Failed to decode message");
+
+	if (result == SUCCESS) {
+		if (decode_token(obj_token, &token) == SUCCESS)
+			result = handle_token(port_id, token, sequencenbr);
+		else
+			log_error("Failed to create token");
 	}
+
+	if (port_id != NULL)
+		free(port_id);
+
+	if (from_rt_uuid != NULL)
+		free(from_rt_uuid);
 
 	return result;
 }
@@ -1117,26 +1131,28 @@ static result_t parse_tunnel_data(node_t *node, char *root)
 	pending_msg_t *pending_msgs = node->pending_msgs;
 	result_t result = FAIL;
 
-	if (get_value_from_map(&r, "value", &value) == SUCCESS) {
+	result = get_value_from_map(&r, "value", &value);
+	if (result == SUCCESS) {
 		if (has_key(&value, "msg_uuid")) {
-			if (decode_string_from_map(&value, "msg_uuid", &msg_uuid) == SUCCESS) {
-				while (pending_msgs != NULL) {
-					if (strcmp(pending_msgs->msg_uuid, msg_uuid) == 0) {
-						if (pending_msgs->handler != NULL) {
-							log_debug("Calling handler for msg_uuid '%s'", msg_uuid);
-							result = pending_msgs->handler(root, pending_msgs->msg_data);
-						} else
-							log_error("Received message without a handler set %s", msg_uuid);
-						remove_pending_msg(msg_uuid);
-						break;
+			result = decode_string_from_map(&value, "msg_uuid", &msg_uuid);
+			while (result == SUCCESS && pending_msgs != NULL) {
+				if (strcmp(pending_msgs->msg_uuid, msg_uuid) == 0) {
+					if (pending_msgs->handler != NULL) {
+						log_debug("Calling handler for msg_uuid '%s'", msg_uuid);
+						result = pending_msgs->handler(root, pending_msgs->msg_data);
+					} else {
+						log_error("Received message without a handler set %s", msg_uuid);
+						result = FAIL;
 					}
-					pending_msgs = pending_msgs->next;
+					remove_pending_msg(msg_uuid);
+					free(msg_uuid);
+					return result;
 				}
-				free(msg_uuid);
+				pending_msgs = pending_msgs->next;
 			}
+			free(msg_uuid);
 		} else if (has_key(&value, "cmd")) {
 			if (decode_string_from_map(&value, "cmd", &cmd) == SUCCESS) {
-				log_debug("Received '%s' on tunnel", cmd);
 				if (strcmp(cmd, "TOKEN") == 0)
 					result = parse_token(node, root);
 				else if (strcmp(cmd, "TOKEN_REPLY") == 0)
@@ -1144,12 +1160,13 @@ static result_t parse_tunnel_data(node_t *node, char *root)
 				else
 					log_error("Unhandled tunnel cmd '%s'", cmd);
 				free(cmd);
+				return result;
 			}
 		} else
 			log_error("Unknown message");
 	}
 
-	return result;
+	return FAIL;
 }
 
 static result_t parse_actor_new(node_t *node, char *root)
@@ -1186,7 +1203,7 @@ static result_t parse_actor_new(node_t *node, char *root)
 
 static result_t actor_new_reply_handler(char *data, void *msg_data)
 {
-	log_debug("actor_new_reply_handler");
+	log_debug("TODO: actor_new_reply_handler does nothing");
 	return SUCCESS;
 }
 
@@ -1387,6 +1404,7 @@ static result_t parse_tunnel_new(node_t *node, char *root)
 	result_t result = SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL;
 	char *type = NULL, *tunnel_id;
+	link_t *link = NULL;
 	tunnel_t *tunnel = NULL;
 
 	result = decode_string_from_map(&r, "from_rt_uuid", &from_rt_uuid);
@@ -1406,11 +1424,19 @@ static result_t parse_tunnel_new(node_t *node, char *root)
 		result = decode_string_from_map(&r, "tunnel_id", &tunnel_id);
 
 	if (result == SUCCESS) {
-		tunnel = create_tunnel_with_id(from_rt_uuid, tunnel_id);
-		if (tunnel != NULL) {
-			result = add_token_tunnel(tunnel);
-			if (result != SUCCESS)
-				free_tunnel(node, tunnel);
+		link = get_link(node, from_rt_uuid);
+		if (link == NULL) {
+			log_error("No link connected to '%s'", from_rt_uuid);
+			result = FAIL;
+		} else {
+			tunnel = create_tunnel_from_id(link, TUNNEL_TYPE_TOKEN, TUNNEL_WORKING, tunnel_id);
+			if (tunnel != NULL) {
+				result = add_tunnel(node, tunnel);
+				if (result != SUCCESS)
+					free_tunnel(node, tunnel);
+				else
+					result = tunnel_connected(node, tunnel);
+			}
 		}
 	}
 
@@ -1439,6 +1465,7 @@ static result_t parse_route_request(node_t *node, char *root)
 	result_t result = SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL;
 	char *dest_peer_id = NULL, *org_peer_id = NULL;
+	link_t *link = NULL;
 
 	result = decode_string_from_map(&r, "from_rt_uuid", &from_rt_uuid);
 
@@ -1448,15 +1475,26 @@ static result_t parse_route_request(node_t *node, char *root)
 	if (result == SUCCESS)
 		result = decode_string_from_map(&r, "dest_peer_id", &dest_peer_id);
 
+	if (result == SUCCESS)
+		result = decode_string_from_map(&r, "org_peer_id", &org_peer_id);
+
+	if (result != SUCCESS)
+		log_error("Failed to decode message");
+
 	if (result == SUCCESS) {
-		if (strcmp(dest_peer_id, node->node_id) != 0) {
+		if (strcmp(dest_peer_id, node->node_id) == 0) {
+			link = get_link(node, org_peer_id);
+			if (link != NULL)
+				log_debug("Link to '%s' already exists", dest_peer_id);
+			else {
+				link = create_link(org_peer_id, LINK_WORKING);
+				result = add_link(node, link);
+			}
+		} else {
 			log_error("Routing not supported");
 			result = FAIL;
 		}
 	}
-
-	if (result == SUCCESS)
-		result = decode_string_from_map(&r, "org_peer_id", &org_peer_id);
 
 	if (result == SUCCESS)
 		result = send_route_request_reply(node, msg_uuid, org_peer_id, 200, dest_peer_id);
@@ -1487,7 +1525,6 @@ result_t parse_message(node_t *node, char *data)
 	result = decode_string_from_map(&r, "cmd", &cmd);
 	if (result == SUCCESS) {
 		log_debug("Received '%s'", cmd);
-
 		for (i = 0; i < NBR_OF_COMMANDS; i++) {
 			if (strcmp(cmd, command_handlers[i].command) == 0) {
 				result = command_handlers[i].handler(node, r);
