@@ -216,3 +216,36 @@ result_t request_token_tunnel(node_t *node, tunnel_t *tunnel)
 
 	return result;
 }
+
+result_t handle_tunnel_new_request(struct node_t *node, char *peer_id, char *tunnel_id)
+{
+	link_t *link = NULL;
+	tunnel_t *tunnel = NULL;
+
+	link = get_link(node, peer_id);
+	if (link == NULL) {
+		log_error("No link connected to '%s'", peer_id);
+		return FAIL;
+	}
+
+	tunnel = get_tunnel_from_peerid(node, peer_id);
+	if (tunnel != NULL) {
+		if (tunnel->state == TUNNEL_WORKING)
+			log_error("Tunnel already connected to '%s'", peer_id);
+		else
+			log_error("TODO: Choose tunnel id with highest id");
+		return FAIL;
+	}
+		
+	tunnel = create_tunnel_from_id(link, TUNNEL_TYPE_TOKEN, TUNNEL_WORKING, tunnel_id);
+	if (tunnel != NULL) {
+		if (add_tunnel(node, tunnel) != SUCCESS) {
+			free_tunnel(node, tunnel);
+			return FAIL;
+		}
+		else
+			return tunnel_connected(node, tunnel);
+	}
+
+	return FAIL;
+}

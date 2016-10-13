@@ -49,5 +49,6 @@ void tunnel_remove_ref(struct node_t *node, tunnel_t *tunnel);
 tunnel_t *get_tunnel(struct node_t *node, const char *tunnel_id);
 tunnel_t *get_tunnel_from_peerid(struct node_t *node, const char *peer_id);
 result_t request_token_tunnel(struct node_t *node, tunnel_t *tunnel);
+result_t handle_tunnel_new_request(struct node_t *node, char *peer_id, char *tunnel_id);
 
 #endif /* TUNNEL_H */

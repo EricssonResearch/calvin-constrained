@@ -1406,8 +1406,6 @@ static result_t parse_tunnel_new(node_t *node, char *root)
 	result_t result = SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL;
 	char *type = NULL, *tunnel_id;
-	link_t *link = NULL;
-	tunnel_t *tunnel = NULL;
 
 	result = decode_string_from_map(&r, "from_rt_uuid", &from_rt_uuid);
 
@@ -1426,20 +1424,7 @@ static result_t parse_tunnel_new(node_t *node, char *root)
 		result = decode_string_from_map(&r, "tunnel_id", &tunnel_id);
 
 	if (result == SUCCESS) {
-		link = get_link(node, from_rt_uuid);
-		if (link == NULL) {
-			log_error("No link connected to '%s'", from_rt_uuid);
-			result = FAIL;
-		} else {
-			tunnel = create_tunnel_from_id(link, TUNNEL_TYPE_TOKEN, TUNNEL_WORKING, tunnel_id);
-			if (tunnel != NULL) {
-				result = add_tunnel(node, tunnel);
-				if (result != SUCCESS)
-					free_tunnel(node, tunnel);
-				else
-					result = tunnel_connected(node, tunnel);
-			}
-		}
+		result = handle_tunnel_new_request(node, from_rt_uuid, tunnel_id);
 	}
 
 	if (result == SUCCESS)
