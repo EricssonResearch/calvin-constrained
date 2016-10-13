@@ -40,7 +40,6 @@ result_t actor_temperature_fire(struct actor_t *actor)
 	fifo_read(actor->inports->fifo);
 
 	if (fifo_write(actor->outports->fifo, out_token) == SUCCESS) {
-		printf("Wrote %f\n", temperature);
 		fifo_commit_read(actor->inports->fifo, true, true);
 		return SUCCESS;
 	}
