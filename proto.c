@@ -24,7 +24,6 @@
 #define STRING_FALSE "false"
 #define STRING_IN "in"
 #define STRING_OUT "out"
-#define SEND_BUFFER_SIZE 1800
 #define NBR_OF_COMMANDS 9
 
 struct command_handler_t {
@@ -70,7 +69,7 @@ result_t send_node_setup(const node_t *node, result_t (*handler)(char*, void*))
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(250);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -119,7 +118,7 @@ result_t send_route_request(const node_t *node, char *dest_peer_id, result_t (*h
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(300);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -167,7 +166,7 @@ result_t send_tunnel_request(const node_t *node, tunnel_t *tunnel, result_t (*ha
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(300);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -216,7 +215,7 @@ result_t send_tunnel_destroy(const node_t *node, const char *to_rt_uuid, const c
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(250);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -252,7 +251,7 @@ result_t send_reply(const node_t *node, char *msg_uuid, char *to_rt_uuid, uint32
 	result_t result = FAIL;
 	char *buffer = NULL, *w = NULL;
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(250);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		return result;
@@ -295,7 +294,7 @@ result_t send_tunnel_new_reply(const node_t *node, char *msg_uuid, char *to_rt_u
 	result_t result = FAIL;
 	char *buffer = NULL, *w = NULL;
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(300);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		return result;
@@ -341,7 +340,7 @@ result_t send_route_request_reply(const node_t *node, char *msg_uuid, char *to_r
 	result_t result = FAIL;
 	char *buffer = NULL, *w = NULL;
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(300);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		return result;
@@ -387,7 +386,7 @@ result_t send_port_connect_reply(const node_t *node, char *msg_uuid, char *to_rt
 	result_t result = FAIL;
 	char *buffer = NULL, *w = NULL;
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(500);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -435,7 +434,7 @@ result_t send_token(const node_t *node, port_t *port, token_t *token)
 	result_t result = FAIL;
 	char *buffer = NULL, *w = NULL;
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(400);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		return FAIL;
@@ -473,7 +472,7 @@ result_t send_token_reply(const node_t *node, port_t *port, uint32_t sequencenbr
 	result_t result = FAIL;
 	char *buffer = NULL, *w = NULL;
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(400);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		return FAIL;
@@ -522,7 +521,7 @@ result_t send_port_connect(const node_t *node, port_t *port, result_t (*handler)
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(500);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -578,7 +577,7 @@ result_t send_port_disconnect(const node_t *node, port_t *port, result_t (*handl
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(400);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -630,7 +629,7 @@ result_t send_remove_node(const node_t *node, result_t (*handler)(char*, void*))
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(350);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -687,7 +686,8 @@ result_t send_set_actor(const node_t *node, const actor_t *actor, result_t (*han
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	// TODO: Set buffer size based on actor size
+	buffer = malloc(600);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -768,7 +768,7 @@ result_t send_remove_actor(const node_t *node, actor_t *actor, result_t (*handle
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(350);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -823,7 +823,7 @@ result_t send_set_port(const node_t *node, port_t *port, result_t (*handler)(cha
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(600);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -885,7 +885,7 @@ result_t send_get_port(const node_t *node, char *port_id, result_t (*handler)(ch
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(350);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -939,7 +939,7 @@ result_t send_remove_port(const node_t *node, port_t *port, result_t (*handler)(
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	buffer = malloc(350);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);
@@ -994,7 +994,9 @@ result_t send_actor_new(const node_t *node, actor_t *actor, char *to_rt_uuid, re
 		return result;
 	}
 
-	buffer = malloc(SEND_BUFFER_SIZE);
+	// TODO: Set buffer size based on actor size
+	// 1800 is from serializing the identity actor
+	buffer = malloc(1800);
 	if (buffer == NULL) {
 		log_error("Failed to allocate memory");
 		remove_pending_msg(msg_uuid);

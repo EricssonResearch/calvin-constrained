@@ -391,8 +391,7 @@ result_t loop_once(void)
 
 void node_run(void)
 {
-	// TODO: Set timeout based on active timers
-	uint32_t timeout = 1;
+	uint32_t timeout = 60;
 
 	while (1) {
 		if (wait_for_data(&m_node->transport, timeout) == SUCCESS)
@@ -409,7 +408,9 @@ void stop_node(bool terminate)
 	pending_msg_t *tmp_msg = NULL;
 	int i = 0;
 
-	log_debug("Stopping node");
+	log("Stopping node");
+
+	send_remove_node(m_node, NULL);
 
 	// TODO: If not terminating, try to reconnect actors
 	// when new proxy connection is made.

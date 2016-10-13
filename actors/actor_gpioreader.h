@@ -13,12 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_PRINT_H
-#define ACTOR_PRINT_H
+#ifndef ACTOR_GPIOREADER_H
+#define ACTOR_GPIOREADER_H
 
 #include "../common.h"
 #include "../actor.h"
+#include "../platform.h"
 
-result_t actor_print(actor_t *actor);
+typedef struct state_gpioreader_t {
+    calvin_gpio_t *gpio;
+    char *edge;
+    char *pull;
+} state_gpioreader_t;
 
-#endif /* ACTOR_PRINT_H */
+result_t actor_gpioreader_init(char *obj_actor_state, actor_state_t **state);
+result_t actor_gpioreader_fire(actor_t *actor);
+void actor_gpioreader_free(actor_t *actor);
+char *actor_gpioreader_serialize(actor_state_t *state, char **buffer);
+
+#endif /* ACTOR_GPIOREADER_H */

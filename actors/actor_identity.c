@@ -51,7 +51,7 @@ result_t actor_identity_init(char *obj_actor_state, actor_state_t **state)
 	return result;
 }
 
-result_t actor_identity(struct actor_t *actor)
+result_t actor_identity_fire(struct actor_t *actor)
 {
 	port_t *port = actor->inports;
 	token_t *token = NULL;
@@ -73,14 +73,14 @@ result_t actor_identity(struct actor_t *actor)
 	return result;
 }
 
-char *serialize_identity(actor_state_t *state, char **buffer)
+char *actor_identity_serialize(actor_state_t *state, char **buffer)
 {
 	*buffer = encode_bool(buffer, "dump", false);
 
 	return *buffer;
 }
 
-void free_identity_state(actor_t *actor)
+void actor_identity_free(actor_t *actor)
 {
 	state_identity_t *state = NULL;
 

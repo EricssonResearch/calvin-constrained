@@ -281,10 +281,8 @@ result_t wait_for_data(transport_client_t **client, uint32_t timeout)
 
 	FD_ZERO(&fd_set);
 
-#ifdef DEBUG
 	// Add stdin
 	FD_SET(0, &fd_set);
-#endif
 
 	// proxy socket
 	if (*client != NULL && (*client)->state != TRANSPORT_DISCONNECTED) {
@@ -300,11 +298,9 @@ result_t wait_for_data(transport_client_t **client, uint32_t timeout)
 
 	bzero(buffer, BUFFER_SIZE);
 
-#ifdef DEBUG
 	// Stop node on any data
 	if (FD_ISSET(0, &fd_set))
 		stop_node(true);
-#endif
 
 	if (*client != NULL && FD_ISSET((*client)->fd, &fd_set)) {
 		status = recv((*client)->fd, buffer, BUFFER_SIZE, 0);

@@ -19,15 +19,16 @@
 #include "actor.h"
 #include "fifo.h"
 #include "token.h"
-#include "actors/actor_print.h"
-#include "actors/actor_counttimer.h"
 #include "actors/actor_identity.h"
+#include "actors/actor_gpioreader.h"
+#include "actors/actor_gpiowriter.h"
+#include "actors/actor_temperature.h"
 #include "platform.h"
 #include "msgpack_helper.h"
 #include "msgpuck/msgpuck.h"
 #include "proto.h"
 
-#define NBR_OF_ACTOR_TYPES 3
+#define NBR_OF_ACTOR_TYPES 4
 
 struct actor_type_t {
 	char type[50];
@@ -39,25 +40,32 @@ struct actor_type_t {
 
 struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 	{
-		"std.CountTimer",
-		actor_count_timer_init,
-		free_count_timer_state,
-		serialize_count_timer,
-		actor_count_timer
-	},
-	{
-		"io.Print",
-		NULL,
-		NULL,
-		NULL,
-		actor_print
-	},
-	{
 		"std.Identity",
 		actor_identity_init,
-		free_identity_state,
-		serialize_identity,
-		actor_identity
+		actor_identity_free,
+		actor_identity_serialize,
+		actor_identity_fire
+	},
+	{
+		"io.GPIOReader",
+		actor_gpioreader_init,
+		actor_gpioreader_free,
+		actor_gpioreader_serialize,
+		actor_gpioreader_fire
+	},
+	{
+		"io.GPIOWriter",
+		actor_gpiowriter_init,
+		actor_gpiowriter_free,
+		actor_gpiowriter_serialize,
+		actor_gpiowriter_fire
+	},
+	{
+		"sensor.Temperature",
+		NULL,
+		NULL,
+		NULL,
+		actor_temperature_fire
 	}
 };
 
@@ -242,8 +250,6 @@ result_t create_actor(node_t *node, char *root, actor_t **actor)
 		log_debug("Actor '%s' created", (*actor)->name);
 	} else {
 		log_error("Failed to create actor");
-		if (type != NULL)
-			free(type);
 		free_actor(node, *actor, false);
 	}
 

@@ -38,7 +38,6 @@ remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-ou
 
 #source common to all targets
 C_SOURCE_FILES += \
-$(SDK_PATH)/components/libraries/button/app_button.c \
 $(SDK_PATH)/components/libraries/util/app_error.c \
 $(SDK_PATH)/components/libraries/fifo/app_fifo.c \
 $(SDK_PATH)/components/libraries/scheduler/app_scheduler.c \
@@ -64,12 +63,13 @@ $(SDK_PATH)/components/drivers_nrf/gpiote/nrf_drv_gpiote.c \
 ../../../port.c \
 ../../../fifo.c \
 ../../../token.c \
-../../../actors/actor_counttimer.c \
-../../../actors/actor_print.c \
-../../../actors/actor_identity.c \
 ../../../msgpack_helper.c \
 ../../../msgpuck/msgpuck.c \
 ../../../platform_nrf51.c \
+../../../actors/actor_identity.c \
+../../../actors/actor_gpioreader.c \
+../../../actors/actor_gpiowriter.c \
+../../../actors/actor_temperature.c \
 $(SDK_PATH)/components/ble/common/ble_advdata.c \
 $(SDK_PATH)/components/ble/common/ble_srv_common.c \
 $(SDK_PATH)/components/iot/context_manager/iot_context_manager.c \

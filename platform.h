@@ -17,14 +17,16 @@
 #define PLATFORM_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include "common.h"
 
 #ifdef NRF51
 #include "app_trace.h"
 #else
 #include <stdio.h>
-#include <time.h>
 #endif
+
+#define MAX_GPIOS 5
 
 #ifdef NRF51
 #ifdef DEBUG
@@ -45,19 +47,18 @@
 #define log(a, args...) printf(a"\r\n", ##args)
 #endif
 
-typedef struct calvin_timer_t {
-	double interval;
-#ifdef NRF51
-	uint32_t last_triggered;
-#else
-	time_t last_triggered;
-#endif
-} calvin_timer_t;
+typedef struct calvin_gpio_t {
+	uint32_t pin;
+	bool has_triggered;
+    uint32_t value;
+} calvin_gpio_t;
 
 void platform_init(void);
 void platform_run(void);
-calvin_timer_t *create_recurring_timer(double interval);
-void stop_timer(calvin_timer_t *timer);
-bool check_timer(calvin_timer_t *timer);
+calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge);
+calvin_gpio_t *create_out_gpio(uint32_t pin);
+void set_gpio(calvin_gpio_t *gpio, uint32_t value);
+void uninit_gpio(calvin_gpio_t *gpio);
+result_t get_temperature(double *temp);
 
 #endif /* PLATFORM_H */

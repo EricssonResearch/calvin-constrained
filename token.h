@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include "common.h"
 
 typedef struct token_t {
@@ -25,10 +26,11 @@ typedef struct token_t {
 	size_t size; // Buffer size
 } token_t;
 
+result_t create_double_token(double value, token_t **token);
 result_t create_uint_token(uint32_t value, token_t **token);
 result_t decode_token(char *obj_token, token_t **token);
 char *encode_token(char **buffer, token_t *token, bool with_key);
 void free_token(token_t *token);
-void print_token(const token_t *token);
+result_t decode_uint_token(const token_t *token, uint32_t *out);
 
 #endif /* TOKEN_H */

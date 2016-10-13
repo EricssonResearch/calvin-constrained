@@ -23,6 +23,7 @@ char *encode_str(char **buffer, const char *key, const char *value);
 char *encode_map(char **buffer, const char *key, int keys);
 char *encode_array(char **buffer, const char *key, int keys);
 char *encode_uint(char **buffer, const char *key, uint32_t value);
+char *encode_int(char **buffer, const char *key, int32_t value);
 char *encode_double(char **buffer, const char *key, double value);
 char *encode_bool(char **buffer, const char *key, bool value);
 char *encode_nil(char **buffer, const char *key);

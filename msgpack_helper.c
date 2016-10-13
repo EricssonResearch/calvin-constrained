@@ -31,6 +31,13 @@ char *encode_uint(char **buffer, const char *key, uint32_t value)
 	return *buffer;
 }
 
+char *encode_int(char **buffer, const char *key, int32_t value)
+{
+	*buffer = mp_encode_str(*buffer, key, strlen(key));
+	*buffer = mp_encode_int(*buffer, value);
+	return *buffer;
+}
+
 char *encode_double(char **buffer, const char *key, double value)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));

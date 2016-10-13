@@ -20,6 +20,28 @@
 #include "msgpack_helper.h"
 #include "msgpuck/msgpuck.h"
 
+result_t create_double_token(double value, token_t **token)
+{
+	*token = (token_t *)malloc(sizeof(token_t));
+	if (*token == NULL) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	(*token)->size = mp_sizeof_double(value);
+
+	(*token)->value = malloc((*token)->size);
+	if ((*token)->value == NULL) {
+		log_error("Failed to allocate memory");
+		free(*token);
+		return FAIL;
+	}
+
+	mp_encode_double((*token)->value, value);
+
+	return SUCCESS;
+}
+
 result_t create_uint_token(uint32_t value, token_t **token)
 {
 	*token = (token_t *)malloc(sizeof(token_t));
@@ -83,16 +105,20 @@ void free_token(token_t *token)
 	}
 }
 
-void print_token(const token_t *token)
+result_t decode_uint_token(const token_t *token, uint32_t *out)
 {
 	char *value = NULL;
 
 	if (token != NULL && token->value != NULL) {
 		value = token->value;
-		if (mp_typeof(*value) == MP_UINT)
-			log("%lu", (unsigned long)mp_decode_uint((const char **)&value));
+		if (mp_typeof(*value) == MP_UINT) {
+			*out = mp_decode_uint((const char **)&value);
+			return SUCCESS;
+		}
 		else
 			log_error("Unsupported type");
 	} else
 		log_error("NULL token");
+
+	return FAIL;
 }

@@ -13,23 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <stdlib.h>
-#include "actor_print.h"
-#include "../port.h"
-#include "../token.h"
+#ifndef ACTOR_GPIOWRITER_H
+#define ACTOR_GPIOWRITER_H
 
-result_t actor_print(struct actor_t *actor)
-{
-	port_t *port = actor->inports;
-	token_t *token = NULL;
+#include "../common.h"
+#include "../actor.h"
+#include "../platform.h"
 
-	if (port->fifo != NULL) {
-		while (fifo_can_read(port->fifo)) {
-			token = fifo_read(port->fifo);
-			print_token(token);
-			fifo_commit_read(port->fifo, true, true);
-		}
-	}
+typedef struct state_gpiowriter_t {
+    calvin_gpio_t *gpio;
+} state_gpiowriter_t;
 
-	return SUCCESS;
-}
+result_t actor_gpiowriter_init(char *obj_actor_state, actor_state_t **state);
+result_t actor_gpiowriter_fire(actor_t *actor);
+void actor_gpiowriter_free(actor_t *actor);
+char *actor_gpiowriter_serialize(actor_state_t *state, char **buffer);
+
+#endif /* ACTOR_GPIOWRITER_H */

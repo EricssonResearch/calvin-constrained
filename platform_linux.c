@@ -17,9 +17,16 @@
 #include <time.h>
 #include "platform.h"
 
+static calvin_gpio_t *m_gpios[MAX_GPIOS];
+
 void platform_init(void)
 {
+	int i = 0;
+
 	srand(time(NULL));
+
+	for (i = 0; i < MAX_GPIOS; i++)
+		m_gpios[i] = NULL;
 }
 
 void platform_run(void)
@@ -27,43 +34,78 @@ void platform_run(void)
 	// node_run is the main loop
 }
 
-calvin_timer_t *create_recurring_timer(double interval)
+calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
 {
-	calvin_timer_t *calvin_timer = NULL;
+    int i = 0;
 
-	calvin_timer = (calvin_timer_t *)malloc(sizeof(calvin_timer_t));
-	if (calvin_timer == NULL) {
-		log_error("Failed to allocate memory");
-		return NULL;
+    if (pull != 'u' && pull != 'd') {
+    	log_error("Unsupported pull direction");
+    	return NULL;
+    }
+
+    if (edge != 'r' && edge != 'f' && edge != 'b') {
+    	log_error("Unsupported edge");
+    	return NULL;
+    }
+
+	for (i = 0; i < MAX_GPIOS; i++) {
+		if (m_gpios[i] == NULL) {
+			m_gpios[i] = (calvin_gpio_t *)malloc(sizeof(calvin_gpio_t));
+			if (m_gpios[i] == NULL) {
+				log_error("Failed to allocate memory");
+				return NULL;
+			}
+
+			m_gpios[i]->pin = pin;
+			m_gpios[i]->has_triggered = true;
+			return m_gpios[i];
+		}
 	}
 
-	calvin_timer->interval = interval;
-	time(&calvin_timer->last_triggered);
-
-	return calvin_timer;
+	return NULL;
 }
 
-void stop_timer(calvin_timer_t *timer)
+calvin_gpio_t *create_out_gpio(uint32_t pin)
 {
-	if (timer != NULL)
-		free(timer);
-}
+    int i = 0;
 
-bool check_timer(calvin_timer_t *timer)
-{
-	time_t now;
-	double diff;
+	for (i = 0; i < MAX_GPIOS; i++) {
+		if (m_gpios[i] == NULL) {
+			m_gpios[i] = (calvin_gpio_t *)malloc(sizeof(calvin_gpio_t));
+			if (m_gpios[i] == NULL) {
+				log_error("Failed to allocate memory");
+				return NULL;
+			}
 
-	if (timer != NULL) {
-		time(&now);
-		diff = difftime(now, timer->last_triggered);
-		if (diff > timer->interval) {
-			timer->last_triggered = now;
-			return true;
+			m_gpios[i]->pin = pin;
+			return m_gpios[i];
 		}
+	}
 
-	} else
-		log_error("timer is NULL");
+	return NULL;
+}
 
-	return false;
+void uninit_gpio(calvin_gpio_t *gpio)
+{
+	int i = 0;
+
+	for (i = 0; i < MAX_GPIOS; i++) {
+		if (m_gpios[i] != NULL && m_gpios[i]->pin == gpio->pin) {
+			m_gpios[i] = NULL;
+			break;
+		}		
+	}
+
+	free(gpio);
+}
+
+void set_gpio(calvin_gpio_t *gpio, uint32_t value)
+{
+	log("Setting gpio");
+}
+
+result_t get_temperature(double *temp)
+{
+	*temp = 15,5;
+	return SUCCESS;
 }

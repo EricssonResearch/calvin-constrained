@@ -18,7 +18,6 @@
 #include "boards.h"
 #include "app_timer_appsh.h"
 #include "app_scheduler.h"
-#include "app_button.h"
 #include "nordic_common.h"
 #include "softdevice_handler_appsh.h"
 #include "ble_advdata.h"
@@ -30,6 +29,7 @@
 #include "app_util_platform.h"
 #include "lwip/init.h"
 #include "lwip/timers.h"
+#include "nrf_drv_gpiote.h"
 #include "platform.h"
 #include "node.h"
 #include "transport.h"
@@ -53,6 +53,7 @@ static app_timer_id_t                       m_sys_timer_id;
 static app_timer_id_t                       m_calvin_inittimer_id;
 static app_timer_id_t                       m_calvin_timer_id;
 static char                                 m_mac[20]; // MAC address of connected peer
+static calvin_gpio_t 						*m_gpios[MAX_GPIOS];
 
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
 {
@@ -279,6 +280,7 @@ void platform_init(void)
 {
 	uint32_t err_code;
 	uint8_t rnd_seed;
+	int i = 0;
 
 	app_trace_init();
 	timers_init();
@@ -287,10 +289,12 @@ void platform_init(void)
 	ip_stack_init();
 	scheduler_init();
 
+	for (i = 0; i < MAX_GPIOS; i++)
+		m_gpios[i] = NULL;
+
 	do {
 		err_code = sd_rand_application_vector_get(&rnd_seed, 1);
 	} while (err_code == NRF_ERROR_SOC_RAND_NOT_ENOUGH_VALUES);
-
 	srand(rnd_seed);
 
 	log_debug("Init done");
@@ -309,47 +313,141 @@ void platform_run(void)
 	}
 }
 
-calvin_timer_t *create_recurring_timer(double interval)
+static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-	calvin_timer_t *calvin_timer = NULL;
+    int i = 0;
 
-	calvin_timer = (calvin_timer_t *)malloc(sizeof(calvin_timer_t));
-	if (calvin_timer == NULL) {
-		log_error("Failed to allocate memory");
-		return NULL;
-	}
-
-	calvin_timer->interval = interval;
-	if (app_timer_cnt_get(&calvin_timer->last_triggered) != NRF_SUCCESS)
-		log_error("Failed to get time");
-
-	return calvin_timer;
+    for (i = 0; i < MAX_GPIOS; i++) {
+    	if (m_gpios[i] != NULL && m_gpios[i]->pin == pin) {
+    		if (nrf_drv_gpiote_in_is_set(pin))
+				m_gpios[i]->value = 1;
+			else
+				m_gpios[i]->value = 0;
+			m_gpios[i]->has_triggered = true;
+    		return;
+    	}
+    }
 }
 
-void stop_timer(calvin_timer_t *timer)
+calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
 {
-	if (timer != NULL)
-		free(timer);
+    int i = 0;
+    ret_code_t err_code;
+    nrf_drv_gpiote_in_config_t config;
+
+    memset(&config, 0, sizeof(nrf_drv_gpiote_in_config_t));
+
+    if (pull != 'u' && pull != 'd') {
+    	log_error("Unsupported pull direction");
+    	return NULL;
+    }
+
+    if (edge != 'r' && edge != 'f' && edge != 'b') {
+    	log_error("Unsupported edge");
+    	return NULL;
+    }
+
+    if (!nrf_drv_gpiote_is_init()) {
+	    err_code = nrf_drv_gpiote_init();
+	    if (err_code != NRF_SUCCESS) {
+	    	log_error("Failed to initialize gpio");
+	    	return NULL;
+	    }
+	}
+
+    if (edge == 'b')
+    	config.sense = NRF_GPIOTE_POLARITY_TOGGLE;
+    else if (edge == 'r')
+    	config.sense = NRF_GPIOTE_POLARITY_LOTOHI;
+    else
+    	config.sense = NRF_GPIOTE_POLARITY_HITOLO;
+
+    if (pull == 'd')
+    	config.pull = NRF_GPIO_PIN_PULLDOWN;
+    else
+    	config.pull = NRF_GPIO_PIN_PULLUP;
+
+    err_code = nrf_drv_gpiote_in_init(pin, &config, in_pin_handler);
+    APP_ERROR_CHECK(err_code);
+
+    nrf_drv_gpiote_in_event_enable(pin, true);
+
+	for (i = 0; i < MAX_GPIOS; i++) {
+		if (m_gpios[i] == NULL) {
+			m_gpios[i] = (calvin_gpio_t *)malloc(sizeof(calvin_gpio_t));
+			if (m_gpios[i] == NULL) {
+				log_error("Failed to allocate memory");
+				return NULL;
+			}
+
+			m_gpios[i]->pin = pin;
+			m_gpios[i]->has_triggered = false;
+			m_gpios[i]->value = 0;
+			return m_gpios[i];
+		}
+	}
+
+	return NULL;
 }
 
-bool check_timer(calvin_timer_t *timer)
+calvin_gpio_t *create_out_gpio(uint32_t pin)
 {
-	uint32_t now, diff;
+    int i = 0;
+    ret_code_t err_code;
 
-	if (app_timer_cnt_get(&now) != NRF_SUCCESS) {
-		log_error("Failed to get time");
-		return false;
+    if (!nrf_drv_gpiote_is_init()) {
+	    err_code = nrf_drv_gpiote_init();
+	    if (err_code != NRF_SUCCESS) {
+	    	log_error("Failed to initialize gpio");
+	    	return NULL;
+	    }
 	}
 
-	if (app_timer_cnt_diff_compute(now, timer->last_triggered, &diff) != NRF_SUCCESS) {
-		log_error("Failed to compute time diff");
-		return false;
+	for (i = 0; i < MAX_GPIOS; i++) {
+		if (m_gpios[i] == NULL) {
+			m_gpios[i] = (calvin_gpio_t *)malloc(sizeof(calvin_gpio_t));
+			if (m_gpios[i] == NULL) {
+				log_error("Failed to allocate memory");
+				return NULL;
+			}
+
+			m_gpios[i]->pin = pin;
+			return m_gpios[i];
+		}
 	}
 
-	if (diff >= APP_TIMER_TICKS(timer->interval * 1000, APP_TIMER_PRESCALER)) {
-		timer->last_triggered = now;
-		return true;
+	return NULL;
+}
+
+void set_gpio(calvin_gpio_t *gpio, uint32_t value)
+{
+	// TODO: Implement
+	log("set_gpio: %lu", (unsigned long)value);
+}
+
+void uninit_gpio(calvin_gpio_t *gpio)
+{
+	int i = 0;
+
+	for (i = 0; i < MAX_GPIOS; i++) {
+		if (m_gpios[i] != NULL && m_gpios[i]->pin == gpio->pin) {
+			m_gpios[i] = NULL;
+			break;
+		}		
 	}
 
-	return false;
+	nrf_drv_gpiote_in_uninit(gpio->pin);
+	free(gpio);
+}
+
+result_t get_temperature(double *temp)
+{
+	uint32_t err_code;
+	int32_t value;
+
+	err_code = sd_temp_get(&value);
+
+	*temp = value / 4;
+
+	return err_code == NRF_SUCCESS ? SUCCESS : FAIL;
 }
