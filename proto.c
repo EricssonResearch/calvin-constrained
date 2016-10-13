@@ -1547,7 +1547,8 @@ result_t parse_message(node_t *node, char *data)
 		}
 		result = FAIL;
 		free(cmd);
-	}
+	} else
+		log_error("Failed to decode 'cmd'");
 
 	return result;
 }
