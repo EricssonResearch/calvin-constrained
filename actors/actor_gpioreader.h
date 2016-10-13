@@ -26,7 +26,7 @@ typedef struct state_gpioreader_t {
     char *pull;
 } state_gpioreader_t;
 
-result_t actor_gpioreader_init(char *obj_actor_state, actor_state_t **state);
+result_t actor_gpioreader_init(actor_t **actor, char *obj_actor_state, actor_state_t **state);
 result_t actor_gpioreader_fire(actor_t *actor);
 void actor_gpioreader_free(actor_t *actor);
 char *actor_gpioreader_serialize(actor_state_t *state, char **buffer);

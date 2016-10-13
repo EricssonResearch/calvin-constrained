@@ -19,7 +19,7 @@
 #include "../fifo.h"
 #include "../token.h"
 
-result_t actor_gpioreader_init(char *obj_actor_state, actor_state_t **state)
+result_t actor_gpioreader_init(actor_t **actor, char *obj_actor_state, actor_state_t **state)
 {
     result_t result = SUCCESS;
     state_gpioreader_t *gpioreader_state = NULL;
@@ -48,7 +48,7 @@ result_t actor_gpioreader_init(char *obj_actor_state, actor_state_t **state)
 
         if (result == SUCCESS)
             result = decode_uint_from_map(&obj_shadow_args, "gpio_pin", &pin);
-            
+
         if (result == SUCCESS)
             result = decode_string_from_map(&obj_shadow_args, "pull", &gpioreader_state->pull);
 
@@ -57,7 +57,7 @@ result_t actor_gpioreader_init(char *obj_actor_state, actor_state_t **state)
     } else {
         if (result == SUCCESS)
             result = decode_uint_from_map(&obj_actor_state, "gpio_pin", &pin);
-            
+
         if (result == SUCCESS)
             result = decode_string_from_map(&obj_actor_state, "pull", &gpioreader_state->pull);
 
@@ -70,7 +70,14 @@ result_t actor_gpioreader_init(char *obj_actor_state, actor_state_t **state)
         if (gpioreader_state->gpio == NULL)
             result = FAIL;
         else {
-            (*state)->nbr_attributes = 3;
+            result = add_managed_attribute(actor, "gpio_pin");
+
+            if (result == SUCCESS)
+                result = add_managed_attribute(actor, "pull");
+
+            if (result == SUCCESS)
+                result = add_managed_attribute(actor, "edge");
+
             (*state)->state = (void *)gpioreader_state;
         }
     }
@@ -80,7 +87,7 @@ result_t actor_gpioreader_init(char *obj_actor_state, actor_state_t **state)
         if (gpioreader_state != NULL) {
             if (gpioreader_state->pull != NULL)
                 free(gpioreader_state->pull);
-            
+
             if (gpioreader_state->edge != NULL)
                 free(gpioreader_state->edge);
 

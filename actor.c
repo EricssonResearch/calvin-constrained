@@ -32,7 +32,7 @@
 
 struct actor_type_t {
 	char type[50];
-	result_t (*init_actor)(char *obj, actor_state_t **state);
+	result_t (*init_actor)(actor_t **actor, char *obj, actor_state_t **state);
 	void (*free_state)(actor_t *actor);
 	char* (*serialize_state)(actor_state_t *state, char **buffer);
 	result_t (*fire_actor)(actor_t *actor);
@@ -88,7 +88,7 @@ static result_t create_actor_from_type(char *type, actor_t **actor)
 			(*actor)->outports = NULL;
 			(*actor)->state = NULL;
 			(*actor)->signature = NULL;
-			(*actor)->managed_attr = NULL;
+			(*actor)->attributes = NULL;
 			(*actor)->enabled = false;
 			(*actor)->init_actor = actor_types[i].init_actor;
 			(*actor)->serialize_state = actor_types[i].serialize_state;
@@ -150,9 +150,9 @@ result_t create_actor(node_t *node, char *root, actor_t **actor)
 	result_t result = SUCCESS;
 	port_t *port = NULL;
 	char *type = NULL, *obj_state = NULL, *obj_actor_state = NULL, *obj_prev_connections = NULL;
-	char *obj_ports = NULL, *obj_managed = NULL, *r = root;
+	char *obj_ports = NULL, *obj_managed = NULL, *r = root, *tmp_string = NULL;
 	uint32_t i_port = 0, map_size = 0, i_managed_attr = 0, array_size = 0;
-	managed_attributes_t *managed_attr = NULL, *tmp_attr = NULL;
+	bool was_shadow = false;
 
 	result = get_value_from_map(&r, "state", &obj_state);
 
@@ -182,26 +182,16 @@ result_t create_actor(node_t *node, char *root, actor_t **actor)
 	if (result == SUCCESS) {
 		array_size = mp_decode_array((const char **)&obj_managed);
 		for (i_managed_attr = 0; i_managed_attr < array_size; i_managed_attr++) {
-			managed_attr = (managed_attributes_t *)malloc(sizeof(managed_attributes_t));
-			if (managed_attr == NULL) {
-				log_error("Failed to allocate memory");
-				result = FAIL;
-				break;
-			}
-			managed_attr->next = NULL;
-			if (decode_str(&obj_managed, &managed_attr->attribute) != SUCCESS) {
+			if (decode_str(&obj_managed, &tmp_string) != SUCCESS) {
 				result = FAIL;
 				break;
 			}
 
-			if ((*actor)->managed_attr == NULL) {
-				(*actor)->managed_attr = managed_attr;
-			} else {
-				tmp_attr = (*actor)->managed_attr;
-				while (tmp_attr->next != NULL)
-					tmp_attr = tmp_attr->next;
-				tmp_attr->next = managed_attr;
-			}
+			if (strcmp(tmp_string, "_shadow_args") == 0) {
+				was_shadow = true;
+				free(tmp_string);
+			} else
+				result = add_managed_attribute(actor, tmp_string);
 		}
 	}
 
@@ -241,7 +231,11 @@ result_t create_actor(node_t *node, char *root, actor_t **actor)
 	}
 
 	if (result == SUCCESS && (*actor)->init_actor != NULL)
-		result = (*actor)->init_actor(obj_actor_state, &(*actor)->state);
+		result = (*actor)->init_actor(actor, obj_actor_state, &(*actor)->state);
+
+	if (result == SUCCESS && was_shadow) {
+		// Add attributes
+	}
 
 	if (result == SUCCESS)
 		result = add_actor(node, *actor);
@@ -318,9 +312,9 @@ void free_actor(node_t *node, actor_t *actor, bool remove_from_storage)
 		if (actor->signature != NULL)
 			free(actor->signature);
 
-		while (actor->managed_attr != NULL) {
-			managed_attr = actor->managed_attr;
-			actor->managed_attr = actor->managed_attr->next;
+		while (actor->attributes != NULL) {
+			managed_attr = actor->attributes;
+			actor->attributes = actor->attributes->next;
 			free(managed_attr->attribute);
 			free(managed_attr);
 		}
@@ -372,24 +366,47 @@ static int get_number_of_managed_attributes(managed_attributes_t *managed_attr)
 	return i;
 }
 
+result_t add_managed_attribute(actor_t **actor, char *attribute)
+{
+	managed_attributes_t *managed_attr = NULL, *tmp_attr = NULL;
+
+	managed_attr = (managed_attributes_t *)malloc(sizeof(managed_attributes_t));
+	if (managed_attr == NULL) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	managed_attr->attribute = attribute;
+	managed_attr->next = NULL;
+
+	if ((*actor)->attributes == NULL) {
+		(*actor)->attributes = managed_attr;
+	} else {
+		tmp_attr = (*actor)->attributes;
+		while (tmp_attr->next != NULL)
+			tmp_attr = tmp_attr->next;
+		tmp_attr->next = managed_attr;
+	}
+
+	return SUCCESS;
+}
+
 char *serialize_actor(const actor_t *actor, char **buffer)
 {
 	port_t *tmp_port = NULL;
 	int nbr_inports = 0, nbr_outports = 0, i_token = 0;
 	managed_attributes_t *managed_attr = NULL;
-	int nbr_state_attributes = 10;
+	int nbr_state_attributes;
 
 	if (actor == NULL) {
 		log_error("NULL actor");
 		return NULL;
 	}
 
+	nbr_state_attributes = get_number_of_managed_attributes(actor->attributes);
+
 	nbr_inports = get_number_of_ports(actor->inports);
 	nbr_outports = get_number_of_ports(actor->outports);
-
-	// add number of actor state variables
-	if (actor->state != NULL)
-		nbr_state_attributes += actor->state->nbr_attributes;
 
 	*buffer = encode_map(buffer, "state", 3);
 	{
@@ -419,8 +436,8 @@ char *serialize_actor(const actor_t *actor, char **buffer)
 			}
 		}
 
-
-		*buffer = encode_map(buffer, "actor_state", nbr_state_attributes);
+		// add _managed, inports and outports to nbr_state_attributes
+		*buffer = encode_map(buffer, "actor_state", nbr_state_attributes + 3);
 		{
 			*buffer = encode_str(buffer, "id", actor->id);
 			*buffer = encode_str(buffer, "name", actor->name);
@@ -432,9 +449,9 @@ char *serialize_actor(const actor_t *actor, char **buffer)
 			{
 				*buffer = mp_encode_str(*buffer, actor->id, strlen(actor->id));
 			}
-			*buffer = encode_array(buffer, "_managed", get_number_of_managed_attributes(actor->managed_attr));
+			*buffer = encode_array(buffer, "_managed", get_number_of_managed_attributes(actor->attributes));
 			{
-				managed_attr = actor->managed_attr;
+				managed_attr = actor->attributes;
 				while (managed_attr != NULL) {
 					*buffer = mp_encode_str(*buffer, managed_attr->attribute, strlen(managed_attr->attribute));
 					managed_attr = managed_attr->next;

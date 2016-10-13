@@ -18,7 +18,7 @@
 #include "../msgpack_helper.h"
 #include "../fifo.h"
 
-result_t actor_gpiowriter_init(char *obj_actor_state, actor_state_t **state)
+result_t actor_gpiowriter_init(actor_t **actor, char *obj_actor_state, actor_state_t **state)
 {
     result_t result = SUCCESS;
     state_gpiowriter_t *gpiowriter_state = NULL;
@@ -55,8 +55,9 @@ result_t actor_gpiowriter_init(char *obj_actor_state, actor_state_t **state)
         if (gpiowriter_state->gpio == NULL)
             result = FAIL;
         else {
-            (*state)->nbr_attributes = 1;
-            (*state)->state = (void *)gpiowriter_state;
+            result = add_managed_attribute(actor, "gpio_pin");
+            if (result == SUCCESS)
+                (*state)->state = (void *)gpiowriter_state;
         }
     }
 

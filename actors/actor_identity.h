@@ -23,7 +23,7 @@ typedef struct state_identity_t {
     bool dump;
 } state_identity_t;
 
-result_t actor_identity_init(char *obj_actor_state, actor_state_t **state);
+result_t actor_identity_init(actor_t **actor, char *obj_actor_state, actor_state_t **state);
 result_t actor_identity_fire(actor_t *actor);
 char *actor_identity_serialize(actor_state_t *state, char **buffer);
 void actor_identity_free(actor_t *actor);

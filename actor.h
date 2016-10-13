@@ -28,7 +28,6 @@ typedef struct managed_attributes_t {
 } managed_attributes_t;
 
 typedef struct actor_state_t {
-	int nbr_attributes;
 	void *state;
 } actor_state_t;
 
@@ -40,9 +39,9 @@ typedef struct actor_t {
 	bool enabled;
 	struct port_t *inports;
 	struct port_t *outports;
-	managed_attributes_t *managed_attr;
+	managed_attributes_t *attributes;
 	actor_state_t *state;
-	result_t (*init_actor)(char *obj, actor_state_t **state);
+	result_t (*init_actor)(struct actor_t **actor, char *obj, actor_state_t **state);
 	result_t (*fire)(struct actor_t *actor);
 	void (*free_state)(struct actor_t *actor);
 	char *(*serialize_state)(actor_state_t *state, char **buffer);
@@ -57,5 +56,6 @@ void delete_actor(struct node_t *node, actor_t *actor, bool remove_from_storage)
 actor_t *get_actor(struct node_t *node, const char *actor_id);
 void enable_actor(actor_t *actor);
 void disable_actor(actor_t *actor);
+result_t add_managed_attribute(actor_t **actor, char *attribute);
 
 #endif /* ACTORS_H */

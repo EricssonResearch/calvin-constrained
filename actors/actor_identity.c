@@ -20,7 +20,7 @@
 #include "../msgpack_helper.h"
 #include "../platform.h"
 
-result_t actor_identity_init(char *obj_actor_state, actor_state_t **state)
+result_t actor_identity_init(actor_t **actor, char *obj_actor_state, actor_state_t **state)
 {
 	result_t result = SUCCESS;
 	state_identity_t *identity_state = NULL;
@@ -41,8 +41,9 @@ result_t actor_identity_init(char *obj_actor_state, actor_state_t **state)
 	result = decode_bool_from_map(&obj_actor_state, "dump", &identity_state->dump);
 
 	if (result == SUCCESS) {
-		(*state)->nbr_attributes = 1;
-		(*state)->state = (void *)identity_state;
+		result = add_managed_attribute(actor, "dump");
+		if (result == SUCCESS)
+			(*state)->state = (void *)identity_state;
 	} else {
 		free(*state);
 		free(identity_state);
