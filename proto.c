@@ -1155,6 +1155,7 @@ static result_t parse_tunnel_data(node_t *node, char *root)
 			free(msg_uuid);
 		} else if (has_key(&value, "cmd")) {
 			if (decode_string_from_map(&value, "cmd", &cmd) == SUCCESS) {
+				log_debug("Received tunneled command '%s'", cmd);
 				if (strcmp(cmd, "TOKEN") == 0)
 					result = parse_token(node, root);
 				else if (strcmp(cmd, "TOKEN_REPLY") == 0)
@@ -1427,8 +1428,10 @@ static result_t parse_tunnel_new(node_t *node, char *root)
 		result = handle_tunnel_new_request(node, from_rt_uuid, tunnel_id);
 	}
 
-	if (result == SUCCESS)
+	if (result == SUCCESS) {
 		result = send_tunnel_new_reply(node, msg_uuid, from_rt_uuid, 200, tunnel_id);
+		tunnel_connected(node, get_tunnel(node, tunnel_id));
+	}
 	else
 		result = send_tunnel_new_reply(node, msg_uuid, from_rt_uuid, 404, tunnel_id);
 
