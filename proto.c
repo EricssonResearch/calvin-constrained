@@ -451,7 +451,7 @@ result_t send_token(const node_t *node, port_t *port, token_t *token)
 		w = encode_map(&w, "value", 5);
 		{
 			w = encode_str(&w, "cmd", "TOKEN");
-			w = encode_uint(&w, "sequencenbr", port->fifo->read_pos);
+			w = encode_uint(&w, "sequencenbr", port->fifo->tentative_read_pos - 1);
 			w = encode_str(&w, "port_id", port->port_id);
 			w = encode_str(&w, "peer_port_id", port->peer_port_id);
 			w = encode_token(&w, token, true);
@@ -1105,13 +1105,13 @@ static result_t parse_token_reply(node_t *node, char *root)
 			if (decode_string_from_map(&value, "value", &status) == SUCCESS) {
 				if (decode_uint_from_map(&value, "sequencenbr", &sequencenbr) == SUCCESS) {
 					if (strcmp(status, "ACK") == 0) {
-						handle_token_reply(port_id, PORT_REPLY_TYPE_ACK);
+						handle_token_reply(port_id, PORT_REPLY_TYPE_ACK, sequencenbr);
 						result = SUCCESS;
 					} else if (strcmp(status, "NACK") == 0) {
-						handle_token_reply(port_id, PORT_REPLY_TYPE_NACK);
+						handle_token_reply(port_id, PORT_REPLY_TYPE_NACK, sequencenbr);
 						result = SUCCESS;
 					} else if (strcmp(status, "ABORT") == 0) {
-						handle_token_reply(port_id, PORT_REPLY_TYPE_ABORT);
+						handle_token_reply(port_id, PORT_REPLY_TYPE_ABORT, sequencenbr);
 						result = SUCCESS;
 					} else {
 						log_error("Received unknown token reply '%s' for token with sequencenbr '%ld' on port '%s'",

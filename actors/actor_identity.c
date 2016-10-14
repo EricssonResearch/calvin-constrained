@@ -62,23 +62,26 @@ result_t actor_identity_init(actor_t **actor, char *obj_actor_state, actor_state
 result_t actor_identity_fire(struct actor_t *actor)
 {
 	port_t *port = actor->inports;
-	token_t *token = NULL;
+	token_t *in_token = NULL, *out_token = NULL;
 	result_t result = SUCCESS;
 
-	if (port->fifo != NULL) {
-		while (result == SUCCESS && fifo_can_read(port->fifo)) {
-			token = fifo_read(port->fifo);
-			result = fifo_write(actor->outports->fifo, token);
-			if (result != SUCCESS) {
-				fifo_commit_read(port->fifo, false, false);
-				result = FAIL;
-			} else {
-				fifo_commit_read(port->fifo, true, false);
-			}
+	while (fifo_can_read(actor->inports->fifo) && fifo_can_write(actor->outports->fifo)) {
+		in_token = fifo_read(actor->inports->fifo);
+		out_token = copy_token(in_token);
+		if (out_token != NULL)
+			result = fifo_write(actor->outports->fifo, out_token);
+
+		if (result == SUCCESS)
+			fifo_commit_read(port->fifo, true, true);
+		else {
+			fifo_commit_read(port->fifo, false, false);
+			if (out_token != NULL)
+				free_token(out_token);
+			return FAIL;
 		}
 	}
 
-	return result;
+	return SUCCESS;
 }
 
 char *actor_identity_serialize(actor_state_t *state, char **buffer)
@@ -90,11 +93,9 @@ char *actor_identity_serialize(actor_state_t *state, char **buffer)
 
 void actor_identity_free(actor_t *actor)
 {
-	state_identity_t *state = NULL;
-
 	if (actor->state != NULL) {
 		if (actor->state->state != NULL)
-			free(state);
+			free(actor->state->state);
 		free(actor->state);
 	}
 }

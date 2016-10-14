@@ -24,27 +24,27 @@ result_t actor_temperature_fire(struct actor_t *actor)
 	token_t *out_token = NULL;
 	double temperature;
 
-	if (!fifo_can_read(actor->inports->fifo) || !fifo_can_write(actor->outports->fifo))
-		return SUCCESS;
+	while (fifo_can_read(actor->inports->fifo) && fifo_can_write(actor->outports->fifo)) {
+		if (get_temperature(&temperature) != SUCCESS) {
+			log_error("Failed to get temperature");
+			return FAIL;
+		}
 
-	if (get_temperature(&temperature) != SUCCESS) {
-		log_error("Failed to get temperature");
-		return FAIL;
-	}
+		if (create_double_token(temperature, &out_token) != SUCCESS) {
+			log_error("Failed to create token");
+			return FAIL;
+		}
 
-	if (create_double_token(temperature, &out_token) != SUCCESS) {
-		log_error("Failed to create token");
-		return FAIL;
-	}
+		fifo_read(actor->inports->fifo);
 
-	fifo_read(actor->inports->fifo);
+		if (fifo_write(actor->outports->fifo, out_token) != SUCCESS) {
+			log_error("Failed to write token");
+			fifo_commit_read(actor->inports->fifo, false, false);
+			return FAIL;
+		}
 
-	if (fifo_write(actor->outports->fifo, out_token) == SUCCESS) {
 		fifo_commit_read(actor->inports->fifo, true, true);
-		return SUCCESS;
 	}
 
-	log_error("Failed to write token");
-	fifo_commit_read(actor->inports->fifo, false, false);
-	return FAIL;
+	return SUCCESS;
 }

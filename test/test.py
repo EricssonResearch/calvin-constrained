@@ -52,6 +52,7 @@ def teardown_module(module):
 
 def testDataAndDestruction():
     assert rt1 is not None
+    assert constrained_id is not None
 
     script = """
     src : std.CountTimer(sleep=0.1)
@@ -118,6 +119,7 @@ def testDataAndDestruction():
 
 def testMigration():
     assert rt1 is not None
+    assert constrained_id is not None
 
     script = """
     src : std.CountTimer(sleep=0.1)
@@ -199,6 +201,7 @@ def testMigration():
 def testPortConnect():
     assert rt1 is not None
     assert rt2 is not None
+    assert constrained_id is not None
 
     script = """
     src : std.CountTimer(sleep=0.1)

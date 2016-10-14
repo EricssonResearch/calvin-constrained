@@ -119,7 +119,7 @@ void free_fifo(fifo_t *fifo)
 
 bool fifo_can_read(const fifo_t *fifo)
 {
-	return fifo->tentative_read_pos != fifo->write_pos;
+	return !(fifo->tentative_read_pos == fifo->write_pos);
 }
 
 token_t *fifo_read(fifo_t *fifo)
@@ -135,30 +135,26 @@ token_t *fifo_read(fifo_t *fifo)
 
 void fifo_commit_read(fifo_t *fifo, bool commit, bool delete_token)
 {
-	token_t *token = NULL;
-
 	if (fifo != NULL) {
-		if (commit) {
-			token = fifo->tokens[fifo->read_pos % fifo->size];
-			if (token != NULL) {
-				if (delete_token)
-					free_token(token);
-				fifo->tokens[fifo->read_pos % fifo->size] = NULL;
+		if (fifo->read_pos < fifo->tentative_read_pos) {
+			if (commit) {
 				fifo->read_pos += 1;
-			} else {
-				log_error("Failed to get token at %ld", (unsigned long)fifo->read_pos);
-			}
-		} else {
-			fifo->tentative_read_pos -= 1;
+				if (delete_token) {
+					free_token(fifo->tokens[fifo->read_pos % fifo->size]);
+					fifo->tokens[fifo->read_pos % fifo->size] = NULL;
+				}
+			} else
+				fifo->tentative_read_pos -= 1;
 		}
-	} else {
+	} else
 		log_error("fifo is NULL");
-	}
 }
 
 bool fifo_can_write(const fifo_t *fifo)
 {
-	return (fifo->write_pos + 1) % fifo->size != fifo->read_pos % fifo->size;
+	uint32_t last_readpos = fifo->read_pos;
+
+	return !((fifo->write_pos + 1) % fifo->size == last_readpos % fifo->size);
 }
 
 result_t fifo_write(fifo_t *fifo, token_t *token)

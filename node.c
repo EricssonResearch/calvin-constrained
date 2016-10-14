@@ -200,11 +200,17 @@ static result_t handle_join_reply(char *data)
 
 result_t handle_token(char *port_id, token_t *token, uint32_t sequencenbr)
 {
+	result_t result = FAIL;
 	port_t *port = get_inport(m_node, port_id);
 
 	if (port != NULL && port->state == PORT_CONNECTED) {
-		if (fifo_write(port->fifo, token) == SUCCESS) {
-			return send_token_reply(m_node,
+		if (port->fifo->write_pos == sequencenbr)
+			result = fifo_write(port->fifo, token);
+		else if (port->fifo->write_pos > sequencenbr)
+			result = SUCCESS;
+
+		if (result == SUCCESS) {
+			result = send_token_reply(m_node,
 				port,
 				sequencenbr,
 				"ACK");
@@ -218,7 +224,7 @@ result_t handle_token(char *port_id, token_t *token, uint32_t sequencenbr)
 	} else
 		log_error("No port with id '%s'", port_id);
 
-	return FAIL;
+	return result;
 }
 
 void handle_data(char *data, int len)
@@ -235,14 +241,20 @@ void handle_data(char *data, int len)
 	}
 }
 
-void handle_token_reply(char *port_id, port_reply_type_t reply_type)
+void handle_token_reply(char *port_id, port_reply_type_t reply_type, uint32_t sequencenbr)
 {
 	port_t *port = get_outport(m_node, port_id);
 
 	if (port != NULL) {
-		if (reply_type == PORT_REPLY_TYPE_ACK)
+		if (reply_type == PORT_REPLY_TYPE_ACK) {
 			fifo_commit_read(port->fifo, true, true);
-		else if (reply_type == PORT_REPLY_TYPE_ABORT)
+			loop_once();
+		} else if (reply_type == PORT_REPLY_TYPE_NACK) {
+			if (sequencenbr < port->fifo->tentative_read_pos && sequencenbr >= port->fifo->read_pos) {
+				while (port->fifo->tentative_read_pos > sequencenbr)
+					fifo_commit_read(port->fifo, false, false);
+			}
+		} else if (reply_type == PORT_REPLY_TYPE_ABORT)
 			log_error("TODO: handle ABORT");
 	} else
 		log_error("No port with id '%s'", port_id);
@@ -282,8 +294,9 @@ static result_t send_tokens(actor_t *actor)
 					result = move_token(port, token);
 					if (result == SUCCESS)
 						fifo_commit_read(port->fifo, true, false);
-				} else
+				} else {
 					result = send_token(m_node, port, token);
+				}
 
 				if (result == FAIL)
 					fifo_commit_read(port->fifo, false, false);

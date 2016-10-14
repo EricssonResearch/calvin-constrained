@@ -122,3 +122,24 @@ result_t decode_uint_token(const token_t *token, uint32_t *out)
 
 	return FAIL;
 }
+
+token_t *copy_token(token_t *token)
+{
+	token_t *copy = NULL;
+
+	copy = (token_t *)malloc(sizeof(token_t));
+	if (copy != NULL) {
+		copy->value = malloc(token->size);
+		if (copy->value != NULL) {
+			copy->size = token->size;
+			memcpy(copy->value, token->value, token->size);
+		} else {
+			log_error("Failed to allocate memory");
+			free(copy);
+			copy = NULL;
+		}
+	} else
+		log_error("Failed to allocate memory");
+
+	return copy;
+}

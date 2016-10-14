@@ -32,5 +32,6 @@ result_t decode_token(char *obj_token, token_t **token);
 char *encode_token(char **buffer, token_t *token, bool with_key);
 void free_token(token_t *token);
 result_t decode_uint_token(const token_t *token, uint32_t *out);
+token_t *copy_token(token_t *token);
 
 #endif /* TOKEN_H */
