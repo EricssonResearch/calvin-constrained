@@ -43,7 +43,7 @@ char *gen_uuid(const char *prefix)
 	return str;
 }
 
-char *get_highest_uuid(char* id1, char* id2)
+char *get_highest_uuid(char *id1, char *id2)
 {
 	size_t len1 = 0, len2 = 0;
 	int i = 0;

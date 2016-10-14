@@ -115,10 +115,10 @@ result_t decode_uint_token(const token_t *token, uint32_t *out)
 			*out = mp_decode_uint((const char **)&value);
 			return SUCCESS;
 		}
-		else
-			log_error("Unsupported type");
-	} else
-		log_error("NULL token");
+		log_error("Unsupported type");
+	}
+
+	log_error("NULL token");
 
 	return FAIL;
 }

@@ -234,15 +234,15 @@ result_t handle_tunnel_new_request(struct node_t *node, char *peer_id, char *tun
 		if (tunnel->state == TUNNEL_WORKING) {
 			log_error("Tunnel already connected to '%s'", peer_id);
 			return FAIL;
-		} else {
-			tmp_id = get_highest_uuid(tunnel_id, tunnel_id);
-			if (strcmp(tunnel_id, tmp_id) == 0) {
-				free(tunnel->tunnel_id);
-				tunnel->tunnel_id = strdup(tunnel_id);
-				tunnel->state = TUNNEL_WORKING;
-			}
-			return SUCCESS;
 		}
+
+		tmp_id = get_highest_uuid(tunnel_id, tunnel_id);
+		if (strcmp(tunnel_id, tmp_id) == 0) {
+			free(tunnel->tunnel_id);
+			tunnel->tunnel_id = strdup(tunnel_id);
+			tunnel->state = TUNNEL_WORKING;
+		}
+		return SUCCESS;
 	}
 
 	tunnel = create_tunnel_from_id(link, TUNNEL_TYPE_TOKEN, TUNNEL_WORKING, tunnel_id);
@@ -250,8 +250,7 @@ result_t handle_tunnel_new_request(struct node_t *node, char *peer_id, char *tun
 		if (add_tunnel(node, tunnel) != SUCCESS) {
 			free_tunnel(node, tunnel);
 			return FAIL;
-		}
-		else
+		} else
 			return SUCCESS;
 	}
 

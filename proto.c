@@ -1424,15 +1424,13 @@ static result_t parse_tunnel_new(node_t *node, char *root)
 	if (result == SUCCESS)
 		result = decode_string_from_map(&r, "tunnel_id", &tunnel_id);
 
-	if (result == SUCCESS) {
+	if (result == SUCCESS)
 		result = handle_tunnel_new_request(node, from_rt_uuid, tunnel_id);
-	}
 
 	if (result == SUCCESS) {
 		result = send_tunnel_new_reply(node, msg_uuid, from_rt_uuid, 200, tunnel_id);
 		tunnel_connected(node, get_tunnel(node, tunnel_id));
-	}
-	else
+	} else
 		result = send_tunnel_new_reply(node, msg_uuid, from_rt_uuid, 404, tunnel_id);
 
 	if (from_rt_uuid != NULL)

@@ -53,7 +53,7 @@ static app_timer_id_t                       m_sys_timer_id;
 static app_timer_id_t                       m_calvin_inittimer_id;
 static app_timer_id_t                       m_calvin_timer_id;
 static char                                 m_mac[20]; // MAC address of connected peer
-static calvin_gpio_t 						*m_gpios[MAX_GPIOS];
+static calvin_gpio_t                        *m_gpios[MAX_GPIOS];
 
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
 {
@@ -408,6 +408,7 @@ calvin_gpio_t *create_out_gpio(uint32_t pin)
 	}
 
 	nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(false);
+
 	err_code = nrf_drv_gpiote_out_init(pin, &out_config);
 	if (err_code != NRF_SUCCESS) {
 		log_error("Failed to initialize gpio");
@@ -436,7 +437,7 @@ calvin_gpio_t *create_out_gpio(uint32_t pin)
 void set_gpio(calvin_gpio_t *gpio, uint32_t value)
 {
 	if (value == 1)
-		 nrf_drv_gpiote_out_set(gpio->pin);
+		nrf_drv_gpiote_out_set(gpio->pin);
 	else
 		nrf_drv_gpiote_out_clear(gpio->pin);
 }
@@ -449,7 +450,7 @@ void uninit_gpio(calvin_gpio_t *gpio)
 		if (m_gpios[i] != NULL && m_gpios[i]->pin == gpio->pin) {
 			m_gpios[i] = NULL;
 			break;
-		}		
+		}
 	}
 
 	if (gpio->direction == GPIO_IN)

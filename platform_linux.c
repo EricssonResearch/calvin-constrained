@@ -36,17 +36,17 @@ void platform_run(void)
 
 calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
 {
-    int i = 0;
+	int i = 0;
 
-    if (pull != 'u' && pull != 'd') {
-    	log_error("Unsupported pull direction");
-    	return NULL;
-    }
+	if (pull != 'u' && pull != 'd') {
+		log_error("Unsupported pull direction");
+		return NULL;
+	}
 
-    if (edge != 'r' && edge != 'f' && edge != 'b') {
-    	log_error("Unsupported edge");
-    	return NULL;
-    }
+	if (edge != 'r' && edge != 'f' && edge != 'b') {
+		log_error("Unsupported edge");
+		return NULL;
+	}
 
 	for (i = 0; i < MAX_GPIOS; i++) {
 		if (m_gpios[i] == NULL) {
@@ -67,7 +67,7 @@ calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
 
 calvin_gpio_t *create_out_gpio(uint32_t pin)
 {
-    int i = 0;
+	int i = 0;
 
 	for (i = 0; i < MAX_GPIOS; i++) {
 		if (m_gpios[i] == NULL) {
@@ -93,7 +93,7 @@ void uninit_gpio(calvin_gpio_t *gpio)
 		if (m_gpios[i] != NULL && m_gpios[i]->pin == gpio->pin) {
 			m_gpios[i] = NULL;
 			break;
-		}		
+		}
 	}
 
 	free(gpio);
@@ -106,6 +106,6 @@ void set_gpio(calvin_gpio_t *gpio, uint32_t value)
 
 result_t get_temperature(double *temp)
 {
-	*temp = 15,5;
+	*temp = 15.5;
 	return SUCCESS;
 }
