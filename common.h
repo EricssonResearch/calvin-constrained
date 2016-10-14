@@ -25,6 +25,7 @@ typedef enum {
 } result_t;
 
 char *gen_uuid(const char *prefix);
+char *get_highest_uuid(char *id1, char *id2);
 unsigned int get_message_len(const char *buffer);
 
 #endif /* COMMON_H */

@@ -43,6 +43,31 @@ char *gen_uuid(const char *prefix)
 	return str;
 }
 
+char *get_highest_uuid(char* id1, char* id2)
+{
+	size_t len1 = 0, len2 = 0;
+	int i = 0;
+
+	len1 = strlen(id1);
+	len2 = strlen(id2);
+
+	if (len1 > len2)
+		return id1;
+
+	if (len2 > len1)
+		return id2;
+
+	for (i = len1; i >= 0; i--) {
+		if (id1[i] > id2[i])
+			return id1;
+
+		if (id2[i] > id1[i])
+			return id2;
+	}
+
+	return id1;
+}
+
 unsigned int get_message_len(const char *buffer)
 {
 	unsigned int value =

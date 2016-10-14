@@ -221,6 +221,7 @@ result_t handle_tunnel_new_request(struct node_t *node, char *peer_id, char *tun
 {
 	link_t *link = NULL;
 	tunnel_t *tunnel = NULL;
+	char *tmp_id = NULL;
 
 	link = get_link(node, peer_id);
 	if (link == NULL) {
@@ -230,13 +231,20 @@ result_t handle_tunnel_new_request(struct node_t *node, char *peer_id, char *tun
 
 	tunnel = get_tunnel_from_peerid(node, peer_id);
 	if (tunnel != NULL) {
-		if (tunnel->state == TUNNEL_WORKING)
+		if (tunnel->state == TUNNEL_WORKING) {
 			log_error("Tunnel already connected to '%s'", peer_id);
-		else
-			log_error("TODO: Choose tunnel id with highest id");
-		return FAIL;
+			return FAIL;
+		} else {
+			tmp_id = get_highest_uuid(tunnel_id, tunnel_id);
+			if (strcmp(tunnel_id, tmp_id) == 0) {
+				free(tunnel->tunnel_id);
+				tunnel->tunnel_id = strdup(tunnel_id);
+				tunnel->state = TUNNEL_WORKING;
+			}
+			return SUCCESS;
+		}
 	}
-		
+
 	tunnel = create_tunnel_from_id(link, TUNNEL_TYPE_TOKEN, TUNNEL_WORKING, tunnel_id);
 	if (tunnel != NULL) {
 		if (add_tunnel(node, tunnel) != SUCCESS) {
@@ -244,7 +252,7 @@ result_t handle_tunnel_new_request(struct node_t *node, char *peer_id, char *tun
 			return FAIL;
 		}
 		else
-			return tunnel_connected(node, tunnel);
+			return SUCCESS;
 	}
 
 	return FAIL;
