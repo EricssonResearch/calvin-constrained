@@ -386,7 +386,7 @@ static result_t iniate_port_connect(node_t *node, port_t *port)
 	tunnel_t *tunnel = NULL;
 
 	// port connected form other end?
-	if (port->state == PORT_CONNECTED)
+	if (port->state == PORT_CONNECTED || port->state == PORT_PENDING)
 		return SUCCESS;
 
 	if (port->peer_id == NULL) {
@@ -439,7 +439,9 @@ static result_t iniate_port_connect(node_t *node, port_t *port)
 
 	// Ports with pending tunnels will be connected when the tunnel is working
 	if (tunnel->state == TUNNEL_WORKING) {
-		if (send_port_connect(node, port, port_connect_reply_handler) != SUCCESS) {
+		if (send_port_connect(node, port, port_connect_reply_handler) == SUCCESS)
+			port->state = PORT_PENDING;
+		else {
 			log_error("Failed to send port connect request to '%s'", port->peer_id);
 			log_error("TODO: Handle send communcation failures");
 			return FAIL;
@@ -547,11 +549,17 @@ result_t tunnel_connected(node_t *node, tunnel_t *tunnel)
 		if (node->actors[i_actor] != NULL) {
 			port = node->actors[i_actor]->inports;
 			while (port != NULL) {
-				if (strcmp(port->peer_id, tunnel->link->peer_id) == 0) {
-					port->tunnel = tunnel;
-					if (send_port_connect(node, port, port_connect_reply_handler) != SUCCESS) {
-						log_error("Failed to send port connect request to '%s'", port->peer_id);
-						log_error("TODO: Handle send communcation failures");
+				if (port->state == PORT_CONNECTED)
+					log_error("Port '%s' already connected", port->port_id);
+				else {
+					if (strcmp(port->peer_id, tunnel->link->peer_id) == 0) {
+						port->tunnel = tunnel;
+						if (send_port_connect(node, port, port_connect_reply_handler) == SUCCESS)
+							port->state = PORT_PENDING;
+						else {
+							log_error("Failed to send port connect request to '%s'", port->peer_id);
+							log_error("TODO: Handle send communcation failures");
+						}
 					}
 				}
 				port = port->next;
@@ -559,11 +567,17 @@ result_t tunnel_connected(node_t *node, tunnel_t *tunnel)
 
 			port = node->actors[i_actor]->outports;
 			while (port != NULL) {
-				if (strcmp(port->peer_id, tunnel->link->peer_id) == 0) {
-					port->tunnel = tunnel;
-					if (send_port_connect(node, port, port_connect_reply_handler) != SUCCESS) {
-						log_error("Failed to send port connect request to '%s'", port->peer_id);
-						log_error("TODO: Handle send communcation failures");
+				if (port->state == PORT_CONNECTED)
+					log_error("Port '%s' already connected", port->port_id);
+				else {
+					if (strcmp(port->peer_id, tunnel->link->peer_id) == 0) {
+						port->tunnel = tunnel;
+						if (send_port_connect(node, port, port_connect_reply_handler) == SUCCESS)
+							port->state = PORT_PENDING;
+						else {
+							log_error("Failed to send port connect request to '%s'", port->peer_id);
+							log_error("TODO: Handle send communcation failures");
+						}
 					}
 				}
 				port = port->next;
