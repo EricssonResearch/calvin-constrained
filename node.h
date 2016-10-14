@@ -57,7 +57,6 @@ result_t remove_pending_msg(char *msg_uuid);
 void client_connected(void);
 result_t handle_token(char *port_id, token_t *token, uint32_t sequencenbr);
 void handle_token_reply(char *port_id, port_reply_type_t reply_type);
-result_t handle_tunnel_connected(char *tunnel_id);
 void handle_data(char *data, int len);
 result_t create_node(uint32_t vid, uint32_t pid, char *name);
 result_t start_node(const char *address);
