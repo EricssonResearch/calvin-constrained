@@ -315,62 +315,65 @@ void platform_run(void)
 
 static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-    int i = 0;
+	int i = 0;
 
-    for (i = 0; i < MAX_GPIOS; i++) {
-    	if (m_gpios[i] != NULL && m_gpios[i]->pin == pin) {
-    		if (nrf_drv_gpiote_in_is_set(pin))
+	for (i = 0; i < MAX_GPIOS; i++) {
+		if (m_gpios[i] != NULL && m_gpios[i]->pin == pin) {
+			if (nrf_drv_gpiote_in_is_set(pin))
 				m_gpios[i]->value = 1;
 			else
 				m_gpios[i]->value = 0;
 			m_gpios[i]->has_triggered = true;
-    		return;
-    	}
-    }
+			return;
+		}
+	}
 }
 
 calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
 {
-    int i = 0;
-    ret_code_t err_code;
-    nrf_drv_gpiote_in_config_t config;
+	int i = 0;
+	ret_code_t err_code;
+	nrf_drv_gpiote_in_config_t config;
 
-    memset(&config, 0, sizeof(nrf_drv_gpiote_in_config_t));
+	memset(&config, 0, sizeof(nrf_drv_gpiote_in_config_t));
 
-    if (pull != 'u' && pull != 'd') {
-    	log_error("Unsupported pull direction");
-    	return NULL;
-    }
-
-    if (edge != 'r' && edge != 'f' && edge != 'b') {
-    	log_error("Unsupported edge");
-    	return NULL;
-    }
-
-    if (!nrf_drv_gpiote_is_init()) {
-	    err_code = nrf_drv_gpiote_init();
-	    if (err_code != NRF_SUCCESS) {
-	    	log_error("Failed to initialize gpio");
-	    	return NULL;
-	    }
+	if (pull != 'u' && pull != 'd') {
+		log_error("Unsupported pull direction");
+		return NULL;
 	}
 
-    if (edge == 'b')
-    	config.sense = NRF_GPIOTE_POLARITY_TOGGLE;
-    else if (edge == 'r')
-    	config.sense = NRF_GPIOTE_POLARITY_LOTOHI;
-    else
-    	config.sense = NRF_GPIOTE_POLARITY_HITOLO;
+	if (edge != 'r' && edge != 'f' && edge != 'b') {
+		log_error("Unsupported edge");
+		return NULL;
+	}
 
-    if (pull == 'd')
-    	config.pull = NRF_GPIO_PIN_PULLDOWN;
-    else
-    	config.pull = NRF_GPIO_PIN_PULLUP;
+	if (!nrf_drv_gpiote_is_init()) {
+		err_code = nrf_drv_gpiote_init();
+		if (err_code != NRF_SUCCESS) {
+			log_error("Failed to initialize gpio");
+			return NULL;
+		}
+	}
 
-    err_code = nrf_drv_gpiote_in_init(pin, &config, in_pin_handler);
-    APP_ERROR_CHECK(err_code);
+	if (edge == 'b')
+		config.sense = NRF_GPIOTE_POLARITY_TOGGLE;
+	else if (edge == 'r')
+		config.sense = NRF_GPIOTE_POLARITY_LOTOHI;
+	else
+		config.sense = NRF_GPIOTE_POLARITY_HITOLO;
 
-    nrf_drv_gpiote_in_event_enable(pin, true);
+	if (pull == 'd')
+		config.pull = NRF_GPIO_PIN_PULLDOWN;
+	else
+		config.pull = NRF_GPIO_PIN_PULLUP;
+
+	err_code = nrf_drv_gpiote_in_init(pin, &config, in_pin_handler);
+	if (err_code != NRF_SUCCESS) {
+		log_error("Failed to initialize gpio");
+		return NULL;
+	}
+
+	nrf_drv_gpiote_in_event_enable(pin, true);
 
 	for (i = 0; i < MAX_GPIOS; i++) {
 		if (m_gpios[i] == NULL) {
@@ -383,6 +386,7 @@ calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
 			m_gpios[i]->pin = pin;
 			m_gpios[i]->has_triggered = false;
 			m_gpios[i]->value = 0;
+			m_gpios[i]->direction = GPIO_IN;
 			return m_gpios[i];
 		}
 	}
@@ -392,16 +396,25 @@ calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
 
 calvin_gpio_t *create_out_gpio(uint32_t pin)
 {
-    int i = 0;
-    ret_code_t err_code;
+	int i = 0;
+	ret_code_t err_code;
 
-    if (!nrf_drv_gpiote_is_init()) {
-	    err_code = nrf_drv_gpiote_init();
-	    if (err_code != NRF_SUCCESS) {
-	    	log_error("Failed to initialize gpio");
-	    	return NULL;
-	    }
+	if (!nrf_drv_gpiote_is_init()) {
+		err_code = nrf_drv_gpiote_init();
+		if (err_code != NRF_SUCCESS) {
+			log_error("Failed to initialize gpio");
+			return NULL;
+		}
 	}
+
+	nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(false);
+	err_code = nrf_drv_gpiote_out_init(pin, &out_config);
+	if (err_code != NRF_SUCCESS) {
+		log_error("Failed to initialize gpio");
+		return NULL;
+	}
+
+	nrf_drv_gpiote_out_clear(pin);
 
 	for (i = 0; i < MAX_GPIOS; i++) {
 		if (m_gpios[i] == NULL) {
@@ -412,6 +425,7 @@ calvin_gpio_t *create_out_gpio(uint32_t pin)
 			}
 
 			m_gpios[i]->pin = pin;
+			m_gpios[i]->direction = GPIO_OUT;
 			return m_gpios[i];
 		}
 	}
@@ -421,8 +435,10 @@ calvin_gpio_t *create_out_gpio(uint32_t pin)
 
 void set_gpio(calvin_gpio_t *gpio, uint32_t value)
 {
-	// TODO: Implement
-	log("set_gpio: %lu", (unsigned long)value);
+	if (value == 1)
+		 nrf_drv_gpiote_out_set(gpio->pin);
+	else
+		nrf_drv_gpiote_out_clear(gpio->pin);
 }
 
 void uninit_gpio(calvin_gpio_t *gpio)
@@ -436,7 +452,11 @@ void uninit_gpio(calvin_gpio_t *gpio)
 		}		
 	}
 
-	nrf_drv_gpiote_in_uninit(gpio->pin);
+	if (gpio->direction == GPIO_IN)
+		nrf_drv_gpiote_in_uninit(gpio->pin);
+	else
+		nrf_drv_gpiote_out_uninit(gpio->pin);
+
 	free(gpio);
 }
 

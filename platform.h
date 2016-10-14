@@ -47,10 +47,16 @@
 #define log(a, args...) printf(a"\r\n", ##args)
 #endif
 
+typedef enum {
+    GPIO_IN,
+    GPIO_OUT
+} gpio_direction_t;
+
 typedef struct calvin_gpio_t {
 	uint32_t pin;
 	bool has_triggered;
     uint32_t value;
+    gpio_direction_t direction;
 } calvin_gpio_t;
 
 void platform_init(void);

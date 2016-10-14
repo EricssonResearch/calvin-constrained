@@ -46,14 +46,23 @@ result_t actor_gpioreader_init(actor_t **actor, char *obj_actor_state, actor_sta
     if (has_key(&obj_actor_state, "_shadow_args")) {
         result = get_value_from_map(&obj_actor_state, "_shadow_args", &obj_shadow_args);
 
-        if (result == SUCCESS)
+        if (result == SUCCESS) {
             result = decode_uint_from_map(&obj_shadow_args, "gpio_pin", &pin);
+            if (result == SUCCESS)
+                result = add_managed_attribute(actor, "gpio_pin");
+        }
 
-        if (result == SUCCESS)
+        if (result == SUCCESS) {
             result = decode_string_from_map(&obj_shadow_args, "pull", &gpioreader_state->pull);
+            if (result == SUCCESS)
+                result = add_managed_attribute(actor, "pull");
+        }
 
-        if (result == SUCCESS)
+        if (result == SUCCESS) {
             result = decode_string_from_map(&obj_shadow_args, "edge", &gpioreader_state->edge);
+            if (result == SUCCESS)
+                result = add_managed_attribute(actor, "edge");
+        }
     } else {
         if (result == SUCCESS)
             result = decode_uint_from_map(&obj_actor_state, "gpio_pin", &pin);
@@ -70,14 +79,6 @@ result_t actor_gpioreader_init(actor_t **actor, char *obj_actor_state, actor_sta
         if (gpioreader_state->gpio == NULL)
             result = FAIL;
         else {
-            result = add_managed_attribute(actor, "gpio_pin");
-
-            if (result == SUCCESS)
-                result = add_managed_attribute(actor, "pull");
-
-            if (result == SUCCESS)
-                result = add_managed_attribute(actor, "edge");
-
             (*state)->state = (void *)gpioreader_state;
         }
     }

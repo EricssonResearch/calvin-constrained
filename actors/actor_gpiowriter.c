@@ -43,8 +43,11 @@ result_t actor_gpiowriter_init(actor_t **actor, char *obj_actor_state, actor_sta
     if (has_key(&obj_actor_state, "_shadow_args")) {
         result = get_value_from_map(&obj_actor_state, "_shadow_args", &obj_shadow_args);
 
-        if (result == SUCCESS)
+        if (result == SUCCESS) {
             result = decode_uint_from_map(&obj_shadow_args, "gpio_pin", &pin);
+            if (result == SUCCESS)
+                result = add_managed_attribute(actor, "gpio_pin");
+        }
     } else {
         if (result == SUCCESS)
             result = decode_uint_from_map(&obj_actor_state, "gpio_pin", &pin);
@@ -55,15 +58,13 @@ result_t actor_gpiowriter_init(actor_t **actor, char *obj_actor_state, actor_sta
         if (gpiowriter_state->gpio == NULL)
             result = FAIL;
         else {
-            result = add_managed_attribute(actor, "gpio_pin");
-            if (result == SUCCESS)
-                (*state)->state = (void *)gpiowriter_state;
+            (*state)->state = (void *)gpiowriter_state;
         }
     }
 
     if (result != SUCCESS) {
         free(*state);
-        if (gpiowriter_state != NULL) 
+        if (gpiowriter_state != NULL)
             free(gpiowriter_state);
     }
 
@@ -81,7 +82,7 @@ result_t actor_gpiowriter_fire(struct actor_t *actor)
         token = fifo_read(actor->inports->fifo);
         result = decode_uint_token(token, &value);
         if (result == SUCCESS) {
-            fifo_commit_read(actor->inports->fifo, true, true);                
+            fifo_commit_read(actor->inports->fifo, true, true);
             gpio_state = (state_gpiowriter_t *)actor->state->state;
             set_gpio(gpio_state->gpio, value);
         } else

@@ -24,6 +24,7 @@ result_t actor_identity_init(actor_t **actor, char *obj_actor_state, actor_state
 {
 	result_t result = SUCCESS;
 	state_identity_t *identity_state = NULL;
+	char *obj_shadow_args = NULL;
 
 	*state = (actor_state_t *)malloc(sizeof(actor_state_t));
 	if (*state == NULL) {
@@ -38,12 +39,18 @@ result_t actor_identity_init(actor_t **actor, char *obj_actor_state, actor_state
 		return FAIL;
 	}
 
-	result = decode_bool_from_map(&obj_actor_state, "dump", &identity_state->dump);
+	if (has_key(&obj_actor_state, "_shadow_args")) {
+		result = get_value_from_map(&obj_actor_state, "_shadow_args", &obj_shadow_args);
+		if (result == SUCCESS) {
+			result = decode_bool_from_map(&obj_shadow_args, "dump", &identity_state->dump);
+			if (result == SUCCESS)
+				result = add_managed_attribute(actor, "dump");
+		}
+	} else
+		result = decode_bool_from_map(&obj_actor_state, "dump", &identity_state->dump);
 
 	if (result == SUCCESS) {
-		result = add_managed_attribute(actor, "dump");
-		if (result == SUCCESS)
-			(*state)->state = (void *)identity_state;
+		(*state)->state = (void *)identity_state;
 	} else {
 		free(*state);
 		free(identity_state);
