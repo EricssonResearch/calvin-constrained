@@ -989,7 +989,7 @@ result_t send_actor_new(const node_t *node, actor_t *actor, char *to_rt_uuid, re
 		return result;
 	}
 
-	if (add_pending_msg(msg_uuid, handler, NULL) != SUCCESS) {
+	if (add_pending_msg(msg_uuid, handler, actor->id) != SUCCESS) {
 		free(msg_uuid);
 		return result;
 	}
@@ -1192,7 +1192,7 @@ static result_t parse_actor_new(node_t *node, char *root)
 	else {
 		result = send_reply(node, msg_uuid, from_rt_uuid, 500);
 		if (actor != NULL)
-			delete_actor(node, actor, true);
+			delete_actor(node, actor, false);
 	}
 
 	if (from_rt_uuid != NULL)
@@ -1206,8 +1206,29 @@ static result_t parse_actor_new(node_t *node, char *root)
 
 static result_t actor_new_reply_handler(char *data, void *msg_data)
 {
-	log_debug("TODO: actor_new_reply_handler does nothing");
-	return SUCCESS;
+	result_t result = SUCCESS;
+	uint32_t status = 0;
+	actor_t *actor = NULL;
+	node_t *node = get_node();
+	char *value = NULL;
+
+	result = get_value_from_map(&data, "value", &value);
+	if (result == SUCCESS)
+		result = decode_uint_from_map(&value, "status", &status);
+
+	if (result != SUCCESS)
+		log_error("Failed to parse reply");
+
+	if (status == 200) {
+		actor = get_actor(node, (char *)msg_data);
+		if (actor != NULL)
+			delete_actor(node, actor, false);
+		else
+			log_error("No actor with id '%s'", (char *)msg_data);
+	} else
+		log_error("TODO: Handle migration failures", (char *)msg_data);
+
+	return result;
 }
 
 static result_t parse_actor_migrate(node_t *node, char *root)
