@@ -1226,7 +1226,7 @@ static result_t actor_new_reply_handler(char *data, void *msg_data)
 		else
 			log_error("No actor with id '%s'", (char *)msg_data);
 	} else
-		log_error("TODO: Handle migration failures", (char *)msg_data);
+		log_error("TODO: Handle migration failures");
 
 	return result;
 }
