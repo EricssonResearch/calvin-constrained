@@ -1,0 +1,3 @@
+[submodule "msgpuck"]
+	path = msgpuck
+	url = https://github.com/rtsisyk/msgpuck
