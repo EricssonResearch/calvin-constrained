@@ -38,7 +38,6 @@
 #define APP_TIMER_PRESCALER                 NRF51_DRIVER_TIMER_PRESCALER
 #define LWIP_SYS_TIMER_INTERVAL             APP_TIMER_TICKS(100, APP_TIMER_PRESCALER)
 #define APP_CALVIN_INITTIMER_INTERVAL       APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)
-#define APP_CALVIN_TIMER_INTERVAL           APP_TIMER_TICKS(1000, APP_TIMER_PRESCALER)
 #define SCHED_MAX_EVENT_DATA_SIZE           128
 #define SCHED_QUEUE_SIZE                    12
 #define APP_TIMER_MAX_TIMERS                3
@@ -51,7 +50,6 @@ eui64_t                                     eui64_local_iid;
 static ble_gap_adv_params_t                 m_adv_params;
 static app_timer_id_t                       m_sys_timer_id;
 static app_timer_id_t                       m_calvin_inittimer_id;
-static app_timer_id_t                       m_calvin_timer_id;
 static char                                 m_mac[20]; // MAC address of connected peer
 static calvin_gpio_t                        *m_gpios[MAX_GPIOS];
 
@@ -73,22 +71,6 @@ void start_calvin_inittimer(void)
 	uint32_t err_code;
 
 	err_code = app_timer_start(m_calvin_inittimer_id, APP_CALVIN_INITTIMER_INTERVAL, NULL);
-	APP_ERROR_CHECK(err_code);
-}
-
-void start_calvin_timer(void)
-{
-	uint32_t err_code;
-
-	err_code = app_timer_start(m_calvin_timer_id, APP_CALVIN_TIMER_INTERVAL, NULL);
-	APP_ERROR_CHECK(err_code);
-}
-
-void stop_calvin_timer(void)
-{
-	uint32_t err_code;
-
-	err_code = app_timer_stop(m_calvin_timer_id);
 	APP_ERROR_CHECK(err_code);
 }
 
@@ -216,16 +198,8 @@ static void system_timer_callback(void *p_context)
 static void calvin_inittimer_callback(void *p_context)
 {
 	UNUSED_VARIABLE(p_context);
-	if (start_node(m_mac) == SUCCESS)
-		start_calvin_timer();
-	else
+	if (start_node(m_mac) != SUCCESS)
 		log_error("Failed to start node");
-}
-
-static void calvin_timer_callback(void *p_context)
-{
-	UNUSED_VARIABLE(p_context);
-	loop_once();
 }
 
 static void timers_init(void)
@@ -242,11 +216,6 @@ static void timers_init(void)
 	err_code = app_timer_create(&m_calvin_inittimer_id,
 								APP_TIMER_MODE_SINGLE_SHOT,
 								calvin_inittimer_callback);
-	APP_ERROR_CHECK(err_code);
-
-	err_code = app_timer_create(&m_calvin_timer_id,
-								APP_TIMER_MODE_REPEATED,
-								calvin_timer_callback);
 	APP_ERROR_CHECK(err_code);
 }
 
@@ -270,8 +239,6 @@ void nrf51_driver_interface_down(void)
 
 	log_debug("IPv6 interface down");
 
-	stop_calvin_timer();
-
 	err_code = app_timer_stop(m_sys_timer_id);
 	APP_ERROR_CHECK(err_code);
 }
@@ -291,7 +258,6 @@ void platform_init(void)
 
 	for (i = 0; i < MAX_GPIOS; i++)
 		m_gpios[i] = NULL;
-
 	do {
 		err_code = sd_rand_application_vector_get(&rnd_seed, 1);
 	} while (err_code == NRF_ERROR_SOC_RAND_NOT_ENOUGH_VALUES);
@@ -309,7 +275,8 @@ void platform_run(void)
 	while (1) {
 		app_sched_execute();
 		err_code = sd_app_evt_wait();
-		APP_ERROR_CHECK(err_code);
+		if (err_code != NRF_SUCCESS)
+			log_error("sd_app_evt_wait failed");
 	}
 }
 
@@ -324,6 +291,7 @@ static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t actio
 			else
 				m_gpios[i]->value = 0;
 			m_gpios[i]->has_triggered = true;
+			loop_once();
 			return;
 		}
 	}

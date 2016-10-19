@@ -235,6 +235,7 @@ void handle_data(char *data, int len)
 		break;
 	case TRANSPORT_JOINED:
 		parse_message(m_node, data);
+		loop_once();
 		break;
 	default:
 		log_error("Received data in unhandled state");
@@ -248,7 +249,6 @@ void handle_token_reply(char *port_id, port_reply_type_t reply_type, uint32_t se
 	if (port != NULL) {
 		if (reply_type == PORT_REPLY_TYPE_ACK) {
 			fifo_commit_read(port->fifo, true, true);
-			loop_once();
 		} else if (reply_type == PORT_REPLY_TYPE_NACK) {
 			if (sequencenbr < port->fifo->tentative_read_pos && sequencenbr >= port->fifo->read_pos) {
 				while (port->fifo->tentative_read_pos > sequencenbr)
@@ -407,8 +407,8 @@ void node_run(void)
 	uint32_t timeout = 60;
 
 	while (1) {
-		if (wait_for_data(&m_node->transport, timeout) == SUCCESS)
-			loop_once();
+		if (wait_for_data(&m_node->transport, timeout) != SUCCESS)
+			log_error("Failed to receive data");
 
 		if (m_node->transport == NULL ||
 			(m_node->transport != NULL && m_node->transport->state == TRANSPORT_DISCONNECTED))
