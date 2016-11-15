@@ -32,7 +32,6 @@
 #include "nrf_drv_gpiote.h"
 #include "platform.h"
 #include "node.h"
-#include "transport.h"
 
 #define DEVICE_NAME                         "calvin-constrained"
 #define APP_TIMER_PRESCALER                 NRF51_DRIVER_TIMER_PRESCALER
@@ -55,10 +54,8 @@ static calvin_gpio_t                        *m_gpios[MAX_GPIOS];
 
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
 {
-	log_debug("[** ASSERT **]: Error 0x%08lX, Line %ld, File %s", error_code, line_num, p_file_name);
-
-	for (;;) {
-	}
+	log_error("Error 0x%08lX, Line %ld, File %s", error_code, line_num, p_file_name);
+	NVIC_SystemReset();
 }
 
 void assert_nrf_callback(uint16_t line_num, const uint8_t *p_file_name)
@@ -180,8 +177,7 @@ static void ip_stack_init(void)
 {
 	uint32_t err_code;
 
-	err_code = nrf51_sdk_mem_init();
-	APP_ERROR_CHECK(err_code);
+	platform_mem_init();
 
 	lwip_init();
 
@@ -198,7 +194,7 @@ static void system_timer_callback(void *p_context)
 static void calvin_inittimer_callback(void *p_context)
 {
 	UNUSED_VARIABLE(p_context);
-	if (start_node(m_mac) != SUCCESS)
+	if (node_start(m_mac) != SUCCESS)
 		log_error("Failed to start node");
 }
 
@@ -280,6 +276,48 @@ void platform_run(void)
 	}
 }
 
+result_t platform_mem_init(void)
+{
+	uint32_t err_code;
+
+	err_code = nrf51_sdk_mem_init();
+	APP_ERROR_CHECK(err_code);
+
+	return SUCCESS;
+}
+
+result_t platform_mem_alloc(void **buffer, uint32_t size)
+{
+	/* TODO: Use SDKs memory pool
+	uint32_t res = 0, size_alloc = size;
+
+	res = nrf51_sdk_mem_alloc((uint8_t **)buffer, &size_alloc);
+	if (res == NRF_ERROR_INVALID_PARAM) {
+		log_error("Invalid param");
+		return FAIL;
+	} else if (res == NRF_ERROR_NO_MEM) {
+		log_error("No memory");
+		return FAIL;
+	}
+	*/
+	*buffer = malloc(size);
+	if (*buffer == NULL) {
+		log_error("Failed to allocate '%ld'", (unsigned long)size);
+		return FAIL;
+	}
+
+	return SUCCESS;
+}
+
+void platform_mem_free(void *buffer)
+{
+	/* TODO: Use SDKs memory pool
+	if (nrf51_sdk_mem_free((uint8_t *)buffer) != NRF_SUCCESS)
+		log_error("Failed to free buffer");
+	*/
+	free(buffer);
+}
+
 static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
 	int i = 0;
@@ -291,13 +329,13 @@ static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t actio
 			else
 				m_gpios[i]->value = 0;
 			m_gpios[i]->has_triggered = true;
-			loop_once();
+			node_loop_once();
 			return;
 		}
 	}
 }
 
-calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
+calvin_gpio_t *platform_create_in_gpio(uint32_t pin, char pull, char edge)
 {
 	int i = 0;
 	ret_code_t err_code;
@@ -345,12 +383,10 @@ calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
 
 	for (i = 0; i < MAX_GPIOS; i++) {
 		if (m_gpios[i] == NULL) {
-			m_gpios[i] = (calvin_gpio_t *)malloc(sizeof(calvin_gpio_t));
-			if (m_gpios[i] == NULL) {
+			if (platform_mem_alloc((void **)m_gpios[i], sizeof(calvin_gpio_t)) != SUCCESS) {
 				log_error("Failed to allocate memory");
 				return NULL;
 			}
-
 			m_gpios[i]->pin = pin;
 			m_gpios[i]->has_triggered = false;
 			m_gpios[i]->value = 0;
@@ -362,7 +398,7 @@ calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
 	return NULL;
 }
 
-calvin_gpio_t *create_out_gpio(uint32_t pin)
+calvin_gpio_t *platform_create_out_gpio(uint32_t pin)
 {
 	int i = 0;
 	ret_code_t err_code;
@@ -387,8 +423,7 @@ calvin_gpio_t *create_out_gpio(uint32_t pin)
 
 	for (i = 0; i < MAX_GPIOS; i++) {
 		if (m_gpios[i] == NULL) {
-			m_gpios[i] = (calvin_gpio_t *)malloc(sizeof(calvin_gpio_t));
-			if (m_gpios[i] == NULL) {
+			if (platform_mem_alloc((void **)m_gpios[i], sizeof(calvin_gpio_t)) != SUCCESS) {
 				log_error("Failed to allocate memory");
 				return NULL;
 			}
@@ -402,7 +437,7 @@ calvin_gpio_t *create_out_gpio(uint32_t pin)
 	return NULL;
 }
 
-void set_gpio(calvin_gpio_t *gpio, uint32_t value)
+void platform_set_gpio(calvin_gpio_t *gpio, uint32_t value)
 {
 	if (value == 1)
 		nrf_drv_gpiote_out_set(gpio->pin);
@@ -410,9 +445,14 @@ void set_gpio(calvin_gpio_t *gpio, uint32_t value)
 		nrf_drv_gpiote_out_clear(gpio->pin);
 }
 
-void uninit_gpio(calvin_gpio_t *gpio)
+void platform_uninit_gpio(calvin_gpio_t *gpio)
 {
 	int i = 0;
+
+	if (gpio->direction == GPIO_IN)
+		nrf_drv_gpiote_in_uninit(gpio->pin);
+	else
+		nrf_drv_gpiote_out_uninit(gpio->pin);
 
 	for (i = 0; i < MAX_GPIOS; i++) {
 		if (m_gpios[i] != NULL && m_gpios[i]->pin == gpio->pin) {
@@ -421,15 +461,10 @@ void uninit_gpio(calvin_gpio_t *gpio)
 		}
 	}
 
-	if (gpio->direction == GPIO_IN)
-		nrf_drv_gpiote_in_uninit(gpio->pin);
-	else
-		nrf_drv_gpiote_out_uninit(gpio->pin);
-
-	free(gpio);
+	platform_mem_free(gpio);
 }
 
-result_t get_temperature(double *temp)
+result_t platform_get_temperature(double *temp)
 {
 	uint32_t err_code;
 	int32_t value;

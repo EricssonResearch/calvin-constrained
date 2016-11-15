@@ -16,56 +16,43 @@
 #include <stdlib.h>
 #include <string.h>
 #include "common.h"
+#include "platform.h"
 
 // TODO: Generate a proper uuid
-char *gen_uuid(const char *prefix)
+void gen_uuid(char *buffer, const char *prefix)
 {
-	char *str = NULL;
 	int i, len_prefix = 0;
 	const char *hex_digits = "0123456789abcdef";
 
 	if (prefix != NULL)
 		len_prefix = strlen(prefix);
 
-	str = (char *)malloc((37 + len_prefix) * sizeof(char));
-	if (str == NULL)
-		return NULL;
-
 	for (i = 0; i < len_prefix; i++)
-		str[i] = prefix[i];
+		buffer[i] = prefix[i];
 
 	for (i = 0; i < 36; i++)
-		str[i + len_prefix] = hex_digits[(rand() % 16)];
+		buffer[i + len_prefix] = hex_digits[(rand() % 16)];
 
-	str[8 + len_prefix] = str[13 + len_prefix] = str[18 + len_prefix] = str[23 + len_prefix] = '-';
-	str[36 + len_prefix] = '\0';
-
-	return str;
+	buffer[8 + len_prefix] = buffer[13 + len_prefix] = buffer[18 + len_prefix] = buffer[23 + len_prefix] = '-';
+	buffer[36 + len_prefix] = '\0';
 }
 
-char *get_highest_uuid(char *id1, char *id2)
+bool uuid_is_higher(char *id1, size_t len1, char *id2, size_t len2)
 {
-	size_t len1 = 0, len2 = 0;
 	int i = 0;
 
-	len1 = strlen(id1);
-	len2 = strlen(id2);
-
 	if (len1 > len2)
-		return id1;
+		return true;
 
 	if (len2 > len1)
-		return id2;
+		return false;
 
 	for (i = len1; i >= 0; i--) {
 		if (id1[i] > id2[i])
-			return id1;
-
-		if (id2[i] > id1[i])
-			return id2;
+			return true;
 	}
 
-	return id1;
+	return false;
 }
 
 unsigned int get_message_len(const char *buffer)
@@ -76,4 +63,72 @@ unsigned int get_message_len(const char *buffer)
 		((buffer[1] & 0xFF) << 16) |
 		((buffer[0] & 0xFF) << 24);
 	return value;
+}
+
+result_t list_add(list_t **head, char *id, void *data, uint32_t data_len)
+{
+	list_t *new = NULL, *tmp = NULL;
+
+	if (platform_mem_alloc((void *)&new, sizeof(list_t)) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	new->id = id;
+	new->data = data;
+	new->data_len = data_len;
+	new->next = NULL;
+
+	if (*head == NULL) {
+		*head = new;
+	} else {
+		tmp = *head;
+		while (tmp->next != NULL)
+			tmp = tmp->next;
+		tmp->next = new;
+	}
+
+	return SUCCESS;
+}
+
+void list_remove(list_t **head, const char *id)
+{
+	list_t *curr = NULL, *prev = NULL;
+
+	for (curr = *head; curr != NULL; prev = curr, curr = curr->next) {
+		if (strncmp(curr->id, id, strlen(curr->id)) == 0) {
+			if (prev == NULL)
+				*head = curr->next;
+			else
+				prev->next = curr->next;
+			platform_mem_free((void *)curr);
+			return;
+		}
+	}
+}
+
+uint32_t list_count(list_t *list)
+{
+	uint32_t count = 0;
+	list_t *tmp = list;
+
+	while (tmp != NULL) {
+		count++;
+		tmp = tmp->next;
+	}
+
+	return count;
+}
+
+list_t *list_get(list_t *list, const char *id)
+{
+	list_t *tmp = list;
+
+	while (tmp != NULL) {
+		if (strncmp(tmp->id, id, strlen(tmp->id)) == 0)
+			return tmp;
+		tmp = tmp->next;
+	}
+
+	return NULL;
 }

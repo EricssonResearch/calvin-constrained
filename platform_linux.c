@@ -34,7 +34,31 @@ void platform_run(void)
 	// node_run is the main loop
 }
 
-calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
+result_t platform_mem_init(void)
+{
+	// TODO: Create a memory pool
+	return SUCCESS;
+}
+
+result_t platform_mem_alloc(void **buffer, uint32_t size)
+{
+	*buffer = malloc(size);
+	if (*buffer == NULL) {
+		log_error("Failed to allocate '%ld' memory", (unsigned long)size);
+		return FAIL;
+	}
+
+	log_debug("Allocated '%ld'", (unsigned long)size);
+
+	return SUCCESS;
+}
+
+void platform_mem_free(void *buffer)
+{
+	free(buffer);
+}
+
+calvin_gpio_t *platform_create_in_gpio(uint32_t pin, char pull, char edge)
 {
 	int i = 0;
 
@@ -50,8 +74,7 @@ calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
 
 	for (i = 0; i < MAX_GPIOS; i++) {
 		if (m_gpios[i] == NULL) {
-			m_gpios[i] = (calvin_gpio_t *)malloc(sizeof(calvin_gpio_t));
-			if (m_gpios[i] == NULL) {
+			if (platform_mem_alloc((void **)&m_gpios[i], sizeof(calvin_gpio_t)) != SUCCESS) {
 				log_error("Failed to allocate memory");
 				return NULL;
 			}
@@ -65,14 +88,13 @@ calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge)
 	return NULL;
 }
 
-calvin_gpio_t *create_out_gpio(uint32_t pin)
+calvin_gpio_t *platform_create_out_gpio(uint32_t pin)
 {
 	int i = 0;
 
 	for (i = 0; i < MAX_GPIOS; i++) {
 		if (m_gpios[i] == NULL) {
-			m_gpios[i] = (calvin_gpio_t *)malloc(sizeof(calvin_gpio_t));
-			if (m_gpios[i] == NULL) {
+			if (platform_mem_alloc((void **)&m_gpios[i], sizeof(calvin_gpio_t)) != SUCCESS) {
 				log_error("Failed to allocate memory");
 				return NULL;
 			}
@@ -85,12 +107,13 @@ calvin_gpio_t *create_out_gpio(uint32_t pin)
 	return NULL;
 }
 
-void uninit_gpio(calvin_gpio_t *gpio)
+void platform_uninit_gpio(calvin_gpio_t *gpio)
 {
 	int i = 0;
 
 	for (i = 0; i < MAX_GPIOS; i++) {
 		if (m_gpios[i] != NULL && m_gpios[i]->pin == gpio->pin) {
+			free(m_gpios[i]);
 			m_gpios[i] = NULL;
 			break;
 		}
@@ -99,12 +122,12 @@ void uninit_gpio(calvin_gpio_t *gpio)
 	free(gpio);
 }
 
-void set_gpio(calvin_gpio_t *gpio, uint32_t value)
+void platform_set_gpio(calvin_gpio_t *gpio, uint32_t value)
 {
 	log("Setting gpio");
 }
 
-result_t get_temperature(double *temp)
+result_t platform_get_temperature(double *temp)
 {
 	*temp = 15.5;
 	return SUCCESS;

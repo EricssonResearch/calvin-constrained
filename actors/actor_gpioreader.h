@@ -22,13 +22,17 @@
 
 typedef struct state_gpioreader_t {
     calvin_gpio_t *gpio;
-    char *edge;
-    char *pull;
+    uint32_t pin;
+    char pull[1];
+    char edge[1];
+    list_t *managed_attributes;
 } state_gpioreader_t;
 
-result_t actor_gpioreader_init(actor_t **actor, char *obj_actor_state, actor_state_t **state);
+result_t actor_gpioreader_init(actor_t **actor, char *obj_actor_state);
+result_t actor_gpioreader_set_state(actor_t **actor, char *obj_actor_state);
 result_t actor_gpioreader_fire(actor_t *actor);
 void actor_gpioreader_free(actor_t *actor);
-char *actor_gpioreader_serialize(actor_state_t *state, char **buffer);
+char *actor_gpioreader_serialize(actor_t *actor, char **buffer);
+list_t *actor_gpioreader_get_managed_attributes(actor_t *actor);
 
 #endif /* ACTOR_GPIOREADER_H */

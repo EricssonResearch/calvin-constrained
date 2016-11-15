@@ -19,7 +19,7 @@
 #include <stdbool.h>
 #include "common.h"
 
-char *encode_str(char **buffer, const char *key, const char *value);
+char *encode_str(char **buffer, const char *key, const char *value, uint32_t value_len);
 char *encode_map(char **buffer, const char *key, int keys);
 char *encode_array(char **buffer, const char *key, int keys);
 char *encode_uint(char **buffer, const char *key, uint32_t value);
@@ -28,15 +28,19 @@ char *encode_double(char **buffer, const char *key, double value);
 char *encode_bool(char **buffer, const char *key, bool value);
 char *encode_nil(char **buffer, const char *key);
 char *encode_value(char **buffer, const char *key, const char *value, size_t size);
-bool has_key(char **buffer, const char *key);
-result_t get_value_from_array(char **buffer, int index, char **value);
-result_t get_value_from_map(char **buffer, const char *key, char **value);
-result_t decode_str(char **buffer, char **value);
-result_t decode_string_from_map(char **buffer, const char *key, char **value);
-result_t decode_string_from_array(char **buffer, int index, char **value);
-result_t decode_uint_from_map(char **buffer, const char *key, uint32_t *value);
-result_t decode_bool_from_map(char **buffer, const char *key, bool *value);
-result_t decode_double_from_map(char **buffer, const char *key, double *value);
-result_t copy_value(char **buffer, const char *key, char **value, size_t *size);
+bool has_key(char *buffer, const char *key);
+uint32_t get_size_of_array(char *buffer);
+result_t get_value_from_array(char *buffer, int index, char **value);
+result_t get_value_from_map(char *buffer, const char *key, char **value);
+result_t decode_bool(char *buffer, bool *value);
+result_t decode_uint(char *buffer, uint32_t *value);
+result_t decode_str(char *buffer, char **value, uint32_t *len);
+result_t decode_string_from_map(char *buffer, const char *key, char **value, uint32_t *len);
+result_t decode_string_from_array(char *buffer, int index, char **value, uint32_t *len);
+result_t decode_uint_from_map(char *buffer, const char *key, uint32_t *value);
+result_t decode_bool_from_map(char *buffer, const char *key, bool *value);
+result_t decode_double_from_map(char *buffer, const char *key, double *value);
+result_t copy_value(char *buffer, const char *key, char **value, size_t *size);
+size_t get_size_of_value(char *value);
 
 #endif /* MSGPACK_HELPER_H */

@@ -24,13 +24,10 @@
 #include "platform.h"
 #include "node.h"
 
-static result_t send_buffer(send_buffer_t *buf);
+static transport_client_t m_client;
 
-static transport_client_t *m_client;
-
-// iface is the MAC address, convert it to a ipv6
-// link-local address.
-result_t discover_proxy(const char *iface, char *ip, int *port)
+// iface is the MAC address, convert it to a ipv6 link-local address.
+result_t transport_discover_proxy(const char *iface, char *ip, int *port)
 {
 	long col1, col2, col3, col4, col5, col6;
 
@@ -51,135 +48,55 @@ result_t discover_proxy(const char *iface, char *ip, int *port)
 	return SUCCESS;
 }
 
-static err_t tcp_write_complete(void *p_arg, struct tcp_pcb *p_pcb, u16_t len)
-{
-	UNUSED_PARAMETER(p_arg);
-	UNUSED_PARAMETER(p_pcb);
-
-	log_debug("Write complete");
-
-	m_client->tcp_state = TCP_STATE_CONNECTED;
-
-	if (m_client->send_list != NULL) {
-		send_buffer(m_client->send_list);
-		m_client->send_list = m_client->send_list->next;
-	}
-
-	return ERR_OK;
-}
-
-static result_t send_buffer(send_buffer_t *buf)
-{
-	result_t result = SUCCESS;
-	err_t err = ERR_OK;
-	struct tcp_pcb *pcb = m_client->tcp_port;
-	uint32_t tcp_buffer_size = tcp_sndbuf(pcb);
-
-	if (tcp_buffer_size >= buf->length) {
-		err = tcp_write(pcb, buf->data, buf->length, 1);
-		free(buf->data);
-		free(buf);
-		if (err != ERR_OK) {
-			log_error("Failed to send TCP packet, reason %d", err);
-			result = FAIL;
-		} else {
-			m_client->tcp_state = TCP_STATE_TCP_SEND_PENDING;
-			tcp_sent(pcb, tcp_write_complete);
-			log_debug("Sent: %d", buf->length);
-		}
-	} else {
-		// TODO: Handle buf->length > tcp_buffer_size
-		log_error("Failed to send TCP packet, buffer to big");
-		result = FAIL;
-	}
-
-	return result;
-}
-
-result_t client_send(const transport_client_t *client, char *data, size_t len)
-{
-	result_t result = SUCCESS;
-	send_buffer_t *new_buf = NULL, *tmp_buf = m_client->send_list;
-
-	new_buf = (send_buffer_t *)malloc(sizeof(send_buffer_t));
-	if (new_buf == NULL) {
-		log_error("Failed to allocate memory");
-		free(data);
-		return FAIL;
-	}
-
-	new_buf->length = len + 4;
-	new_buf->next = NULL;
-	new_buf->data = data;
-	new_buf->data[0] = (len & 0xFF000000);
-	new_buf->data[1] = (len & 0x00FF0000);
-	new_buf->data[2] = (len & 0x0000FF00) / 0x000000FF;
-	new_buf->data[3] = (len & 0x000000FF);
-
-	if (m_client->tcp_state == TCP_STATE_TCP_SEND_PENDING) {
-		if (m_client->send_list == NULL) {
-			m_client->send_list = new_buf;
-		} else {
-			while (tmp_buf->next != NULL)
-				tmp_buf = tmp_buf->next;
-			tmp_buf->next = new_buf;
-		}
-		return SUCCESS;
-	}
-
-	// TODO: Handle transmission failure
-	result = send_buffer(new_buf);
-
-	return result;
-}
-
-err_t tcp_recv_data_handler(void *p_arg, struct tcp_pcb *p_pcb, struct pbuf *p_buffer, err_t err)
+err_t transport_recv_data_handler(void *p_arg, struct tcp_pcb *p_pcb, struct pbuf *p_buffer, err_t err)
 {
 	int read_pos = 0, msg_size = 0;
+
+	log_debug("Received: %d", p_buffer->tot_len);
 
 	if (err == ERR_OK && p_buffer != NULL) {
 		tcp_recved(p_pcb, p_buffer->tot_len);
 
 		while (read_pos < p_buffer->tot_len) {
-			if (m_client->buffer == NULL) {
+			// New message?
+			if (m_client.rx_buffer.buffer == NULL) {
 				msg_size = get_message_len(p_buffer->payload + read_pos);
-				read_pos += 4; // Skip header
+				read_pos += 4;
+
+				// Complete message?
 				if (msg_size <= p_buffer->tot_len - read_pos) {
-					handle_data(p_buffer->payload + read_pos, msg_size);
+					node_handle_data(p_buffer->payload + read_pos, msg_size);
 					read_pos += msg_size;
 				} else {
-					m_client->buffer = malloc(msg_size);
-					if (m_client->buffer == NULL) {
-						log_error("Failed to allocate memory");
-						return ERR_MEM;
+					if (platform_mem_alloc((void **)&m_client.rx_buffer.buffer, msg_size) != SUCCESS) {
+						log_error("Failed to allocate rx buffer");
+						return FAIL;
 					}
-					memcpy(m_client->buffer, p_buffer->payload + read_pos, p_buffer->tot_len - read_pos);
-					m_client->msg_size = msg_size;
-					m_client->buffer_pos = p_buffer->tot_len - read_pos;
-					return ERR_OK;
+					memcpy(m_client.rx_buffer.buffer, p_buffer->payload + read_pos, p_buffer->tot_len - read_pos);
+					m_client.rx_buffer.pos = p_buffer->tot_len - read_pos;
+					m_client.rx_buffer.size = msg_size;
+					return SUCCESS;
 				}
 			} else {
-				msg_size = m_client->msg_size;
-				if (msg_size - m_client->buffer_pos <= p_buffer->tot_len - read_pos) {
-					memcpy(m_client->buffer + m_client->buffer_pos, p_buffer->payload + read_pos, msg_size - m_client->buffer_pos);
-					handle_data(m_client->buffer, msg_size);
-					free(m_client->buffer);
-					m_client->buffer = NULL;
-					read_pos += msg_size - m_client->buffer_pos;
-					m_client->buffer = 0;
-					m_client->msg_size = 0;
-					m_client->buffer_pos = 0;
+				// Fragment completing message?
+				if (m_client.rx_buffer.size - m_client.rx_buffer.pos <= p_buffer->tot_len - read_pos) {
+					memcpy(m_client.rx_buffer.buffer + m_client.rx_buffer.pos, p_buffer->payload + read_pos, m_client.rx_buffer.size - m_client.rx_buffer.pos);
+					node_handle_data(m_client.rx_buffer.buffer, m_client.rx_buffer.size);
+					platform_mem_free((void *)m_client.rx_buffer.buffer);
+					read_pos += m_client.rx_buffer.size - m_client.rx_buffer.pos;
+					m_client.rx_buffer.buffer = NULL;
+					m_client.rx_buffer.pos = 0;
+					m_client.rx_buffer.size = 0;
 				} else {
-					memcpy(m_client->buffer + m_client->buffer_pos, p_buffer->payload + read_pos, p_buffer->tot_len - read_pos);
-					m_client->buffer_pos += p_buffer->tot_len - read_pos;
-					return ERR_OK;
+					memcpy(m_client.rx_buffer.buffer + m_client.rx_buffer.pos, p_buffer->payload + read_pos, p_buffer->tot_len - read_pos);
+					m_client.rx_buffer.pos += p_buffer->tot_len - read_pos;
+					return SUCCESS;
 				}
 			}
 		}
-
 		UNUSED_VARIABLE(pbuf_free(p_buffer));
 	} else {
-		log_debug("Error on receive, reason 0x%08x", err);
+		log_error("Error on receive, reason 0x%08x", err);
 		if (p_buffer != NULL)
 			UNUSED_VARIABLE(pbuf_free(p_buffer));
 	}
@@ -187,15 +104,15 @@ err_t tcp_recv_data_handler(void *p_arg, struct tcp_pcb *p_pcb, struct pbuf *p_b
 	return ERR_OK;
 }
 
-static void tcp_error_handler(void *p_arg, err_t err)
+static void transport_error_handler(void *p_arg, err_t err)
 {
 	LWIP_UNUSED_ARG(p_arg);
 	LWIP_UNUSED_ARG(err);
 
-	log_debug("Error on TCP port, reason 0x%08x", err);
+	log_error("Error on TCP port, reason 0x%08x", err);
 }
 
-static err_t tcp_connection_poll(void *p_arg, struct tcp_pcb *p_pcb)
+static err_t transport_connection_poll(void *p_arg, struct tcp_pcb *p_pcb)
 {
 	LWIP_UNUSED_ARG(p_arg);
 	LWIP_UNUSED_ARG(p_pcb);
@@ -203,57 +120,175 @@ static err_t tcp_connection_poll(void *p_arg, struct tcp_pcb *p_pcb)
 	return ERR_OK;
 }
 
-static err_t tcp_connection_callback(void *p_arg, struct tcp_pcb *p_pcb, err_t err)
+static result_t transport_free_tx_buffer(void)
 {
-//    log_debug("TCP Connected, result 0x%08X.", err);
+	platform_mem_free((void *)m_client.tx_buffer.buffer);
+	m_client.tx_buffer.pos = 0;
+	m_client.tx_buffer.size = 0;
+	m_client.tx_buffer.buffer = NULL;
+	return SUCCESS;
+}
 
-	APP_ERROR_CHECK(err);
+static err_t transport_write_complete(void *p_arg, struct tcp_pcb *p_pcb, u16_t len)
+{
+	UNUSED_PARAMETER(p_arg);
+	uint32_t tcp_buffer_size = 0;
 
-	m_client->tcp_state = TCP_STATE_CONNECTED;
+	if (m_client.tx_buffer.buffer != NULL && m_client.tx_buffer.pos == m_client.tx_buffer.size) {
+		transport_free_tx_buffer();
+		node_transmit();
+		return SUCCESS;
+	}
 
-	tcp_setprio(p_pcb, TCP_PRIO_MIN);
-	tcp_arg(p_pcb, NULL);
-	tcp_recv(p_pcb, tcp_recv_data_handler);
-	tcp_err(p_pcb, tcp_error_handler);
-	tcp_poll(p_pcb, tcp_connection_poll, 0);
-
-	client_connected();
+	tcp_buffer_size = tcp_sndbuf(p_pcb);
+	if (tcp_buffer_size >= m_client.tx_buffer.size - m_client.tx_buffer.pos) {
+		if (tcp_write(p_pcb, m_client.tx_buffer.buffer + m_client.tx_buffer.pos, m_client.tx_buffer.size - m_client.tx_buffer.pos, 1) == ERR_OK)
+			m_client.tx_buffer.pos = m_client.tx_buffer.size;
+		else
+			log_error("TODO: Handle tx failures"); // start retransmission timer or something similar
+	} else if (tcp_buffer_size > 0) {
+		if (tcp_write(p_pcb, m_client.tx_buffer.buffer + m_client.tx_buffer.pos, tcp_buffer_size, 1) == ERR_OK) {
+			m_client.tx_buffer.pos += tcp_buffer_size;
+		} else
+			log_error("TODO: Handle tx failures"); // start retransmission timer or something similar
+	} else
+		log_error("No space in send buffer");
 
 	return ERR_OK;
 }
 
-transport_client_t *client_connect(const char *address, int port)
+static err_t transport_connection_callback(void *p_arg, struct tcp_pcb *p_pcb, err_t err)
+{
+	if (err != ERR_OK) {
+		log_error("Failed to connect");
+		return err;
+	}
+
+	m_client.state = TRANSPORT_CONNECTED;
+
+	tcp_setprio(p_pcb, TCP_PRIO_MIN);
+	tcp_arg(p_pcb, NULL);
+	tcp_recv(p_pcb, transport_recv_data_handler);
+	tcp_err(p_pcb, transport_error_handler);
+	tcp_poll(p_pcb, transport_connection_poll, 0);
+	tcp_sent(p_pcb, transport_write_complete);
+
+	node_join_proxy();
+
+	return ERR_OK;
+}
+
+result_t transport_send(size_t len)
+{
+	uint32_t tcp_buffer_size = 0;
+	struct tcp_pcb *pcb = m_client.tcp_port;
+
+	m_client.tx_buffer.buffer[0] = (len & 0xFF000000);
+	m_client.tx_buffer.buffer[1] = (len & 0x00FF0000);
+	m_client.tx_buffer.buffer[2] = (len & 0x0000FF00) / 0x000000FF;
+	m_client.tx_buffer.buffer[3] = (len & 0x000000FF);
+
+	tcp_buffer_size = tcp_sndbuf(pcb);
+	if (tcp_buffer_size >= len + 4) {
+		if (tcp_write(pcb, m_client.tx_buffer.buffer, len + 4, 1) == ERR_OK) {
+			m_client.tx_buffer.pos = len + 4;
+			m_client.tx_buffer.size = m_client.tx_buffer.pos;
+			log_debug("Sent packet");
+			return SUCCESS;
+		}
+		log_error("TODO: Handle tx failures"); // start retransmission timer or something similar
+	} else if (tcp_buffer_size > 0) {
+		if (tcp_write(pcb, m_client.tx_buffer.buffer, tcp_buffer_size, 1) == ERR_OK) {
+			log_debug("Sent fragment");
+			m_client.tx_buffer.size = len + 4;
+			m_client.tx_buffer.pos = tcp_buffer_size;
+			return SUCCESS;
+		}
+		log_error("TODO: Handle tx failures"); // start retransmission timer or something similar
+	} else
+		log_error("No space in send buffer"); // start retransmission timer or something similar
+
+	transport_free_tx_buffer();
+
+	return FAIL;
+}
+
+result_t transport_start(const char *interface)
 {
 	ip6_addr_t ipv6_addr;
 	err_t err;
+	char ip[40];
+	int port = 0;
 
-	m_client = (transport_client_t *)malloc(sizeof(transport_client_t));
-	if (m_client == NULL) {
-		log_error("Failed to allocate memory");
-		return NULL;
+	if (transport_discover_proxy(interface, ip, &port) != SUCCESS) {
+		log_error("No proxy found");
+		return FAIL;
 	}
 
-	if (ip6addr_aton(address, &ipv6_addr) != 1) {
+	if (ip6addr_aton(ip, &ipv6_addr) != 1) {
 		log_error("Failed to convert address");
-		return NULL;
+		return FAIL;
 	}
 
-	m_client->tcp_port = tcp_new_ip6();
-	m_client->tcp_state = TCP_STATE_DISCONNECTED;
-	m_client->state = TRANSPORT_DISCONNECTED;
-	m_client->send_list = NULL;
-	m_client->msg_size = 0;
-	m_client->buffer = NULL;
-	m_client->buffer_pos = 0;
+	m_client.tcp_port = tcp_new_ip6();
+	m_client.state = TRANSPORT_DISCONNECTED;
+	m_client.rx_buffer.buffer = NULL;
+	m_client.rx_buffer.pos = 0;
+	m_client.rx_buffer.size = 0;
+	m_client.tx_buffer.buffer = NULL;
+	m_client.tx_buffer.pos = 0;
+	m_client.tx_buffer.size = 0;
 
-	err = tcp_connect_ip6(m_client->tcp_port, &ipv6_addr, port, tcp_connection_callback);
-	APP_ERROR_CHECK(err);
-	log_debug("TCP connection requested to %s:%d.", address, port);
+	err = tcp_connect_ip6(m_client.tcp_port, &ipv6_addr, port, transport_connection_callback);
+	if (err != ERR_OK) {
+		log_error("Failed to connect socket");
+		return FAIL;
+	}
 
-	return m_client;
+	log_debug("TCP connection requested to %s:%d.", ip, port);
+
+	return SUCCESS;
 }
 
-result_t wait_for_data(transport_client_t **client, uint32_t timeout)
+void transport_stop(void)
+{
+	m_client.state = TRANSPORT_DISCONNECTED;
+}
+
+void transport_set_state(const transport_state_t state)
+{
+	m_client.state = state;
+}
+
+transport_state_t transport_get_state(void)
+{
+	return m_client.state;
+}
+
+result_t transport_select(uint32_t timeout)
 {
 	return SUCCESS;
+}
+
+result_t transport_get_tx_buffer(char **buffer, uint32_t size)
+{
+	if (m_client.tx_buffer.buffer != NULL) {
+		log_error("TX buffer is not NULL");
+		return FAIL;
+	}
+
+	if (platform_mem_alloc((void **)buffer, size) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	m_client.tx_buffer.pos = 0;
+	m_client.tx_buffer.size = 0;
+	m_client.tx_buffer.buffer = *buffer;
+	return SUCCESS;
+}
+
+bool transport_can_send(void)
+{
+	return m_client.tx_buffer.buffer == NULL;
 }

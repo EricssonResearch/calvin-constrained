@@ -19,6 +19,7 @@
 #include "common.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 #ifdef NRF51
 #include "lwip/tcp.h"
 #endif
@@ -29,41 +30,30 @@ typedef enum {
 	TRANSPORT_JOINED
 } transport_state_t;
 
-#ifdef NRF51
-typedef enum {
-	TCP_STATE_IDLE,
-	TCP_STATE_REQUEST_CONNECTION,
-	TCP_STATE_CONNECTED,
-	TCP_STATE_DATA_TX_IN_PROGRESS,
-	TCP_STATE_TCP_SEND_PENDING,
-	TCP_STATE_DISCONNECTED
-} tcp_state_t;
-
-typedef struct send_buffer_t {
-	char *data;
-	unsigned int length;
-	struct send_buffer_t *next;
-} send_buffer_t;
-#endif
+typedef struct transport_buffer_t {
+	char *buffer;
+	uint32_t pos;
+	uint32_t size;
+} transport_buffer_t;
 
 typedef struct transport_client_t {
-	transport_state_t state;
 #ifdef NRF51
 	struct tcp_pcb *tcp_port;
-	tcp_state_t tcp_state;
-	send_buffer_t *send_list;
 #else
 	int fd;
 #endif
-	int msg_size;
-	char *buffer;
-	int buffer_pos;
+	transport_state_t state;
+	transport_buffer_t rx_buffer;
+	transport_buffer_t tx_buffer;
 } transport_client_t;
 
-result_t discover_proxy(const char *iface, char *ip, int *port);
-transport_client_t *client_connect(const char *address, int port);
-result_t client_send(const transport_client_t *client, char *data, size_t len);
-result_t wait_for_data(transport_client_t **client, uint32_t timeout);
-void free_client(transport_client_t *client);
+result_t transport_start(const char *interface);
+result_t transport_send(size_t len);
+result_t transport_select(uint32_t timeout);
+void transport_set_state(const transport_state_t state);
+transport_state_t transport_get_state(void);
+void transport_stop(void);
+result_t transport_get_tx_buffer(char **buffer, uint32_t size);
+bool transport_can_send(void);
 
 #endif /* TRANSPORT_H */

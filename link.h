@@ -16,25 +16,27 @@
 #ifndef LINK_H
 #define LINK_H
 
+#include <stdint.h>
 #include "common.h"
 
 struct node_t;
 
 typedef enum {
-	LINK_PENDING,
-	LINK_WORKING
+	LINK_DO_CONNECT,
+	LINK_ENABLED,
+	LINK_CONNECT_FAILED,
+	LINK_PENDING
 } link_state_t;
 
 typedef struct link_t {
-	char *peer_id;
+	char peer_id[UUID_BUFFER_SIZE];
 	link_state_t state;
 } link_t;
 
-link_t *create_link(char *peer_id, link_state_t state);
-result_t add_link(struct node_t *node, link_t *link);
-link_t *get_link(struct node_t *node, char *peer_id);
-result_t request_link(struct node_t *node, link_t *link);
-void remove_link(struct node_t *node, link_t *link);
-void free_link(link_t *link);
+link_t *link_create(struct node_t *node, const char *peer_id, uint32_t peer_id_len, const link_state_t state);
+void link_free(struct node_t *node, link_t *link);
+link_t *link_get(struct node_t *node, const char *peer_id, uint32_t peer_id_len);
+void link_remove(struct node_t *node, const char *peer_id);
+result_t link_transmit(struct node_t *node, link_t *link);
 
 #endif /* LINK_H */

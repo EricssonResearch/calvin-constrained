@@ -21,141 +21,123 @@
 #include "msgpack_helper.h"
 #include "proto.h"
 
-link_t *create_link(char *peer_id, link_state_t state)
+link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, const link_state_t state)
 {
 	link_t *link = NULL;
 
-	link = (link_t *)malloc(sizeof(link_t));
-	if (link == NULL) {
+	if (platform_mem_alloc((void **)&link, sizeof(link_t)) != SUCCESS) {
 		log_error("Failed to allocate memory");
 		return NULL;
 	}
 
-	link->peer_id = strdup(peer_id);
+	memset(link, 0, sizeof(link_t));
+
 	link->state = state;
+	strncpy(link->peer_id, peer_id, peer_id_len);
 
-	log_debug("Created link to '%s'", link->peer_id);
+	if (list_add(&node->links, link->peer_id, (void *)link, sizeof(link_t)) != SUCCESS) {
+		log_error("Failed to add link");
+		platform_mem_free((void *)link);
+		return NULL;
+	}
 
+	log_debug("Link created to '%s'", link->peer_id);
 	return link;
 }
 
-result_t add_link(node_t *node, link_t *link)
+void link_free(node_t *node, link_t *link)
 {
-	int i_link = 0;
-
-	for (i_link = 0; i_link < MAX_LINKS; i_link++) {
-		if (node->links[i_link] == NULL) {
-			node->links[i_link] = link;
-			return SUCCESS;
-		}
-	}
-
-	log_error("Failed to add link");
-
-	return FAIL;
+	log("Freeing link to '%s'", link->peer_id);
+	list_remove(&node->links, link->peer_id);
+	platform_mem_free((void *)link);
 }
 
-link_t *get_link(node_t *node, char *peer_id)
+link_t *link_get(node_t *node, const char *peer_id, uint32_t peer_id_len)
 {
-	int i_link = 0;
+	list_t *links = node->links;
+	link_t *link = NULL;
 
-	if (strcmp(node->proxy_link->peer_id, peer_id) == 0)
-		return node->proxy_link;
-
-	for (i_link = 0; i_link < MAX_LINKS; i_link++) {
-		if (node->links[i_link] != NULL && strcmp(peer_id, node->links[i_link]->peer_id) == 0)
-			return node->links[i_link];
+	while (links != NULL) {
+		link = (link_t *)links->data;
+		if (strncmp(link->peer_id, peer_id, peer_id_len) == 0)
+			return link;
+		links = links->next;
 	}
 
 	return NULL;
 }
 
-static result_t request_link_handler(char *data, void *msg_data)
+static result_t link_request_handler(char *data, void *msg_data)
 {
 	result_t result = FAIL;
 	char *value = NULL, *peer_id = NULL, *value_data = NULL;
-	uint32_t status;
-	node_t *node = get_node();
+	uint32_t status = 0, peer_id_len = 0;
+	node_t *node = node_get();
 	link_t *link = NULL;
-	tunnel_t *tunnel = NULL;
 
-	result = get_value_from_map(&data, "value", &value);
-
-	if (result == SUCCESS)
-		result = decode_uint_from_map(&value, "status", &status);
+	result = get_value_from_map(data, "value", &value);
 
 	if (result == SUCCESS)
-		result = get_value_from_map(&value, "data", &value_data);
+		result = decode_uint_from_map(value, "status", &status);
 
 	if (result == SUCCESS)
-		result = decode_string_from_map(&value_data, "peer_id", &peer_id);
+		result = get_value_from_map(value, "data", &value_data);
 
-	if (result != SUCCESS)
+	if (result == SUCCESS)
+		result = decode_string_from_map(value_data, "peer_id", &peer_id, &peer_id_len);
+
+	if (result != SUCCESS) {
 		log_error("Failed to decode message");
+		return FAIL;
+	}
+
+	link = link_get(node, peer_id, peer_id_len);
+	if (link == NULL) {
+		log_error("No link to '%.*s'", (int)peer_id_len, peer_id);
+		return FAIL;
+	}
 
 	if (result == SUCCESS) {
-		if (status != 200) {
-			log_error("Link request failed with status %ld", (unsigned long)status);
+		if (status == 200) {
+			log("Link to '%s' enabled", link->peer_id);
+			link->state = LINK_ENABLED;
+		} else {
+			log_error("Link request failed");
+			link->state = LINK_CONNECT_FAILED;
 			result = FAIL;
 		}
 	}
 
-	link = create_link(peer_id, LINK_WORKING);
-	if (link != NULL) {
-		tunnel = get_tunnel_from_peerid(node, link->peer_id);
-		if (tunnel == NULL) {
-			log_error("Link requested without a tunnel");
-			result = FAIL;
-			free_link(link);
-		}
-
-		result = add_link(node, link);
-		if (result != SUCCESS) {
-			log_error("Failed to add link");
-			free_link(link);
-		}
-
-		if (result == SUCCESS)
-			result = request_token_tunnel(node, tunnel);
-	} else {
-		log_error("Failed to create link");
-		result = FAIL;
-	}
-
-
-	if (peer_id != NULL)
-		free(peer_id);
-
 	return result;
 }
 
-result_t request_link(node_t *node, link_t *link)
+void link_remove(node_t *node, const char *peer_id)
 {
-	result_t result = FAIL;
+	list_t *links = node->links;
+	link_t *link = NULL;
 
-	if (link != NULL)
-		result = send_route_request(node, link->peer_id, request_link_handler);
-
-	return result;
-}
-
-void remove_link(node_t *node, link_t *link)
-{
-	int i_link = 0;
-
-	log_debug("Removing link");
-	for (i_link = 0; i_link < MAX_LINKS; i_link++) {
-		if (node->links[i_link] != NULL && strcmp(link->peer_id, node->links[i_link]->peer_id) == 0)
-			node->links[i_link] = NULL;
+	while (links != NULL) {
+		link = (link_t *)links->data;
+		if (strncmp(link->peer_id, peer_id, strlen(peer_id)) == 0) {
+			link_free(node, link);
+			return;
+		}
+		links = links->next;
 	}
 }
 
-void free_link(link_t *link)
+result_t link_transmit(node_t *node, link_t *link)
 {
-	log_debug("Freeing link");
-	if (link != NULL) {
-		if (link->peer_id != NULL)
-			free(link->peer_id);
-		free(link);
+	switch (link->state) {
+	case LINK_DO_CONNECT:
+		link->state = LINK_PENDING;
+		if (proto_send_route_request(node, link->peer_id, strlen(link->peer_id), link_request_handler) == SUCCESS)
+			return SUCCESS;
+		link->state = LINK_DO_CONNECT;
+		break;
+	default:
+		break;
 	}
+
+	return FAIL;
 }

@@ -1,7 +1,7 @@
 CC = gcc
 PROJECT_NAME = calvin_c
 
-CFLAGS += -g -Wall
+CFLAGS  = -g -Wall
 CFLAGS += --std=gnu99
 #CFLAGS += -D DEBUG
 CFLAGS += -lrt

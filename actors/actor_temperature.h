@@ -19,6 +19,15 @@
 #include "../common.h"
 #include "../actor.h"
 
+typedef struct state_temperature_t {
+    list_t *managed_attributes;
+} state_temperature_t;
+
+result_t actor_temperature_init(actor_t **actor, char *obj_actor_state);
+result_t actor_temperature_set_state(actor_t **actor, char *obj_actor_state);
 result_t actor_temperature_fire(actor_t *actor);
+void actor_temperature_free(actor_t *actor);
+char *actor_temperature_serialize(actor_t *actor, char **buffer);
+list_t *actor_temperature_get_managed_attributes(actor_t *actor);
 
 #endif /* ACTOR_TEMPERATURE_H */

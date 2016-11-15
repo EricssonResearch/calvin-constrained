@@ -17,10 +17,10 @@
 #include "msgpack_helper.h"
 #include "platform.h"
 
-char *encode_str(char **buffer, const char *key, const char *value)
+char *encode_str(char **buffer, const char *key, const char *value, uint32_t value_len)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));
-	*buffer = mp_encode_str(*buffer, value, strlen(value));
+	*buffer = mp_encode_str(*buffer, value, value_len);
 	return *buffer;
 }
 
@@ -81,33 +81,37 @@ char *encode_value(char **buffer, const char *key, const char *value, size_t siz
 	return *buffer;
 }
 
-bool has_key(char **buffer, const char *key)
+bool has_key(char *buffer, const char *key)
 {
-	char *r = *buffer, *tmp = NULL;
-	uint32_t i = 0, map_size = 0;
+	char *r = buffer, *tmp = NULL;
+	uint32_t i = 0, map_size = 0, key_len = 0;
 
 	if (mp_typeof(*r) == MP_MAP) {
 		map_size = mp_decode_map((const char **)&r);
 		for (i = 0; i < map_size; i++) {
-			if (decode_str(&r, &tmp) == SUCCESS) {
-				if (strncmp(tmp, key, strlen(key)) == 0) {
-					free(tmp);
+			if (decode_str(r, &tmp, &key_len) == SUCCESS) {
+				mp_next((const char **)&r);
+				if (strncmp(tmp, key, key_len) == 0)
 					return true;
-				}
-				free(tmp);
 			}
 			mp_next((const char **)&r);
 		}
-	} else {
+	} else
 		log_error("Buffer is not a map");
-	}
 
 	return false;
 }
 
-result_t get_value_from_array(char **buffer, int index, char **value)
+uint32_t get_size_of_array(char *buffer)
 {
-	char *r = *buffer;
+	char *r = buffer;
+
+	return mp_decode_array((const char **)&r);
+}
+
+result_t get_value_from_array(char *buffer, int index, char **value)
+{
+	char *r = buffer;
 	uint32_t i = 0, size = mp_decode_array((const char **)&r);
 
 	if (index < size) {
@@ -117,100 +121,116 @@ result_t get_value_from_array(char **buffer, int index, char **value)
 		return SUCCESS;
 	}
 
-	log_error("Failed to get index '%d'", index);
+	log_error("Parse error for index '%d'", index);
 
 	return FAIL;
 }
 
-result_t get_value_from_map(char **buffer, const char *key, char **value)
+result_t get_value_from_map(char *buffer, const char *key, char **value)
 {
-	char *r = *buffer;
-	uint32_t i = 0, map_size = 0;
+	char *r = buffer;
+	uint32_t i = 0, map_size = 0, key_len = 0;
 	char *tmp = NULL;
 
 	if (mp_typeof(*r) == MP_MAP) {
 		map_size = mp_decode_map((const char **)&r);
 		for (i = 0; i < map_size; i++) {
-			if (decode_str(&r, &tmp) == SUCCESS) {
-				if (strncmp(tmp, key, strlen(key)) == 0) {
-					free(tmp);
+			if (decode_str(r, &tmp, &key_len) == SUCCESS) {
+				mp_next((const char **)&r);
+				if (strncmp(tmp, key, key_len) == 0) {
 					*value = r;
 					return SUCCESS;
 				}
-				free(tmp);
 				mp_next((const char **)&r);
 			} else {
 				log_error("Failed to decode map");
 				return FAIL;
 			}
 		}
-	} else {
+	} else
 		log_error("Buffer is not a map");
-	}
 
-	log_error("Failed to get '%s'", key);
+	log_error("Parse error for '%s'", key);
 
 	return FAIL;
 }
 
-result_t decode_str(char **buffer, char **value)
+result_t decode_str(char *buffer, char **value, uint32_t *len)
 {
-	uint32_t len;
-	const char *tmp = NULL;
+	char *r = buffer;
 
-	if (mp_typeof(**buffer) != MP_STR) {
-		*value = NULL;
-		return SUCCESS;
+	if (mp_typeof(*r) != MP_STR) {
+		log_error("Failed to decode value, not a string");
+		return FAIL;
 	}
 
-	tmp = mp_decode_str((const char **)buffer, &len);
+	*value = (char *)mp_decode_str((const char **)&r, len);
 
-	*value = (char *)malloc(len + 1);
-	if (*value != NULL) {
-		memcpy(*value, tmp, len);
-		(*value)[len] = '\0';
-		return SUCCESS;
-	}
-
-	log_error("Failed to allocate memory");
-	return FAIL;
+	return SUCCESS;
 }
 
-result_t decode_string_from_map(char **buffer, const char *key, char **value)
+result_t decode_bool(char *buffer, bool *value)
 {
-	char *r = *buffer, *tmp = NULL;
-	uint32_t i = 0, map_size = 0;
+	char *r = buffer;
+
+	if (mp_typeof(*r) != MP_BOOL) {
+		log_error("Failed to decode value, not a boolean");
+		return FAIL;
+	}
+
+	*value = mp_decode_bool((const char **)&r);
+
+	return SUCCESS;
+}
+
+result_t decode_uint(char *buffer, uint32_t *value)
+{
+	char *r = buffer;
+
+	if (mp_typeof(*r) != MP_UINT) {
+		log_error("Failed to decode value, not a uint");
+		return FAIL;
+	}
+
+	*value = mp_decode_uint((const char **)&r);
+
+	return SUCCESS;
+}
+
+result_t decode_string_from_map(char *buffer, const char *key, char **value, uint32_t *len)
+{
+	char *r = buffer, *tmp = NULL;
+	uint32_t i = 0, map_size = 0, str_len = 0;
 
 	if (mp_typeof(*r) == MP_MAP) {
 		map_size = mp_decode_map((const char **)&r);
 		for (i = 0; i < map_size; i++) {
-			if (decode_str(&r, &tmp) == SUCCESS) {
-				if (strncmp(tmp, key, strlen(key)) == 0) {
-					free(tmp);
-					return decode_str(&r, value);
-				}
-				free(tmp);
+			if (decode_str(r, &tmp, &str_len) == SUCCESS) {
+				mp_next((const char **)&r);
+				if (strncmp(tmp, key, str_len) == 0)
+					return decode_str(r, value, len);
 			}
 			mp_next((const char **)&r);
 		}
 	} else {
 		log_error("Buffer is not a map");
+		return FAIL;
 	}
 
-	log_error("Failed to get '%s'", key);
+	log_error("Parse error for '%s'", key);
 
 	return FAIL;
 }
 
-result_t decode_string_from_array(char **buffer, int index, char **value)
+result_t decode_string_from_array(char *buffer, int index, char **value, uint32_t *len)
 {
-	char *r = *buffer;
+	char *r = buffer;
 	uint32_t i = 0, size = mp_decode_array((const char **)&r);
 
 	if (index < size) {
 		for (i = 0; i < index; i++)
 			mp_next((const char **)&r);
-		return decode_str(&r, value);
+		return decode_str(r, value, len);
 	}
 
 	log_error("Index out of range");
@@ -218,123 +238,91 @@ result_t decode_string_from_array(char **buffer, int index, char **value)
 	return FAIL;
 }
 
-result_t decode_uint_from_map(char **buffer, const char *key, uint32_t *value)
+result_t decode_uint_from_map(char *buffer, const char *key, uint32_t *value)
 {
-	char *r = *buffer;
-	uint32_t i = 0, map_size = 0;
+	char *r = buffer;
+	uint32_t i = 0, map_size = 0, key_len = 0;
 	char *tmp = NULL;
 
 	if (mp_typeof(*r) == MP_MAP) {
 		map_size = mp_decode_map((const char **)&r);
 		for (i = 0; i < map_size; i++) {
-			if (decode_str(&r, &tmp) == SUCCESS) {
-				if (strncmp(tmp, key, strlen(key)) == 0) {
-					free(tmp);
+			if (decode_str(r, &tmp, &key_len) == SUCCESS) {
+				mp_next((const char **)&r);
+				if (strncmp(tmp, key, key_len) == 0) {
 					*value = mp_decode_uint((const char **)&r);
 					return SUCCESS;
 				}
 				mp_next((const char **)&r);
-				free(tmp);
 			}
 		}
 
-	} else {
+	} else
 		log_error("Buffer is not a map");
-	}
 
-	log_error("Failed to get '%s'", key);
+	log_error("Parse error for '%s'", key);
 
 	return FAIL;
 }
 
-result_t decode_bool_from_map(char **buffer, const char *key, bool *value)
+result_t decode_bool_from_map(char *buffer, const char *key, bool *value)
 {
-	char *r = *buffer;
-	uint32_t i = 0, map_size = 0;
+	char *r = buffer;
+	uint32_t i = 0, map_size = 0, key_len = 0;
 	char *tmp = NULL;
 
 	if (mp_typeof(*r) == MP_MAP) {
 		map_size = mp_decode_map((const char **)&r);
 		for (i = 0; i < map_size; i++) {
-			if (decode_str(&r, &tmp) == SUCCESS) {
-				if (strncmp(tmp, key, strlen(key)) == 0) {
-					free(tmp);
+			if (decode_str(r, &tmp, &key_len) == SUCCESS) {
+				mp_next((const char **)&r);
+				if (strncmp(tmp, key, key_len) == 0) {
 					*value = mp_decode_bool((const char **)&r);
 					return SUCCESS;
 				}
 				mp_next((const char **)&r);
-				free(tmp);
 			}
 		}
-	} else {
+	} else
 		log_error("Buffer is not a map");
-	}
 
-	log_error("Failed to get '%s'", key);
+	log_error("Parse error for '%s'", key);
 
 	return FAIL;
 }
 
-result_t decode_double_from_map(char **buffer, const char *key, double *value)
+result_t decode_double_from_map(char *buffer, const char *key, double *value)
 {
-	char *r = *buffer;
-	uint32_t i = 0, map_size = 0;
+	char *r = buffer;
+	uint32_t i = 0, map_size = 0, key_len = 0;
 	char *tmp = NULL;
 
 	if (mp_typeof(*r) == MP_MAP) {
 		map_size = mp_decode_map((const char **)&r);
 		for (i = 0; i < map_size; i++) {
-			if (decode_str(&r, &tmp) == SUCCESS) {
-				if (strncmp(tmp, key, strlen(key)) == 0) {
-					free(tmp);
+			if (decode_str(r, &tmp, &key_len) == SUCCESS) {
+				mp_next((const char **)&r);
+				if (strncmp(tmp, key, key_len) == 0) {
 					*value = mp_decode_double((const char **)&r);
 					return SUCCESS;
 				}
 				mp_next((const char **)&r);
-				free(tmp);
 			}
 		}
 
-	} else {
+	} else
 		log_error("Buffer is not a map");
-	}
 
-	log_error("Failed to get '%s'", key);
+	log_error("Parse error for '%s'", key);
 
 	return FAIL;
 }
 
-result_t copy_value(char **buffer, const char *key, char **value, size_t *size)
+size_t get_size_of_value(char *value)
 {
-	char *r = *buffer, *tmp = NULL, *start = NULL;
-	uint32_t i = 0, map_size = 0;
+	char *next = value;
 
-	if (mp_typeof(*r) == MP_MAP) {
-		map_size = mp_decode_map((const char **)&r);
-		for (i = 0; i < map_size; i++) {
-			if (decode_str(&r, &tmp) == SUCCESS) {
-				if (strncmp(tmp, key, strlen(key)) == 0) {
-					free(tmp);
-					start = r;
-					mp_next((const char **)&r);
-					*size = r - start;
-					*value = malloc(*size);
-					if (*value == NULL) {
-						log_error("Failed to allocate memory");
-						return FAIL;
-					}
-					memcpy(*value, start, *size);
-					return SUCCESS;
-				}
-				free(tmp);
-			}
-			mp_next((const char **)&r);
-		}
-	} else {
-		log_error("Buffer is not a map");
-	}
+	mp_next((const char **)&next);
 
-	log_error("Failed to get '%s'", key);
-
-	return FAIL;
+	return next - value;
 }

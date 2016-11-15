@@ -16,6 +16,7 @@
 #ifndef NODE_H
 #define NODE_H
 
+#include <stdbool.h>
 #include "common.h"
 #include "transport.h"
 #include "tunnel.h"
@@ -23,45 +24,41 @@
 #include "port.h"
 #include "link.h"
 
-#define MAX_ACTORS 4
-#define MAX_TUNNELS 10
-#define MAX_LINKS 10
-
 typedef struct pending_msg_t {
-	char *msg_uuid;
+	char msg_uuid[UUID_BUFFER_SIZE];
 	result_t (*handler)(char *data, void *msg_data);
 	void *msg_data;
-	struct pending_msg_t *next;
 } pending_msg_t;
 
 typedef struct node_t {
+	bool started;
 	uint32_t vid;
 	uint32_t pid;
-	char *node_id;
+	char node_id[UUID_BUFFER_SIZE];
 	char *schema;
 	char *name;
-	char proxy_ip[40];
-	int proxy_port;
-	transport_client_t *transport;
-	pending_msg_t *pending_msgs;
+	pending_msg_t pending_msgs[MAX_PENDING_MSGS];
 	link_t *proxy_link;
-	link_t *links[MAX_LINKS];
+	list_t *links;
 	tunnel_t *storage_tunnel;
-	tunnel_t *tunnels[MAX_TUNNELS];
-	actor_t *actors[MAX_ACTORS];
+	list_t *tunnels;
+	list_t *actors;
 } node_t;
 
-node_t *get_node();
-result_t add_pending_msg(char *msg_uuid, result_t (*handler)(char *data, void *msg_data), void *msg_data);
-result_t remove_pending_msg(char *msg_uuid);
-void client_connected(void);
-result_t handle_token(char *port_id, token_t *token, uint32_t sequencenbr);
-void handle_token_reply(char *port_id, port_reply_type_t reply_type, uint32_t sequencenbr);
-void handle_data(char *data, int len);
-result_t create_node(uint32_t vid, uint32_t pid, char *name);
-result_t start_node(const char *address);
+node_t *node_get();
+result_t node_add_pending_msg(char *msg_uuid, uint32_t msg_uuid_len, result_t (*handler)(char *data, void *msg_data), void *msg_data);
+result_t node_remove_pending_msg(char *msg_uuid, uint32_t msg_uuid_len);
+result_t node_get_pending_msg(const char *msg_uuid, uint32_t msg_uuid_len, pending_msg_t *pending_msg);
+bool node_can_add_pending_msg(const node_t *node);
+result_t node_join_proxy(void);
+result_t node_handle_token(port_t *port, const char *data, const size_t size, uint32_t sequencenbr);
+void node_handle_token_reply(char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr);
+void node_handle_data(char *data, int len);
+result_t node_transmit(void);
+result_t node_create(uint32_t vid, uint32_t pid, char *name);
+result_t node_start(const char *address);
 void node_run(void);
-result_t loop_once(void);
-void stop_node(bool terminate);
+void node_loop_once(void);
+void node_stop(bool terminate);
 
 #endif /* NODE_H */

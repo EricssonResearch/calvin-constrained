@@ -30,12 +30,11 @@
 
 #ifdef NRF51
 #ifdef DEBUG
-#define log_debug(a, args...) app_trace_log("DEBUG: %s(%s:%d) "a"\r\n",  __func__, __FILE__, __LINE__, ##args)
+#define log_debug(a, args...) app_trace_log(a"\r\n", ##args)
 #else
 #define log_debug(fmt, ...) do {} while (0)
 #endif
-#define log_error(a, args...) app_trace_log("ERROR: %s(%s:%d) "a"\r\n",  __func__, __FILE__, __LINE__, ##args)
-#define log_dump app_trace_dump
+#define log_error(a, args...) app_trace_log(a"\r\n", ##args)
 #define log(a, args...) app_trace_log(a"\r\n", ##args)
 #else
 #ifdef DEBUG
@@ -61,10 +60,13 @@ typedef struct calvin_gpio_t {
 
 void platform_init(void);
 void platform_run(void);
-calvin_gpio_t *create_in_gpio(uint32_t pin, char pull, char edge);
-calvin_gpio_t *create_out_gpio(uint32_t pin);
-void set_gpio(calvin_gpio_t *gpio, uint32_t value);
-void uninit_gpio(calvin_gpio_t *gpio);
-result_t get_temperature(double *temp);
+result_t platform_mem_init(void);
+result_t platform_mem_alloc(void **buffer, uint32_t size);
+void platform_mem_free(void *buffer);
+calvin_gpio_t *platform_create_in_gpio(uint32_t pin, char pull, char edge);
+calvin_gpio_t *platform_create_out_gpio(uint32_t pin);
+void platform_set_gpio(calvin_gpio_t *gpio, uint32_t value);
+void platform_uninit_gpio(calvin_gpio_t *gpio);
+result_t platform_get_temperature(double *temp);
 
 #endif /* PLATFORM_H */

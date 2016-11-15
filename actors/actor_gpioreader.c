@@ -14,141 +14,155 @@
  * limitations under the License.
  */
 #include <stdlib.h>
+#include <string.h>
 #include "actor_gpioreader.h"
 #include "../msgpack_helper.h"
 #include "../fifo.h"
 #include "../token.h"
 
-result_t actor_gpioreader_init(actor_t **actor, char *obj_actor_state, actor_state_t **state)
+result_t actor_gpioreader_init(actor_t **actor, char *obj_actor_state)
+{
+    state_gpioreader_t *state = NULL;
+
+    if (platform_mem_alloc((void **)&state, sizeof(state_gpioreader_t)) != SUCCESS) {
+        log_error("Failed to allocate memory");
+        return FAIL;
+    }
+
+    memset(state, 0, sizeof(state_gpioreader_t));
+
+    if (actor_get_managed(obj_actor_state, &state->managed_attributes) != SUCCESS) {
+        platform_mem_free((void *)state);
+        return FAIL;
+    }
+
+    state->pin = 12;
+    state->pull[0] = 'd';
+    state->edge[0] = 'b';
+    state->gpio = platform_create_in_gpio(state->pin, state->pull[0], state->edge[0]);
+    if (state->gpio == NULL) {
+        log_error("Faield create gpio");
+        actor_free_managed(state->managed_attributes);
+        platform_mem_free((void *)state);
+        return FAIL;
+    }
+
+    (*actor)->instance_state = (void *)state;
+
+    return SUCCESS;
+}
+
+result_t actor_gpioreader_set_state(actor_t **actor, char *obj_actor_state)
 {
     result_t result = SUCCESS;
-    state_gpioreader_t *gpioreader_state = NULL;
-    char *obj_shadow_args = NULL;
-    uint32_t pin = 0;
+    state_gpioreader_t *state = NULL;
+    char *tmp_string = NULL;
+    uint32_t tmp_string_len = 0;
+    list_t *list = NULL;
 
-    *state = (actor_state_t *)malloc(sizeof(actor_state_t));
-    if (*state == NULL) {
+    if (platform_mem_alloc((void **)&state, sizeof(state_gpioreader_t)) != SUCCESS) {
         log_error("Failed to allocate memory");
         return FAIL;
     }
 
-    gpioreader_state = (state_gpioreader_t *)malloc(sizeof(state_gpioreader_t));
-    if (gpioreader_state == NULL) {
-        log_error("Failed to allocate memory");
-        free(*state);
+    if (actor_get_managed(obj_actor_state, &state->managed_attributes) != SUCCESS) {
+        platform_mem_free((void *)state);
         return FAIL;
     }
-
-    gpioreader_state->gpio = NULL;
-    gpioreader_state->pull = NULL;
-    gpioreader_state->edge = NULL;
-
-    if (has_key(&obj_actor_state, "_shadow_args")) {
-        result = get_value_from_map(&obj_actor_state, "_shadow_args", &obj_shadow_args);
-
-        if (result == SUCCESS) {
-            result = decode_uint_from_map(&obj_shadow_args, "gpio_pin", &pin);
+    
+    list = state->managed_attributes;
+    while (list != NULL && result == SUCCESS) {
+        if (strncmp(list->id, "gpio_pin", strlen("gpio_pin")) == 0) {
+            result = decode_uint((char *)list->data, &state->pin);
+        } else if (strncmp(list->id, "pull", strlen("pull")) == 0) {
+            result = decode_str((char *)list->data, &tmp_string, &tmp_string_len);
             if (result == SUCCESS)
-                result = add_managed_attribute(actor, "gpio_pin");
-        }
-
-        if (result == SUCCESS) {
-            result = decode_string_from_map(&obj_shadow_args, "pull", &gpioreader_state->pull);
+                state->pull[0] = tmp_string[0];
+        } else if (strncmp(list->id, "edge", strlen("edge")) == 0) {
+            result = decode_str((char *)list->data, &tmp_string, &tmp_string_len);
             if (result == SUCCESS)
-                result = add_managed_attribute(actor, "pull");
+                state->edge[0] = tmp_string[0];
         }
-
-        if (result == SUCCESS) {
-            result = decode_string_from_map(&obj_shadow_args, "edge", &gpioreader_state->edge);
-            if (result == SUCCESS)
-                result = add_managed_attribute(actor, "edge");
-        }
-    } else {
-        if (result == SUCCESS)
-            result = decode_uint_from_map(&obj_actor_state, "gpio_pin", &pin);
-
-        if (result == SUCCESS)
-            result = decode_string_from_map(&obj_actor_state, "pull", &gpioreader_state->pull);
-
-        if (result == SUCCESS)
-            result = decode_string_from_map(&obj_actor_state, "edge", &gpioreader_state->edge);
+        list = list->next;
     }
-
-    if (result == SUCCESS) {
-        gpioreader_state->gpio = create_in_gpio(pin, gpioreader_state->pull[0], gpioreader_state->edge[0]);
-        if (gpioreader_state->gpio == NULL)
-            result = FAIL;
-        else {
-            (*state)->state = (void *)gpioreader_state;
-        }
-    }
-
+    
     if (result != SUCCESS) {
-        free(*state);
-        if (gpioreader_state != NULL) {
-            if (gpioreader_state->pull != NULL)
-                free(gpioreader_state->pull);
-
-            if (gpioreader_state->edge != NULL)
-                free(gpioreader_state->edge);
-
-            free(gpioreader_state);
-        }
+        log_error("Failed to parse attributes");
+        actor_free_managed(state->managed_attributes);
+        platform_mem_free((void *)state);
+        return FAIL;
     }
 
-    return result;
+    state->gpio = platform_create_in_gpio(state->pin, state->pull[0], state->edge[0]);
+    if (state->gpio == NULL) {
+        log_error("Faield create gpio");
+        actor_free_managed(state->managed_attributes);
+        platform_mem_free((void *)state);
+        return FAIL;
+    }
+    
+    (*actor)->instance_state = (void *)state;
+
+    return SUCCESS; 
 }
 
 result_t actor_gpioreader_fire(struct actor_t *actor)
 {
-    result_t result = SUCCESS;
-    token_t *token = NULL;
-    state_gpioreader_t *state = (state_gpioreader_t *)actor->state->state;
+    token_t out_token;
+    port_t *outport = NULL;
+    state_gpioreader_t *state = (state_gpioreader_t *)actor->instance_state;
 
-    if (fifo_can_write(actor->outports->fifo) && state->gpio->has_triggered) {
-        result = create_uint_token(state->gpio->value, &token);
-        if (result == SUCCESS) {
-            result = fifo_write(actor->outports->fifo, token);
-            if (result == SUCCESS)
-                state->gpio->has_triggered = false;
-            else {
-                log_error("Failed to write to fifo");
-                free_token(token);
-            }
-        } else
-            log_error("Failed to create token");
+    if (!state->gpio->has_triggered)
+        return FAIL;
+
+    outport = port_get_from_name(actor, "state", PORT_DIRECTION_OUT);
+    if (outport == NULL) {
+        log_error("No port with name 'state'");
+        return FAIL;
     }
 
-    return result;
+    if (fifo_slots_available(&outport->fifo, 1) == 1) {
+        token_set_uint(&out_token, state->gpio->value);
+
+        if (fifo_write(&outport->fifo, out_token.value, out_token.size) != SUCCESS) {
+            log_error("Failed to write token");
+            return FAIL;
+        }
+    }
+
+    return SUCCESS;
 }
 
 void actor_gpioreader_free(actor_t *actor)
 {
-    state_gpioreader_t *state = NULL;
+    state_gpioreader_t *state = (state_gpioreader_t *)actor->instance_state;
 
-    if (actor->state != NULL) {
-        if (actor->state->state != NULL) {
-            state = (state_gpioreader_t *)actor->state->state;
-            if (state->gpio != NULL)
-                uninit_gpio(state->gpio);
-            free(state->pull);
-            free(state->edge);
-            free(state);
-        }
-        free(actor->state);
+    if (state != NULL) {
+        if (state->gpio != NULL)
+            platform_uninit_gpio(state->gpio);
+        actor_free_managed(state->managed_attributes);
+        platform_mem_free((void *)state);
     }
 }
 
-char *actor_gpioreader_serialize(actor_state_t *state, char **buffer)
+char *actor_gpioreader_serialize(actor_t *actor, char **buffer)
 {
-    state_gpioreader_t *gpio_state = NULL;
+    state_gpioreader_t *state = (state_gpioreader_t *)actor->instance_state;
 
-    if (state != NULL && state->state != NULL) {
-        gpio_state = (state_gpioreader_t *)state->state;
-        *buffer = encode_uint(buffer, "gpio_pin", gpio_state->gpio->pin);
-        *buffer = encode_str(buffer, "pull", gpio_state->pull);
-        *buffer = encode_str(buffer, "edge", gpio_state->edge);
-    }
+    *buffer = actor_serialize_managed_list(state->managed_attributes, buffer);
+    if (list_get(state->managed_attributes, "gpio_pin") == NULL)            
+        *buffer = encode_uint(buffer, "gpio_pin", state->gpio->pin);
+    if (list_get(state->managed_attributes, "pull") == NULL)
+        *buffer = encode_str(buffer, "pull", state->pull, 1);
+    if (list_get(state->managed_attributes, "edge") == NULL)
+        *buffer = encode_str(buffer, "edge", state->edge, 1);
 
     return *buffer;
+}
+
+list_t *actor_gpioreader_get_managed_attributes(actor_t *actor)
+{
+    state_gpioreader_t *state = (state_gpioreader_t *)actor->instance_state;
+    
+    return state->managed_attributes;
 }

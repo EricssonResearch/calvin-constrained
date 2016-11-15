@@ -20,126 +20,55 @@
 #include "msgpack_helper.h"
 #include "msgpuck/msgpuck.h"
 
-result_t create_double_token(double value, token_t **token)
+result_t token_set_data(token_t *token, const char *data, const size_t size)
 {
-	*token = (token_t *)malloc(sizeof(token_t));
-	if (*token == NULL) {
-		log_error("Failed to allocate memory");
+	if (size > MAX_TOKEN_SIZE) {
+		log_error("Token data '%zu' to big", size);
 		return FAIL;
 	}
 
-	(*token)->size = mp_sizeof_double(value);
-
-	(*token)->value = malloc((*token)->size);
-	if ((*token)->value == NULL) {
-		log_error("Failed to allocate memory");
-		free(*token);
-		return FAIL;
-	}
-
-	mp_encode_double((*token)->value, value);
+	memcpy(token->value, data, size);
+	token->size = size;
 
 	return SUCCESS;
 }
 
-result_t create_uint_token(uint32_t value, token_t **token)
-{
-	*token = (token_t *)malloc(sizeof(token_t));
-	if (*token == NULL) {
-		log_error("Failed to allocate memory");
-		return FAIL;
-	}
-
-	(*token)->size = mp_sizeof_uint(value);
-
-	(*token)->value = malloc((*token)->size);
-	if ((*token)->value == NULL) {
-		log_error("Failed to allocate memory");
-		free(*token);
-		return FAIL;
-	}
-
-	mp_encode_uint((*token)->value, value);
-
-	return SUCCESS;
-}
-
-result_t decode_token(char *obj_token, token_t **token)
-{
-	*token = (token_t *)malloc(sizeof(token_t));
-	if (*token == NULL) {
-		log_error("Failed to allocate memory");
-		return FAIL;
-	}
-
-	if (copy_value(&obj_token, "data", &(*token)->value, &(*token)->size) == SUCCESS)
-		return SUCCESS;
-
-	log_error("Failed to copy token");
-
-	return FAIL;
-}
-
-char *encode_token(char **buffer, token_t *token, bool with_key)
+char *token_encode(char **buffer, token_t token, bool with_key)
 {
 	if (with_key)
 		*buffer = encode_map(buffer, "token", 2);
 	else
 		*buffer = mp_encode_map(*buffer, 2);
 
-	*buffer = encode_str(buffer, "type", "Token");
-	if (token != NULL && token->value != NULL)
-		*buffer = encode_value(buffer, "data", token->value, token->size);
+	*buffer = encode_str(buffer, "type", "Token", strlen("Token"));
+	if (token.size != 0)
+		*buffer = encode_value(buffer, "data", token.value, token.size);
 	else
 		*buffer = encode_nil(buffer, "data");
 
 	return *buffer;
 }
 
-void free_token(token_t *token)
+void token_set_double(token_t *token, const double value)
 {
-	if (token != NULL) {
-		if (token->value != NULL)
-			free(token->value);
-		free(token);
-	}
+	token->size = mp_sizeof_double(value);
+	mp_encode_double(token->value, value);
 }
 
-result_t decode_uint_token(const token_t *token, uint32_t *out)
+void token_set_uint(token_t *token, const uint32_t value)
 {
-	char *value = NULL;
+	token->size = mp_sizeof_uint(value);
+	mp_encode_uint(token->value, value);
+}
 
-	if (token != NULL && token->value != NULL) {
-		value = token->value;
-		if (mp_typeof(*value) == MP_UINT) {
-			*out = mp_decode_uint((const char **)&value);
-			return SUCCESS;
-		}
-		log_error("Unsupported type");
+result_t token_decode_uint(token_t token, uint32_t *value)
+{
+	char *data = token.value;
+
+	if (mp_typeof(*data) == MP_UINT) {
+		*value = mp_decode_uint((const char **)&data);
+		return SUCCESS;
 	}
-
-	log_error("NULL token");
 
 	return FAIL;
-}
-
-token_t *copy_token(token_t *token)
-{
-	token_t *copy = NULL;
-
-	copy = (token_t *)malloc(sizeof(token_t));
-	if (copy != NULL) {
-		copy->value = malloc(token->size);
-		if (copy->value != NULL) {
-			copy->size = token->size;
-			memcpy(copy->value, token->value, token->size);
-		} else {
-			log_error("Failed to allocate memory");
-			free(copy);
-			copy = NULL;
-		}
-	} else
-		log_error("Failed to allocate memory");
-
-	return copy;
 }

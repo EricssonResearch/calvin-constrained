@@ -22,16 +22,14 @@
 #include "common.h"
 
 typedef struct token_t {
-	char *value; // Pointer to serialized msgpack buffer
-	size_t size; // Buffer size
+	char value[MAX_TOKEN_SIZE];	// Serialized token data
+	size_t size;				// Size of serialized token data
 } token_t;
 
-result_t create_double_token(double value, token_t **token);
-result_t create_uint_token(uint32_t value, token_t **token);
-result_t decode_token(char *obj_token, token_t **token);
-char *encode_token(char **buffer, token_t *token, bool with_key);
-void free_token(token_t *token);
-result_t decode_uint_token(const token_t *token, uint32_t *out);
-token_t *copy_token(token_t *token);
+result_t token_set_data(token_t *token, const char *data, const size_t size);
+char *token_encode(char **buffer, token_t token, bool with_key);
+void token_set_double(token_t *token, const double value);
+void token_set_uint(token_t *token, const uint32_t value);
+result_t token_decode_uint(token_t token, uint32_t *value);
 
 #endif /* TOKEN_H */

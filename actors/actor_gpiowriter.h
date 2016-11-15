@@ -22,11 +22,15 @@
 
 typedef struct state_gpiowriter_t {
     calvin_gpio_t *gpio;
+    uint32_t pin;
+    list_t *managed_attributes;
 } state_gpiowriter_t;
 
-result_t actor_gpiowriter_init(actor_t **actor, char *obj_actor_state, actor_state_t **state);
+result_t actor_gpiowriter_init(actor_t **actor, char *obj_actor_state);
+result_t actor_gpiowriter_set_state(actor_t **actor, char *obj_actor_state);
 result_t actor_gpiowriter_fire(actor_t *actor);
 void actor_gpiowriter_free(actor_t *actor);
-char *actor_gpiowriter_serialize(actor_state_t *state, char **buffer);
+char *actor_gpiowriter_serialize(actor_t *actor, char **buffer);
+list_t *actor_gpiowriter_get_managed_attributes(actor_t *actor);
 
 #endif /* ACTOR_GPIOWRITER_H */

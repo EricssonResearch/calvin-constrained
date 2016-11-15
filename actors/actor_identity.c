@@ -14,88 +14,145 @@
  * limitations under the License.
  */
 #include <stdlib.h>
+#include <string.h>
 #include "actor_identity.h"
 #include "../port.h"
 #include "../token.h"
 #include "../msgpack_helper.h"
 #include "../platform.h"
 
-result_t actor_identity_init(actor_t **actor, char *obj_actor_state, actor_state_t **state)
+result_t actor_identity_init(actor_t **actor, char *obj_actor_state)
 {
-	result_t result = SUCCESS;
-	state_identity_t *identity_state = NULL;
-	char *obj_shadow_args = NULL;
+    state_identity_t *state = NULL;
 
-	*state = (actor_state_t *)malloc(sizeof(actor_state_t));
-	if (*state == NULL) {
-		log_error("Failed to allocate memory");
-		return FAIL;
-	}
+    if (platform_mem_alloc((void **)&state, sizeof(state_identity_t)) != SUCCESS) {
+        log_error("Failed to allocate memory");
+        return FAIL;
+    }
 
-	identity_state = (state_identity_t *)malloc(sizeof(state_identity_t));
-	if (identity_state == NULL) {
-		log_error("Failed to allocate memory");
-		free(*state);
-		return FAIL;
-	}
+    state->managed_attributes = NULL;
+    state->dump = false;
 
-	if (has_key(&obj_actor_state, "_shadow_args")) {
-		result = get_value_from_map(&obj_actor_state, "_shadow_args", &obj_shadow_args);
-		if (result == SUCCESS) {
-			result = decode_bool_from_map(&obj_shadow_args, "dump", &identity_state->dump);
-			if (result == SUCCESS)
-				result = add_managed_attribute(actor, "dump");
-		}
-	} else
-		result = decode_bool_from_map(&obj_actor_state, "dump", &identity_state->dump);
+    if (actor_get_managed(obj_actor_state, &state->managed_attributes) != SUCCESS) {
+        platform_mem_free((void *)state);
+        return FAIL;
+    }
 
-	if (result == SUCCESS) {
-		(*state)->state = (void *)identity_state;
-	} else {
-		free(*state);
-		free(identity_state);
-	}
+    (*actor)->instance_state = (void *)state;
 
-	return result;
+    return SUCCESS;
+}
+
+result_t actor_identity_set_state(actor_t **actor, char *obj_actor_state)
+{
+    result_t result = SUCCESS;
+    state_identity_t *state = NULL;
+    list_t *list = NULL; 
+
+    if (platform_mem_alloc((void **)&state, sizeof(state_identity_t)) != SUCCESS) {
+        log_error("Failed to allocate memory");
+        return FAIL;
+    }
+
+    state->managed_attributes = NULL;
+    state->dump = false;
+
+    if (actor_get_managed(obj_actor_state, &state->managed_attributes) != SUCCESS) {
+        platform_mem_free((void *)state);
+        return FAIL;
+    }
+    
+    list = state->managed_attributes;
+    while (list != NULL && result == SUCCESS) {
+        if (strncmp(list->id, "dump", strlen("dump")) == 0) {
+            result = decode_bool((char *)list->data, &state->dump);
+        }
+        list = list->next;
+    }
+    
+    if (result != SUCCESS) {
+        log_error("Failed to parse attributes");
+        actor_free_managed(state->managed_attributes);
+        platform_mem_free((void *)state);
+        return FAIL;
+    }
+
+    (*actor)->instance_state = (void *)state;
+
+    return SUCCESS; 
 }
 
 result_t actor_identity_fire(struct actor_t *actor)
 {
-	port_t *port = actor->inports;
-	token_t *in_token = NULL, *out_token = NULL;
-	result_t result = SUCCESS;
+	token_t *in_token = NULL, out_token;
+	uint32_t in_data = 0;
+	port_t *inport = NULL, *outport = NULL;
+	bool did_fire = false;
 
-	while (fifo_can_read(actor->inports->fifo) && fifo_can_write(actor->outports->fifo)) {
-		in_token = fifo_read(actor->inports->fifo);
-		out_token = copy_token(in_token);
-		if (out_token != NULL)
-			result = fifo_write(actor->outports->fifo, out_token);
+	memset(&out_token, 0, sizeof(token_t));
 
-		if (result == SUCCESS)
-			fifo_commit_read(port->fifo, true, true);
-		else {
-			fifo_commit_read(port->fifo, false, false);
-			if (out_token != NULL)
-				free_token(out_token);
-			return FAIL;
-		}
+	inport = port_get_from_name(actor, "token", PORT_DIRECTION_IN);
+	if (inport == NULL) {
+		log_error("No port with name 'token'");
+		return FAIL;
 	}
 
-	return SUCCESS;
-}
+	outport = port_get_from_name(actor, "token", PORT_DIRECTION_OUT);
+	if (outport == NULL) {
+		log_error("No port with name 'token'");
+		return FAIL;
+	}
 
-char *actor_identity_serialize(actor_state_t *state, char **buffer)
-{
-	*buffer = encode_bool(buffer, "dump", false);
+	if (fifo_tokens_available(&inport->fifo, 1) == 1 && fifo_slots_available(&outport->fifo, 1) == 1) {
+		in_token = fifo_peek(&inport->fifo);
+		if (token_decode_uint(*in_token, &in_data) != SUCCESS) {
+			log_error("Failed to decode token");
+			fifo_cancel_commit(&inport->fifo);
+			return FAIL;
+		}
 
-	return *buffer;
+		token_set_uint(&out_token, in_data);
+
+		if (fifo_write(&outport->fifo, out_token.value, out_token.size) != SUCCESS) {
+			log_error("Failed to write token");
+			fifo_cancel_commit(&inport->fifo);
+			return FAIL;
+		}
+
+		fifo_commit_read(&inport->fifo);
+		did_fire = true;
+	}
+
+	if (did_fire)
+		return SUCCESS;
+
+	return FAIL;
 }
 
 void actor_identity_free(actor_t *actor)
 {
-	if (actor->state != NULL) {
-		if (actor->state->state != NULL)
-			free(actor->state->state);
-		free(actor->state);
-	}
+    state_identity_t *state = (state_identity_t *)actor->instance_state;
+
+    if (state != NULL) {
+        actor_free_managed(state->managed_attributes);
+        platform_mem_free((void *)state);
+    }
+}
+
+char *actor_identity_serialize(actor_t *actor, char **buffer)
+{
+    state_identity_t *state = (state_identity_t *)actor->instance_state;
+
+    *buffer = actor_serialize_managed_list(state->managed_attributes, buffer);
+    if (list_get(state->managed_attributes, "dump") == NULL)
+        *buffer = encode_bool(buffer, "dump", state->dump);
+ 
+    return *buffer;
+}
+
+list_t *actor_identity_get_managed_attributes(actor_t *actor)
+{
+    state_identity_t *state = (state_identity_t *)actor->instance_state;
+    
+    return state->managed_attributes;
 }
