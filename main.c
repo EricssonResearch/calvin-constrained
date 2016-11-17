@@ -18,21 +18,57 @@
 #ifndef NRF51
 #include <stdlib.h>
 #include <string.h>
+#include <getopt.h>
 #endif
 
-int main(void)
+int main(int argc, char **argv)
 {
-	char name[] = "constrained";
+	char *name = NULL, *ssdp_iface = NULL, *proxy_iface = NULL;
+	int vid = 1, pid = 1;
+#ifndef NRF51
+	int c = 0, proxy_port = 0;
+
+	while ((c = getopt(argc, argv, "v:p:n:d:i:k:")) != -1) {
+		switch (c) {
+		case 'v':
+			vid = atoi(optarg);
+			break;
+		case 'p':
+			pid = atoi(optarg);
+			break;
+		case 'n':
+			name = strdup(optarg);
+			break;
+		case 'd':
+			ssdp_iface = strdup(optarg);
+			break;
+		case 'i':
+			proxy_iface = strdup(optarg);
+			break;
+		case 'k':
+			proxy_port = atoi(optarg);
+			break;
+		default:
+			break;
+		}
+	}
+#endif
+
+	if (name == NULL)
+		name = "constrained";
+
+	if (ssdp_iface == NULL && proxy_iface == NULL)
+		ssdp_iface = "0.0.0.0";
 
 	platform_init();
 
-	if (node_create(1, 1, name) == SUCCESS) {
+	if (node_create(vid, pid, name) == SUCCESS) {
 #ifdef NRF51
 		// Node is started in platform_nrf51.c when interface is up to get mac address
 		// of the connected peer.
 		platform_run();
 #else
-		if (node_start("0.0.0.0") == SUCCESS)
+		if (node_start(ssdp_iface, proxy_iface, proxy_port) == SUCCESS)
 			node_run();
 		else
 			log_error("Failed to start node");
@@ -40,5 +76,5 @@ int main(void)
 	} else
 		log_error("Failed to create node");
 
-	return 0;
+	return EXIT_SUCCESS;
 }

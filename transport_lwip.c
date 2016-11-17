@@ -213,14 +213,14 @@ result_t transport_send(size_t len)
 	return FAIL;
 }
 
-result_t transport_start(const char *interface)
+result_t transport_start(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
 {
 	ip6_addr_t ipv6_addr;
 	err_t err;
 	char ip[40];
 	int port = 0;
 
-	if (transport_discover_proxy(interface, ip, &port) != SUCCESS) {
+	if (transport_discover_proxy(ssdp_iface, ip, &port) != SUCCESS) {
 		log_error("No proxy found");
 		return FAIL;
 	}

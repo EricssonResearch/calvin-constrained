@@ -47,7 +47,7 @@ typedef struct transport_client_t {
 	transport_buffer_t tx_buffer;
 } transport_client_t;
 
-result_t transport_start(const char *interface);
+result_t transport_start(const char *ssdp_iface, const char *proxy_iface, const int proxy_port);
 result_t transport_send(size_t len);
 result_t transport_select(uint32_t timeout);
 void transport_set_state(const transport_state_t state);

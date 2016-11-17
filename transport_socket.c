@@ -216,18 +216,24 @@ static result_t transport_discover_proxy(const char *iface, char *ip, int *port)
 	return FAIL;
 }
 
-result_t transport_start(const char *interface)
+result_t transport_start(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
 {
 	struct sockaddr_in server;
 	char ip[40];
-	int port;
+	int port = 0;
 
-	if (transport_discover_proxy(interface, ip, &port) != SUCCESS) {
-		log_error("No proxy found");
-		return FAIL;
+	memset(ip, 0, 40);
+
+	if (proxy_iface == NULL) {
+		log("Starting discovery");
+		if (transport_discover_proxy(ssdp_iface, ip, &port) != SUCCESS) {
+			log_error("No proxy found");
+			return FAIL;
+		}
+	} else {
+		strncpy(ip, proxy_iface, strlen(proxy_iface));
+		port = proxy_port;
 	}
-
-	log("Found proxy %s:%d", ip, port);
 
 	m_client.fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (m_client.fd < 0) {
@@ -247,6 +253,8 @@ result_t transport_start(const char *interface)
 	server.sin_addr.s_addr = inet_addr(ip);
 	server.sin_family = AF_INET;
 	server.sin_port = htons(port);
+
+	log("Connecting to proxy '%s:%d'", ip, port);
 
 	if (connect(m_client.fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
 		log_error("Failed to connect socket");

@@ -271,14 +271,18 @@ result_t node_create(uint32_t vid, uint32_t pid, char *name)
 	m_node.name = name;
 	transport_set_state(TRANSPORT_DISCONNECTED);
 
-	log("Created node with id '%s'", m_node.node_id);
+	log("Node created with name '%s' id '%s' vid '%ld' pid '%ld'",
+		m_node.name,
+		m_node.node_id,
+		(unsigned long)vid,
+		(unsigned long)pid);
 
 	return SUCCESS;
 }
 
-result_t node_start(const char *interface)
+result_t node_start(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
 {
-	if (transport_start(interface) != SUCCESS) {
+	if (transport_start(ssdp_iface, proxy_iface, proxy_port) != SUCCESS) {
 		log_error("Failed to start transport");
 		return FAIL;
 	}

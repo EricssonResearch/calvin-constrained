@@ -56,7 +56,7 @@ void node_handle_token_reply(char *port_id, uint32_t port_id_len, port_reply_typ
 void node_handle_data(char *data, int len);
 result_t node_transmit(void);
 result_t node_create(uint32_t vid, uint32_t pid, char *name);
-result_t node_start(const char *address);
+result_t node_start(const char *ssdp_iface, const char *proxy_iface, const int proxy_port);
 void node_run(void);
 void node_loop_once(void);
 void node_stop(bool terminate);

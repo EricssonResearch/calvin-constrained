@@ -194,7 +194,7 @@ static void system_timer_callback(void *p_context)
 static void calvin_inittimer_callback(void *p_context)
 {
 	UNUSED_VARIABLE(p_context);
-	if (node_start(m_mac) != SUCCESS)
+	if (node_start(m_mac, NULL, 0) != SUCCESS)
 		log_error("Failed to start node");
 }
 
