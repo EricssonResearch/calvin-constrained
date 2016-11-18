@@ -262,7 +262,7 @@ void platform_init(void)
 	log_debug("Init done");
 }
 
-void platform_run(void)
+result_t platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
 {
 	uint32_t err_code;
 
@@ -274,6 +274,8 @@ void platform_run(void)
 		if (err_code != NRF_SUCCESS)
 			log_error("sd_app_evt_wait failed");
 	}
+
+	return SUCCESS;
 }
 
 result_t platform_mem_init(void)

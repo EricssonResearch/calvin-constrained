@@ -3,9 +3,9 @@
 # setup and start calvin-base
 git clone https://github.com/EricssonResearch/calvin-base.git
 cd calvin-base
+git checkout develop
 git fetch
 git rebase
-git checkout develop
 
 virtualenv venv > /dev/null
 source venv/bin/activate > /dev/null
@@ -18,7 +18,7 @@ RT1_PID=$!
 # setup and start calvin-constrained
 cd ..
 make
-./calvin_c &
+./calvin_c --name constrained &
 CONSTRAINED_RT_PID=$!
 
 # run test

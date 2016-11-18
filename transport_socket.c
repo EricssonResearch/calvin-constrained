@@ -24,7 +24,6 @@
 #include "platform.h"
 #include "node.h"
 
-#define BUFFER_SIZE			512
 #define LOCATION_SIZE       100
 #define URL_SIZE            100
 #define URI_SIZE            100
@@ -409,3 +408,44 @@ result_t transport_get_tx_buffer(char **buffer, uint32_t size)
 	m_client.tx_buffer.buffer = *buffer;
 	return SUCCESS;
 }
+
+#ifdef LWM2M_HTTP_CLIENT
+result_t transport_http_get(char *iface, int port, char *buffer, int buffer_size)
+{
+	struct sockaddr_in server;
+	int fd, len;
+
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (fd < 0) {
+		log_error("Failed to create socket");
+		return FAIL;
+	}
+
+	server.sin_addr.s_addr = inet_addr(iface);
+	server.sin_family = AF_INET;
+	server.sin_port = htons(port);
+
+	if (connect(fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
+		log_error("Failed to connect socket");
+		return FAIL;
+	}
+
+	if (send(fd, buffer, strlen(buffer), 0) < 0) {
+		log_error("Failed to send data");
+		return FAIL;
+	}
+
+	memset(buffer, 0, buffer_size);
+	len = recv(fd, buffer, buffer_size, 0);
+	close(fd);
+
+	if (len < 0) {
+		log_error("Failed read from socket");
+		return FAIL;
+	}
+
+	buffer[len] = '\0';
+
+	return SUCCESS;
+}
+#endif

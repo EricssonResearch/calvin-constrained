@@ -15,8 +15,19 @@
  */
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 #include "platform.h"
+#include "node.h"
+#include "transport.h"
 
+#ifdef LWM2M_HTTP_CLIENT
+typedef struct lwm2m_client_t {
+	char *iface;
+	int port;
+	char *endpoint;
+} lwm2m_client_t;
+static lwm2m_client_t m_lwm2m_client;
+#endif
 static calvin_gpio_t *m_gpios[MAX_GPIOS];
 
 void platform_init(void)
@@ -29,9 +40,31 @@ void platform_init(void)
 		m_gpios[i] = NULL;
 }
 
-void platform_run(void)
+#ifdef LWM2M_HTTP_CLIENT
+void platform_init_lwm2m(char *iface, int port, char *endpoint)
 {
-	// node_run is the main loop
+	m_lwm2m_client.iface = iface;
+	m_lwm2m_client.port = port;
+	m_lwm2m_client.endpoint = endpoint;
+}
+#endif
+
+result_t platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
+{
+	uint32_t timeout = 60;
+
+	if (node_start(ssdp_iface, proxy_iface, proxy_port) != SUCCESS) {
+		log_error("Failed to start node");
+		return FAIL;
+	}
+
+	while (1) {
+		if (transport_select(timeout) != SUCCESS) {
+			log_error("Failed to receive data");
+			node_stop(true);
+			return FAIL;
+		}
+	}
 }
 
 result_t platform_mem_init(void)
@@ -129,6 +162,32 @@ void platform_set_gpio(calvin_gpio_t *gpio, uint32_t value)
 
 result_t platform_get_temperature(double *temp)
 {
+#ifdef LWM2M_HTTP_CLIENT
+	char buffer[BUFFER_SIZE], *start = NULL, *end = NULL;
+	float value;
+
+	if (m_lwm2m_client.iface == NULL || m_lwm2m_client.port == 0 || m_lwm2m_client.endpoint == NULL) {
+		log_error("Bad lwm2m arguments");
+		return FAIL;
+	}
+
+	sprintf(buffer, "GET /api/clients/%s/3303/0/5700 HTTP/1.0\r\n\r\n", m_lwm2m_client.endpoint);
+	if (transport_http_get(m_lwm2m_client.iface, m_lwm2m_client.port, buffer, BUFFER_SIZE) != SUCCESS) {
+		log_error("Failed to send '%s' to '%s:%d'", buffer, m_lwm2m_client.iface, m_lwm2m_client.port);
+		return FAIL;
+	}
+
+	start = strstr(buffer, "\"value\":");
+	if (start == NULL) {
+		log_error("Bad response '%s'", buffer);
+		return FAIL;
+	}
+
+	start += 8;
+	value = strtod(start, &end);
+	*temp = (double)value;
+#else
 	*temp = 15.5;
+#endif
 	return SUCCESS;
 }

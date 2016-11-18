@@ -20,8 +20,12 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#ifdef NRF51
+#ifdef USE_LWIP
 #include "lwip/tcp.h"
+#endif
+
+#ifndef USE_LWIP
+#define BUFFER_SIZE			512
 #endif
 
 typedef enum {
@@ -37,7 +41,7 @@ typedef struct transport_buffer_t {
 } transport_buffer_t;
 
 typedef struct transport_client_t {
-#ifdef NRF51
+#ifdef USE_LWIP
 	struct tcp_pcb *tcp_port;
 #else
 	int fd;
@@ -55,5 +59,8 @@ transport_state_t transport_get_state(void);
 void transport_stop(void);
 result_t transport_get_tx_buffer(char **buffer, uint32_t size);
 bool transport_can_send(void);
+#ifdef LWM2M_HTTP_CLIENT
+result_t transport_http_get(char *iface, int port, char *buffer, int buffer_size);
+#endif
 
 #endif /* TRANSPORT_H */
