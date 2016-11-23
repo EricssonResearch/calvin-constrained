@@ -410,7 +410,7 @@ result_t transport_get_tx_buffer(char **buffer, uint32_t size)
 }
 
 #ifdef LWM2M_HTTP_CLIENT
-result_t transport_http_get(char *iface, int port, char *buffer, int buffer_size)
+result_t transport_http_get(char *iface, int port, char *url, char *buffer, int buffer_size)
 {
 	struct sockaddr_in server;
 	int fd, len;
@@ -430,7 +430,9 @@ result_t transport_http_get(char *iface, int port, char *buffer, int buffer_size
 		return FAIL;
 	}
 
-	if (send(fd, buffer, strlen(buffer), 0) < 0) {
+	len = sprintf(buffer, "GET %s HTTP/1.0\r\n\r\n", url);
+
+	if (send(fd, buffer, len, 0) < 0) {
 		log_error("Failed to send data");
 		return FAIL;
 	}

@@ -170,8 +170,7 @@ result_t platform_get_temperature(double *temp)
 		return FAIL;
 	}
 
-	sprintf(buffer, "GET %s HTTP/1.0\r\n\r\n", m_lwm2m_client.url);
-	if (transport_http_get(m_lwm2m_client.iface, m_lwm2m_client.port, buffer, BUFFER_SIZE) != SUCCESS) {
+	if (transport_http_get(m_lwm2m_client.iface, m_lwm2m_client.port, m_lwm2m_client.url, buffer, BUFFER_SIZE) != SUCCESS) {
 		log_error("Failed to send '%s' to '%s:%d'", buffer, m_lwm2m_client.iface, m_lwm2m_client.port);
 		return FAIL;
 	}

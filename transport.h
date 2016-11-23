@@ -60,7 +60,7 @@ void transport_stop(void);
 result_t transport_get_tx_buffer(char **buffer, uint32_t size);
 bool transport_can_send(void);
 #ifdef LWM2M_HTTP_CLIENT
-result_t transport_http_get(char *iface, int port, char *buffer, int buffer_size);
+result_t transport_http_get(char *iface, int port, char *url, char *buffer, int buffer_size);
 #endif
 
 #endif /* TRANSPORT_H */
