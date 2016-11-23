@@ -23,58 +23,50 @@
 
 int main(int argc, char **argv)
 {
-	char *name = NULL, *ssdp_iface = NULL, *proxy_iface = NULL;
-	int vid = 1, pid = 1, proxy_port = 0;
+	char *name = NULL, *ssdp_iface = NULL, *proxy_iface = NULL, *capabilities = NULL;
+	int proxy_port = 0;
 #ifdef PARSE_ARGS
 	int c = 0;
 #ifdef LWM2M_HTTP_CLIENT
 	int lwm2m_port = 0;
-	char *lwm2m_iface = NULL, *lwm2m_endpoint = NULL;
+	char *lwm2m_iface = NULL, *lwm2m_url = NULL;
 #endif
 	static struct option long_options[] = {
-		{"vid", required_argument, NULL, 'a'},
-		{"pid", required_argument, NULL, 'b'},
-		{"name", required_argument, NULL, 'c'},
-		{"ssdp_iface", required_argument, NULL, 'd'},
-		{"proxy_iface", required_argument, NULL, 'e'},
-		{"proxy_port", required_argument, NULL, 'f'},
+		{"name", required_argument, NULL, 'a'},
+		{"ssdp_iface", required_argument, NULL, 'b'},
+		{"proxy_iface", required_argument, NULL, 'c'},
+		{"proxy_port", required_argument, NULL, 'd'},
 #ifdef LWM2M_HTTP_CLIENT
-		{"lwm2m_iface", required_argument, NULL, 'g'},
-		{"lwm2m_port", required_argument, NULL, 'h'},
-		{"lwm2m_endpoint", required_argument, NULL, 'i'},
+		{"lwm2m_iface", required_argument, NULL, 'e'},
+		{"lwm2m_port", required_argument, NULL, 'f'},
+		{"lwm2m_url", required_argument, NULL, 'g'},
 #endif
 		{NULL, 0, NULL, 0}
 	};
 
-	while ((c = getopt_long (argc, argv, "a:b:c:d:e:f:g:h:i:", long_options, NULL)) != -1) {
+	while ((c = getopt_long (argc, argv, "a:b:c:d:e:f:g:", long_options, NULL)) != -1) {
 		switch (c) {
 		case 'a':
-			vid = atoi(optarg);
-			break;
-		case 'b':
-			pid = atoi(optarg);
-			break;
-		case 'c':
 			name = strdup(optarg);
 			break;
-		case 'd':
+		case 'b':
 			ssdp_iface = strdup(optarg);
 			break;
-		case 'e':
+		case 'c':
 			proxy_iface = strdup(optarg);
 			break;
-		case 'f':
+		case 'd':
 			proxy_port = atoi(optarg);
 			break;
 #ifdef LWM2M_HTTP_CLIENT
-		case 'g':
+		case 'e':
 			lwm2m_iface = strdup(optarg);
 			break;
-		case 'h':
+		case 'f':
 			lwm2m_port = atoi(optarg);
 			break;
-		case 'i':
-			lwm2m_endpoint = strdup(optarg);
+		case 'g':
+			lwm2m_url = strdup(optarg);
 			break;
 #endif
 		default:
@@ -83,14 +75,22 @@ int main(int argc, char **argv)
 	}
 #endif
 
+#ifdef LWM2M_HTTP_CLIENT
+	if (lwm2m_url != NULL && strstr(lwm2m_url, "3303") != NULL)
+		capabilities = "[3303]";
+#endif
+
 	if (name == NULL)
 		name = "constrained";
 
-	node_create(vid, pid, name);
+	if (capabilities == NULL)
+		capabilities = "[3303, 3201, 3200]";
+
+	node_create(name, capabilities);
 
 	platform_init();
 #if defined(PARSE_ARGS) && defined(LWM2M_HTTP_CLIENT)
-	platform_init_lwm2m(lwm2m_iface, lwm2m_port, lwm2m_endpoint);
+	platform_init_lwm2m(lwm2m_iface, lwm2m_port, lwm2m_url);
 #endif
 
 	if (ssdp_iface == NULL && proxy_iface == NULL)

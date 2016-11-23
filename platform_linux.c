@@ -24,7 +24,7 @@
 typedef struct lwm2m_client_t {
 	char *iface;
 	int port;
-	char *endpoint;
+	char *url;
 } lwm2m_client_t;
 static lwm2m_client_t m_lwm2m_client;
 #endif
@@ -41,11 +41,11 @@ void platform_init(void)
 }
 
 #ifdef LWM2M_HTTP_CLIENT
-void platform_init_lwm2m(char *iface, int port, char *endpoint)
+void platform_init_lwm2m(char *iface, int port, char *url)
 {
 	m_lwm2m_client.iface = iface;
 	m_lwm2m_client.port = port;
-	m_lwm2m_client.endpoint = endpoint;
+	m_lwm2m_client.url = url;
 }
 #endif
 
@@ -164,14 +164,13 @@ result_t platform_get_temperature(double *temp)
 {
 #ifdef LWM2M_HTTP_CLIENT
 	char buffer[BUFFER_SIZE], *start = NULL, *end = NULL;
-	float value;
 
-	if (m_lwm2m_client.iface == NULL || m_lwm2m_client.port == 0 || m_lwm2m_client.endpoint == NULL) {
+	if (m_lwm2m_client.iface == NULL || m_lwm2m_client.port == 0 || m_lwm2m_client.url == NULL) {
 		log_error("Bad lwm2m arguments");
 		return FAIL;
 	}
 
-	sprintf(buffer, "GET /api/clients/%s/3303/0/5700 HTTP/1.0\r\n\r\n", m_lwm2m_client.endpoint);
+	sprintf(buffer, "GET %s HTTP/1.0\r\n\r\n", m_lwm2m_client.url);
 	if (transport_http_get(m_lwm2m_client.iface, m_lwm2m_client.port, buffer, BUFFER_SIZE) != SUCCESS) {
 		log_error("Failed to send '%s' to '%s:%d'", buffer, m_lwm2m_client.iface, m_lwm2m_client.port);
 		return FAIL;
@@ -184,8 +183,7 @@ result_t platform_get_temperature(double *temp)
 	}
 
 	start += 8;
-	value = strtod(start, &end);
-	*temp = (double)value;
+	*temp = strtod(start, &end);
 #else
 	*temp = 15.5;
 #endif

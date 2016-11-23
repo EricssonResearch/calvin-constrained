@@ -104,9 +104,9 @@ result_t proto_send_node_setup(const node_t *node, result_t (*handler)(char*, vo
 			w = encode_str(&w, "from_rt_uuid", node->node_id, strlen(node->node_id));
 			w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
 			w = encode_str(&w, "cmd", "PROXY_CONFIG", strlen("PROXY_CONFIG"));
-			w = encode_uint(&w, "vid", node->vid);
-			w = encode_uint(&w, "pid", node->pid);
 			w = encode_str(&w, "name", node->name, strlen(node->name));
+			w = encode_str(&w, "capabilities", node->capabilities, strlen(node->capabilities));
+			w = encode_str(&w, "port_property_capability", "runtime.constrained.1", strlen("runtime.constrained.1"));
 		}
 
 		if (transport_send(w - tx_buffer - 4) == SUCCESS) {

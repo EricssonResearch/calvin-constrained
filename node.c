@@ -248,7 +248,7 @@ node_t *node_get()
 	return &m_node;
 }
 
-result_t node_create(uint32_t vid, uint32_t pid, char *name)
+result_t node_create(char *name, char *capabilities)
 {
 	int i = 0;
 
@@ -264,18 +264,16 @@ result_t node_create(uint32_t vid, uint32_t pid, char *name)
 		m_node.pending_msgs[i].handler = NULL;
 		m_node.pending_msgs[i].msg_data = NULL;
 	}
-	m_node.vid = vid;
-	m_node.pid = pid;
 	gen_uuid(m_node.node_id, NULL);
 	m_node.schema = SCHEMA;
 	m_node.name = name;
+	m_node.capabilities = capabilities;
 	transport_set_state(TRANSPORT_DISCONNECTED);
 
-	log("Node created with name '%s' id '%s' vid '%ld' pid '%ld'",
+	log("Node created with name '%s', id '%s' and capabilities '%s'",
 		m_node.name,
 		m_node.node_id,
-		(unsigned long)vid,
-		(unsigned long)pid);
+		m_node.capabilities);
 
 	return SUCCESS;
 }

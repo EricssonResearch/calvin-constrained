@@ -32,11 +32,10 @@ typedef struct pending_msg_t {
 
 typedef struct node_t {
 	bool started;
-	uint32_t vid;
-	uint32_t pid;
 	char node_id[UUID_BUFFER_SIZE];
 	char *schema;
 	char *name;
+	char *capabilities;
 	pending_msg_t pending_msgs[MAX_PENDING_MSGS];
 	link_t *proxy_link;
 	list_t *links;
@@ -55,7 +54,7 @@ result_t node_handle_token(port_t *port, const char *data, const size_t size, ui
 void node_handle_token_reply(char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr);
 void node_handle_data(char *data, int len);
 result_t node_transmit(void);
-result_t node_create(uint32_t vid, uint32_t pid, char *name);
+result_t node_create(char *name, char *capabilities);
 result_t node_start(const char *ssdp_iface, const char *proxy_iface, const int proxy_port);
 void node_run(void);
 void node_loop_once(void);
