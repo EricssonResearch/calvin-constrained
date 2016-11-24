@@ -39,7 +39,8 @@ static result_t transport_discover_location(const char *interface, char *locatio
 {
 	int sock;
 	size_t ret;
-	unsigned int socklen, len;
+	unsigned int socklen;
+    int len;
 	struct sockaddr_in sockname;
 	struct sockaddr clientsock;
 	char buffer[BUFFER_SIZE];
@@ -84,7 +85,7 @@ static result_t transport_discover_location(const char *interface, char *locatio
 	if (FD_ISSET(sock, &fds)) {
 		socklen = sizeof(clientsock);
 		len = recvfrom(sock, buffer, BUFFER_SIZE, MSG_PEEK, &clientsock, &socklen);
-		if (len  == (size_t)-1) {
+		if (len == -1) {
 			log_error("Failed to receive ssdp response");
 			return FAIL;
 		}
