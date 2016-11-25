@@ -183,10 +183,10 @@ result_t transport_send(size_t len)
 	uint32_t tcp_buffer_size = 0;
 	struct tcp_pcb *pcb = m_client.tcp_port;
 
-	m_client.tx_buffer.buffer[0] = (len & 0xFF000000);
-	m_client.tx_buffer.buffer[1] = (len & 0x00FF0000);
-	m_client.tx_buffer.buffer[2] = (len & 0x0000FF00) / 0x000000FF;
-	m_client.tx_buffer.buffer[3] = (len & 0x000000FF);
+    m_client.tx_buffer.buffer[0] = len >> 24 & 0xFF;
+    m_client.tx_buffer.buffer[1] = len >> 16 & 0xFF;
+    m_client.tx_buffer.buffer[2] = len >> 8 & 0xFF;
+    m_client.tx_buffer.buffer[3] = len & 0xFF;
 
 	tcp_buffer_size = tcp_sndbuf(pcb);
 	if (tcp_buffer_size >= len + 4) {
