@@ -280,13 +280,13 @@ actor_t *actor_create(node_t *node, char *root)
 		return NULL;
 	}
 
-	if (decode_string_from_map(obj_actor_state, "id", &id, &id_len) != SUCCESS) {
+	if (decode_string_from_map(obj_actor_state, "_id", &id, &id_len) != SUCCESS) {
 		actor_free(node, actor);
 		return NULL;
 	}
 	strncpy(actor->id, id, id_len);
 
-	if (decode_string_from_map(obj_actor_state, "name", &name, &name_len) != SUCCESS) {
+	if (decode_string_from_map(obj_actor_state, "_name", &name, &name_len) != SUCCESS) {
 		actor_free(node, actor);
 		return NULL;
 	}
