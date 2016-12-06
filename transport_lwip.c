@@ -29,22 +29,9 @@ static transport_client_t m_client;
 // iface is the MAC address, convert it to a ipv6 link-local address.
 result_t transport_discover_proxy(const char *iface, char *ip, int *port)
 {
-	long col1, col2, col3, col4, col5, col6;
-
-	col1 = (unsigned char)strtol(iface, NULL, 16);
-	col1 ^= 1 << 1;
-	col2 = (unsigned char)strtol(iface + 3, NULL, 16);
-	col3 = (unsigned char)strtol(iface + 6, NULL, 16);
-	col4 = (unsigned char)strtol(iface + 9, NULL, 16);
-	col5 = (unsigned char)strtol(iface + 12, NULL, 16);
-	col6 = (unsigned char)strtol(iface + 15, NULL, 16);
-
-	sprintf(ip,
-		"fe80::%02lx%02lx:%02lxff:fe%02lx:%02lx%02lx",
-		col1, col2, col3, col4, col5, col6);
-
+//	strncpy(ip, "fe80::ba27:ebff:fefa:1c06", strlen("fe80::ba27:ebff:fefa:1c06"));
+	strncpy(ip, "2001:db8::1", strlen("2001:db8::1"));
 	*port = 5000;
-
 	return SUCCESS;
 }
 
@@ -147,9 +134,9 @@ static err_t transport_write_complete(void *p_arg, struct tcp_pcb *p_pcb, u16_t 
 		else
 			log_error("TODO: Handle tx failures"); // start retransmission timer or something similar
 	} else if (tcp_buffer_size > 0) {
-		if (tcp_write(p_pcb, m_client.tx_buffer.buffer + m_client.tx_buffer.pos, tcp_buffer_size, 1) == ERR_OK) {
+		if (tcp_write(p_pcb, m_client.tx_buffer.buffer + m_client.tx_buffer.pos, tcp_buffer_size, 1) == ERR_OK)
 			m_client.tx_buffer.pos += tcp_buffer_size;
-		} else
+		else
 			log_error("TODO: Handle tx failures"); // start retransmission timer or something similar
 	} else
 		log_error("No space in send buffer");
@@ -173,7 +160,7 @@ static err_t transport_connection_callback(void *p_arg, struct tcp_pcb *p_pcb, e
 	tcp_poll(p_pcb, transport_connection_poll, 0);
 	tcp_sent(p_pcb, transport_write_complete);
 
-	node_join_proxy();
+	node_transmit();
 
 	return ERR_OK;
 }
@@ -183,10 +170,10 @@ result_t transport_send(size_t len)
 	uint32_t tcp_buffer_size = 0;
 	struct tcp_pcb *pcb = m_client.tcp_port;
 
-    m_client.tx_buffer.buffer[0] = len >> 24 & 0xFF;
-    m_client.tx_buffer.buffer[1] = len >> 16 & 0xFF;
-    m_client.tx_buffer.buffer[2] = len >> 8 & 0xFF;
-    m_client.tx_buffer.buffer[3] = len & 0xFF;
+	m_client.tx_buffer.buffer[0] = len >> 24 & 0xFF;
+	m_client.tx_buffer.buffer[1] = len >> 16 & 0xFF;
+	m_client.tx_buffer.buffer[2] = len >> 8 & 0xFF;
+	m_client.tx_buffer.buffer[3] = len & 0xFF;
 
 	tcp_buffer_size = tcp_sndbuf(pcb);
 	if (tcp_buffer_size >= len + 4) {
@@ -245,7 +232,7 @@ result_t transport_start(const char *ssdp_iface, const char *proxy_iface, const 
 		return FAIL;
 	}
 
-	log_debug("TCP connection requested to %s:%d.", ip, port);
+	log_debug("TCP connection requested to %s:%d.", proxy_iface, port);
 
 	return SUCCESS;
 }

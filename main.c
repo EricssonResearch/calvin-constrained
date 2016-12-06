@@ -75,9 +75,13 @@ int main(int argc, char **argv)
 	}
 #endif
 
-#ifdef LWM2M_HTTP_CLIENT
+	platform_init();
+
+#if defined(PARSE_ARGS) && defined(LWM2M_HTTP_CLIENT)
 	if (lwm2m_url != NULL && strstr(lwm2m_url, "3303") != NULL)
 		capabilities = "[3303]";
+
+	platform_init_lwm2m(lwm2m_iface, lwm2m_port, lwm2m_url);
 #endif
 
 	if (name == NULL)
@@ -87,11 +91,6 @@ int main(int argc, char **argv)
 		capabilities = "[3303, 3201, 3200]";
 
 	node_create(name, capabilities);
-
-	platform_init();
-#if defined(PARSE_ARGS) && defined(LWM2M_HTTP_CLIENT)
-	platform_init_lwm2m(lwm2m_iface, lwm2m_port, lwm2m_url);
-#endif
 
 	if (ssdp_iface == NULL && proxy_iface == NULL)
 		ssdp_iface = "0.0.0.0";

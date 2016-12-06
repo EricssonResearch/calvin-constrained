@@ -40,7 +40,7 @@ static result_t transport_discover_location(const char *interface, char *locatio
 	int sock;
 	size_t ret;
 	unsigned int socklen;
-    int len;
+	int len;
 	struct sockaddr_in sockname;
 	struct sockaddr clientsock;
 	char buffer[BUFFER_SIZE];
@@ -262,7 +262,7 @@ result_t transport_start(const char *ssdp_iface, const char *proxy_iface, const 
 	}
 
 	m_client.state = TRANSPORT_CONNECTED;
-	node_join_proxy();
+	node_transmit();
 
 	return SUCCESS;
 }
@@ -283,10 +283,10 @@ static result_t transport_free_tx_buffer(void)
 
 result_t transport_send(size_t len)
 {
-    m_client.tx_buffer.buffer[0] = len >> 24 & 0xFF;
-    m_client.tx_buffer.buffer[1] = len >> 16 & 0xFF;
-    m_client.tx_buffer.buffer[2] = len >> 8 & 0xFF;
-    m_client.tx_buffer.buffer[3] = len & 0xFF;
+	m_client.tx_buffer.buffer[0] = len >> 24 & 0xFF;
+	m_client.tx_buffer.buffer[1] = len >> 16 & 0xFF;
+	m_client.tx_buffer.buffer[2] = len >> 8 & 0xFF;
+	m_client.tx_buffer.buffer[3] = len & 0xFF;
 
 	if (send(m_client.fd, m_client.tx_buffer.buffer, len + 4, 0) < 0) {
 		log_error("Failed to send data");

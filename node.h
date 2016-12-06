@@ -24,6 +24,14 @@
 #include "port.h"
 #include "link.h"
 
+typedef enum {
+	NODE_DO_JOIN,
+	NODE_DO_CONNECT_STORAGE_TUNNEL,
+	NODE_DO_CONFIGURE,
+	NODE_STARTED,
+	NODE_PENDING
+} node_state_t;
+
 typedef struct pending_msg_t {
 	char msg_uuid[UUID_BUFFER_SIZE];
 	result_t (*handler)(char *data, void *msg_data);
@@ -31,9 +39,8 @@ typedef struct pending_msg_t {
 } pending_msg_t;
 
 typedef struct node_t {
-	bool started;
+	node_state_t state;
 	char node_id[UUID_BUFFER_SIZE];
-	char *schema;
 	char *name;
 	char *capabilities;
 	pending_msg_t pending_msgs[MAX_PENDING_MSGS];
@@ -49,7 +56,6 @@ result_t node_add_pending_msg(char *msg_uuid, uint32_t msg_uuid_len, result_t (*
 result_t node_remove_pending_msg(char *msg_uuid, uint32_t msg_uuid_len);
 result_t node_get_pending_msg(const char *msg_uuid, uint32_t msg_uuid_len, pending_msg_t *pending_msg);
 bool node_can_add_pending_msg(const node_t *node);
-result_t node_join_proxy(void);
 result_t node_handle_token(port_t *port, const char *data, const size_t size, uint32_t sequencenbr);
 void node_handle_token_reply(char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr);
 void node_handle_data(char *data, int len);

@@ -884,13 +884,13 @@ result_t proto_send_actor_new(const node_t *node, actor_t *actor, result_t (*han
 		}
 
 		if (transport_send(w - tx_buffer - 4) == SUCCESS) {
-			log_debug("Sent SET ACTOR_NEW to '%s'", actor->migrate_to);
+			log_debug("Sent ACTOR_NEW to '%s'", actor->migrate_to);
 			node_add_pending_msg(msg_uuid, strlen(msg_uuid), handler, actor->id);
 			return SUCCESS;
 		}
 	}
 
-	log_error("Failed to ACTOR_NEW to '%s'", actor->migrate_to);
+	log_error("Failed to send ACTOR_NEW to '%s'", actor->migrate_to);
 
 	return FAIL;
 }

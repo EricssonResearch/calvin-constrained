@@ -95,9 +95,6 @@
  */
 #define  MEMORY_MANAGER_LARGE_BLOCK_SIZE                   1024
 
-#define DEBUG 1
-#define ENABLE_DEBUG_LOG_SUPPORT 1
-
 /**
  * @brief Disable debug trace in the module.
  *
@@ -106,7 +103,7 @@
  *          Dependencies    : ENABLE_DEBUG_LOG_SUPPORT. If this flag is not defined, no
  *                            trace is observed even if this define is set to 1.
  */
-#define MEM_MANAGER_DISABLE_LOGS                           1
+#define MEM_MANAGER_ENABLE_LOGS                           0
 
 /**
  * @brief Disables API parameter checks in the module.
@@ -139,7 +136,7 @@
  *          Dependencies    : ENABLE_DEBUG_LOG_SUPPORT. If this flag is not defined, no
  *                            trace is observed even if this define is set to 1.
  */
-#define IOT_CONTEXT_MANAGER_DISABLE_LOGS                    1
+#define IOT_CONTEXT_MANAGER_ENABLE_LOGS                     0
 
 /**
  * @brief Disables API parameter checks in the module.
@@ -178,11 +175,11 @@
 
 
 /**
- * @defgroup lwip_nrf51_driver nRF51 lwIP driver
+ * @defgroup lwip_nrf_driver nRF lwIP driver
  * @{
  * @addtogroup iot_config
  * @{
- * @details This section defines configuration of nRF51 lwIP driver.
+ * @details This section defines configuration of nRF lwIP driver.
  */
 
 /**
@@ -193,10 +190,41 @@
  *          Dependencies    : ENABLE_DEBUG_LOG_SUPPORT. If this flag is not defined, no
  *                            trace is observed even if this define is set to 1.
  */
-#define NRF51_LWIP_DRIVER_DISABLE_LOGS                     1
+#define NRF_LWIP_DRIVER_ENABLE_LOGS                        0
 
 /** @} */
 /** @} */
+
+/**
+ * @defgroup iot_timer IoT SDK Timer
+ * @{
+ * @addtogroup iot_config
+ * @{
+ * @details This section defines configuration of the IoT Timer.
+ */
+
+/**
+ * @brief Wall clock resolution in milliseconds.
+ *
+ * @details The wall clock of the IoT Timer module has to be updated from an external source at
+ *          regular intervals. This define needs to be set to the interval between updates.
+ *          Minimum value   : 1.
+ *          Dependencies    : None.
+ *
+ */
+#define IOT_TIMER_RESOLUTION_IN_MS                         100
+
+/**
+ * @brief Disables API parameter checks in the module.
+ *
+ * @details Set this define to 1 to disable checks on API parameters in the module.
+ *          API parameter checks are added to ensure right parameters are passed to the
+ *          module. These checks are useful during development phase but be redundant
+ *          once application is developed. Disabling this can result in some code saving.
+ *          Possible values : 0 or 1.
+ *          Dependencies    : None.
+ */
+#define IOT_TIMER_DISABLE_API_PARAM_CHECK                  0
 
 /** @} */
 /** @} */

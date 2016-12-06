@@ -1,2 +1,5 @@
 calvin_c
-boards/pca10028/armgcc/_build/
+calvin_c.hex
+_build/
+calvin-base/
+test/__pycache__/

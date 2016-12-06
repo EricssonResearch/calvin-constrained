@@ -22,7 +22,6 @@
 #include "tunnel.h"
 
 #define MAX_PORT_NAME_LENGTH		20
-#define MAX_PENDING_TOKEN_RESPONSE	4
 
 struct actor_t;
 struct node_t;
@@ -50,9 +49,9 @@ typedef enum {
 } port_reply_type_t;
 
 typedef struct pending_token_response_t {
-	bool handled;
 	uint32_t sequencenbr;
 	bool ack;
+	struct pending_token_response_t *next;
 } pending_token_response_t;
 
 typedef struct port_t {
@@ -64,7 +63,7 @@ typedef struct port_t {
 	tunnel_t *tunnel;
 	port_state_t state;
 	fifo_t fifo;
-	pending_token_response_t pending_token_responses[MAX_PENDING_TOKEN_RESPONSE];
+	pending_token_response_t *pending_token_responses;
 	struct actor_t *actor;
 } port_t;
 

@@ -142,18 +142,27 @@ static result_t port_disconnect_reply_handler(char *data, void *msg_data)
 
 result_t add_pending_token_response(port_t *port, uint32_t sequencenbr, bool ack)
 {
-	int i = 0;
+	pending_token_response_t *tmp = NULL, *new = NULL;
 
-	for (i = 0; i < MAX_PENDING_TOKEN_RESPONSE; i++) {
-		port->pending_token_responses[i].handled = false;
-		port->pending_token_responses[i].sequencenbr = sequencenbr;
-		port->pending_token_responses[i].ack = ack;
-		return SUCCESS;
+	if (platform_mem_alloc((void **)&new, sizeof(pending_token_response_t)) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
 	}
 
-	log_error("No free pending tokens responses");
+	new->sequencenbr = sequencenbr;
+	new->ack = ack;
+	new->next = NULL;
 
-	return FAIL;
+	if (port->pending_token_responses == NULL) {
+		port->pending_token_responses = new;
+	} else {
+		tmp = port->pending_token_responses;
+		while (tmp->next != NULL)
+			tmp = tmp->next;
+		tmp->next = new;
+	}
+
+	return SUCCESS;
 }
 
 port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev_connections, port_direction_t direction)
@@ -163,7 +172,6 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 	char *r = obj_port, *port_id = NULL, *port_name = NULL, *routing = NULL, *peer_id = NULL, *peer_port_id = NULL;
 	uint32_t nbr_peers = 0, port_id_len = 0, port_name_len = 0, routing_len = 0, peer_id_len = 0, peer_port_id_len = 0;
 	port_t *port = NULL;
-	int i = 0;
 
 	if (platform_mem_alloc((void **)&port, sizeof(port_t)) != SUCCESS) {
 		log_error("Failed to allocate memory");
@@ -172,16 +180,11 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 
 	memset(port, 0, sizeof(port_t));
 
-	for (i = 0; i < MAX_PENDING_TOKEN_RESPONSE; i++) {
-		port->pending_token_responses[i].handled = true;
-		port->pending_token_responses[i].sequencenbr = 0;
-		port->pending_token_responses[i].ack = false;
-	}
-
 	port->direction = direction;
 	port->tunnel = NULL;
 	port->state = PORT_DO_CONNECT;
 	port->actor = actor;
+	port->pending_token_responses = NULL;
 
 	result = decode_string_from_map(r, "id", &port_id, &port_id_len);
 	if (result == SUCCESS)
@@ -293,11 +296,18 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 void port_free(port_t *port)
 {
 	node_t *node = node_get();
+	pending_token_response_t *pending_resp = NULL;
 
 	log_debug("Freeing port '%s'", port->port_name);
 
 	if (port->tunnel != NULL)
 		tunnel_remove_ref(node, port->tunnel);
+
+	while (port->pending_token_responses != NULL) {
+		pending_resp = port->pending_token_responses;
+		port->pending_token_responses = port->pending_token_responses->next;
+		platform_mem_free(pending_resp);
+	}
 
 	platform_mem_free((void *)port);
 }
@@ -411,7 +421,7 @@ result_t port_transmit(node_t *node, port_t *port)
 	tunnel_t *tunnel = NULL;
 	token_t *token = NULL;
 	uint32_t sequencenbr = 0;
-	int i = 0;
+	pending_token_response_t *pending_resp = NULL;
 
 	switch (port->state) {
 	case PORT_DO_CONNECT:
@@ -450,23 +460,22 @@ result_t port_transmit(node_t *node, port_t *port)
 		break;
 	case PORT_ENABLED:
 		if (port->actor->state == ACTOR_ENABLED) {
-			if (port->direction == PORT_DIRECTION_OUT) {
+			if (port->direction == PORT_DIRECTION_IN) {
+				if (port->pending_token_responses != NULL) {
+					if (proto_send_token_reply(node, port, port->pending_token_responses->sequencenbr, port->pending_token_responses->ack) == SUCCESS) {
+						pending_resp = port->pending_token_responses;
+						port->pending_token_responses = port->pending_token_responses->next;
+						platform_mem_free((void *)pending_resp);
+						return SUCCESS;
+					}
+				}
+			} else {
 				if (fifo_tokens_available(&port->fifo, 1)) {
 					fifo_com_peek(&port->fifo, &token, &sequencenbr);
 					if (proto_send_token(node, port, *token, sequencenbr) == SUCCESS)
 						return SUCCESS;
 					fifo_com_cancel_read(&port->fifo, sequencenbr);
 					return FAIL;
-				}
-			} else {
-				// Handle unsent token responses
-				for (i = 0; i < MAX_PENDING_TOKEN_RESPONSE; i++) {
-					if (!port->pending_token_responses[i].handled) {
-						if (proto_send_token_reply(node, port, port->pending_token_responses[i].sequencenbr, port->pending_token_responses[i].ack) == SUCCESS) {
-							port->pending_token_responses[i].handled = true;
-							return SUCCESS;
-						}
-					}
 				}
 			}
 		}

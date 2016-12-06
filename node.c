@@ -21,9 +21,6 @@
 #include "proto.h"
 #include "msgpack_helper.h"
 
-#define SERIALIZER "msgpack"
-#define SCHEMA "calvinip"
-
 static node_t m_node;
 
 result_t node_add_pending_msg(char *msg_uuid, uint32_t msg_uuid_len, result_t (*handler)(char *data, void *msg_data), void *msg_data)
@@ -104,7 +101,7 @@ static result_t node_setup_reply_handler(char *data, void *msg_data)
 		if (decode_uint_from_map(value, "status", &status) == SUCCESS) {
 			if (status == 200) {
 				log("Node started and configured");
-				m_node.started = true;
+				m_node.state = NODE_STARTED;
 				return SUCCESS;
 			}
 		}
@@ -132,15 +129,10 @@ static result_t node_storage_tunnel_reply_handler(char *data, void *msg_data)
 	if (result == SUCCESS)
 		result = decode_uint_from_map(value, "status", &status);
 
-	if (result != SUCCESS)
-		log_error("Failed to parse storage reply");
-
-	if (result == SUCCESS && status == 200) {
-		m_node.storage_tunnel->state = TUNNEL_ENABLED;
-		result = proto_send_node_setup(&m_node, node_setup_reply_handler);
-		if (result != SUCCESS)
-			log_error("Failed send node setup request");
-	}
+	if (result == SUCCESS && status == 200)
+		m_node.state = NODE_DO_CONFIGURE;
+	else
+		m_node.state = NODE_DO_CONNECT_STORAGE_TUNNEL;
 
 	return result;
 }
@@ -178,12 +170,7 @@ static result_t node_handle_join_reply(char *data)
 
 	log_debug("Storage tunnel created to proxy '%s'", id);
 
-	if (proto_send_tunnel_request(&m_node, m_node.storage_tunnel, node_storage_tunnel_reply_handler) != SUCCESS) {
-		log_error("Failed to request storage tunnel");
-		tunnel_free(&m_node, m_node.storage_tunnel);
-		m_node.storage_tunnel = NULL;
-		return FAIL;
-	}
+	m_node.state = NODE_DO_CONNECT_STORAGE_TUNNEL;
 
 	return SUCCESS;
 }
@@ -221,6 +208,7 @@ void node_handle_data(char *data, int len)
 	switch (state) {
 	case TRANSPORT_CONNECTED:
 		node_handle_join_reply(data);
+		node_transmit();
 		break;
 	case TRANSPORT_JOINED:
 		if (proto_parse_message(&m_node, data) != SUCCESS)
@@ -231,16 +219,6 @@ void node_handle_data(char *data, int len)
 	default:
 		log_error("Received data in unkown state");
 	}
-}
-
-result_t node_join_proxy(void)
-{
-	if (proto_send_join_request(&m_node, SERIALIZER) != SUCCESS) {
-		log_error("Failed to send join request");
-		return FAIL;
-	}
-
-	return SUCCESS;
 }
 
 node_t *node_get()
@@ -254,7 +232,7 @@ result_t node_create(char *name, char *capabilities)
 
 	memset(&m_node, 0, sizeof(node_t));
 
-	m_node.started = false;
+	m_node.state = NODE_DO_JOIN;
 	m_node.actors = NULL;
 	m_node.storage_tunnel = NULL;
 	m_node.tunnels = NULL;
@@ -265,7 +243,6 @@ result_t node_create(char *name, char *capabilities)
 		m_node.pending_msgs[i].msg_data = NULL;
 	}
 	gen_uuid(m_node.node_id, NULL);
-	m_node.schema = SCHEMA;
 	m_node.name = name;
 	m_node.capabilities = capabilities;
 	transport_set_state(TRANSPORT_DISCONNECTED);
@@ -294,26 +271,55 @@ result_t node_transmit(void)
 
 	log_debug("node_transmit");
 
-	if (m_node.started && transport_can_send()) {
-		tmp_list = m_node.actors;
-		while (tmp_list != NULL) {
-			if (actor_transmit(&m_node, (actor_t *)tmp_list->data) ==  SUCCESS)
-				return SUCCESS;
-			tmp_list = tmp_list->next;
-		}
+	if (transport_can_send()) {
+		switch (m_node.state) {
+		case NODE_DO_JOIN:
+			m_node.state = NODE_PENDING;
+			if (proto_send_join_request(&m_node, SERIALIZER) != SUCCESS) {
+				log_error("Failed to send join request");
+				m_node.state = NODE_DO_JOIN;
+				return FAIL;
+			}
+			break;
+		case NODE_DO_CONNECT_STORAGE_TUNNEL:
+			m_node.state = NODE_PENDING;
+			if (proto_send_tunnel_request(&m_node, m_node.storage_tunnel, node_storage_tunnel_reply_handler) != SUCCESS) {
+				log_error("Failed to request storage tunnel");
+				m_node.state = NODE_DO_CONNECT_STORAGE_TUNNEL;
+				return FAIL;
+			}
+			break;
+		case NODE_DO_CONFIGURE:
+			m_node.state = NODE_PENDING;
+			if (proto_send_node_setup(&m_node, node_setup_reply_handler) != SUCCESS) {
+				log_error("Failed send node setup request");
+				m_node.state = NODE_DO_CONFIGURE;
+			}
+			break;
+		case NODE_STARTED:
+			tmp_list = m_node.actors;
+			while (tmp_list != NULL) {
+				if (actor_transmit(&m_node, (actor_t *)tmp_list->data) ==  SUCCESS)
+					return SUCCESS;
+				tmp_list = tmp_list->next;
+			}
 
-		tmp_list = m_node.tunnels;
-		while (tmp_list != NULL) {
-			if (tunnel_transmit(&m_node, (tunnel_t *)tmp_list->data) ==  SUCCESS)
-				return SUCCESS;
-			tmp_list = tmp_list->next;
-		}
+			tmp_list = m_node.tunnels;
+			while (tmp_list != NULL) {
+				if (tunnel_transmit(&m_node, (tunnel_t *)tmp_list->data) ==  SUCCESS)
+					return SUCCESS;
+				tmp_list = tmp_list->next;
+			}
 
-		tmp_list = m_node.links;
-		while (tmp_list != NULL) {
-			if (link_transmit(&m_node, (link_t *)tmp_list->data) ==  SUCCESS)
-				return SUCCESS;
-			tmp_list = tmp_list->next;
+			tmp_list = m_node.links;
+			while (tmp_list != NULL) {
+				if (link_transmit(&m_node, (link_t *)tmp_list->data) ==  SUCCESS)
+					return SUCCESS;
+				tmp_list = tmp_list->next;
+			}
+			break;
+		case NODE_PENDING:
+			break;
 		}
 	}
 
@@ -325,7 +331,7 @@ void node_loop_once(void)
 	list_t *tmp_list = NULL;
 	actor_t *actor = NULL;
 
-	if (m_node.started) {
+	if (m_node.state == NODE_STARTED) {
 		tmp_list = m_node.actors;
 		while (tmp_list != NULL) {
 			actor = (actor_t *)tmp_list->data;
@@ -362,7 +368,7 @@ void node_stop(bool terminate)
 
 	proto_send_remove_node(&m_node, NULL);
 
-	m_node.started = false;
+	m_node.state = NODE_DO_JOIN;
 
 	while (m_node.actors != NULL) {
 		tmp_list = m_node.actors;

@@ -17,7 +17,7 @@ RT1_PID=$!
 
 # setup and start calvin-constrained
 cd ..
-make
+make -f platform/x86/Makefile
 ./calvin_c --name constrained &
 CONSTRAINED_RT_PID=$!
 

@@ -19,8 +19,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "common.h"
-
-#ifdef NRF51
+#ifdef NRF52
 #include "app_trace.h"
 #else
 #include <stdio.h>
@@ -28,13 +27,13 @@
 
 #define MAX_GPIOS 5
 
-#ifdef NRF51
+#ifdef NRF52
 #ifdef DEBUG
-#define log_debug(a, args...) app_trace_log(a"\r\n", ##args)
+#define log_debug(a, args...) app_trace_log("DEBUG:" a "\r\n", ##args)
 #else
 #define log_debug(fmt, ...) do {} while (0)
 #endif
-#define log_error(a, args...) app_trace_log(a"\r\n", ##args)
+#define log_error(a, args...) app_trace_log("ERROR: " a "\r\n", ##args)
 #define log(a, args...) app_trace_log(a"\r\n", ##args)
 #else
 #ifdef DEBUG
@@ -63,7 +62,6 @@ void platform_init(void);
 void platform_init_lwm2m(char *iface, int port, char *url);
 #endif
 result_t platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port);
-result_t platform_mem_init(void);
 result_t platform_mem_alloc(void **buffer, uint32_t size);
 void platform_mem_free(void *buffer);
 calvin_gpio_t *platform_create_in_gpio(uint32_t pin, char pull, char edge);

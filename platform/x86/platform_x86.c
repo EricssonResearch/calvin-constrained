@@ -16,9 +16,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#include "platform.h"
-#include "node.h"
-#include "transport.h"
+#include "../../platform.h"
+#include "../../node.h"
+#include "../../transport.h"
 
 #ifdef LWM2M_HTTP_CLIENT
 typedef struct lwm2m_client_t {
@@ -65,12 +65,6 @@ result_t platform_run(const char *ssdp_iface, const char *proxy_iface, const int
 			return FAIL;
 		}
 	}
-}
-
-result_t platform_mem_init(void)
-{
-	// TODO: Create a memory pool
-	return SUCCESS;
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)

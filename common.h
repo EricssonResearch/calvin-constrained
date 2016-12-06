@@ -26,6 +26,7 @@
 #define STORAGE_TUNNEL		"storage"
 #define TOKEN_TUNNEL		"token"
 #define UUID_BUFFER_SIZE	50
+#define SERIALIZER          "msgpack"
 
 typedef enum {
 	SUCCESS,

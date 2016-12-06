@@ -15,7 +15,9 @@
  */
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include "boards.h"
+#include "sdk_config.h"
 #include "app_timer_appsh.h"
 #include "app_scheduler.h"
 #include "nordic_common.h"
@@ -27,145 +29,36 @@
 #include "mem_manager.h"
 #include "nrf_platform_port.h"
 #include "app_util_platform.h"
-#include "lwip/init.h"
-#include "lwip/timers.h"
+#include "iot_timer.h"
+#include "ipv6_medium.h"
 #include "nrf_drv_gpiote.h"
-#include "platform.h"
-#include "node.h"
+#include "../../platform.h"
+#include "../../node.h"
 
-#define DEVICE_NAME                         "calvin-constrained"
-#define APP_TIMER_PRESCALER                 NRF51_DRIVER_TIMER_PRESCALER
-#define LWIP_SYS_TIMER_INTERVAL             APP_TIMER_TICKS(100, APP_TIMER_PRESCALER)
-#define APP_CALVIN_INITTIMER_INTERVAL       APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)
+#define APP_TIMER_OP_QUEUE_SIZE             5
+#define LWIP_SYS_TICK_MS                    100
 #define SCHED_MAX_EVENT_DATA_SIZE           128
 #define SCHED_QUEUE_SIZE                    12
-#define APP_TIMER_MAX_TIMERS                3
-#define APP_TIMER_OP_QUEUE_SIZE             3
-#define APP_ADV_TIMEOUT                     0
-#define APP_ADV_ADV_INTERVAL                MSEC_TO_UNITS(100, UNIT_0_625_MS)
 #define DEAD_BEEF                           0xDEADBEEF
+#define APP_CALVIN_INITTIMER_INTERVAL       APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)
 
+APP_TIMER_DEF(m_iot_timer_tick_src_id);
+APP_TIMER_DEF(m_calvin_inittimer_id);
 eui64_t                                     eui64_local_iid;
-static ble_gap_adv_params_t                 m_adv_params;
-static app_timer_id_t                       m_sys_timer_id;
-static app_timer_id_t                       m_calvin_inittimer_id;
-static char                                 m_mac[20]; // MAC address of connected peer
+static ipv6_medium_instance_t               m_ipv6_medium;
 static calvin_gpio_t                        *m_gpios[MAX_GPIOS];
 
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
 {
 	log_error("Error 0x%08lX, Line %ld, File %s", error_code, line_num, p_file_name);
-	NVIC_SystemReset();
+//	NVIC_SystemReset();
+	for (;;) {
+	}
 }
 
 void assert_nrf_callback(uint16_t line_num, const uint8_t *p_file_name)
 {
 	app_error_handler(DEAD_BEEF, line_num, p_file_name);
-}
-
-void start_calvin_inittimer(void)
-{
-	uint32_t err_code;
-
-	err_code = app_timer_start(m_calvin_inittimer_id, APP_CALVIN_INITTIMER_INTERVAL, NULL);
-	APP_ERROR_CHECK(err_code);
-}
-
-static void advertising_init(void)
-{
-	uint32_t                err_code;
-	ble_advdata_t           advdata;
-	uint8_t                 flags = BLE_GAP_ADV_FLAG_BR_EDR_NOT_SUPPORTED;
-	ble_gap_conn_sec_mode_t sec_mode;
-	ble_gap_addr_t          my_addr;
-
-	BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
-
-	err_code = sd_ble_gap_device_name_set(&sec_mode,
-										  (const uint8_t *)DEVICE_NAME,
-										  strlen(DEVICE_NAME));
-	APP_ERROR_CHECK(err_code);
-
-	err_code = sd_ble_gap_address_get(&my_addr);
-	APP_ERROR_CHECK(err_code);
-
-	my_addr.addr[5]   = 0x00;
-	my_addr.addr_type = BLE_GAP_ADDR_TYPE_PUBLIC;
-
-	err_code = sd_ble_gap_address_set(&my_addr);
-	APP_ERROR_CHECK(err_code);
-
-	IPV6_EUI64_CREATE_FROM_EUI48(eui64_local_iid.identifier,
-								 my_addr.addr,
-								 my_addr.addr_type);
-
-	ble_uuid_t adv_uuids[] = {
-		{BLE_UUID_IPSP_SERVICE,         BLE_UUID_TYPE_BLE}
-	};
-
-	memset(&advdata, 0, sizeof(advdata));
-
-	advdata.name_type               = BLE_ADVDATA_FULL_NAME;
-	advdata.flags                   = flags;
-	advdata.uuids_complete.uuid_cnt = sizeof(adv_uuids) / sizeof(adv_uuids[0]);
-	advdata.uuids_complete.p_uuids  = adv_uuids;
-
-	err_code = ble_advdata_set(&advdata, NULL);
-	APP_ERROR_CHECK(err_code);
-
-	memset(&m_adv_params, 0, sizeof(m_adv_params));
-
-	m_adv_params.type        = BLE_GAP_ADV_TYPE_ADV_IND;
-	m_adv_params.p_peer_addr = NULL;
-	m_adv_params.fp          = BLE_GAP_ADV_FP_ANY;
-	m_adv_params.interval    = APP_ADV_ADV_INTERVAL;
-	m_adv_params.timeout     = APP_ADV_TIMEOUT;
-}
-
-static void advertising_start(void)
-{
-	uint32_t err_code;
-
-	err_code = sd_ble_gap_adv_start(&m_adv_params);
-	APP_ERROR_CHECK(err_code);
-}
-
-static void on_ble_evt(ble_evt_t *p_ble_evt)
-{
-	switch (p_ble_evt->header.evt_id) {
-	case BLE_GAP_EVT_CONNECTED:
-		sprintf(m_mac, "%02x:%02x:%02x:%02x:%02x:%02x",
-			p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[5],
-			p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[4],
-			p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[3],
-			p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[2],
-			p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[1],
-			p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[0]);
-		log_debug("Connected to: %s", m_mac);
-		break;
-	case BLE_GAP_EVT_DISCONNECTED:
-		log_debug("BLE disconnected");
-		advertising_start();
-		break;
-	default:
-		break;
-	}
-}
-
-static void ble_evt_dispatch(ble_evt_t *p_ble_evt)
-{
-	ble_ipsp_evt_handler(p_ble_evt);
-	on_ble_evt(p_ble_evt);
-}
-
-static void ble_stack_init(void)
-{
-	uint32_t err_code;
-
-	SOFTDEVICE_HANDLER_APPSH_INIT(NRF_CLOCK_LFCLKSRC_XTAL_20_PPM, true);
-
-	err_code = softdevice_ble_evt_handler_set(ble_evt_dispatch);
-	APP_ERROR_CHECK(err_code);
 }
 
 static void scheduler_init(void)
@@ -177,36 +70,62 @@ static void ip_stack_init(void)
 {
 	uint32_t err_code;
 
-	platform_mem_init();
+	err_code = ipv6_medium_eui64_get(m_ipv6_medium.ipv6_medium_instance_id, &eui64_local_iid);
+	APP_ERROR_CHECK(err_code);
+
+	err_code = nrf_mem_init();
+	APP_ERROR_CHECK(err_code);
 
 	lwip_init();
 
-	err_code = nrf51_driver_init();
+	err_code = nrf_driver_init();
 	APP_ERROR_CHECK(err_code);
 }
 
-static void system_timer_callback(void *p_context)
+static void system_timer_callback(iot_timer_time_in_ms_t wall_clock_value)
+{
+	UNUSED_VARIABLE(wall_clock_value);
+
+	sys_check_timeouts();
+}
+
+static void iot_timer_tick_callback(void *p_context)
 {
 	UNUSED_VARIABLE(p_context);
-	sys_check_timeouts();
+	uint32_t err_code = iot_timer_update();
+
+	APP_ERROR_CHECK(err_code);
+}
+
+static void start_calvin_inittimer(void)
+{
+	uint32_t err_code;
+
+	err_code = app_timer_start(m_calvin_inittimer_id, APP_CALVIN_INITTIMER_INTERVAL, NULL);
+	APP_ERROR_CHECK(err_code);
+
+	log("Started calvin init timer");
 }
 
 static void calvin_inittimer_callback(void *p_context)
 {
 	UNUSED_VARIABLE(p_context);
-	if (node_start(m_mac, NULL, 0) != SUCCESS)
+	log("Executing calvin init timer");
+	if (node_start(NULL, "2001:db8::1", 5000) != SUCCESS) {
 		log_error("Failed to start node");
+		start_calvin_inittimer();
+	}
 }
 
 static void timers_init(void)
 {
 	uint32_t err_code;
 
-	APP_TIMER_APPSH_INIT(APP_TIMER_PRESCALER, APP_TIMER_MAX_TIMERS, APP_TIMER_OP_QUEUE_SIZE, true);
+	APP_TIMER_APPSH_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, true);
 
-	err_code = app_timer_create(&m_sys_timer_id,
+	err_code = app_timer_create(&m_iot_timer_tick_src_id,
 								APP_TIMER_MODE_REPEATED,
-								system_timer_callback);
+								iot_timer_tick_callback);
 	APP_ERROR_CHECK(err_code);
 
 	err_code = app_timer_create(&m_calvin_inittimer_id,
@@ -215,93 +134,136 @@ static void timers_init(void)
 	APP_ERROR_CHECK(err_code);
 }
 
-void nrf51_driver_interface_up(void)
+static void iot_timer_init(void)
 {
 	uint32_t err_code;
 
-	log_debug("IPv6 interface up");
+	static const iot_timer_client_t list_of_clients[] = {
+		{system_timer_callback,      LWIP_SYS_TICK_MS}
+	};
+
+	static const iot_timer_clients_list_t iot_timer_clients = {
+		(sizeof(list_of_clients) / sizeof(iot_timer_client_t)),
+		&(list_of_clients[0]),
+	};
+
+	err_code = iot_timer_client_list_set(&iot_timer_clients);
+	APP_ERROR_CHECK(err_code);
+
+	err_code = app_timer_start(m_iot_timer_tick_src_id,
+							   APP_TIMER_TICKS(IOT_TIMER_RESOLUTION_IN_MS, APP_TIMER_PRESCALER),
+							   NULL);
+	APP_ERROR_CHECK(err_code);
+}
+
+void nrf_driver_interface_up(void)
+{
+	log("IPv6 interface up");
 
 	sys_check_timeouts();
-
-	err_code = app_timer_start(m_sys_timer_id, LWIP_SYS_TIMER_INTERVAL, NULL);
-	APP_ERROR_CHECK(err_code);
 
 	start_calvin_inittimer();
 }
 
-void nrf51_driver_interface_down(void)
+void nrf_driver_interface_down(void)
 {
-	uint32_t err_code;
-
 	log_debug("IPv6 interface down");
+}
 
-	err_code = app_timer_stop(m_sys_timer_id);
+static void connectable_mode_enter(void)
+{
+	uint32_t err_code = ipv6_medium_connectable_mode_enter(m_ipv6_medium.ipv6_medium_instance_id);
+
 	APP_ERROR_CHECK(err_code);
+
+	log_debug("Physical layer in connectable mode");
+}
+
+static void on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt)
+{
+	switch (p_ipv6_medium_evt->ipv6_medium_evt_id) {
+	case IPV6_MEDIUM_EVT_CONN_UP:
+	{
+		log_debug("Physical layer connected");
+		break;
+	}
+	case IPV6_MEDIUM_EVT_CONN_DOWN:
+	{
+		log_debug("Physical layer disconnected");
+		connectable_mode_enter();
+		break;
+	}
+	default:
+	{
+		break;
+	}
+	}
+}
+
+static void on_ipv6_medium_error(ipv6_medium_error_t *p_ipv6_medium_error)
+{
+	log_error("Physical layer error");
 }
 
 void platform_init(void)
 {
 	uint32_t err_code;
-	uint8_t rnd_seed;
+	uint8_t rnd_seed = 0;
 	int i = 0;
+	static ipv6_medium_init_params_t ipv6_medium_init_params;
+	eui48_t ipv6_medium_eui48;
 
 	app_trace_init();
-	timers_init();
-	ble_stack_init();
-	advertising_init();
-	ip_stack_init();
 	scheduler_init();
+	timers_init();
+	iot_timer_init();
+
+	memset(&ipv6_medium_init_params, 0x00, sizeof(ipv6_medium_init_params));
+	ipv6_medium_init_params.ipv6_medium_evt_handler    = on_ipv6_medium_evt;
+	ipv6_medium_init_params.ipv6_medium_error_handler  = on_ipv6_medium_error;
+	ipv6_medium_init_params.use_scheduler              = true;
+
+	err_code = ipv6_medium_init(&ipv6_medium_init_params, IPV6_MEDIUM_ID_BLE, &m_ipv6_medium);
+	APP_ERROR_CHECK(err_code);
+
+	err_code = ipv6_medium_eui48_get(m_ipv6_medium.ipv6_medium_instance_id, &ipv6_medium_eui48);
+
+	ipv6_medium_eui48.identifier[EUI_48_SIZE - 1] = 0x00;
+
+	err_code = ipv6_medium_eui48_set(m_ipv6_medium.ipv6_medium_instance_id, &ipv6_medium_eui48);
+	APP_ERROR_CHECK(err_code);
+
+	ip_stack_init();
+
+	connectable_mode_enter();
 
 	for (i = 0; i < MAX_GPIOS; i++)
 		m_gpios[i] = NULL;
+
 	do {
 		err_code = sd_rand_application_vector_get(&rnd_seed, 1);
 	} while (err_code == NRF_ERROR_SOC_RAND_NOT_ENOUGH_VALUES);
 	srand(rnd_seed);
 
-	log_debug("Init done");
+	log("Platform initialized");
 }
 
 result_t platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
 {
 	uint32_t err_code;
 
-	advertising_start();
-
 	while (1) {
 		app_sched_execute();
 		err_code = sd_app_evt_wait();
-		if (err_code != NRF_SUCCESS)
-			log_error("sd_app_evt_wait failed");
+		APP_ERROR_CHECK(err_code);
 	}
-
-	return SUCCESS;
-}
-
-result_t platform_mem_init(void)
-{
-	uint32_t err_code;
-
-	err_code = nrf51_sdk_mem_init();
-	APP_ERROR_CHECK(err_code);
 
 	return SUCCESS;
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)
 {
-	/* TODO: Use SDKs memory pool
-	uint32_t res = 0, size_alloc = size;
-
-	res = nrf51_sdk_mem_alloc((uint8_t **)buffer, &size_alloc);
-	if (res == NRF_ERROR_INVALID_PARAM) {
-		log_error("Invalid param");
-		return FAIL;
-	} else if (res == NRF_ERROR_NO_MEM) {
-		log_error("No memory");
-		return FAIL;
-	}
-	*/
+	// TODO: Create or use NRF SDKs memory pool
 	*buffer = malloc(size);
 	if (*buffer == NULL) {
 		log_error("Failed to allocate '%ld'", (unsigned long)size);
@@ -313,10 +275,7 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 
 void platform_mem_free(void *buffer)
 {
-	/* TODO: Use SDKs memory pool
-	if (nrf51_sdk_mem_free((uint8_t *)buffer) != NRF_SUCCESS)
-		log_error("Failed to free buffer");
-	*/
+	// TODO: Create or use NRF SDKs memory pool
 	free(buffer);
 }
 
