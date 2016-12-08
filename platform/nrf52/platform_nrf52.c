@@ -47,6 +47,7 @@ APP_TIMER_DEF(m_calvin_inittimer_id);
 eui64_t                                     eui64_local_iid;
 static ipv6_medium_instance_t               m_ipv6_medium;
 static calvin_gpio_t                        *m_gpios[MAX_GPIOS];
+static char                                 m_mac[20]; // MAC address of connected peer
 
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
 {
@@ -111,7 +112,7 @@ static void calvin_inittimer_callback(void *p_context)
 {
 	UNUSED_VARIABLE(p_context);
 	log("Executing calvin init timer");
-	if (node_start(NULL, "2001:db8::1", 5000) != SUCCESS) {
+	if (node_start(NULL, m_mac, 5000) != SUCCESS) {
 		log_error("Failed to start node");
 		start_calvin_inittimer();
 	}
@@ -184,7 +185,8 @@ static void on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt)
 	switch (p_ipv6_medium_evt->ipv6_medium_evt_id) {
 	case IPV6_MEDIUM_EVT_CONN_UP:
 	{
-		log_debug("Physical layer connected");
+		log("Physical layer connected mac: %s", p_ipv6_medium_evt->mac);
+		strncpy(m_mac, p_ipv6_medium_evt->mac, strlen(p_ipv6_medium_evt->mac));
 		break;
 	}
 	case IPV6_MEDIUM_EVT_CONN_DOWN:

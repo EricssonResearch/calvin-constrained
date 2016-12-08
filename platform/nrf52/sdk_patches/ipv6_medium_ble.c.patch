@@ -1,0 +1,17 @@
+--- components/iot/medium/ipv6_medium_ble.c	2016-12-08 09:53:14.029187446 +0100
++++ components/iot/medium/ipv6_medium_ble.cMOD	2016-12-08 09:53:06.057107595 +0100
+@@ -212,6 +212,14 @@
+             ipv6_medium_evt.ipv6_medium_evt_id = IPV6_MEDIUM_EVT_CONN_UP;
+             do_notify_event = true;
+ 
++            sprintf(ipv6_medium_evt.mac, "%02x:%02x:%02x:%02x:%02x:%02x",
++                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[5],
++                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[4],
++                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[3],
++                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[2],
++                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[1],
++                p_ble_evt->evt.gap_evt.params.connected.peer_addr.addr[0]);
++
+             break;
+         }
+         case BLE_GAP_EVT_DISCONNECTED:

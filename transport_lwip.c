@@ -26,12 +26,24 @@
 
 static transport_client_t m_client;
 
-// iface is the MAC address, convert it to a ipv6 link-local address.
-result_t transport_discover_proxy(const char *iface, char *ip, int *port)
+result_t transport_mac_to_link_local(const char *mac, char *ip)
 {
-//	strncpy(ip, "fe80::ba27:ebff:fefa:1c06", strlen("fe80::ba27:ebff:fefa:1c06"));
-	strncpy(ip, "2001:db8::1", strlen("2001:db8::1"));
-	*port = 5000;
+	long col1, col2, col3, col4, col5, col6;
+
+	log("Converting mac '%s'", mac);
+
+	col1 = (unsigned char)strtol(mac, NULL, 16);
+	col1 ^= 1 << 1;
+	col2 = (unsigned char)strtol(mac + 3, NULL, 16);
+	col3 = (unsigned char)strtol(mac + 6, NULL, 16);
+	col4 = (unsigned char)strtol(mac + 9, NULL, 16);
+	col5 = (unsigned char)strtol(mac + 12, NULL, 16);
+	col6 = (unsigned char)strtol(mac + 15, NULL, 16);
+
+	sprintf(ip,
+		"fe80::%02lx%02lx:%02lxff:fe%02lx:%02lx%02lx",
+		col1, col2, col3, col4, col5, col6);
+
 	return SUCCESS;
 }
 
@@ -207,13 +219,13 @@ result_t transport_start(const char *ssdp_iface, const char *proxy_iface, const 
 	char ip[40];
 	int port = 0;
 
-	if (transport_discover_proxy(ssdp_iface, ip, &port) != SUCCESS) {
-		log_error("No proxy found");
+	if (transport_mac_to_link_local(proxy_iface, ip) != SUCCESS) {
+		log_error("Failed to convert MAC address");
 		return FAIL;
 	}
 
 	if (ip6addr_aton(ip, &ipv6_addr) != 1) {
-		log_error("Failed to convert address");
+		log_error("Failed to convert IP address");
 		return FAIL;
 	}
 
@@ -226,13 +238,13 @@ result_t transport_start(const char *ssdp_iface, const char *proxy_iface, const 
 	m_client.tx_buffer.pos = 0;
 	m_client.tx_buffer.size = 0;
 
-	err = tcp_connect_ip6(m_client.tcp_port, &ipv6_addr, port, transport_connection_callback);
+	err = tcp_connect_ip6(m_client.tcp_port, &ipv6_addr, proxy_port, transport_connection_callback);
 	if (err != ERR_OK) {
 		log_error("Failed to connect socket");
 		return FAIL;
 	}
 
-	log_debug("TCP connection requested to %s:%d.", proxy_iface, port);
+	log("TCP connection requested to %s:%d.", ip, proxy_port);
 
 	return SUCCESS;
 }

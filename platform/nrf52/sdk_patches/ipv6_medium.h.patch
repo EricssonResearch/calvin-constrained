@@ -1,0 +1,10 @@
+--- components/iot/medium/ipv6_medium.h	2016-12-08 09:55:53.462784084 +0100
++++ components/iot/medium/ipv6_medium.hMOD	2016-12-08 09:55:46.138710750 +0100
+@@ -65,6 +65,7 @@
+     ipv6_medium_instance_t        ipv6_medium_instance_id;
+     uint8_t                       ipv6_medium_evt_id;
+     ipv6_medium_cb_params_union_t medium_specific;
++    char mac[20];
+ } ipv6_medium_evt_t;
+ 
+ /**@brief Type of IPv6 medium error parameters. */
