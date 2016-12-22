@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTORS_H
-#define ACTORS_H
+#ifndef ACTOR_H
+#define ACTOR_H
 
 #include <stdbool.h>
 #include "common.h"
@@ -39,18 +39,17 @@ typedef struct actor_t {
 	void *instance_state;
 	list_t *in_ports;
 	list_t *out_ports;
-	result_t (*init)(struct actor_t **actor, char *obj_actor_state);
-	result_t (*set_state)(struct actor_t **actor, char *obj_actor_state);
+	list_t *attributes;
+	result_t (*init)(struct actor_t **actor, list_t *attributes);
+	result_t (*set_state)(struct actor_t **actor, list_t *attributes);
 	result_t (*fire)(struct actor_t *actor);
 	void (*free_state)(struct actor_t *actor);
-	char *(*serialize_state)(struct actor_t *actor, char **buffer);
-	list_t *(*get_managed_attributes)(struct actor_t *actor);
+	result_t (*get_managed_attributes)(struct actor_t *actor, list_t **attributes);
 } actor_t;
 
+result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len);
 actor_t *actor_create(struct node_t *node, char *root);
 void actor_free(struct node_t *node, actor_t *actor);
-void actor_free_managed(list_t *managed_attributes);
-result_t actor_get_managed(char *obj_actor_state, list_t **managed_attributes);
 actor_t *actor_get(struct node_t *node, const char *actor_id, uint32_t actor_id_len);
 void actor_port_enabled(actor_t *actor);
 void actor_delete(actor_t *actor);
@@ -59,4 +58,4 @@ char *actor_serialize_managed_list(list_t *managed_attributes, char **buffer);
 char *actor_serialize(const actor_t *actor, char **buffer);
 result_t actor_transmit(struct node_t *node, actor_t *actor);
 
-#endif /* ACTORS_H */
+#endif /* ACTOR_H */

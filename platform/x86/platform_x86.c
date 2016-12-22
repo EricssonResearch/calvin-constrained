@@ -36,8 +36,9 @@ void platform_init(void)
 
 	srand(time(NULL));
 
-	for (i = 0; i < MAX_GPIOS; i++)
+	for (i = 0; i < MAX_GPIOS; i++) {
 		m_gpios[i] = NULL;
+	}
 }
 
 #ifdef LWM2M_HTTP_CLIENT
@@ -90,12 +91,12 @@ calvin_gpio_t *platform_create_in_gpio(uint32_t pin, char pull, char edge)
 	int i = 0;
 
 	if (pull != 'u' && pull != 'd') {
-		log_error("Unsupported pull direction");
+		log_error("Unsupported pull direction '%c'", pull);
 		return NULL;
 	}
 
 	if (edge != 'r' && edge != 'f' && edge != 'b') {
-		log_error("Unsupported edge");
+		log_error("Unsupported edge '%c'", edge);
 		return NULL;
 	}
 
@@ -107,7 +108,7 @@ calvin_gpio_t *platform_create_in_gpio(uint32_t pin, char pull, char edge)
 			}
 
 			m_gpios[i]->pin = pin;
-			m_gpios[i]->has_triggered = true;
+			m_gpios[i]->has_triggered = false;
 			return m_gpios[i];
 		}
 	}
@@ -140,18 +141,19 @@ void platform_uninit_gpio(calvin_gpio_t *gpio)
 
 	for (i = 0; i < MAX_GPIOS; i++) {
 		if (m_gpios[i] != NULL && m_gpios[i]->pin == gpio->pin) {
-			free(m_gpios[i]);
 			m_gpios[i] = NULL;
 			break;
 		}
 	}
 
-	free(gpio);
+	log("Freeing gpio '%d'", gpio->pin);
+	platform_mem_free((void *)gpio);
 }
 
 void platform_set_gpio(calvin_gpio_t *gpio, uint32_t value)
 {
-	log("Setting gpio");
+	log("Setting gpio pin '%d' '%d'", gpio->pin, value);
+	gpio->value = value;
 }
 
 result_t platform_get_temperature(double *temp)

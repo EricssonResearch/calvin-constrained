@@ -21,31 +21,6 @@
 #include "../platform.h"
 #include "../port.h"
 
-result_t actor_temperature_init(actor_t **actor, char *obj_actor_state)
-{
-	state_temperature_t *state = NULL;
-
-	if (platform_mem_alloc((void **)&state, sizeof(state_temperature_t)) != SUCCESS) {
-	    log_error("Failed to allocate memory");
-	    return FAIL;
-	}
-
-	state->managed_attributes = NULL;
-	if (actor_get_managed(obj_actor_state, &state->managed_attributes) != SUCCESS) {
-	    platform_mem_free((void *)state);
-	    return FAIL;
-	}
-
-	(*actor)->instance_state = (void *)state;
-
-	return SUCCESS;
-}
-
-result_t actor_temperature_set_state(actor_t **actor, char *obj_actor_state)
-{
-	return actor_temperature_init(actor, obj_actor_state);
-}
-
 result_t actor_temperature_fire(struct actor_t *actor)
 {
 	token_t *in_token = NULL, out_token;
@@ -94,32 +69,4 @@ result_t actor_temperature_fire(struct actor_t *actor)
 		return SUCCESS;
 
 	return FAIL;
-}
-
-void actor_temperature_free(actor_t *actor)
-{
-	state_temperature_t *state = (state_temperature_t *)actor->instance_state;
-
-	if (state != NULL) {
-	    actor_free_managed(state->managed_attributes);
-	    platform_mem_free((void *)state);
-	}
-}
-
-char *actor_temperature_serialize(actor_t *actor, char **buffer)
-{
-    state_temperature_t *state = (state_temperature_t *)actor->instance_state;
-
-    *buffer = actor_serialize_managed_list(state->managed_attributes, buffer);
- 
-    return *buffer;
-}
-
-list_t *actor_temperature_get_managed_attributes(actor_t *actor)
-{
-	state_temperature_t *state = NULL;
-
-	state = (state_temperature_t *)actor->instance_state;
-	
-	return state->managed_attributes;
 }

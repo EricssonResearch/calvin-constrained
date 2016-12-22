@@ -13,19 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_IDENTITY_H
-#define ACTOR_IDENTITY_H
 
-#include "../actor.h"
+#ifndef MPY_PORT_H
+#define MPY_PORT_H
 
-typedef struct state_identity_t {
-	bool dump;
-} state_identity_t;
+void mpy_port_init(void);
 
-result_t actor_identity_init(actor_t **actor, list_t *attributes);
-result_t actor_identity_set_state(actor_t **actor, list_t *attributes);
-result_t actor_identity_fire(actor_t *actor);
-void actor_identity_free(actor_t *actor);
-result_t actor_identity_get_managed_attributes(actor_t *actor, list_t **attributes);
-
-#endif /* ACTOR_IDENTITY_H */
+#endif /* MPY_PORT_H */

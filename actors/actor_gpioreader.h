@@ -21,18 +21,16 @@
 #include "../platform.h"
 
 typedef struct state_gpioreader_t {
-    calvin_gpio_t *gpio;
-    uint32_t pin;
-    char pull[1];
-    char edge[1];
-    list_t *managed_attributes;
+	calvin_gpio_t *gpio;
+	uint32_t pin;
+	char pull;
+	char edge;
 } state_gpioreader_t;
 
-result_t actor_gpioreader_init(actor_t **actor, char *obj_actor_state);
-result_t actor_gpioreader_set_state(actor_t **actor, char *obj_actor_state);
+result_t actor_gpioreader_init(actor_t **actor, list_t *attributes);
+result_t actor_gpioreader_set_state(actor_t **actor, list_t *attributes);
 result_t actor_gpioreader_fire(actor_t *actor);
 void actor_gpioreader_free(actor_t *actor);
-char *actor_gpioreader_serialize(actor_t *actor, char **buffer);
-list_t *actor_gpioreader_get_managed_attributes(actor_t *actor);
+result_t actor_gpioreader_get_managed_attributes(actor_t *actor, list_t **attributes);
 
 #endif /* ACTOR_GPIOREADER_H */

@@ -20,6 +20,12 @@
 #include "platform.h"
 #include "proto.h"
 #include "msgpack_helper.h"
+#ifdef MICROPYTHON
+#include "py/gc.h"
+#endif
+
+#define SERIALIZER "msgpack"
+#define SCHEMA "calvinip"
 
 static node_t m_node;
 
@@ -337,7 +343,10 @@ void node_loop_once(void)
 			actor = (actor_t *)tmp_list->data;
 			if (actor->state == ACTOR_ENABLED) {
 				if (actor->fire(actor) == SUCCESS)
-					log_debug("Fired '%s'!", actor->name);
+					log("Fired '%s'", actor->name);
+#ifdef MICROPYTHON
+				gc_collect();
+#endif
 			}
 			tmp_list = tmp_list->next;
 		}

@@ -305,21 +305,21 @@ result_t transport_send(size_t len)
 result_t transport_select(uint32_t timeout)
 {
 	result_t result = SUCCESS;
-	fd_set fd_set;
+	fd_set fd_set1;
 	int max_fd = 0, status = 0, read_pos = 0;
 	size_t msg_size = 0;
 	char buffer[BUFFER_SIZE];
 	struct timeval tv = {timeout, 0};
 
-	FD_ZERO(&fd_set);
+	FD_ZERO(&fd_set1);
 
 	if (m_client.state != TRANSPORT_DISCONNECTED) {
-		FD_SET(m_client.fd, &fd_set);
+		FD_SET(m_client.fd, &fd_set1);
 		if (m_client.fd > max_fd)
 			max_fd = m_client.fd;
 	}
 
-	if (select(max_fd + 1, &fd_set, NULL, NULL, &tv) < 0) {
+	if (select(max_fd + 1, &fd_set1, NULL, NULL, &tv) < 0) {
 		log_error("ERROR on select");
 		return FAIL;
 	}

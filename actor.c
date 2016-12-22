@@ -27,17 +27,19 @@
 #include "msgpack_helper.h"
 #include "msgpuck/msgpuck.h"
 #include "proto.h"
+#ifdef MICROPYTHON
+#include "actors/actor_mpy.h"
+#endif
 
 #define NBR_OF_ACTOR_TYPES 4
 
 struct actor_type_t {
 	char type[50];
-	result_t (*init)(actor_t **actor, char *obj_actor_state);
-	result_t (*set_state)(actor_t **actor, char *obj_actor_state);
+	result_t (*init)(actor_t **actor, list_t *attributes);
+	result_t (*set_state)(actor_t **actor, list_t *attributes);
 	void (*free_state)(actor_t *actor);
 	result_t (*fire_actor)(actor_t *actor);
-	char *(*serialize_state)(actor_t *actor, char **buffer);
-	list_t *(*get_managed_attributes)(actor_t *actor);
+	result_t (*get_managed_attributes)(actor_t *actor, list_t **attributes);
 };
 
 const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
@@ -47,7 +49,6 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		actor_identity_set_state,
 		actor_identity_free,
 		actor_identity_fire,
-		actor_identity_serialize,
 		actor_identity_get_managed_attributes
 	},
 	{
@@ -56,7 +57,6 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		actor_gpioreader_set_state,
 		actor_gpioreader_free,
 		actor_gpioreader_fire,
-		actor_gpioreader_serialize,
 		actor_gpioreader_get_managed_attributes
 	},
 	{
@@ -65,17 +65,15 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		actor_gpiowriter_set_state,
 		actor_gpiowriter_free,
 		actor_gpiowriter_fire,
-		actor_gpiowriter_serialize,
 		actor_gpiowriter_get_managed_attributes
 	},
 	{
 		"sensor.Temperature",
-		actor_temperature_init,
-		actor_temperature_set_state,
-		actor_temperature_free,
+		NULL,
+		NULL,
+		NULL,
 		actor_temperature_fire,
-		actor_temperature_serialize,
-		actor_temperature_get_managed_attributes
+		NULL
 	}
 };
 
@@ -125,23 +123,32 @@ static result_t actor_set_reply_handler(char *data, void *msg_data)
 	return SUCCESS;
 }
 
-static result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
+result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 {
 	int i = 0;
 
+	strncpy(actor->type, type, type_len);
+	actor->state = ACTOR_PENDING;
+	actor->in_ports = NULL;
+	actor->out_ports = NULL;
+	actor->instance_state = NULL;
+	actor->attributes = NULL;
+
+#ifdef MICROPYTHON
+	if (actor_mpy_init_from_type(actor, actor->type, type_len) == SUCCESS) {
+		log("Initialized python actor '%.*s'", (int)type_len, type);
+		return SUCCESS;
+	}
+#endif
+
 	for (i = 0; i < NBR_OF_ACTOR_TYPES; i++) {
 		if (strncmp(type, actor_types[i].type, type_len) == 0) {
-			strncpy(actor->type, type, type_len);
-			actor->state = ACTOR_PENDING;
-			actor->in_ports = NULL;
-			actor->out_ports = NULL;
-			actor->instance_state = NULL;
 			actor->init = actor_types[i].init;
 			actor->set_state = actor_types[i].set_state;
 			actor->free_state = actor_types[i].free_state;
 			actor->fire = actor_types[i].fire_actor;
-			actor->serialize_state = actor_types[i].serialize_state;
 			actor->get_managed_attributes = actor_types[i].get_managed_attributes;
+			log("Initialized actor '%.*s'", (int)type_len, type);
 			return SUCCESS;
 		}
 	}
@@ -151,7 +158,7 @@ static result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_l
 	return FAIL;
 }
 
-void actor_free_managed(list_t *managed_attributes)
+static void actor_free_managed(list_t *managed_attributes)
 {
 	list_t *tmp_list = NULL;
 
@@ -164,28 +171,27 @@ void actor_free_managed(list_t *managed_attributes)
 	}
 }
 
-result_t actor_get_managed(char *obj_actor_state, list_t **managed_attributes)
+static result_t actor_get_managed(char *obj_attributes, char *obj_actor_state, list_t **attributes, list_t **instance_attributes)
 {
 	result_t result = SUCCESS;
-	char *obj_managed = NULL, *obj_attribute_value = NULL, *attribute_name = NULL, *tmp_string = NULL, *attribute_value = NULL;
+	char *obj_attribute_value = NULL, *attribute_name = NULL, *attribute_value = NULL, *tmp_string = NULL;
 	uint32_t len = 0, array_size = 0, i_managed_attr = 0;
 
-	if (get_value_from_map(obj_actor_state, "_managed", &obj_managed) != SUCCESS)
-		return FAIL;
-
-	array_size = get_size_of_array(obj_managed);
+	array_size = get_size_of_array(obj_attributes);
 	for (i_managed_attr = 0; i_managed_attr < array_size && result == SUCCESS; i_managed_attr++) {
-		result = decode_string_from_array(obj_managed, i_managed_attr, &tmp_string, &len);
+		result = decode_string_from_array(obj_attributes, i_managed_attr, &tmp_string, &len);
 		if (result == SUCCESS) {
+			if (strncmp(tmp_string, "_id", 3) == 0 || strncmp(tmp_string, "_name", 5) == 0 || strncmp(tmp_string, "_shadow_args", 12) == 0)
+				continue;
+
 			attribute_name = NULL;
 			attribute_value = NULL;
-			if (strncmp(tmp_string, "_shadow_args", strlen("_shadow_args")) == 0)
-				continue;
 
 			if (platform_mem_alloc((void **)&attribute_name, len + 1) != SUCCESS) {
 				log_error("Failed to allocate memory");
 				return FAIL;
 			}
+
 			strncpy(attribute_name, tmp_string, len);
 			attribute_name[len] = '\0';
 
@@ -203,28 +209,75 @@ result_t actor_get_managed(char *obj_actor_state, list_t **managed_attributes)
 			}
 			memcpy(attribute_value, obj_attribute_value, len);
 
-			result = list_add(managed_attributes, attribute_name, attribute_value, len);
+			if (attribute_name[0] == '_')
+				result = list_add(attributes, attribute_name, attribute_value, len);
+			else
+				result = list_add(instance_attributes, attribute_name, attribute_value, len);
 		}
 	}
 
 	if (result != SUCCESS) {
-		actor_free_managed(*managed_attributes);
-		*managed_attributes = NULL;
+		actor_free_managed(*instance_attributes);
+		*instance_attributes = NULL;
 	}
 
 	return result;
+}
+
+static result_t actor_get_shadow_args(char *obj_shadow_args, list_t **instance_attributes)
+{
+	char *attributes = obj_shadow_args, *attribute_name = NULL, *attribute_value = NULL, *tmp = NULL;
+	uint32_t i_attribute = 0, nbr_attributes = 0, len = 0;
+
+	nbr_attributes = mp_decode_map((const char **)&attributes);
+	for (i_attribute = 0; i_attribute < nbr_attributes; i_attribute++) {
+		attribute_name = NULL;
+		attribute_value = NULL;
+
+		if (decode_str(attributes, &tmp, &len) != SUCCESS)
+			return FAIL;
+
+		if (platform_mem_alloc((void **)&attribute_name, len + 1) != SUCCESS) {
+			log_error("Failed to allocate memory");
+			return FAIL;
+		}
+
+		strncpy(attribute_name, tmp, len);
+		attribute_name[len] = '\0';
+
+		mp_next((const char **)&attributes);
+
+		len = get_size_of_value(attributes);
+		if (platform_mem_alloc((void **)&attribute_value, len) != SUCCESS) {
+			log_error("Failed to allocate memory");
+			platform_mem_free((void *)attribute_name);
+			return FAIL;
+		}
+		memcpy(attribute_value, attributes, len);
+
+		if (list_add(instance_attributes, attribute_name, attribute_value, len) != SUCCESS) {
+			platform_mem_free((void *)attribute_name);
+			platform_mem_free((void *)attribute_value);
+			return FAIL;
+		}
+
+		mp_next((const char **)&attributes);
+	}
+
+	return SUCCESS;
 }
 
 static result_t actor_create_ports(node_t *node, actor_t *actor, char *obj_ports, char *obj_prev_connections, port_direction_t direction)
 {
 	result_t result = SUCCESS;
 	char *ports = obj_ports, *prev_connections = obj_prev_connections;
-	uint32_t map_size = 0, i_port = 0;
+	uint32_t nbr_ports = 0, i_port = 0, nbr_keys = 0, i_key = 0;
 	port_t *port = NULL;
 
-	map_size = mp_decode_map((const char **)&ports);
-	for (i_port = 0; i_port < map_size && result == SUCCESS; i_port++) {
+	nbr_ports = mp_decode_map((const char **)&ports);
+	for (i_port = 0; i_port < nbr_ports && result == SUCCESS; i_port++) {
 		mp_next((const char **)&ports);
+
 		if (direction == PORT_DIRECTION_IN)
 			port = port_create(node, actor, ports, prev_connections, PORT_DIRECTION_IN);
 		else
@@ -237,6 +290,12 @@ static result_t actor_create_ports(node_t *node, actor_t *actor, char *obj_ports
 			result = list_add(&actor->in_ports, port->port_id, (void *)port, sizeof(port_t));
 		else
 			result = list_add(&actor->out_ports, port->port_id, (void *)port, sizeof(port_t));
+
+		nbr_keys = mp_decode_map((const char **)&ports);
+		for (i_key = 0; i_key < nbr_keys; i_key++) {
+			mp_next((const char **)&ports);
+			mp_next((const char **)&ports);
+		}
 	}
 
 	return result;
@@ -246,8 +305,9 @@ actor_t *actor_create(node_t *node, char *root)
 {
 	actor_t *actor = NULL;
 	char *type = NULL, *obj_state = NULL, *obj_actor_state = NULL, *obj_prev_connections = NULL;
-	char *obj_ports = NULL, *r = root, *id = NULL, *name = NULL;
+	char *obj_ports = NULL, *obj_managed = NULL, *obj_shadow_args = NULL, *r = root, *id = NULL, *name = NULL;
 	uint32_t type_len = 0, id_len = 0, name_len = 0;
+	list_t *instance_attributes = NULL;
 
 	if (platform_mem_alloc((void **)&actor, sizeof(actor_t)) != SUCCESS) {
 		log_error("Failed to allocate memory");
@@ -317,17 +377,46 @@ actor_t *actor_create(node_t *node, char *root)
 		return NULL;
 	}
 
+	if (get_value_from_map(obj_actor_state, "_managed", &obj_managed) != SUCCESS) {
+		actor_free(node, actor);
+		return NULL;
+	}
+
+	if (actor_get_managed(obj_managed, obj_actor_state, &actor->attributes, &instance_attributes) != SUCCESS) {
+		actor_free(node, actor);
+		return NULL;
+	}
+
 	if (has_key(obj_actor_state, "_shadow_args")) {
-		if (actor->init(&actor, obj_actor_state) != SUCCESS) {
-			actor_free(node, actor);
-			return NULL;
+		if (actor->init != NULL) {
+			if (get_value_from_map(obj_actor_state, "_shadow_args", &obj_shadow_args) != SUCCESS) {
+				actor_free(node, actor);
+				return NULL;
+			}
+
+			if (actor_get_shadow_args(obj_shadow_args, &instance_attributes) != SUCCESS) {
+				actor_free(node, actor);
+				return NULL;
+			}
+
+			if (actor->init(&actor, instance_attributes) != SUCCESS) {
+				actor_free_managed(instance_attributes);
+				actor_free(node, actor);
+				return NULL;
+			}
 		}
 	} else {
-		if (actor->set_state(&actor, obj_actor_state) != SUCCESS) {
+		if (actor->set_state != NULL && actor->set_state(&actor, instance_attributes) != SUCCESS) {
+			actor_free_managed(instance_attributes);
 			actor_free(node, actor);
 			return NULL;
 		}
 	}
+
+	// attributes should now be handled by the instance
+	actor_free_managed(instance_attributes);
+
+	log("Actor '%s' created", actor->name);
 
 	return actor;
 }
@@ -336,7 +425,7 @@ void actor_free(node_t *node, actor_t *actor)
 {
 	list_t *list = NULL, *tmp_list = NULL;
 
-	log_debug("Freeing actor '%s'", actor->name);
+	log("Deleting actor '%s'", actor->name);
 
 	if (actor->instance_state != NULL && actor->free_state != NULL)
 		actor->free_state(actor);
@@ -358,6 +447,7 @@ void actor_free(node_t *node, actor_t *actor)
 	}
 
 	list_remove(&node->actors, actor->id);
+	actor_free_managed(actor->attributes);
 	platform_mem_free((void *)actor);
 	actor = NULL;
 }
@@ -416,18 +506,6 @@ void actor_delete(actor_t *actor)
 	}
 }
 
-char *actor_serialize_managed_list(list_t *managed_attributes, char **buffer)
-{
-	list_t *list = managed_attributes;
-
-	while (list != NULL) {
-		*buffer = encode_value(buffer, list->id, list->data, list->data_len);
-		list = list->next;
-	}
-
-	return *buffer;
-}
-
 result_t actor_migrate(actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len)
 {
 	strncpy(actor->migrate_to, to_rt_uuid, to_rt_uuid_len);
@@ -438,12 +516,19 @@ result_t actor_migrate(actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len
 char *actor_serialize(const actor_t *actor, char **buffer)
 {
 	list_t *in_ports = NULL, *out_ports = NULL;
-	list_t *managed_attributes = NULL;
+	list_t *instance_attributes = NULL, *tmp_list = NULL;
 	port_t *port = NULL;
 	int nbr_inports = 0, nbr_outports = 0, i_token = 0, nbr_managed_attributes = 0;
 
-	managed_attributes = actor->get_managed_attributes((actor_t *)actor);
-	nbr_managed_attributes = list_count(managed_attributes);
+	if (actor->get_managed_attributes != NULL) {
+		if (actor->get_managed_attributes((actor_t *)actor, &instance_attributes) != SUCCESS)
+			log_error("Failed to get instance attributes");
+	}
+
+	nbr_managed_attributes = 2; // _id/_name
+	nbr_managed_attributes += list_count(actor->attributes);
+	if (instance_attributes != NULL)
+		nbr_managed_attributes += list_count(instance_attributes);
 	in_ports = actor->in_ports;
 	nbr_inports = list_count(in_ports);
 	out_ports = actor->out_ports;
@@ -485,16 +570,42 @@ char *actor_serialize(const actor_t *actor, char **buffer)
 			{
 				*buffer = mp_encode_str(*buffer, actor->id, strlen(actor->id));
 			}
+
 			*buffer = encode_array(buffer, "_managed", nbr_managed_attributes);
 			{
-				while (managed_attributes != NULL) {
-					*buffer = mp_encode_str(*buffer, managed_attributes->id, strlen(managed_attributes->id));
-					managed_attributes = managed_attributes->next;
+				*buffer = mp_encode_str(*buffer, "_id", 3);
+				*buffer = mp_encode_str(*buffer, "_name", 5);
+
+				tmp_list = actor->attributes;
+				while (tmp_list != NULL) {
+					*buffer = mp_encode_str(*buffer, tmp_list->id, strlen(tmp_list->id));
+					tmp_list = tmp_list->next;
+				}
+
+				tmp_list = instance_attributes;
+				while (tmp_list != NULL) {
+					*buffer = mp_encode_str(*buffer, tmp_list->id, strlen(tmp_list->id));
+					tmp_list = tmp_list->next;
 				}
 			}
 
-			if (actor->serialize_state != NULL)
-				*buffer = actor->serialize_state((actor_t *)actor, buffer);
+			{
+				*buffer = encode_str(buffer, "_id", actor->id, strlen(actor->id));
+				*buffer = encode_str(buffer, "_name", actor->name, strlen(actor->name));
+
+				tmp_list = actor->attributes;
+				while (tmp_list != NULL) {
+					*buffer = encode_value(buffer, tmp_list->id, tmp_list->data, tmp_list->data_len);
+					tmp_list = tmp_list->next;
+				}
+
+				tmp_list = instance_attributes;
+				while (tmp_list != NULL) {
+					*buffer = encode_value(buffer, tmp_list->id, tmp_list->data, tmp_list->data_len);
+					tmp_list = tmp_list->next;
+				}
+				actor_free_managed(instance_attributes);
+			}
 
 			*buffer = encode_map(buffer, "inports", nbr_inports);
 			{
@@ -546,7 +657,7 @@ char *actor_serialize(const actor_t *actor, char **buffer)
 					port = (port_t *)out_ports->data;
 					*buffer = encode_map(buffer, port->port_name, 4);
 					{
-						*buffer = encode_str(buffer, "id", port->port_id, 2);
+						*buffer = encode_str(buffer, "id", port->port_id, strlen(port->port_id));
 						*buffer = encode_str(buffer, "name", port->port_name, strlen(port->port_name));
 						*buffer = encode_map(buffer, "queue", 7);
 						{

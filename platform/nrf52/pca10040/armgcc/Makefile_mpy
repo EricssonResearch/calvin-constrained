@@ -1,6 +1,9 @@
-PROJECT_NAME := calvin_c
+PROJECT_NAME := calvin_c_mpy
 
 SDK_PATH = $(NORDIC_SDK_PATH)
+
+#define the location where the micropython library is located (relative to here)
+MP_LIB_DIR = libmpy
 
 export OUTPUT_FILENAME
 
@@ -34,8 +37,11 @@ OBJDUMP         := '$(GNU_INSTALL_ROOT)/bin/$(GNU_PREFIX)-objdump'
 OBJCOPY         := '$(GNU_INSTALL_ROOT)/bin/$(GNU_PREFIX)-objcopy'
 SIZE            := '$(GNU_INSTALL_ROOT)/bin/$(GNU_PREFIX)-size'
 
+
 #function for removing duplicates in a list
 remduplicates = $(strip $(if $1,$(firstword $1) $(call remduplicates,$(filter-out $(firstword $1),$1))))
+
+MPY_SRC_C = actors/actor_mpy.c $(addprefix libmpy/, calvin_mpy_port.c calvin_mpy_gpiohandler.c calvin_mpy_environmental.c)
 
 #source common to all targets
 C_SOURCE_FILES += \
@@ -83,6 +89,7 @@ $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/uart/nrf_drv_uart.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/pstorage/pstorage.c) \
 $(abspath $(NORDIC_SDK_PATH)/examples/bsp/bsp.c) \
 $(abspath main.c) \
+$(MPY_SRC_C) \
 $(abspath platform/nrf52/platform_nrf52.c) \
 $(abspath common.c) \
 $(abspath node.c) \
@@ -114,14 +121,22 @@ $(abspath $(NORDIC_SDK_PATH)/components/iot/medium/commissioning/commissioning.c
 $(abspath $(NORDIC_SDK_PATH)/components/softdevice/common/softdevice_handler/softdevice_handler.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/softdevice/common/softdevice_handler/softdevice_handler_appsh.c) \
 
+
 #assembly files common to all targets
 ASM_SOURCE_FILES  = $(abspath $(NORDIC_SDK_PATH)/components/toolchain/gcc/gcc_startup_nrf52.s)
 
 #assembly files common to all targets
 LIBS  = $(abspath $(NORDIC_SDK_PATH)/components/iot/ble_6lowpan/lib/ble_6lowpan.a)
+# include Micropython library.
+LIBS += libmpy/libmicropython_arm.a -lm
 
 #includes common to all targets
-INC_PATHS  = -I$(abspath platform/nrf52/config)
+#Micropython include paths
+INC_PATHS = -I$(abspath libmpy/build)
+INC_PATHS += -I$(abspath micropython)
+INC_PATHS += -I$(abspath libmpy)
+
+INC_PATHS += -I$(abspath platform/nrf52/config)
 INC_PATHS += -I$(abspath platform/nrf52/pca10040/armgcc)
 INC_PATHS += -I$(abspath msgpuck)
 INC_PATHS += -I$(abspath actors)
@@ -175,7 +190,7 @@ BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY) $(LIS
 #flags common to all targets
 CFLAGS  = -DUSE_LWIP
 #CFLAGS += -DDEBUG
-CFLAGS += -D__HEAP_SIZE=6144
+CFLAGS += -D__HEAP_SIZE=14336
 CFLAGS += -DSWI_DISABLE0
 CFLAGS += -DSOFTDEVICE_PRESENT
 CFLAGS += -DBOARD_PCA10040
@@ -191,6 +206,8 @@ CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # keep every function in separate section. This will allow linker to dump unused functions
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin --short-enums
+# Micropython variables
+CFLAGS += -DMICROPYTHON
 # keep every function in separate section. This will allow linker to dump unused functions
 LDFLAGS += -Xlinker -Map=$(LISTING_DIRECTORY)/$(OUTPUT_FILENAME).map
 LDFLAGS += -mthumb -mabi=aapcs -L $(TEMPLATE_PATH) -T$(LINKER_SCRIPT)
@@ -200,11 +217,11 @@ LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
 LDFLAGS += --specs=nano.specs -lc -lnosys
-
+LDFLAGS += -L$(abspath libmpy)
 # Assembler flags
 ASMFLAGS += -x assembler-with-cpp
-ASMFLAGS += -D__HEAP_SIZE=6144
-ASMFLAGS += -DSWI_DISABLE0
+ASMFLAGS += -D__HEAP_SIZE=14336
+ASMFLAGS += -DSWI_DISAeBLE0
 ASMFLAGS += -DSOFTDEVICE_PRESENT
 ASMFLAGS += -DBOARD_PCA10040
 ASMFLAGS += -DNRF52
@@ -214,7 +231,7 @@ ASMFLAGS += -DBLE_STACK_SUPPORT_REQD
 ASMFLAGS += -Ds1xx
 
 #default target - first one defined
-default: nrf52832_xxaa_s1xx_iot
+default: clean nrf52832_xxaa_s1xx_iot
 
 #building all targets
 all: clean
@@ -242,18 +259,21 @@ OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
 nrf52832_xxaa_s1xx_iot: OUTPUT_FILENAME := nrf52832_xxaa_s1xx_iot
 nrf52832_xxaa_s1xx_iot: LINKER_SCRIPT=platform/nrf52/pca10040/armgcc/iot_lwip_tcp_client_gcc_nrf52.ld
 
-nrf52832_xxaa_s1xx_iot: rename_msgpuck $(BUILD_DIRECTORIES) $(OBJECTS)
+nrf52832_xxaa_s1xx_iot: $(BUILD_DIRECTORIES) -lmicropython_arm $(OBJECTS)
+	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h
 	@echo Linking target: $(OUTPUT_FILENAME).out
 	$(NO_ECHO)$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME).out
 	$(NO_ECHO)$(MAKE) -f $(MAKEFILE_NAME) -e finalize
 
-rename_msgpuck:
-	@echo Renaming msgpuck symbol colliding
-	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h
+
+## Create the Micropython library
+-lmicropython_arm:
+	$(MAKE) libarm -C $(MP_LIB_DIR) #MPY_SRC_C=$(MPY_SRC_C)
+
 
 ## Create build directories
 $(BUILD_DIRECTORIES):
-	@echo $(MAKEFILE_NAME)
+	echo $(MAKEFILE_NAME)
 	$(MK) $@
 
 # Create objects from C SRC files

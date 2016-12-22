@@ -32,6 +32,7 @@ actors/actor_gpiowriter.c \
 actors/actor_temperature.c
 
 c_calvin: $(C_SOURCE_FILES)
+	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h
 	$(CC) -o $(PROJECT_NAME) $(C_SOURCE_FILES) $(CFLAGS)
 
 clean:

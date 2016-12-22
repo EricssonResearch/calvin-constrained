@@ -20,6 +20,9 @@
 #include <string.h>
 #include <getopt.h>
 #endif
+#ifdef MICROPYTHON
+#include "libmpy/calvin_mpy_port.h"
+#endif
 
 int main(int argc, char **argv)
 {
@@ -92,6 +95,14 @@ int main(int argc, char **argv)
 
 	node_create(name, capabilities);
 
+#if defined(PARSE_ARGS) && defined(LWM2M_HTTP_CLIENT)
+	platform_init_lwm2m(lwm2m_iface, lwm2m_port, lwm2m_url);
+#endif
+
+#ifdef MICROPYTHON
+	mpy_port_init();
+#endif
+
 	if (ssdp_iface == NULL && proxy_iface == NULL)
 		ssdp_iface = "0.0.0.0";
 
@@ -100,3 +111,4 @@ int main(int argc, char **argv)
 
 	return 0;
 }
+

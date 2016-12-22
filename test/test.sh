@@ -17,12 +17,27 @@ RT1_PID=$!
 
 # setup and start calvin-constrained
 cd ..
-make -f platform/x86/Makefile
-./calvin_c --name constrained &
-CONSTRAINED_RT_PID=$!
+if [ $# -eq 1 ]
+then
+    if [ $1 == "mpy" ]
+    then
+        make -f platform/x86/Makefile_mpy
+        ./calvin_c_mpy &
+        CONSTRAINED_RT_PID=$!
 
-# run test
-PYTHONPATH=calvin-base py.test -sv test/test.py
+        # run test
+        PYTHONPATH=calvin-base py.test -sv test/test.py
+    else
+        echo "Unknown arg"
+    fi
+else
+    make -f platform/x86/Makefile
+    ./calvin_c &
+    CONSTRAINED_RT_PID=$!
+
+    # run test
+    PYTHONPATH=calvin-base py.test -sv test/test.py
+fi
 
 # clean up
 deactivate

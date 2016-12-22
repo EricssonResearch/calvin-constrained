@@ -32,8 +32,10 @@ result_t fifo_init(fifo_t *fifo, char *obj_fifo)
 	fifo->write_pos = 0;
 	fifo->read_pos = 0;
 	fifo->tentative_read_pos = 0;
-	for (i_token = 0; i_token < MAX_TOKENS; i_token++)
-		memset(&fifo->tokens[i_token], 0, sizeof(token_t));
+	for (i_token = 0; i_token < MAX_TOKENS; i_token++) {
+		fifo->tokens[i_token].value = NULL;
+		fifo->tokens[i_token].size = 0;
+	}
 
 	if (decode_string_from_map(r, "queuetype", &queuetype, &queuetype_len) != SUCCESS)
 		return FAIL;
@@ -103,6 +105,12 @@ result_t fifo_init(fifo_t *fifo, char *obj_fifo)
 
 void fifo_free(fifo_t *fifo)
 {
+	uint32_t i_token = 0;
+
+	if (fifo != NULL) {
+		for (i_token = 0; i_token < fifo->size; i_token++)
+			free_token(&fifo->tokens[i_token]);
+	}
 	fifo->size = 0;
 	fifo->write_pos = 0;
 	fifo->read_pos = 0;
@@ -121,6 +129,7 @@ token_t *fifo_peek(fifo_t *fifo)
 
 void fifo_commit_read(fifo_t *fifo)
 {
+	free_token(&fifo->tokens[fifo->read_pos  % fifo->size]);
 	fifo->read_pos = fifo->tentative_read_pos;
 }
 
@@ -131,13 +140,11 @@ void fifo_cancel_commit(fifo_t *fifo)
 
 bool fifo_slots_available(const fifo_t *fifo, uint32_t length)
 {
-//	log_debug("fifo_slots_available write_pos: %ld read_pos: %ld", (unsigned long)fifo->write_pos, (unsigned long)fifo->read_pos);
 	return (fifo->size - ((fifo->write_pos - fifo->read_pos) % fifo->size) - 1) >= length;
 }
 
 bool fifo_tokens_available(const fifo_t *fifo, uint32_t length)
 {
-//	log_debug("fifo_tokens_available: write_pos: %ld  tentative_read_pos: %ld", (unsigned long)fifo->write_pos, (unsigned long)fifo->read_pos);
 	return (fifo->write_pos - fifo->tentative_read_pos) >= length;
 }
 
@@ -145,15 +152,17 @@ result_t fifo_write(fifo_t *fifo, const char *data, const size_t size)
 {
 	result_t result = SUCCESS;
 
-	log_debug("fifo_write");
 	if (fifo_slots_available(fifo, 1) != 1)
 		return FAIL;
+
+	if (fifo->tokens[fifo->write_pos % fifo->size].value != NULL)
+		free_token(&fifo->tokens[fifo->write_pos % fifo->size]);
 
 	result = token_set_data(&fifo->tokens[fifo->write_pos % fifo->size], data, size);
 	if (result == SUCCESS)
 		fifo->write_pos++;
 
-	return SUCCESS;
+	return result;
 }
 
 void fifo_com_peek(fifo_t *fifo, token_t **token, uint32_t *sequence_nbr)

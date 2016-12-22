@@ -50,11 +50,24 @@ typedef enum {
 	GPIO_OUT
 } gpio_direction_t;
 
+typedef enum {
+	EDGE_RISING,
+	EDGE_FALLING,
+	EDGE_BOTH
+} gpio_edge_t;
+
+typedef enum {
+	PULL_UP,
+	PULL_DOWN
+} gpio_pull_t;
+
 typedef struct calvin_gpio_t {
 	uint32_t pin;
 	bool has_triggered;
 	uint32_t value;
 	gpio_direction_t direction;
+	gpio_edge_t gpio_edge;
+	gpio_pull_t gpio_pull;
 } calvin_gpio_t;
 
 void platform_init(void);

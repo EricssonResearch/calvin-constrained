@@ -69,7 +69,7 @@ static result_t port_get_peer_port_reply_handler(char *data, void *msg_data)
 	if (node_id != NULL) {
 		if (strncmp(port->peer_port_id, node_id, strlen(node_id)) != 0)
 			strncpy(port->peer_id, node_id, strlen(node_id));
-		free(node_id);
+		platform_mem_free((void *)node_id);
 		port->state = PORT_DO_CONNECT;
 		return SUCCESS;
 	}

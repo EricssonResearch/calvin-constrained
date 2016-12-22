@@ -1,0 +1,52 @@
+CC = gcc
+PROJECT_NAME = calvin_c_mpy
+# These variables will be passed from external calls to the makefile (e.g. from the uPy make)
+EXT_C_SOURCE_FILES =
+EXT_CFLAGS =
+
+#define the location where the micropython library is located (relative to here)
+MP_LIB_DIR = libmpy
+
+CFLAGS += -g -Wall
+CFLAGS += -Werror
+CFLAGS += --std=gnu99
+#CFLAGS += -DDEBUG
+CFLAGS += -lrt  -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -I.. -DMICROPYTHON
+EXT_SRC_C = $(addprefix libmpy/, calvin_mpy_port.c calvin_mpy_gpiohandler.c calvin_mpy_environmental.c)
+
+C_SOURCE_FILES += \
+platform/x86/platform_x86.c \
+main.c \
+common.c \
+node.c \
+proto.c \
+transport_socket.c \
+tunnel.c \
+link.c \
+actor.c \
+port.c \
+fifo.c \
+token.c \
+msgpack_helper.c \
+msgpuck/msgpuck.c \
+actors/actor_identity.c \
+actors/actor_gpioreader.c \
+actors/actor_gpiowriter.c \
+actors/actor_temperature.c \
+actors/actor_mpy.c \
+$(EXT_SRC_C)
+
+c_calvin: -lmicropython $(C_SOURCE_FILES)
+	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h
+	@$(CC) -o $(PROJECT_NAME) $(C_SOURCE_FILES) $(EXT_C_SOURCE_FILES) $(CFLAGS) $(EXT_CFLAGS)
+
+mpy:
+	$(MAKE) clean -C $(MP_LIB_DIR)
+	$(MAKE)
+
+-lmicropython:
+	$(MAKE) lib -C $(MP_LIB_DIR) #EXT_SRC_C=$(EXT_SRC_C)
+
+clean:
+	$(MAKE) clean -C $(MP_LIB_DIR)
+	rm -f $(PROJECT_NAME)

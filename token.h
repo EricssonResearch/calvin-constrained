@@ -22,8 +22,8 @@
 #include "common.h"
 
 typedef struct token_t {
-	char value[MAX_TOKEN_SIZE];	// Serialized token data
-	size_t size;				// Size of serialized token data
+	char *value;		// Pointer to serialized token data
+	size_t size;		// Size of serialized token data
 } token_t;
 
 result_t token_set_data(token_t *token, const char *data, const size_t size);
@@ -31,5 +31,6 @@ char *token_encode(char **buffer, token_t token, bool with_key);
 void token_set_double(token_t *token, const double value);
 void token_set_uint(token_t *token, const uint32_t value);
 result_t token_decode_uint(token_t token, uint32_t *value);
+void free_token(token_t *token);
 
 #endif /* TOKEN_H */

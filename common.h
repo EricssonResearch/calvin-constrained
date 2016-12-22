@@ -22,7 +22,7 @@
 
 #define MAX_TOKENS			5
 #define MAX_PENDING_MSGS	20
-#define MAX_TOKEN_SIZE  	10
+#define MAX_TOKEN_SIZE		10
 #define STORAGE_TUNNEL		"storage"
 #define TOKEN_TUNNEL		"token"
 #define UUID_BUFFER_SIZE	50
@@ -35,18 +35,20 @@ typedef enum {
 
 // list with a string identifier
 typedef struct list_t {
-    char *id;
-    void *data;
-    uint32_t data_len;
-    struct list_t *next;
+	char *id;
+	void *data;
+	uint32_t data_len;
+	struct list_t *next;
 } list_t;
 
 void gen_uuid(char *buffer, const char *prefix);
 bool uuid_is_higher(char *id1, size_t len1, char *id2, size_t len2);
 unsigned int get_message_len(const char *buffer);
 result_t list_add(list_t **head, char *id, void *data, uint32_t data_len);
+result_t list_addn(list_t **head, char *id, uint32_t len, void *data, uint32_t data_len);
 void list_remove(list_t **head, const char *id);
 uint32_t list_count(list_t *list);
+void list_dump(list_t *list);
 list_t *list_get(list_t *list, const char *id);
 
 #endif /* COMMON_H */

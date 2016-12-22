@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include "common.h"
 #include "platform.h"
+#include "msgpuck/msgpuck.h"
 
 // TODO: Generate a proper uuid
 void gen_uuid(char *buffer, const char *prefix)
@@ -63,6 +65,26 @@ unsigned int get_message_len(const char *buffer)
 		((buffer[1] & 0xFF) << 16) |
 		((buffer[0] & 0xFF) << 24);
 	return value;
+}
+
+result_t list_addn(list_t **head, char *id, uint32_t len, void *data, uint32_t data_len)
+{
+	char *name = NULL;
+
+	if (platform_mem_alloc((void *)&name, sizeof(char) * (len + 1)) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	strncpy(name, id, len);
+	name[len] = '\0';
+
+	if (list_add(head, name, data, data_len) == FAIL) {
+		platform_mem_free(name);
+		return FAIL;
+	}
+
+	return SUCCESS;
 }
 
 result_t list_add(list_t **head, char *id, void *data, uint32_t data_len)
@@ -118,6 +140,19 @@ uint32_t list_count(list_t *list)
 	}
 
 	return count;
+}
+
+void list_dump(list_t *list)
+{
+	list_t *tmp = list;
+
+	while (tmp != NULL) {
+		fprintf(stdout, "%s:\t", tmp->id);
+		if (tmp->data != NULL)
+			mp_fprint(stdout, tmp->data);
+		tmp = tmp->next;
+		fprintf(stdout, "\n");
+	}
 }
 
 list_t *list_get(list_t *list, const char *id)

@@ -16,21 +16,18 @@
 #ifndef ACTOR_GPIOWRITER_H
 #define ACTOR_GPIOWRITER_H
 
-#include "../common.h"
 #include "../actor.h"
 #include "../platform.h"
 
 typedef struct state_gpiowriter_t {
-    calvin_gpio_t *gpio;
-    uint32_t pin;
-    list_t *managed_attributes;
+	calvin_gpio_t *gpio;
+	uint32_t pin;
 } state_gpiowriter_t;
 
-result_t actor_gpiowriter_init(actor_t **actor, char *obj_actor_state);
-result_t actor_gpiowriter_set_state(actor_t **actor, char *obj_actor_state);
+result_t actor_gpiowriter_init(actor_t **actor, list_t *attributes);
+result_t actor_gpiowriter_set_state(actor_t **actor, list_t *attributes);
 result_t actor_gpiowriter_fire(actor_t *actor);
 void actor_gpiowriter_free(actor_t *actor);
-char *actor_gpiowriter_serialize(actor_t *actor, char **buffer);
-list_t *actor_gpiowriter_get_managed_attributes(actor_t *actor);
+result_t actor_gpiowriter_get_managed_attributes(actor_t *actor, list_t **attributes);
 
 #endif /* ACTOR_GPIOWRITER_H */

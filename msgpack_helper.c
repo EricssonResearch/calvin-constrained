@@ -48,7 +48,7 @@ char *encode_double(char **buffer, const char *key, double value)
 char *encode_bool(char **buffer, const char *key, bool value)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));
-	*buffer = mp_encode_bool(*buffer, true);
+	*buffer = mp_encode_bool(*buffer, value);
 	return *buffer;
 }
 
@@ -192,7 +192,49 @@ result_t decode_uint(char *buffer, uint32_t *value)
 		return FAIL;
 	}
 
-	*value = mp_decode_uint((const char **)&r);
+	*value = mpk_decode_uint((const char **)&r);
+
+	return SUCCESS;
+}
+
+result_t decode_int(char *buffer, int32_t *value)
+{
+	char *r = buffer;
+
+	if (mp_typeof(*r) != MP_INT) {
+		log_error("Failed to decode value, not a int");
+		return FAIL;
+	}
+
+	*value = mp_decode_int((const char **)&r);
+
+	return SUCCESS;
+}
+
+result_t decode_float(char *buffer, float *value)
+{
+	char *r = buffer;
+
+	if (mp_typeof(*r) != MP_FLOAT) {
+		log_error("Failed to decode value, not a float");
+		return FAIL;
+	}
+
+	*value = mp_decode_float((const char **)&r);
+
+	return SUCCESS;
+}
+
+result_t decode_double(char *buffer, double *value)
+{
+	char *r = buffer;
+
+	if (mp_typeof(*r) != MP_DOUBLE) {
+		log_error("Failed to decode value, not a double");
+		return FAIL;
+	}
+
+	*value = mp_decode_double((const char **)&r);
 
 	return SUCCESS;
 }
@@ -250,7 +292,7 @@ result_t decode_uint_from_map(char *buffer, const char *key, uint32_t *value)
 			if (decode_str(r, &tmp, &key_len) == SUCCESS) {
 				mp_next((const char **)&r);
 				if (strncmp(tmp, key, key_len) == 0) {
-					*value = mp_decode_uint((const char **)&r);
+					*value = mpk_decode_uint((const char **)&r);
 					return SUCCESS;
 				}
 				mp_next((const char **)&r);

@@ -26,11 +26,13 @@ result_t token_set_data(token_t *token, const char *data, const size_t size)
 		log_error("Token data '%zu' to big", size);
 		return FAIL;
 	}
+	if (platform_mem_alloc((void **)&token->value, size) == SUCCESS) {
+		memcpy(token->value, data, size);
+		token->size = size;
+		return SUCCESS;
+	}
 
-	memcpy(token->value, data, size);
-	token->size = size;
-
-	return SUCCESS;
+	return FAIL;
 }
 
 char *token_encode(char **buffer, token_t token, bool with_key)
@@ -52,13 +54,19 @@ char *token_encode(char **buffer, token_t token, bool with_key)
 void token_set_double(token_t *token, const double value)
 {
 	token->size = mp_sizeof_double(value);
-	mp_encode_double(token->value, value);
+	if (platform_mem_alloc((void **)&(token->value), token->size) == SUCCESS)
+		mp_encode_double(token->value, value);
+	else
+		log_error("Failed to allocate memory");
 }
 
 void token_set_uint(token_t *token, const uint32_t value)
 {
 	token->size = mp_sizeof_uint(value);
-	mp_encode_uint(token->value, value);
+	if (platform_mem_alloc((void **)&(token->value), token->size) == SUCCESS)
+		mp_encode_uint(token->value, value);
+	else
+		log_error("Failed to allocate memory");
 }
 
 result_t token_decode_uint(token_t token, uint32_t *value)
@@ -66,9 +74,20 @@ result_t token_decode_uint(token_t token, uint32_t *value)
 	char *data = token.value;
 
 	if (mp_typeof(*data) == MP_UINT) {
-		*value = mp_decode_uint((const char **)&data);
+		*value = mpk_decode_uint((const char **)&data);
 		return SUCCESS;
 	}
 
 	return FAIL;
+}
+
+void free_token(token_t *token)
+{
+	if (token != NULL) {
+		if (token->value != NULL) {
+			platform_mem_free((void *)token->value);
+			token->value = NULL;
+		}
+		token->size = 0;
+	}
 }

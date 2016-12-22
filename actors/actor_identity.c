@@ -20,66 +20,37 @@
 #include "../token.h"
 #include "../msgpack_helper.h"
 #include "../platform.h"
+#include "../msgpuck/msgpuck.h"
 
-result_t actor_identity_init(actor_t **actor, char *obj_actor_state)
+result_t actor_identity_init(actor_t **actor, list_t *attributes)
 {
-    state_identity_t *state = NULL;
+	state_identity_t *state = NULL;
+	list_t *tmp_list = NULL;
+	bool dump = false;
 
-    if (platform_mem_alloc((void **)&state, sizeof(state_identity_t)) != SUCCESS) {
-        log_error("Failed to allocate memory");
-        return FAIL;
-    }
+	tmp_list = list_get(attributes, "dump");
+	if (tmp_list == NULL) {
+		log_error("Failed to get attribute 'dump'");
+		return FAIL;
+	}
 
-    state->managed_attributes = NULL;
-    state->dump = false;
+	if (decode_bool((char *)tmp_list->data, &dump) != SUCCESS)
+		return FAIL;
 
-    if (actor_get_managed(obj_actor_state, &state->managed_attributes) != SUCCESS) {
-        platform_mem_free((void *)state);
-        return FAIL;
-    }
+	if (platform_mem_alloc((void **)&state, sizeof(state_identity_t)) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
 
-    (*actor)->instance_state = (void *)state;
+	state->dump = dump;
+	(*actor)->instance_state = (void *)state;
 
-    return SUCCESS;
+	return SUCCESS;
 }
 
-result_t actor_identity_set_state(actor_t **actor, char *obj_actor_state)
+result_t actor_identity_set_state(actor_t **actor, list_t *attributes)
 {
-    result_t result = SUCCESS;
-    state_identity_t *state = NULL;
-    list_t *list = NULL; 
-
-    if (platform_mem_alloc((void **)&state, sizeof(state_identity_t)) != SUCCESS) {
-        log_error("Failed to allocate memory");
-        return FAIL;
-    }
-
-    state->managed_attributes = NULL;
-    state->dump = false;
-
-    if (actor_get_managed(obj_actor_state, &state->managed_attributes) != SUCCESS) {
-        platform_mem_free((void *)state);
-        return FAIL;
-    }
-    
-    list = state->managed_attributes;
-    while (list != NULL && result == SUCCESS) {
-        if (strncmp(list->id, "dump", strlen("dump")) == 0) {
-            result = decode_bool((char *)list->data, &state->dump);
-        }
-        list = list->next;
-    }
-    
-    if (result != SUCCESS) {
-        log_error("Failed to parse attributes");
-        actor_free_managed(state->managed_attributes);
-        platform_mem_free((void *)state);
-        return FAIL;
-    }
-
-    (*actor)->instance_state = (void *)state;
-
-    return SUCCESS; 
+	return actor_identity_init(actor, attributes);
 }
 
 result_t actor_identity_fire(struct actor_t *actor)
@@ -131,28 +102,38 @@ result_t actor_identity_fire(struct actor_t *actor)
 
 void actor_identity_free(actor_t *actor)
 {
-    state_identity_t *state = (state_identity_t *)actor->instance_state;
+	state_identity_t *state = (state_identity_t *)actor->instance_state;
 
-    if (state != NULL) {
-        actor_free_managed(state->managed_attributes);
-        platform_mem_free((void *)state);
-    }
+	if (state != NULL)
+		platform_mem_free((void *)state);
 }
 
-char *actor_identity_serialize(actor_t *actor, char **buffer)
+result_t actor_identity_get_managed_attributes(actor_t *actor, list_t **attributes)
 {
-    state_identity_t *state = (state_identity_t *)actor->instance_state;
+	uint32_t size = 0;
+	char *value = NULL, *name = NULL;
+	state_identity_t *state = (state_identity_t *)actor->instance_state;
 
-    *buffer = actor_serialize_managed_list(state->managed_attributes, buffer);
-    if (list_get(state->managed_attributes, "dump") == NULL)
-        *buffer = encode_bool(buffer, "dump", state->dump);
- 
-    return *buffer;
-}
+	name = strdup("dump");
+	if (name == NULL) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
 
-list_t *actor_identity_get_managed_attributes(actor_t *actor)
-{
-    state_identity_t *state = (state_identity_t *)actor->instance_state;
-    
-    return state->managed_attributes;
+	size = mp_sizeof_bool(state->dump);
+	if (platform_mem_alloc((void **)&value, size) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	mp_encode_bool(value, state->dump);
+
+	if (list_add(attributes, name, value, size) != SUCCESS) {
+		log_error("Failed to add '%s' to managed list", name);
+		platform_mem_free(name);
+		platform_mem_free(value);
+		return FAIL;
+	}
+
+	return SUCCESS;
 }

@@ -610,7 +610,7 @@ result_t proto_send_remove_node(const node_t *node, result_t (*handler)(char*, v
 result_t proto_send_set_actor(const node_t *node, const actor_t *actor, result_t (*handler)(char*, void*))
 {
 	int data_len = 0, inports_len = 0, outports_len = 0;
-	char *w = NULL, key[50] = "", data[400] = "", inports[100] = "", outports[100] = "", msg_uuid[UUID_BUFFER_SIZE];
+	char *w = NULL, key[50] = "", data[400] = "", inports[200] = "", outports[200] = "", msg_uuid[UUID_BUFFER_SIZE];
 	char *tx_buffer = NULL;
 	list_t *list = NULL;
 	port_t *port = NULL;
@@ -618,7 +618,7 @@ result_t proto_send_set_actor(const node_t *node, const actor_t *actor, result_t
 	sprintf(key, "actor-%s", actor->id);
 
 	if (node_can_add_pending_msg(node)) {
-		if (transport_get_tx_buffer(&tx_buffer, 600) != SUCCESS) {
+		if (transport_get_tx_buffer(&tx_buffer, 1000) != SUCCESS) {
 			log_error("Failed to get tx buffer");
 			return FAIL;
 		}
@@ -628,7 +628,12 @@ result_t proto_send_set_actor(const node_t *node, const actor_t *actor, result_t
 		list = actor->in_ports;
 		while (list != NULL) {
 			port = (port_t *)list->data;
-			if (port->direction == PORT_DIRECTION_IN)
+			if (list->next != NULL)
+				inports_len += sprintf(inports + inports_len,
+							   "{\"id\": \"%s\", \"name\": \"%s\"}, ",
+							   port->port_id,
+							   port->port_name);
+			else
 				inports_len += sprintf(inports + inports_len,
 							   "{\"id\": \"%s\", \"name\": \"%s\"}",
 							   port->port_id,
@@ -639,10 +644,16 @@ result_t proto_send_set_actor(const node_t *node, const actor_t *actor, result_t
 		list = actor->in_ports;
 		while (list != NULL) {
 			port = (port_t *)list->data;
-			outports_len += sprintf(outports + outports_len,
-						   "{\"id\": \"%s\", \"name\": \"%s\"}",
-						    port->port_id,
-						    port->port_name);
+			if (list->next != NULL)
+				outports_len += sprintf(outports + outports_len,
+							   "{\"id\": \"%s\", \"name\": \"%s\"}, ",
+							    port->port_id,
+							    port->port_name);
+			else
+				outports_len += sprintf(outports + outports_len,
+							   "{\"id\": \"%s\", \"name\": \"%s\"}",
+							    port->port_id,
+							    port->port_name);
 			list = list->next;
 		}
 
@@ -866,7 +877,7 @@ result_t proto_send_actor_new(const node_t *node, actor_t *actor, result_t (*han
 	char *w = NULL, *tx_buffer = NULL, msg_uuid[UUID_BUFFER_SIZE];
 
 	if (node_can_add_pending_msg(node)) {
-		if (transport_get_tx_buffer(&tx_buffer, 1900) != SUCCESS) {
+		if (transport_get_tx_buffer(&tx_buffer, 2000) != SUCCESS) {
 			log_error("Failed to get tx buffer");
 			return FAIL;
 		}

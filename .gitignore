@@ -3,3 +3,9 @@ calvin_c.hex
 _build/
 calvin-base/
 test/__pycache__/
+boards/pca10028/armgcc/_build/
+*.P
+*.o
+libmpy/build
+*.a
+*.mpy
