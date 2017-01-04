@@ -14,11 +14,7 @@ See https://github.com/EricssonResearch/calvin-base for information on how to in
 
 ##Python actors on calvin-constrained
 
-Support for executing Python code is built on MicroPython, https://micropython.org/, setup MicroPython with:
-
-    ./mp_setup.sh
-
-Then use the makefiles ending with _mpy to include support for Python actors in calvin-constrained, MicroPython is included as a statically-linked library with actors in libmpy/modules/ included as frozen modules.
+Use the makefiles ending with _mpy to build calvin-constrained with support for executing Python actors. The support for executing Python code is built on MicroPython, https://micropython.org/, and is included as a submodule in calvin-constrained. MicroPython is built and included as a statically linked library with Python actors in libmpy/modules included as frozen modules.
 
 ##Run tests
 

@@ -13,11 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# to reslove some location coflicts, we will use absolute paths
-ABS_BUILD = $(abspath $(BUILD))
-
 # include of pre-make files
 include $(MPTOP)/py/mkenv.mk
+
+MPY_CROSS = $(MPTOP)/mpy-cross/mpy-cross
+MPY_TOOL = $(MPTOP)/tools/mpy-tool.py
+PYTHON = PYTHONPATH=$(abspath $(MPTOP)/py) python
 
 # qstr definitions (must come before including py.mk)
 QSTR_DEFS = qstrdefsport.h
@@ -33,12 +34,17 @@ INC +=  -I..
 INC +=  -I$(MPTOP)
 INC +=  -I$(MPTOP)/unix
 INC +=  -I$(BUILD)
-INC +=  -I$(MPTOP)/lib/timeutils
 
 CWARN = -Wall -Werror
 CFLAGS_CORTEX_M4 = -mthumb -mtune=cortex-m4 -mabi=aapcs-linux -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -Wdouble-promotion
 CFLAGS_CORTEX_M4 += -fno-builtin --short-enums
 CFLAGS = $(INC) $(CWARN) -ansi -std=gnu99 -DUNIX -nostdlib $(COPT) $(CFLAGS_CORTEX_M4)
+
+ifneq ($(FROZEN_MPY_DIR),)
+CFLAGS += -DMICROPY_QSTR_EXTRA_POOL=mp_qstr_frozen_const_pool
+CFLAGS += -DMICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE=0 # not supported
+CFLAGS += -DMPZ_DIG_SIZE=16 # force 16 bits to work on both 32 and 64 bit archs
+endif
 
 # Debugging/Optimization
 ifdef DEBUG
@@ -88,34 +94,6 @@ OBJ += $(addprefix $(BUILD)/, $(STMHAL_SRC_C:.c=.o))
 
 # List of sources for qstr extraction
 SRC_QSTR += $(SRC_C) $(LIB_SRC_C) $(EXT_SRC_C)
-
-#-------------------------------- frozen code block --------------------------------
-ifneq ($(FROZEN_MPY_DIR),)
-
-# Freeze all .py files in the FROZEN_MPY_DIR directory. there should be at least one python file there
-MPY_CROSS = $(MPTOP)/mpy-cross/mpy-cross
-MPY_TOOL_DIR = $(MPTOP)/tools
-MPY_TOOL = mpy-tool.py
-FROZEN_MPY_PY_FILES := $(shell find -L $(FROZEN_MPY_DIR) -type f -name '*.py')
-FROZEN_MPY_MPY_FILES := $(addprefix $(ABS_BUILD)/,$(FROZEN_MPY_PY_FILES:.py=.mpy))
-
-CFLAGS += -DMICROPY_QSTR_EXTRA_POOL=mp_qstr_frozen_const_pool
-CFLAGS += -DMICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE=0 # not supported
-CFLAGS += -DMPZ_DIG_SIZE=16 # force 16 bits to work on both 32 and 64 bit archs
-OBJ += $(ABS_BUILD)/frozen_mpy.o
-
-# to build .mpy files from .py files
-$(ABS_BUILD)/$(FROZEN_MPY_DIR)/%.mpy: $(FROZEN_MPY_DIR)/%.py
-	@$(ECHO) "MPY $<"
-	$(Q)$(MKDIR) -p $(dir $@)
-	$(Q)$(MPY_CROSS) -o $@ -s $(^:$(FROZEN_MPY_DIR)/%=%) $^
-
-# to build frozen_mpy.c from all .mpy files
-$(ABS_BUILD)/frozen_mpy.c: $(FROZEN_MPY_MPY_FILES) $(ABS_BUILD)/genhdr/qstrdefs.generated.h
-	@$(ECHO) "Creating $@"
-	$(Q) cd $(MPY_TOOL_DIR) && ./$(MPY_TOOL) -f -q $(ABS_BUILD)/genhdr/qstrdefs.preprocessed.h $(FROZEN_MPY_MPY_FILES) > $@
-endif
-#-------------------------------- end of frozen code block --------------------------------
 
 lib: LIBMICROPYTHON = libmicropython_arm.a
 

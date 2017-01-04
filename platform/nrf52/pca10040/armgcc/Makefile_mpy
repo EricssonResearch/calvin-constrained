@@ -216,7 +216,7 @@ LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # let linker to dump unused sections
 LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
-LDFLAGS += --specs=nano.specs -lc -lnosys
+LDFLAGS += -lc -lnosys
 LDFLAGS += -L$(abspath libmpy)
 # Assembler flags
 ASMFLAGS += -x assembler-with-cpp
@@ -259,17 +259,21 @@ OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
 nrf52832_xxaa_s1xx_iot: OUTPUT_FILENAME := nrf52832_xxaa_s1xx_iot
 nrf52832_xxaa_s1xx_iot: LINKER_SCRIPT=platform/nrf52/pca10040/armgcc/iot_lwip_tcp_client_gcc_nrf52.ld
 
-nrf52832_xxaa_s1xx_iot: $(BUILD_DIRECTORIES) -lmicropython_arm $(OBJECTS)
+nrf52832_xxaa_s1xx_iot: $(BUILD_DIRECTORIES) mpy-cross -lmicropython_arm $(OBJECTS)
 	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h
 	@echo Linking target: $(OUTPUT_FILENAME).out
 	$(NO_ECHO)$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(OUTPUT_BINARY_DIRECTORY)/$(OUTPUT_FILENAME).out
 	$(NO_ECHO)$(MAKE) -f $(MAKEFILE_NAME) -e finalize
 
+## Create the MicroPython cross compiler
+mpy-cross:
+	@echo "Building the MicroPython cross compiler"
+	$(MAKE) -C micropython/mpy-cross
 
 ## Create the Micropython library
 -lmicropython_arm:
-	$(MAKE) libarm -C $(MP_LIB_DIR) #MPY_SRC_C=$(MPY_SRC_C)
-
+	@echo Making MicroPython library
+	$(MAKE) libarm -C $(MP_LIB_DIR)
 
 ## Create build directories
 $(BUILD_DIRECTORIES):
@@ -305,3 +309,4 @@ echosize:
 clean:
 	$(RM) $(BUILD_DIRECTORIES)
 	$(RM) calvin_c.hex
+	$(MAKE) clean -C $(MP_LIB_DIR)

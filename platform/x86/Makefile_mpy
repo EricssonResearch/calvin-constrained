@@ -1,8 +1,5 @@
 CC = gcc
 PROJECT_NAME = calvin_c_mpy
-# These variables will be passed from external calls to the makefile (e.g. from the uPy make)
-EXT_C_SOURCE_FILES =
-EXT_CFLAGS =
 
 #define the location where the micropython library is located (relative to here)
 MP_LIB_DIR = libmpy
@@ -11,6 +8,10 @@ CFLAGS += -g -Wall
 CFLAGS += -Werror
 CFLAGS += --std=gnu99
 #CFLAGS += -DDEBUG
+CFLAGS += -DPARSE_ARGS
+ifneq ($(PLATFORM), Darwin)
+CFLAGS += -lrt
+endif
 CFLAGS += -lrt  -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -I.. -DMICROPYTHON
 EXT_SRC_C = $(addprefix libmpy/, calvin_mpy_port.c calvin_mpy_gpiohandler.c calvin_mpy_environmental.c)
 
@@ -36,16 +37,16 @@ actors/actor_temperature.c \
 actors/actor_mpy.c \
 $(EXT_SRC_C)
 
-c_calvin: -lmicropython $(C_SOURCE_FILES)
+c_calvin: mpy-cross -lmicropython $(C_SOURCE_FILES)
 	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h
-	@$(CC) -o $(PROJECT_NAME) $(C_SOURCE_FILES) $(EXT_C_SOURCE_FILES) $(CFLAGS) $(EXT_CFLAGS)
+	@$(CC) -o $(PROJECT_NAME) $(C_SOURCE_FILES) $(CFLAGS)
 
-mpy:
-	$(MAKE) clean -C $(MP_LIB_DIR)
-	$(MAKE)
+mpy-cross:
+	@echo "Building the MicroPython cross compiler"
+	$(MAKE) -C micropython/mpy-cross
 
 -lmicropython:
-	$(MAKE) lib -C $(MP_LIB_DIR) #EXT_SRC_C=$(EXT_SRC_C)
+	$(MAKE) lib -C $(MP_LIB_DIR)
 
 clean:
 	$(MAKE) clean -C $(MP_LIB_DIR)

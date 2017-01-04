@@ -15,9 +15,6 @@
 
 BUILD = build
 
-# to reslove some location coflicts, we will use absolute paths
-ABS_BUILD = $(abspath $(BUILD))
-
 # set of folders needed by the makefile
 ## Top folder of Calvin constrained (from here)
 CC_TOP = ..
@@ -33,28 +30,22 @@ MP_TOP = micropython
 ###  Note: There should be at least one python file in this folder for the compilation to run
 FROZEN_MPY_DIR = libmpy/modules
 
-# Absolute path to frozen files (resolve some reference conflicts
-ABS_FROZEN_MPY_DIR = $(abspath $(CC_TOP))/$(FROZEN_MPY_DIR)
-
 # Add the names of the files for QSTR extraction
 EXT_SRC_C = calvin_mpy_port.c calvin_mpy_gpiohandler.c calvin_mpy_environmental.c
 
-# Add here the names of any additional c files to be compiled
-ADD_C_SOURCE = 	$(addprefix $(MPY_CONF_FOLDER)/, $(EXT_SRC_C)) actors/actor_mpy.c
-
 # The -DMICROPYTHON enables the MICROPYTHON directive in the program
-CFLAGS = -std=c99 -I$(MPY_CONF_FOLDER) -I$(MP_TOP) -DMICROPYTHON $(CFLAGS_EXTRA) -Os -DNDEBUG
+CFLAGS = -std=c99 -I$(MPY_CONF_FOLDER) -I$(MP_TOP) -DMICROPYTHON -Os -DNDEBUG
 
 # Library location and library filename (to be passed on to the application)
 LDFLAGS = -L$(MPY_CONF_FOLDER) -lmicropython -lm
 
 lib:
 	@echo "Making micropython library for x86"
-	@$(MAKE) clean && $(MAKE) -f Makefile.upylib MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
+	$(MAKE) -f Makefile.upylib MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
 
 libarm:
 	@echo "Making micropython library for ARM"
-	@$(MAKE) clean && $(MAKE) -f Makefile.upylib.arm MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
+	$(MAKE) -f Makefile.upylib.arm MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
 
 clean:
 	@rm -rf *.a
