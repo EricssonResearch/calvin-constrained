@@ -60,6 +60,11 @@ Actors can now be migrated to and from the calvin-constrained runtime.
 ##Nordic Semiconductors NRF52 DK version
 
 ###Setup environment
+
+Install gcc-arm-none-eabi:
+
+        sudo apt-get install gcc-arm-none-eabi
+
 Download the nRF5 IOT SDK (https://developer.nordicsemi.com/nRF5_IoT_SDK/nRF5_IoT_SDK_v0.9.x/) and nRF5x-Command-Line-Tools (https://www.nordicsemi.com/eng/nordic/download_resource/51505/18/58951603) and set:
 
         export NORDIC_SDK_PATH=<nrf5-iot-sdk_path>
