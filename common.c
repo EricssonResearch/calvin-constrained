@@ -18,7 +18,6 @@
 #include <string.h>
 #include "common.h"
 #include "platform.h"
-#include "msgpuck/msgpuck.h"
 
 // TODO: Generate a proper uuid
 void gen_uuid(char *buffer, const char *prefix)
@@ -140,19 +139,6 @@ uint32_t list_count(list_t *list)
 	}
 
 	return count;
-}
-
-void list_dump(list_t *list)
-{
-	list_t *tmp = list;
-
-	while (tmp != NULL) {
-		fprintf(stdout, "%s:\t", tmp->id);
-		if (tmp->data != NULL)
-			mp_fprint(stdout, tmp->data);
-		tmp = tmp->next;
-		fprintf(stdout, "\n");
-	}
 }
 
 list_t *list_get(list_t *list, const char *id)
