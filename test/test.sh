@@ -22,7 +22,7 @@ then
     if [ $1 == "mpy" ]
     then
         make -f platform/x86/Makefile_mpy
-        ./calvin_c_mpy &
+        ./calvin_c_mpy -c 127.0.0.1 -d 5000 &
         CONSTRAINED_RT_PID=$!
 
         # run test
@@ -32,7 +32,7 @@ then
     fi
 else
     make -f platform/x86/Makefile
-    ./calvin_c &
+    ./calvin_c -c 127.0.0.1 -d 5000 &
     CONSTRAINED_RT_PID=$!
 
     # run test
