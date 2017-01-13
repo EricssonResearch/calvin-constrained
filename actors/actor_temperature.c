@@ -23,9 +23,8 @@
 
 result_t actor_temperature_fire(struct actor_t *actor)
 {
-	token_t *in_token = NULL, out_token;
+	token_t out_token;
 	double temperature = 0.5;
-	uint32_t in_data = 0;
 	port_t *inport = NULL, *outport = NULL;
 	bool did_fire = false;
 
@@ -47,7 +46,7 @@ result_t actor_temperature_fire(struct actor_t *actor)
 			return FAIL;
 		}
 
-		in_token = fifo_peek(&inport->fifo);
+		fifo_peek(&inport->fifo);
 		token_set_double(&out_token, temperature);
 
 		if (fifo_write(&outport->fifo, out_token.value, out_token.size) != SUCCESS) {
