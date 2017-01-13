@@ -23,7 +23,7 @@
 #include "../micropython/py/gc.h"
 #include "../micropython/py/runtime.h"
 
-long heap_size = 12 * 1024;
+long heap_size = 16 * 1024;
 
 void nlr_jump_fail(void *val)
 {
