@@ -20,13 +20,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_TOKENS				5
-#define MAX_PENDING_MSGS	20
+#define MAX_TOKENS		5
+#define MAX_PENDING_MSGS	30
 #define MAX_TOKEN_SIZE		10
 #define STORAGE_TUNNEL		"storage"
-#define TOKEN_TUNNEL			"token"
+#define TOKEN_TUNNEL		"token"
 #define UUID_BUFFER_SIZE	50
-#define SERIALIZER				"msgpack"
+#define SERIALIZER		"msgpack"
 
 typedef enum {
 	SUCCESS,
