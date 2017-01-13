@@ -48,11 +48,6 @@ result_t actor_temperature_fire(struct actor_t *actor)
 		}
 
 		in_token = fifo_peek(&inport->fifo);
-		if (token_decode_uint(*in_token, &in_data) != SUCCESS) {
-			fifo_cancel_commit(&inport->fifo);
-			return FAIL;
-		}
-
 		token_set_double(&out_token, temperature);
 
 		if (fifo_write(&outport->fifo, out_token.value, out_token.size) != SUCCESS) {
