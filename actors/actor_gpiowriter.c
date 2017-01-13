@@ -28,12 +28,19 @@ result_t actor_gpiowriter_init(actor_t **actor, list_t *attributes)
 		log_error("Failed to allocate memory");
 		return FAIL;
 	}
-
 	memset(state, 0, sizeof(state_gpiowriter_t));
 
 	tmp = list_get(attributes, "gpio_pin");
-	if (tmp == NULL || decode_uint((char *)tmp->data, &state->pin) != SUCCESS)
+	if (tmp == NULL || decode_uint((char *)tmp->data, &state->pin) != SUCCESS) {
+		log_error("Failed to get 'gpio_pin'");
 		return FAIL;
+	}
+
+	state->gpio = platform_create_out_gpio(state->pin);
+	if (state->gpio == NULL) {
+		log_error("Failed create gpio");
+		return FAIL;
+	}
 
 	(*actor)->instance_state = (void *)state;
 
@@ -51,7 +58,7 @@ result_t actor_gpiowriter_fire(struct actor_t *actor)
 	token_t *in_token = NULL;
 	uint32_t in_data = 0;
 	bool did_fire = false;
-	state_gpiowriter_t *gpio_state = NULL;
+	state_gpiowriter_t *gpio_state = (state_gpiowriter_t *)actor->instance_state;
 
 	inport = port_get_from_name(actor, "state", PORT_DIRECTION_IN);
 	if (inport == NULL) {
@@ -68,7 +75,6 @@ result_t actor_gpiowriter_fire(struct actor_t *actor)
 			return FAIL;
 		}
 
-		gpio_state = (state_gpiowriter_t *)actor->state;
 		platform_set_gpio(gpio_state->gpio, in_data);
 
 		fifo_commit_read(&inport->fifo);
