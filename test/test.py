@@ -13,6 +13,17 @@ rt2 = None
 request_handler = None
 constrained_id = None
 
+def check_registry(rt):
+    request_handler = RequestHandler()
+    for x in range(0, 10):
+        try:
+            peers = request_handler.get_index(rt, '/node/attribute/node_name')
+            if 'result' in peers and len(peers['result']) is 3:
+                return True
+            time.sleep(1)
+        except:
+            print "Failed to get nodes from index for %s, retrying" % rt.control_uri
+    return False
 
 def setup_module(module):
     global rt1
@@ -22,25 +33,26 @@ def setup_module(module):
 
     request_handler = RequestHandler()
     rt1 = RT("http://127.0.0.1:5001")
+    rt1.id = request_handler.get_node_id(rt1.control_uri)
     rt2 = RT("http://127.0.0.1:5003")
-    
-    for y in range(0, 10):
-        peers = request_handler.get_index(rt1, '/node/attribute/node_name')
-        if len(peers['result']) is 3:
-            peers = request_handler.get_nodes(rt1)
-            if peers:
-                # constrained connected
-                constrained_id = peers[0]
-                rt1.id = request_handler.get_node_id(rt1.control_uri)
-                rt2.id = request_handler.get_node_id(rt2.control_uri)
-                return
+    rt2.id = request_handler.get_node_id(rt2.control_uri)
+
+    # get constrained id
+    for x in range(0, 10):
+        peers = request_handler.get_nodes(rt1)
+        if peers:
+            constrained_id = peers[0]
+            break
         time.sleep(1)
-    
-    pytest.exit("Not all runtimes found")
 
-def teardown_module(module):
-    request_handler.quit(rt2)
+    if constrained_id is None:
+        pytest.exit("Failed to get constrained runtime id")
 
+    if not check_registry(rt1):
+        pytest.exit("rt1 registry not updated")
+
+    if not check_registry(rt2):
+        pytest.exit("rt1 registry not updated")
 
 def testDataAndDestruction():
     assert rt1 is not None
@@ -48,7 +60,7 @@ def testDataAndDestruction():
 
     script_name = "testDataAndDestruction"
     script = """
-    src : std.CountTimer(sleep=0.1)
+    src : std.CountTimer(sleep=0.5)
     id : std.Identity()
     snk : io.StandardOut(store_tokens=1, quiet=1)
     src.integer > id.token
@@ -124,7 +136,6 @@ def testDataAndDestruction():
         time.sleep(1)
     assert removed is True
 
-
 def testPortConnect():
     assert rt1 is not None
     assert rt2 is not None
@@ -132,7 +143,7 @@ def testPortConnect():
 
     script_name = "testPortConnect"
     script = """
-    src : std.CountTimer(sleep=0.1)
+    src : std.CountTimer(sleep=0.5)
     id : std.Identity()
     snk : io.StandardOut(store_tokens=1, quiet=1)
     src.integer > id.token
@@ -243,7 +254,7 @@ def testMigration():
 
     script_name = "testMigration"
     script = """
-    src : std.CountTimer(sleep=0.1)
+    src : std.CountTimer(sleep=0.5)
     id : std.Identity()
     snk : io.StandardOut(store_tokens=1, quiet=1)
     src.integer > id.token
@@ -353,7 +364,7 @@ def testTemperatureActor():
 
     script_name = "testTemperatureActor"
     script = """
-    src : std.CountTimer(sleep=0.1)
+    src : std.CountTimer(sleep=0.5)
     temp : sensor.Temperature()
     snk : io.StandardOut(store_tokens=1, quiet=1)
     src.integer > temp.measure
@@ -502,7 +513,7 @@ def testGPIOWriter():
 
     script_name = "testGPIOWriterActor"
     script = """
-    src : std.CountTimer(sleep=0.1)
+    src : std.CountTimer(sleep=0.5)
     alt : std.Dealternate()
     zero : std.Constantify(constant=0)
     one : std.Constantify(constant=1)
