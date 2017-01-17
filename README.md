@@ -19,6 +19,7 @@ Use the makefiles ending with _mpy to build calvin-constrained with support for 
 ##Run tests
 
     cd calvin-constrained
+    ./test/test_setup.sh
     ./test/test.sh
     ./test/test.sh mpy # test Python actors
 
