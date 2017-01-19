@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from calvin.actor.actor import Actor, ActionResult, manage, condition, guard
+from calvin.actor.actor import Actor, manage, condition, stateguard
 
 
 class GPIOReader(Actor):
@@ -47,10 +47,10 @@ class GPIOReader(Actor):
     def did_migrate(self):
         self.setup()
 
+    @stateguard(lambda self: self.gpio is not None and self.gpio.edge_detected())
     @condition(action_output=('state',))
-    @guard(lambda self: self.gpio is not None and self.gpio.edge_detected())
     def get_state(self):
-        return ActionResult(production=(self.gpio.edge_value(), ))
+        return (self.gpio.edge_value(), )
 
     action_priority = (get_state, )
     requires = ['calvinsys.io.gpiohandler']

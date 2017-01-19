@@ -23,17 +23,8 @@
 #include "py/objstr.h"
 #include "py/lexer.h"
 
-typedef struct {
-	mp_obj_base_t base;
-	qstr name;
-	actor_t *actor;
-} ccmp_actor_type_t;
-
 typedef struct ccmp_state_actor_t {
-	mp_obj_t actor_module;
-	mp_obj_t actor_class_ref[2];
 	mp_obj_t actor_class_instance;
-	mp_obj_t actor_init_method[2];
 	mp_obj_t actor_fire_method[2];
 } ccmp_state_actor_t;
 

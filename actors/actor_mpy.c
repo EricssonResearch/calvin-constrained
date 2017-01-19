@@ -23,6 +23,8 @@
 #include "../msgpack_helper.h"
 #include "../msgpuck/msgpuck.h"
 #include "py/frozenmod.h"
+#include "py/gc.h"
+#include "../libmpy/calvin_mpy_port.h"
 
 result_t decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 {
@@ -180,11 +182,12 @@ result_t actor_mpy_init(actor_t **actor, list_t *attributes)
 	mp_obj_t tmp = MP_OBJ_NULL;
 	result_t result = SUCCESS;
 	int i = 0;
+	mp_obj_t actor_init_method[2];
 
-	log("actor_mpy_init");
+	mp_load_method(state->actor_class_instance, QSTR_FROM_STR_STATIC("init"), actor_init_method);
 
-	args[0] = state->actor_init_method[0];
-	args[1] = state->actor_init_method[1];
+	args[0] = actor_init_method[0];
+	args[1] = actor_init_method[1];
 
 	while (list != NULL && result == SUCCESS) {
 		tmp = mp_obj_new_str(list->id, strlen(list->id), true);
@@ -305,8 +308,12 @@ result_t actor_mpy_fire(actor_t *actor)
 	res = mp_call_method_n_kw(0, 0, state->actor_fire_method);
 	if (res != mp_const_none && mp_obj_is_true(res) > 0)
 		result = SUCCESS;
-
 	res = MP_OBJ_NULL;
+
+	gc_collect();
+#ifdef DEBUG_MEM
+	gc_dump_info();
+#endif
 
 	return result;
 }
@@ -321,59 +328,27 @@ void actor_mpy_free_state(actor_t *actor)
 		if (mpy_will_end[0] != MP_OBJ_NULL && mpy_will_end[1] != MP_OBJ_NULL)
 			mp_call_method_n_kw(0, 0, mpy_will_end);
 
+		// TODO: gc_collect does not free objects, fix it.
+		state->actor_class_instance = MP_OBJ_NULL;
+
 		platform_mem_free((void *)state);
 		actor->instance_state = NULL;
 	}
+
+	gc_collect();
+#ifdef DEBUG_MEM
+	gc_dump_info();
+#endif
 }
 
 result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 {
-	void *data = NULL;
-	char *module_name = NULL, *tmp = NULL;
-	int len = 0;
-	qstr actor_qstr_full, actor_qstr_class;
+	char *tmp = NULL;
+	qstr actor_type_qstr, actor_class_qstr;
 	mp_obj_t args[1];
-	ccmp_actor_type_t *ptr_ccmp_actor = NULL;
 	ccmp_state_actor_t *state = NULL;
-
-	// check if the passed name has the .py extension and remove it from the passed parameter
-	tmp = strstr(type, ".py");
-	if (tmp != NULL) {
-		tmp = type;
-		len = type_len - 3;
-	} else {
-		tmp = type;
-		len = type_len;
-	}
-
-	if (platform_mem_alloc((void **)&module_name, len + 4) != SUCCESS) {
-		log_error("Failed to allocate memory");
-		return FAIL;
-	}
-
-	len = sprintf(module_name, "%.*s", (int)len, tmp);
-
-	//replace each "." with a "/" for path search in the mp_find_frozen_module function
-	while (strstr(module_name, ".") != NULL) {
-		tmp = strstr(module_name, ".");
-		*tmp = '/';
-		tmp = tmp + 1;
-	}
-	// add the .py extension for the search to execute correctly
-	len = sprintf(module_name, "%.*s.py", (int)len, module_name);
-	if (mp_find_frozen_module(module_name, len, &data) != MP_FROZEN_MPY) {
-		log_error("No python actor '%.*s' found", (int)type_len, type);
-		platform_mem_free((void *)module_name);
-		return FAIL;
-	}
-
-	platform_mem_free((void *)module_name);
-
-	// TODO: When is ptr_ccmp_actor freed?
-	if (platform_mem_alloc((void **)&ptr_ccmp_actor, sizeof(ccmp_actor_type_t)) != SUCCESS) {
-		log_error("Failed to allocate memory");
-		return FAIL;
-	}
+	mp_obj_t actor_module;
+	mp_obj_t actor_class_ref[2];
 
 	if (platform_mem_alloc((void **)&state, sizeof(ccmp_state_actor_t)) != SUCCESS) {
 		log_error("Failed to allocate memory");
@@ -386,26 +361,29 @@ result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	tmp = type;
 	while (strstr(tmp, ".") != NULL)
 		tmp = strstr(tmp, ".") + 1;
-	actor_qstr_full = QSTR_FROM_STR_STATIC(actor->type);
-	actor_qstr_class = QSTR_FROM_STR_STATIC(tmp);
+	actor_type_qstr = QSTR_FROM_STR_STATIC(actor->type);
+	actor_class_qstr = QSTR_FROM_STR_STATIC(tmp);
 
 	// load the module
 	// you have to pass mp_const_true to the second argument in order to return reference
-	//  to the module instance, otherwise it will return a reference to the top-level package
-	state->actor_module = mp_import_name(actor_qstr_full, mp_const_true, MP_OBJ_NEW_SMALL_INT(0));
-	mp_store_global(actor_qstr_full, state->actor_module);
+	// to the module instance, otherwise it will return a reference to the top-level package
+	actor_module = mp_import_name(actor_type_qstr, mp_const_true, MP_OBJ_NEW_SMALL_INT(0));
+	mp_store_global(actor_type_qstr, actor_module);
 
 	// load the class
-	mp_load_method(state->actor_module, actor_qstr_class, state->actor_class_ref);
+	mp_load_method(actor_module, actor_class_qstr, actor_class_ref);
 
 	//pass the actor as a mp_obj_t
-	ptr_ccmp_actor->actor = actor;
-	args[0] = ptr_ccmp_actor;
-	state->actor_class_instance = mp_call_function_n_kw(state->actor_class_ref[0], 1, 0, args);
-	mp_store_name(QSTR_FROM_STR_STATIC("actor_obj"), state->actor_class_instance);
-	// Execute an instance method
-	mp_load_method(state->actor_class_instance, QSTR_FROM_STR_STATIC("init"), state->actor_init_method);
+	args[0] = MP_OBJ_FROM_PTR(actor);
+	state->actor_class_instance = mp_call_function_n_kw(actor_class_ref[0], 1, 0, args);
+	mp_store_name(QSTR_FROM_STR_STATIC(actor->name), state->actor_class_instance);
+
+	// load the fire method
 	mp_load_method(state->actor_class_instance, QSTR_FROM_STR_STATIC("fire"), state->actor_fire_method);
+
+	actor_module = MP_OBJ_NULL;
+	actor_class_ref[0] = MP_OBJ_NULL;
+	actor_class_ref[1] = MP_OBJ_NULL;
 
 	actor->init = actor_mpy_init;
 	actor->fire = actor_mpy_fire;

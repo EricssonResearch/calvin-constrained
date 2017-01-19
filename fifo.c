@@ -127,10 +127,11 @@ token_t *fifo_peek(fifo_t *fifo)
 	return &fifo->tokens[read_pos % fifo->size];
 }
 
-void fifo_commit_read(fifo_t *fifo)
+bool fifo_commit_read(fifo_t *fifo)
 {
 	free_token(&fifo->tokens[fifo->read_pos  % fifo->size]);
 	fifo->read_pos = fifo->tentative_read_pos;
+	return false;
 }
 
 void fifo_cancel_commit(fifo_t *fifo)

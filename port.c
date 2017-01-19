@@ -334,7 +334,7 @@ port_t *port_get(node_t *node, const char *port_id, uint32_t port_id_len)
 	return NULL;
 }
 
-port_t *port_get_from_name(actor_t *actor, char *name, port_direction_t direction)
+port_t *port_get_from_name(actor_t *actor, const char *name, port_direction_t direction)
 {
 	list_t *ports = NULL;
 	port_t *port = NULL;

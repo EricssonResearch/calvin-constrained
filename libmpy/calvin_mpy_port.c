@@ -23,7 +23,9 @@
 #include "../micropython/py/gc.h"
 #include "../micropython/py/runtime.h"
 
-long heap_size = 16 * 1024;
+#define MPY_HEAP_SIZE (16 * 1024)
+
+void *mpy_heap[MPY_HEAP_SIZE];
 
 void nlr_jump_fail(void *val)
 {
@@ -45,237 +47,124 @@ mp_import_stat_t mp_import_stat(const char *path)
 
 void mpy_port_init(void)
 {
-	// TODO: Determine how to hande micro python memory
 	mp_stack_set_limit(8192);
-#if MICROPY_ENABLE_GC
-	char *heap = malloc(heap_size);
-
-	gc_init(heap, heap + heap_size);
-#endif
 	mp_stack_ctrl_init();
+	gc_init(mpy_heap, mpy_heap + MPY_HEAP_SIZE);
 	mp_init();
 }
 
-STATIC mp_obj_t mpy_port_set_callback(mp_obj_t callback_obj)
+STATIC mp_obj_t mpy_port_ccmp_tokens_available(mp_obj_t mp_actor, mp_obj_t mp_port_name, mp_obj_t mp_nbr_of_tokens)
 {
-	MP_STATE_PORT(mpy_port_callback_obj) = callback_obj;
+	actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
+	const char *port_name = mp_obj_str_get_str(mp_port_name);
+	int nbr_of_tokens = mp_obj_get_int(mp_nbr_of_tokens);
+	port_t *port = NULL;
+	bool result = false;
+
+	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
+	if (port != NULL)
+		result = fifo_tokens_available(&port->fifo, nbr_of_tokens);
+	else
+		log_error("No port with name '%s'", port_name);
+
+	return mp_obj_new_bool(result);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_3(mpy_port_ccmp_tokens_available_obj, mpy_port_ccmp_tokens_available);
+
+STATIC mp_obj_t mpy_port_ccmp_slots_available(mp_obj_t mp_actor, mp_obj_t mp_port_name, mp_obj_t mp_nbr_of_slots)
+{
+	actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
+	const char *port_name = mp_obj_str_get_str(mp_port_name);
+	int nbr_of_slots = mp_obj_get_int(mp_nbr_of_slots);
+	port_t *port = NULL;
+	bool result = false;
+
+	port = port_get_from_name(actor, port_name, PORT_DIRECTION_OUT);
+	if (port != NULL)
+		result = fifo_slots_available(&port->fifo, nbr_of_slots);
+	else
+		log_error("No port with name '%s'", port_name);
+
+	return mp_obj_new_bool(result);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_3(mpy_port_ccmp_slots_available_obj, mpy_port_ccmp_slots_available);
+
+STATIC mp_obj_t mpy_port_ccmp_peek_token(mp_obj_t mp_actor, mp_obj_t mp_port_name)
+{
+	actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
+	const char *port_name = mp_obj_str_get_str(mp_port_name);
+	port_t *port = NULL;
+	token_t *token = NULL;
+	mp_obj_t value = MP_OBJ_NULL;
+
+	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
+	if (port != NULL) {
+		token = fifo_peek(&port->fifo);
+		if (decode_to_mpy_obj(token->value, &value) == SUCCESS)
+			return value;
+	}	else
+		log_error("No port with name '%s'", port_name);
 
 	return mp_const_none;
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(mpy_port_set_callback_obj, mpy_port_set_callback);
-
-STATIC mp_obj_t mpy_port_call_callback(void)
-{
-#if 1
-	vstr_t vstr;
-
-	vstr_init_len(&vstr, strlen("some_string"));
-	strcpy(vstr.buf, "some_string");
-	mp_obj_t obj = mp_obj_new_str_from_vstr(&mp_type_bytes, &vstr);
-#else
-	mp_obj_t obj = mp_obj_new_str("some_string", strlen("some_string"), false);
-#endif
-	return mp_call_function_1(MP_STATE_PORT(mpy_port_callback_obj), obj);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_0(mpy_port_call_callback_obj, mpy_port_call_callback);
-
-STATIC mp_obj_t mpy_port_ccmp_tokens_available(mp_obj_t ccmp_actor, mp_obj_t action_input)
-{
-	mp_obj_list_t *list_o = MP_OBJ_TO_PTR(action_input);
-	ccmp_actor_type_t *ptr_ccmp_actor = MP_OBJ_TO_PTR(ccmp_actor);
-	mp_obj_tuple_t *tuple_o = NULL;
-	bool input_ok = true;
-	port_t *ccmp_port = NULL;
-	uint16_t i = 0;
-
-	for (i = 0; i < list_o->len; i++) {
-		tuple_o = list_o->items[i];
-		GET_STR_DATA_LEN(tuple_o->items[0], port_name, port_name_len);
-		ccmp_port = port_get_from_name(ptr_ccmp_actor->actor, (char *)port_name, PORT_DIRECTION_IN);
-		if (!fifo_tokens_available(&ccmp_port->fifo, 1)) {
-			input_ok = false;
-			break;
-		}
-	}
-	// Make eligible for garble collectable by setting the mp_obj_t type objects to null
-	list_o = MP_OBJ_NULL;
-	ptr_ccmp_actor = MP_OBJ_NULL;
-	tuple_o = MP_OBJ_NULL;
-	log_debug("input ok: %s\n", input_ok ? "true" : "false");
-
-	return mp_obj_new_bool(input_ok);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(mpy_port_ccmp_tokens_available_obj, mpy_port_ccmp_tokens_available);
-
-STATIC mp_obj_t mpy_port_ccmp_slots_available(mp_obj_t ccmp_actor, mp_obj_t action_output)
-{
-	mp_obj_list_t *list_o = MP_OBJ_TO_PTR(action_output);
-	ccmp_actor_type_t *ptr_ccmp_actor = MP_OBJ_TO_PTR(ccmp_actor);
-	mp_obj_tuple_t *tuple_o = NULL;
-	bool output_ok = true;
-	port_t *ccmp_port = NULL;
-
-	for (uint16_t i = 0; i < list_o->len; i++) {
-		tuple_o = list_o->items[i];
-		GET_STR_DATA_LEN(tuple_o->items[0], port_name, port_name_len);
-		ccmp_port = port_get_from_name(ptr_ccmp_actor->actor, (char *)port_name, PORT_DIRECTION_OUT);
-		if (!fifo_slots_available(&ccmp_port->fifo, 1)) {
-			output_ok = false;
-			break;
-		}
-	}
-	// Make eligible for garble collectable by setting the mp_obj_t type objects to null
-	list_o = MP_OBJ_NULL;
-	ptr_ccmp_actor = MP_OBJ_NULL;
-	tuple_o = MP_OBJ_NULL;
-	log_debug("output ok: %s\n", output_ok ? "true" : "false");
-
-	return mp_obj_new_bool(output_ok);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_2(mpy_port_ccmp_slots_available_obj, mpy_port_ccmp_slots_available);
-
-STATIC mp_obj_t mpy_port_ccmp_peek_token(mp_obj_t ccmp_actor, mp_obj_t action_input)
-{
-	mp_obj_list_t *list_o = MP_OBJ_TO_PTR(action_input);
-	ccmp_actor_type_t *ptr_ccmp_actor = MP_OBJ_TO_PTR(ccmp_actor);
-	mp_obj_tuple_t *tuple_o = NULL;
-	token_t *token = NULL;
-	//uint32_t value;
-	size_t repeat;
-	mp_obj_t args = mp_obj_new_list(0, NULL);
-	mp_obj_t retVal = MP_OBJ_NULL;
-	mp_obj_t tokenList;
-	mp_obj_list_t *self;
-	mp_uint_t len;
-	port_t *ccmp_port = NULL;
-
-	for (uint16_t i = 0; i < list_o->len; i++) {
-		tuple_o = list_o->items[i];
-		GET_STR_DATA_LEN(tuple_o->items[0], port_name, port_name_len);
-		ccmp_port = port_get_from_name(ptr_ccmp_actor->actor, (char *)port_name, PORT_DIRECTION_IN);
-		repeat = mp_obj_get_int(tuple_o->items[1]);
-		for (uint16_t j = 0; j < repeat; j++) {
-			tokenList = mp_obj_new_list(0, NULL);
-
-			// TODO: Handle failures
-			token = fifo_peek(&ccmp_port->fifo);
-			if (decode_to_mpy_obj(token->value, &retVal) == SUCCESS)
-				mp_obj_list_append(tokenList, retVal);
-		}
-		self = MP_OBJ_TO_PTR(tokenList);
-		len = self->len;
-		if (len == 1)
-			mp_obj_list_append(args, self->items[0]);
-		else
-			mp_obj_list_append(args, tokenList);
-	}
-	// Make eligible for garble collectable by setting the mp_obj_t type objects to null
-	list_o = MP_OBJ_NULL;
-	ptr_ccmp_actor = MP_OBJ_NULL;
-	tuple_o = MP_OBJ_NULL;
-	retVal = MP_OBJ_NULL;
-	tokenList = MP_OBJ_NULL;
-	self = MP_OBJ_NULL;
-
-	return args;
-}
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(mpy_port_ccmp_peek_token_obj, mpy_port_ccmp_peek_token);
 
-STATIC mp_obj_t mpy_port_ccmp_peek_commit(mp_obj_t ccmp_actor, mp_obj_t action_input)
+STATIC mp_obj_t mpy_port_ccmp_peek_commit(mp_obj_t mp_actor, mp_obj_t mp_port_name)
 {
-	mp_obj_list_t *list_in = MP_OBJ_TO_PTR(action_input);
-	ccmp_actor_type_t *ptr_ccmp_actor = MP_OBJ_TO_PTR(ccmp_actor);
-	mp_obj_tuple_t *tuple_in = NULL;
-	uint16_t i = 0;
-	port_t *ccmp_port = NULL;
+	actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
+	const char *port_name = mp_obj_str_get_str(mp_port_name);
+	port_t *port = NULL;
+	bool value = false;
 
-	for (i = 0; i < list_in->len; i++) {
-		tuple_in = list_in->items[i];
-		GET_STR_DATA_LEN(tuple_in->items[0], port_name, port_name_len);
-		ccmp_port = port_get_from_name(ptr_ccmp_actor->actor, (char *)port_name, PORT_DIRECTION_IN);
-		fifo_commit_read(&ccmp_port->fifo);
-	}
-	// Make eligible for garble collectable by setting the mp_obj_t type objects to null
-	list_in = MP_OBJ_NULL;
-	ptr_ccmp_actor = MP_OBJ_NULL;
-	tuple_in = MP_OBJ_NULL;
+	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
+	if (port != NULL)
+		value = fifo_commit_read(&port->fifo);
+	else
+		log_error("No port with name '%s'", port_name);
 
-	return mp_obj_new_bool(true);
+	return mp_obj_new_bool(value);
 }
-
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(mpy_port_ccmp_peek_commit_obj, mpy_port_ccmp_peek_commit);
 
-STATIC mp_obj_t mpy_port_ccmp_write_token(mp_obj_t ccmp_actor, mp_obj_t action_output, mp_obj_t action_result_production)
+STATIC mp_obj_t mpy_port_ccmp_write_token(mp_obj_t mp_actor, mp_obj_t mp_port_name, mp_obj_t mp_value)
 {
-	mp_obj_list_t *list_out = MP_OBJ_TO_PTR(action_output);
-	mp_obj_tuple_t *tuple_out = NULL;
-	mp_obj_tuple_t *a_r_prod = MP_OBJ_TO_PTR(action_result_production);
-	ccmp_actor_type_t *ptr_ccmp_actor = MP_OBJ_TO_PTR(ccmp_actor);
-	size_t repeat;
-	mp_obj_t *retval = mp_obj_new_list(0, NULL);
-	int32_t i = 0;
+	actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
+	const char *port_name = mp_obj_str_get_str(mp_port_name);
+	port_t *port = NULL;
 	token_t token;
-	port_t *ccmp_port = NULL;
-	mp_obj_list_t *temp_list = NULL;
 
-	for (i = 0; i < list_out->len; i++) {
-		tuple_out = list_out->items[i];
-		GET_STR_DATA_LEN(tuple_out->items[0], port_name, port_name_len);
-		ccmp_port = port_get_from_name(ptr_ccmp_actor->actor, (char *)port_name, PORT_DIRECTION_OUT);
-		repeat = mp_obj_get_int(tuple_out->items[1]);
-		if (repeat == 1)
-			mp_obj_list_append(retval, a_r_prod->items[0]);
-		else
-			retval = a_r_prod->items[0];
-		temp_list = MP_OBJ_TO_PTR(retval);
-		for (i = 0; i < temp_list->len; i++) {
-			if (encode_from_mpy_obj(&token.value, &token.size, temp_list->items[i]) == SUCCESS) {
-				if (fifo_write(&ccmp_port->fifo, token.value, token.size) == SUCCESS) {
-					platform_mem_free(token.value);
-					token.value = NULL;
-				}
-			}
+	port = port_get_from_name(actor, port_name, PORT_DIRECTION_OUT);
+	if (port != NULL) {
+		if (encode_from_mpy_obj(&token.value, &token.size, mp_value) == SUCCESS) {
+			if (fifo_write(&port->fifo, token.value, token.size) != SUCCESS)
+				log_error("Failed to write token to port '%s'", port_name);
+			free_token(&token);
 		}
-	}
-	// Make eligible for garble collectable by setting the mp_obj_t type objects to null
-	list_out = MP_OBJ_NULL;
-	tuple_out = MP_OBJ_NULL;
-	a_r_prod = MP_OBJ_NULL;
-	ptr_ccmp_actor = MP_OBJ_NULL;
-	retval = MP_OBJ_NULL;
-	temp_list = MP_OBJ_NULL;
+	} else
+		log_error("No port with name '%s'", port_name);
 
 	return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_3(mpy_port_ccmp_write_token_obj, mpy_port_ccmp_write_token);
 
-STATIC mp_obj_t mpy_port_ccmp_peek_cancel(mp_obj_t ccmp_actor, mp_obj_t action_input)
+STATIC mp_obj_t mpy_port_ccmp_peek_cancel(mp_obj_t mp_actor, mp_obj_t mp_port_name)
 {
-	mp_obj_list_t *list_in = MP_OBJ_TO_PTR(action_input);
-	ccmp_actor_type_t *ptr_ccmp_actor = MP_OBJ_TO_PTR(ccmp_actor);
-	mp_obj_tuple_t *tuple_in = NULL;
-	uint16_t i = 0;
-	port_t *ccmp_port = NULL;
+	actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
+	const char *port_name = mp_obj_str_get_str(mp_port_name);
+	port_t *port = NULL;
 
-	for (i = 0; i < list_in->len; i++) {
-		tuple_in = list_in->items[i];
-		GET_STR_DATA_LEN(tuple_in->items[0], port_name, port_name_len);
-		ccmp_port = port_get_from_name(ptr_ccmp_actor->actor, (char *)port_name, PORT_DIRECTION_IN);
-		fifo_cancel_commit(&ccmp_port->fifo);
-	}
-	// Make eligible for garble collectable by setting the mp_obj_t type objects to null
-	list_in = MP_OBJ_NULL;
-	ptr_ccmp_actor = MP_OBJ_NULL;
-	tuple_in = MP_OBJ_NULL;
+	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
+	if (port != NULL)
+		fifo_cancel_commit(&port->fifo);
+	else
+		log_error("No port with name '%s'", port_name);
 
-	return mp_obj_new_bool(true);
+	return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(mpy_port_ccmp_peek_cancel_obj, mpy_port_ccmp_peek_cancel);
 
 STATIC const mp_map_elem_t mpy_port_globals_table[] = {
 	{ MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_mpy_port)},
-	{ MP_OBJ_NEW_QSTR(MP_QSTR_set_callback), (mp_obj_t)&mpy_port_set_callback_obj },
-	{ MP_OBJ_NEW_QSTR(MP_QSTR_call_callback), (mp_obj_t)&mpy_port_call_callback_obj },
 	{ MP_OBJ_NEW_QSTR(MP_QSTR_ccmp_tokens_available), (mp_obj_t)&mpy_port_ccmp_tokens_available_obj },
 	{ MP_OBJ_NEW_QSTR(MP_QSTR_ccmp_slots_available), (mp_obj_t)&mpy_port_ccmp_slots_available_obj },
 	{ MP_OBJ_NEW_QSTR(MP_QSTR_ccmp_peek_token), (mp_obj_t)&mpy_port_ccmp_peek_token_obj },

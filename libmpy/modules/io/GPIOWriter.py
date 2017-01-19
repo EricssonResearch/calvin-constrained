@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from calvin.actor.actor import Actor, ActionResult, manage, condition
+from calvin.actor.actor import Actor, manage, condition
 
 
 class GPIOWriter(Actor):
@@ -46,7 +46,7 @@ class GPIOWriter(Actor):
     @condition(action_input=("state",))
     def set_state(self, state):
         self.gpio.set_state(state)
-        return ActionResult()
+
 
     action_priority = (set_state, )
     requires = ["calvinsys.io.gpiohandler"]

@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from calvin.actor.actor import Actor, ActionResult, manage, condition
+from calvin.actor.actor import Actor, manage, condition
 
 
 class Identity(Actor):
@@ -36,7 +36,7 @@ class Identity(Actor):
     def donothing(self, input):
         if self.dump:
             self.log(input)
-        return ActionResult(production=(input, ))
+        return (input, )
 
     action_priority = (donothing, )
 

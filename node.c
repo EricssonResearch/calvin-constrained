@@ -20,9 +20,6 @@
 #include "platform.h"
 #include "proto.h"
 #include "msgpack_helper.h"
-#ifdef MICROPYTHON
-#include "py/gc.h"
-#endif
 
 #define SERIALIZER "msgpack"
 #define SCHEMA "calvinip"
@@ -275,8 +272,6 @@ result_t node_transmit(void)
 {
 	list_t *tmp_list = NULL;
 
-	log_debug("node_transmit");
-
 	if (transport_can_send()) {
 		switch (m_node.state) {
 		case NODE_DO_JOIN:
@@ -344,9 +339,6 @@ void node_loop_once(void)
 			if (actor->state == ACTOR_ENABLED) {
 				if (actor->fire(actor) == SUCCESS)
 					log("Fired '%s'", actor->name);
-#ifdef MICROPYTHON
-				gc_collect();
-#endif
 			}
 			tmp_list = tmp_list->next;
 		}

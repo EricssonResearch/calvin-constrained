@@ -45,56 +45,57 @@ def manage(include=None, exclude=None):
 def condition(action_input=[], action_output=[]):
     """
     Decorator condition specifies the required input data and output space.
-    Both parameters are lists of tuples: (port, #tokens consumed/produced)
-    Optionally, the port spec can be a port only, meaning #tokens is 1.
-    Return value is an ActionResult object
-
-    FIXME:
-    - Modify ActionResult to specify how many tokens were read/written from/to each port
-      E.g. ActionResult.tokens_consumed/produced are dicts: {'port1':4, 'port2':1, ...}
-      Since reading is done in the wrapper, tokens_consumed is fixed and given by action_input.
-      The action fills in tokens_produced and the wrapper uses that info when writing to ports.
-    - We can keep the @condition syntax by making the change in the normalize step below.
+    Both parameters are lists of port names
+    Return value is a tuple (did_fire, output_available, exhaust_list)
     """
-    #
-    # Normalize argument list (fill in a default repeat of 1 if not stated)
-    #
-    action_input = [p if isinstance(p, (list, tuple)) else (p, 1) for p in action_input]
-    action_output = [p if isinstance(p, (list, tuple)) else (p, 1) for p in action_output]
+    tokens_produced = len(action_output)
+    tokens_consumed = len(action_input)
 
     def wrap(action_method):
 
         @functools.wraps(action_method)
         def condition_wrapper(self):
-            # Check if input ports have enough tokens. Note that all([]) evaluates to True
-            input_ok = mpy_port.ccmp_tokens_available(self.cc_actor, action_input)
-            output_ok = mpy_port.ccmp_slots_available(self.cc_actor, action_output)
+            # Check if input ports have enough tokens
+            input_ok = all(mpy_port.ccmp_tokens_available(self.actor_ref, portname, 1) for portname in action_input)
+
+            # Check if output port have enough free token slots
+            output_ok = all(mpy_port.ccmp_slots_available(self.actor_ref, portname, 1) for portname in action_output)
 
             if not input_ok or not output_ok:
-                return ActionResult(did_fire=False)  # FIXME Is it enough to return actionResult.did_fire
+                return (False, output_ok, ())
 
             # Build the arguments for the action from the input port(s)
-            # TODO check for exception tokens
-            args = mpy_port.ccmp_peek_token(self.cc_actor, action_input)
+            # TODO: Handle exception tokens
+            args = []
+            for portname in action_input:
+                value = mpy_port.ccmp_peek_token(self.actor_ref, portname)
+                args.append(value)
 
             # Perform the action (N.B. the method may be wrapped in a guard)
-            action_result = action_method(self, *args)
+            production = action_method(self, *args)
 
-            if action_result.did_fire:  # and valid_production:
-                # Commit to the read from the FIFOs
-                mpy_port.ccmp_peek_commit(self.cc_actor, action_input)
-                # Write the results from the action to the output port(s)
-                mpy_port.ccmp_write_token(self.cc_actor, action_output, action_result.production)
+            valid_production = (tokens_produced == len(production))
+
+            exhausted_ports = set()
+            if valid_production:
+                for portname in action_input:
+                    exhausted = mpy_port.ccmp_peek_commit(self.actor_ref, portname)
+                    if exhausted:
+                        exhausted_ports.add(portname)
             else:
-                # cancel the read from the FIFOs
-                mpy_port.ccmp_peek_cancel(self.cc_actor, action_input)
+                for portname in action_input:
+                    mpy_port.ccmp_peek_cancel(self.actor_ref, portname)
+                raise Exception("Failed to execute %s, invalid production", action_input)
 
-            return action_result  # FIXME Is it enough to return actionResult.did_fire
+            for portname, retval in zip(action_output, production):
+                mpy_port.ccmp_write_token(self.actor_ref, portname, retval)
+
+            return (True, True, exhausted_ports)
         return condition_wrapper
     return wrap
 
 
-def guard(action_guard):
+def stateguard(action_guard):
     """
     Decorator guard refines the criteria for picking an action to run by stating a function
     with THE SAME signature as the guarded action returning a boolean (True if action allowed).
@@ -106,32 +107,12 @@ def guard(action_guard):
 
         @functools.wraps(action_method)
         def guard_wrapper(self, *args):
-            retval = ActionResult(did_fire=False)  # FIXME Is it enough to return actionResult.did_fire
-            guard_ok = action_guard(self, *args)
-            if guard_ok:
-                retval = action_method(self, *args)
-            return retval
+            if not action_guard(self):
+                return (False, True, ())
+            return action_method(self, *args)
 
         return guard_wrapper
     return wrap
-
-
-class ActionResult(object):
-
-    """Return type from action and @guard"""
-
-    def __init__(self, did_fire=True, production=()):
-        super(ActionResult, self).__init__()
-        self.did_fire = did_fire
-        self.production = production
-
-    def merge(self, other_result):
-        """
-        Update this ActionResult by mergin data from other_result:
-             did_fire will be OR:ed together
-             production will be DISCARDED
-        """
-        self.did_fire |= other_result.did_fire
 
 
 class Actor(object):
@@ -145,10 +126,10 @@ class Actor(object):
     test_args = ()
     test_kwargs = {}
 
-    def __init__(self, cc_actor):
+    def __init__(self, actor_ref):
         """Should _not_ be overridden in subclasses."""
         super(Actor, self).__init__()
-        self.cc_actor = cc_actor
+        self.actor_ref = actor_ref
         self._managed = set(('id', 'name', '_deployment_requirements', '_signature', 'subject_attributes', 'migration_info'))
         #TODO handle calvinsys
         self._calvinsys = calvinsys.Sys()
@@ -163,27 +144,26 @@ class Actor(object):
             return self._using[attr]
         raise KeyError(attr)
 
-    #TODO handle calvinsys
     def use(self, requirement, shorthand):
         self._using[shorthand] = self._calvinsys.use_requirement(self, requirement)
 
     def fire(self):
-        total_result = ActionResult(did_fire=False)
-        while True:
-            # Re-try action in list order after EVERY firing
+        """
+        Fire an actor.
+        Returns True if any action fired
+        """
+        actor_did_fire = False
+        done = False
+        while not done:
             for action_method in self.__class__.action_priority:
-                action_result = action_method(self)
-                total_result.merge(action_result)
-                # Action firing should fire the first action that can fire,
-                # hence when fired start from the beginning
-                if action_result.did_fire:
+                did_fire, output_ok, exhausted = action_method(self)
+                actor_did_fire |= did_fire
+                if did_fire:
                     break
+            if not did_fire:
+                done = True
 
-            if not action_result.did_fire:
-                # We reached the end of the list without ANY firing => return
-                return total_result.did_fire
-        # Redundant as of now, kept as reminder for when rewriting exception handling.
-        raise Exception('Exit from fire should ALWAYS be from previous line.')
+        return actor_did_fire
 
     def state(self):
         state = {}
@@ -202,4 +182,3 @@ class Actor(object):
     def exception_handler(self, action, args, context):
         """Defult handler when encountering ExceptionTokens"""
         raise Exception("ExceptionToken NOT HANDLED")
-

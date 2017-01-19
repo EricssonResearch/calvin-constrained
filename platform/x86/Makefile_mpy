@@ -8,6 +8,7 @@ CFLAGS += -g -Wall
 CFLAGS += -Werror
 CFLAGS += --std=gnu99
 #CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG_MEM
 CFLAGS += -DPARSE_ARGS
 ifneq ($(PLATFORM), Darwin)
 CFLAGS += -lrt

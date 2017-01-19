@@ -72,7 +72,7 @@ void port_free(port_t *port);
 result_t add_pending_token_response(port_t *port, uint32_t sequencenbr, bool ack);
 void port_disconnect(port_t *port);
 port_t *port_get(struct node_t *node, const char *port_id, uint32_t port_id_len);
-port_t *port_get_from_name(struct actor_t *actor, char *name, port_direction_t direction);
+port_t *port_get_from_name(struct actor_t *actor, const char *name, port_direction_t direction);
 result_t port_handle_disconnect(struct node_t *node, const char *port_id, uint32_t port_id_len);
 result_t port_handle_connect(struct node_t *node, const char *port_id, uint32_t port_id_len, const char *tunnel_id, uint32_t tunnel_id_len);
 result_t port_iniate_connect(struct node_t *node, port_t *port);

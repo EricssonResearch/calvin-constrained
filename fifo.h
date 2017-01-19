@@ -31,7 +31,7 @@ typedef struct fifo_t {
 result_t fifo_init(fifo_t *fifo, char *obj_fifo);
 void fifo_free(fifo_t *fifo);
 token_t *fifo_peek(fifo_t *fifo);
-void fifo_commit_read(fifo_t *fifo);
+bool fifo_commit_read(fifo_t *fifo);
 void fifo_cancel_commit(fifo_t *fifo);
 bool fifo_slots_available(const fifo_t *fifo, uint32_t length);
 bool fifo_tokens_available(const fifo_t *fifo, uint32_t length);
