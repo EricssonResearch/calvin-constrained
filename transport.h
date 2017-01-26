@@ -58,7 +58,7 @@ void transport_set_state(const transport_state_t state);
 transport_state_t transport_get_state(void);
 void transport_stop(void);
 result_t transport_get_tx_buffer(char **buffer, uint32_t size);
-bool transport_can_send(void);
+bool transport_can_transmit(void);
 #ifdef LWM2M_HTTP_CLIENT
 result_t transport_http_get(char *iface, int port, char *url, char *buffer, int buffer_size);
 #endif

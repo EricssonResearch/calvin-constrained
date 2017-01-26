@@ -22,7 +22,7 @@
 result_t actor_gpiowriter_init(actor_t **actor, list_t *attributes)
 {
 	state_gpiowriter_t *state = NULL;
-	list_t *tmp = NULL;
+	char *data = NULL;
 
 	if (platform_mem_alloc((void **)&state, sizeof(state_gpiowriter_t)) != SUCCESS) {
 		log_error("Failed to allocate memory");
@@ -30,8 +30,8 @@ result_t actor_gpiowriter_init(actor_t **actor, list_t *attributes)
 	}
 	memset(state, 0, sizeof(state_gpiowriter_t));
 
-	tmp = list_get(attributes, "gpio_pin");
-	if (tmp == NULL || decode_uint((char *)tmp->data, &state->pin) != SUCCESS) {
+	data = (char *)list_get(attributes, "gpio_pin");
+	if (data == NULL || decode_uint(data, &state->pin) != SUCCESS) {
 		log_error("Failed to get 'gpio_pin'");
 		return FAIL;
 	}
@@ -52,39 +52,27 @@ result_t actor_gpiowriter_set_state(actor_t **actor, list_t *attributes)
 	return actor_gpiowriter_init(actor, attributes);
 }
 
-result_t actor_gpiowriter_fire(struct actor_t *actor)
+bool actor_gpiowriter_fire(struct actor_t *actor)
 {
-	port_t *inport = NULL;
+	state_gpiowriter_t *gpio_state = (state_gpiowriter_t *)actor->instance_state;
+	port_t *inport = (port_t *)actor->in_ports->data;
 	token_t *in_token = NULL;
 	uint32_t in_data = 0;
-	bool did_fire = false;
-	state_gpiowriter_t *gpio_state = (state_gpiowriter_t *)actor->instance_state;
-
-	inport = port_get_from_name(actor, "state", PORT_DIRECTION_IN);
-	if (inport == NULL) {
-		log_error("No port with name 'state'");
-		return FAIL;
-	}
 
 	if (fifo_tokens_available(&inport->fifo, 1) == 1) {
 		in_token = fifo_peek(&inport->fifo);
 
-		if (token_decode_uint(*in_token, &in_data) != SUCCESS) {
-			log_error("Failed to decode token");
-			fifo_cancel_commit(&inport->fifo);
-			return FAIL;
+		if (token_decode_uint(*in_token, &in_data) == SUCCESS) {
+			platform_set_gpio(gpio_state->gpio, in_data);
+			fifo_commit_read(&inport->fifo);
+			return true;
 		}
 
-		platform_set_gpio(gpio_state->gpio, in_data);
-
-		fifo_commit_read(&inport->fifo);
-		did_fire = true;
+		log_error("Failed to decode token");
+		fifo_cancel_commit(&inport->fifo);
 	}
 
-	if (did_fire)
-		return SUCCESS;
-
-	return FAIL;
+	return false;
 }
 
 void actor_gpiowriter_free(actor_t *actor)

@@ -126,18 +126,18 @@ result_t get_value_from_array(char *buffer, int index, char **value)
 	return FAIL;
 }
 
-result_t get_value_from_map(char *buffer, const char *key, char **value)
+result_t get_value_from_map_n(char *buffer, const char *key, uint32_t key_len, char **value)
 {
 	char *r = buffer;
-	uint32_t i = 0, map_size = 0, key_len = 0;
-	char *tmp = NULL;
+	uint32_t i = 0, map_size = 0, tmp_key_len = 0;
+	char *tmp_key = NULL;
 
 	if (mp_typeof(*r) == MP_MAP) {
 		map_size = mp_decode_map((const char **)&r);
 		for (i = 0; i < map_size; i++) {
-			if (decode_str(r, &tmp, &key_len) == SUCCESS) {
+			if (decode_str(r, &tmp_key, &tmp_key_len) == SUCCESS) {
 				mp_next((const char **)&r);
-				if (strncmp(tmp, key, key_len) == 0) {
+				if (strncmp(key, tmp_key, key_len) == 0) {
 					*value = r;
 					return SUCCESS;
 				}
@@ -153,6 +153,11 @@ result_t get_value_from_map(char *buffer, const char *key, char **value)
 	log_error("Parse error for '%s'", key);
 
 	return FAIL;
+}
+
+result_t get_value_from_map(char *buffer, const char *key, char **value)
+{
+		return get_value_from_map_n(buffer, key, strlen(key), value);
 }
 
 result_t decode_str(char *buffer, char **value, uint32_t *len)

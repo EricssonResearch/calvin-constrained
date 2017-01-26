@@ -25,16 +25,16 @@
 result_t actor_identity_init(actor_t **actor, list_t *attributes)
 {
 	state_identity_t *state = NULL;
-	list_t *tmp_list = NULL;
 	bool dump = false;
+	char *data = NULL;
 
-	tmp_list = list_get(attributes, "dump");
-	if (tmp_list == NULL) {
+	data = (char *)list_get(attributes, "dump");
+	if (data == NULL) {
 		log_error("Failed to get attribute 'dump'");
 		return FAIL;
 	}
 
-	if (decode_bool((char *)tmp_list->data, &dump) != SUCCESS)
+	if (decode_bool(data, &dump) != SUCCESS)
 		return FAIL;
 
 	if (platform_mem_alloc((void **)&state, sizeof(state_identity_t)) != SUCCESS) {
@@ -53,51 +53,26 @@ result_t actor_identity_set_state(actor_t **actor, list_t *attributes)
 	return actor_identity_init(actor, attributes);
 }
 
-result_t actor_identity_fire(struct actor_t *actor)
+bool actor_identity_fire(struct actor_t *actor)
 {
 	token_t *in_token = NULL, out_token;
 	uint32_t in_data = 0;
-	port_t *inport = NULL, *outport = NULL;
-	bool did_fire = false;
+	port_t *inport = (port_t *)actor->in_ports->data, *outport = (port_t *)actor->out_ports->data;
 
-	memset(&out_token, 0, sizeof(token_t));
-
-	inport = port_get_from_name(actor, "token", PORT_DIRECTION_IN);
-	if (inport == NULL) {
-		log_error("No port with name 'token'");
-		return FAIL;
-	}
-
-	outport = port_get_from_name(actor, "token", PORT_DIRECTION_OUT);
-	if (outport == NULL) {
-		log_error("No port with name 'token'");
-		return FAIL;
-	}
-
-	if (fifo_tokens_available(&inport->fifo, 1) == 1 && fifo_slots_available(&outport->fifo, 1) == 1) {
+	if (fifo_tokens_available(&inport->fifo, 1) && fifo_slots_available(&outport->fifo, 1)) {
 		in_token = fifo_peek(&inport->fifo);
-		if (token_decode_uint(*in_token, &in_data) != SUCCESS) {
+		if (token_decode_uint(*in_token, &in_data) == SUCCESS) {
+			token_set_uint(&out_token, in_data);
+			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == SUCCESS) {
+				fifo_commit_read(&inport->fifo);
+				return true;
+			}
+		} else
 			log_error("Failed to decode token");
-			fifo_cancel_commit(&inport->fifo);
-			return FAIL;
-		}
-
-		token_set_uint(&out_token, in_data);
-
-		if (fifo_write(&outport->fifo, out_token.value, out_token.size) != SUCCESS) {
-			log_error("Failed to write token");
-			fifo_cancel_commit(&inport->fifo);
-			return FAIL;
-		}
-
-		fifo_commit_read(&inport->fifo);
-		did_fire = true;
+		fifo_cancel_commit(&inport->fifo);
 	}
 
-	if (did_fire)
-		return SUCCESS;
-
-	return FAIL;
+	return false;
 }
 
 void actor_identity_free(actor_t *actor)

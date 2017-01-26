@@ -31,6 +31,7 @@
 #include "actors/actor_mpy.h"
 #endif
 
+#ifndef MICROPYTHON
 #define NBR_OF_ACTOR_TYPES 4
 
 struct actor_type_t {
@@ -38,7 +39,7 @@ struct actor_type_t {
 	result_t (*init)(actor_t **actor, list_t *attributes);
 	result_t (*set_state)(actor_t **actor, list_t *attributes);
 	void (*free_state)(actor_t *actor);
-	result_t (*fire_actor)(actor_t *actor);
+	bool (*fire_actor)(actor_t *actor);
 	result_t (*get_managed_attributes)(actor_t *actor, list_t **attributes);
 };
 
@@ -76,6 +77,7 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		NULL
 	}
 };
+#endif
 
 static result_t actor_remove_reply_handler(char *data, void *msg_data)
 {
@@ -119,14 +121,37 @@ static result_t actor_migrate_reply_handler(char *data, void *msg_data)
 
 static result_t actor_set_reply_handler(char *data, void *msg_data)
 {
-	// TODO: Check result
-	return SUCCESS;
+	actor_t *actor = NULL;
+	node_t *node = node_get();
+	char *value = NULL;
+	bool status = false;
+
+	actor = actor_get(node, (char *)msg_data, strlen((char *)msg_data));
+	if (actor == NULL) {
+		log_error("No actor with id '%s'", (char *)msg_data);
+		return FAIL;
+	}
+
+	if (get_value_from_map(data, "value", &value) == SUCCESS) {
+		if (decode_bool_from_map(value, "value", &status) == SUCCESS) {
+			if (status == true) {
+				log("Actor '%s' enabled", actor->id);
+				actor->state = ACTOR_ENABLED;
+			} else {
+				log_error("Failed to store actor '%s'", actor->id);
+				actor->state = ACTOR_DO_ENABLE;
+			}
+			return SUCCESS;
+		}
+	}
+
+	log_error("Failed to decode data");
+
+	return FAIL;
 }
 
 result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 {
-	int i = 0;
-
 	strncpy(actor->type, type, type_len);
 	actor->state = ACTOR_PENDING;
 	actor->in_ports = NULL;
@@ -135,11 +160,10 @@ result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	actor->attributes = NULL;
 
 #ifdef MICROPYTHON
-	if (actor_mpy_init_from_type(actor, actor->type, type_len) == SUCCESS) {
-		log("Initialized python actor '%.*s'", (int)type_len, type);
+	if (actor_mpy_init_from_type(actor, actor->type, type_len) == SUCCESS)
 		return SUCCESS;
-	}
-#endif
+#else
+	int i = 0;
 
 	for (i = 0; i < NBR_OF_ACTOR_TYPES; i++) {
 		if (strncmp(type, actor_types[i].type, type_len) == 0) {
@@ -148,10 +172,10 @@ result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 			actor->free_state = actor_types[i].free_state;
 			actor->fire = actor_types[i].fire_actor;
 			actor->get_managed_attributes = actor_types[i].get_managed_attributes;
-			log("Initialized actor '%.*s'", (int)type_len, type);
 			return SUCCESS;
 		}
 	}
+#endif
 
 	log_error("Actor type '%.*s' not supported", (int)type_len, type);
 
@@ -278,18 +302,14 @@ static result_t actor_create_ports(node_t *node, actor_t *actor, char *obj_ports
 	for (i_port = 0; i_port < nbr_ports && result == SUCCESS; i_port++) {
 		mp_next((const char **)&ports);
 
-		if (direction == PORT_DIRECTION_IN)
-			port = port_create(node, actor, ports, prev_connections, PORT_DIRECTION_IN);
-		else
-			port = port_create(node, actor, ports, prev_connections, PORT_DIRECTION_OUT);
-
+		port = port_create(node, actor, ports, prev_connections, direction);
 		if (port == NULL)
 			return FAIL;
 
 		if (direction == PORT_DIRECTION_IN)
-			result = list_add(&actor->in_ports, port->port_id, (void *)port, sizeof(port_t));
+			result = list_add(&actor->in_ports, port->id, (void *)port, sizeof(port_t));
 		else
-			result = list_add(&actor->out_ports, port->port_id, (void *)port, sizeof(port_t));
+			result = list_add(&actor->out_ports, port->id, (void *)port, sizeof(port_t));
 
 		nbr_keys = mp_decode_map((const char **)&ports);
 		for (i_key = 0; i_key < nbr_keys; i_key++) {
@@ -416,7 +436,7 @@ actor_t *actor_create(node_t *node, char *root)
 	// attributes should now be handled by the instance
 	actor_free_managed(instance_attributes);
 
-	log("Actor '%s' created", actor->name);
+	log("Actor '%s' created with id '%s' and type '%s'", actor->name, actor->id, actor->type);
 
 	return actor;
 }
@@ -454,20 +474,15 @@ void actor_free(node_t *node, actor_t *actor)
 
 actor_t *actor_get(node_t *node, const char *actor_id, uint32_t actor_id_len)
 {
-	list_t *list = NULL;
-
-	list = list_get(node->actors, actor_id);
-	if (list != NULL)
-		return (actor_t *)list->data;
-
-	return NULL;
+	return (actor_t *)list_get(node->actors, actor_id);
 }
 
 void actor_port_enabled(actor_t *actor)
 {
 	port_t *port = NULL;
-	list_t *list = actor->in_ports;
+	list_t *list = NULL;
 
+	list = actor->in_ports;
 	while (list != NULL) {
 		port = (port_t *)list->data;
 		if (port->state != PORT_ENABLED)
@@ -482,28 +497,27 @@ void actor_port_enabled(actor_t *actor)
 			return;
 		list = list->next;
 	}
-
-	log_debug("Enabled '%s'", actor->name);
 
 	actor->state = ACTOR_DO_ENABLE;
 }
 
 void actor_delete(actor_t *actor)
 {
-	list_t *list = actor->in_ports;
+	list_t *list = NULL;
 
-	actor->state = ACTOR_DO_DELETE;
-
+	list = actor->in_ports;
 	while (list != NULL) {
-		port_delete((port_t *)list->data);
+		((port_t *)list->data)->state = PORT_DO_DELETE;
 		list = list->next;
 	}
 
 	list = actor->out_ports;
 	while (list != NULL) {
-		port_delete((port_t *)list->data);
+		((port_t *)list->data)->state = PORT_DO_DELETE;
 		list = list->next;
 	}
+
+	actor->state = ACTOR_DO_DELETE;
 }
 
 result_t actor_migrate(actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len)
@@ -513,12 +527,13 @@ result_t actor_migrate(actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len
 	return SUCCESS;
 }
 
-char *actor_serialize(const actor_t *actor, char **buffer)
+char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer)
 {
 	list_t *in_ports = NULL, *out_ports = NULL;
 	list_t *instance_attributes = NULL, *tmp_list = NULL;
 	port_t *port = NULL;
-	int nbr_inports = 0, nbr_outports = 0, i_token = 0, nbr_managed_attributes = 0;
+	unsigned int nbr_inports = 0, nbr_outports = 0, i_token = 0, nbr_managed_attributes = 0;
+	char *peer_id = NULL;
 
 	if (actor->get_managed_attributes != NULL) {
 		if (actor->get_managed_attributes((actor_t *)actor, &instance_attributes) != SUCCESS)
@@ -543,10 +558,11 @@ char *actor_serialize(const actor_t *actor, char **buffer)
 			in_ports = actor->in_ports;
 			while (in_ports != NULL) {
 				port = (port_t *)in_ports->data;
-				*buffer = mp_encode_str(*buffer, port->port_id, strlen(port->port_id));
+				peer_id = port_get_peer_id(node, port);
+				*buffer = mp_encode_str(*buffer, port->id, strlen(port->id));
 				*buffer = mp_encode_array(*buffer, 1);
 				*buffer = mp_encode_array(*buffer, 2);
-				*buffer = mp_encode_str(*buffer, port->peer_id, strlen(port->peer_id));
+				*buffer = mp_encode_str(*buffer, peer_id, strlen(peer_id));
 				*buffer = mp_encode_str(*buffer, port->peer_port_id, strlen(port->peer_port_id));
 				in_ports = in_ports->next;
 			}
@@ -555,10 +571,11 @@ char *actor_serialize(const actor_t *actor, char **buffer)
 			out_ports = actor->out_ports;
 			while (out_ports != NULL) {
 				port = (port_t *)out_ports->data;
-				*buffer = mp_encode_str(*buffer, port->port_id, strlen(port->port_id));
+				peer_id = port_get_peer_id(node, port);
+				*buffer = mp_encode_str(*buffer, port->id, strlen(port->id));
 				*buffer = mp_encode_array(*buffer, 1);
 				*buffer = mp_encode_array(*buffer, 2);
-				*buffer = mp_encode_str(*buffer, port->peer_id, strlen(port->peer_id));
+				*buffer = mp_encode_str(*buffer, peer_id, strlen(peer_id));
 				*buffer = mp_encode_str(*buffer, port->peer_port_id, strlen(port->peer_port_id));
 				out_ports = out_ports->next;
 			}
@@ -595,13 +612,13 @@ char *actor_serialize(const actor_t *actor, char **buffer)
 
 				tmp_list = actor->attributes;
 				while (tmp_list != NULL) {
-					*buffer = encode_value(buffer, tmp_list->id, tmp_list->data, tmp_list->data_len);
+					*buffer = encode_value(buffer, tmp_list->id, (char *)tmp_list->data, tmp_list->data_len);
 					tmp_list = tmp_list->next;
 				}
 
 				tmp_list = instance_attributes;
 				while (tmp_list != NULL) {
-					*buffer = encode_value(buffer, tmp_list->id, tmp_list->data, tmp_list->data_len);
+					*buffer = encode_value(buffer, tmp_list->id, (char *)tmp_list->data, tmp_list->data_len);
 					tmp_list = tmp_list->next;
 				}
 				actor_free_managed(instance_attributes);
@@ -612,26 +629,26 @@ char *actor_serialize(const actor_t *actor, char **buffer)
 				in_ports = actor->in_ports;
 				while (in_ports != NULL) {
 					port = (port_t *)in_ports->data;
-					*buffer = encode_map(buffer, port->port_name, 4);
+					*buffer = encode_map(buffer, port->name, 4);
 					{
-						*buffer = encode_str(buffer, "id", port->port_id, strlen(port->port_id));
-						*buffer = encode_str(buffer, "name", port->port_name, strlen(port->port_name));
+						*buffer = encode_str(buffer, "id", port->id, strlen(port->id));
+						*buffer = encode_str(buffer, "name", port->name, strlen(port->name));
 						*buffer = encode_map(buffer, "queue", 7);
 						{
 							*buffer = encode_str(buffer, "queuetype", "fanout_fifo", strlen("fanout_fifo"));
 							*buffer = encode_uint(buffer, "write_pos", port->fifo.write_pos);
 							*buffer = encode_array(buffer, "readers", 1);
 							{
-								*buffer = mp_encode_str(*buffer, port->port_id, strlen(port->port_id));
+								*buffer = mp_encode_str(*buffer, port->id, strlen(port->id));
 							}
 							*buffer = encode_uint(buffer, "N", port->fifo.size);
 							*buffer = encode_map(buffer, "tentative_read_pos", 1);
 							{
-								*buffer = encode_uint(buffer, port->port_id, port->fifo.tentative_read_pos);
+								*buffer = encode_uint(buffer, port->id, port->fifo.tentative_read_pos);
 							}
 							*buffer = encode_map(buffer, "read_pos", 1);
 							{
-								*buffer = encode_uint(buffer, port->port_id, port->fifo.read_pos);
+								*buffer = encode_uint(buffer, port->id, port->fifo.read_pos);
 							}
 							*buffer = encode_array(buffer, "fifo", port->fifo.size);
 							{
@@ -655,10 +672,10 @@ char *actor_serialize(const actor_t *actor, char **buffer)
 				out_ports = actor->out_ports;
 				while (out_ports != NULL) {
 					port = (port_t *)out_ports->data;
-					*buffer = encode_map(buffer, port->port_name, 4);
+					*buffer = encode_map(buffer, port->name, 4);
 					{
-						*buffer = encode_str(buffer, "id", port->port_id, strlen(port->port_id));
-						*buffer = encode_str(buffer, "name", port->port_name, strlen(port->port_name));
+						*buffer = encode_str(buffer, "id", port->id, strlen(port->id));
+						*buffer = encode_str(buffer, "name", port->name, strlen(port->name));
 						*buffer = encode_map(buffer, "queue", 7);
 						{
 							*buffer = encode_str(buffer, "queuetype", "fanout_fifo", 11);
@@ -698,66 +715,88 @@ char *actor_serialize(const actor_t *actor, char **buffer)
 	return *buffer;
 }
 
-result_t actor_transmit(node_t *node, actor_t *actor)
+void actor_transmit(node_t *node, actor_t *actor)
 {
 	list_t *list = NULL;
 	port_t *port = NULL;
+	bool ports_ready = true;
 
 	switch (actor->state) {
 	case ACTOR_DO_ENABLE:
-		actor->state = ACTOR_ENABLED;
 		if (proto_send_set_actor(node, actor, actor_set_reply_handler) == SUCCESS)
-			return SUCCESS;
+			actor->state = ACTOR_PENDING;
 		break;
 	case ACTOR_DO_DELETE:
-		actor->state = ACTOR_PENDING;
-		if (proto_send_remove_actor(node, actor, actor_remove_reply_handler) == SUCCESS)
-			return SUCCESS;
-		actor->state = ACTOR_DO_DELETE;
+		// check if all inports are deleted
+		list = actor->in_ports;
+		while (ports_ready && list != NULL) {
+			port = (port_t *)list->data;
+			if (port->state != PORT_DELETED)
+				ports_ready = false;
+			list = list->next;
+		}
+
+		// check if all outports are deleted
+		list = actor->out_ports;
+		while (ports_ready && list != NULL) {
+			port = (port_t *)list->data;
+			if (port->state != PORT_DELETED)
+				ports_ready = false;
+			list = list->next;
+		}
+
+		// remove actor if all ports where removed
+		if (ports_ready)
+			if (proto_send_remove_actor(node, actor, actor_remove_reply_handler) == SUCCESS)
+				actor->state = ACTOR_PENDING;
 		break;
 	case ACTOR_DO_MIGRATE:
+		// disconnect enabled inports
 		list = actor->in_ports;
 		while (list != NULL) {
 			port = (port_t *)list->data;
-			if (port->state == PORT_ENABLED) {
-				port->state = PORT_DO_DISCONNECT;
-				if (port_transmit(node, port) == SUCCESS)
-					return SUCCESS;
-			} else if (port->state == PORT_PENDING)
-				return SUCCESS;
+			if (port->state != PORT_DISCONNECTED) {
+				ports_ready = false;
+				if (port->state == PORT_ENABLED)
+					port->state = PORT_DO_DISCONNECT;
+			}
 			list = list->next;
 		}
+
+		// disconnect enabled inports
 		list = actor->out_ports;
 		while (list != NULL) {
 			port = (port_t *)list->data;
-			if (port->state == PORT_ENABLED) {
-				port->state = PORT_DO_DISCONNECT;
-				if (port_transmit(node, port) == SUCCESS)
-					return SUCCESS;
-			} else if (port->state == PORT_PENDING)
-				return SUCCESS;
+			if (port->state != PORT_DISCONNECTED) {
+				ports_ready = false;
+				if (port->state == PORT_ENABLED)
+					port->state = PORT_DO_DISCONNECT;
+			}
 			list = list->next;
 		}
-		actor->state = ACTOR_PENDING;
-		if (proto_send_actor_new(node, actor, actor_migrate_reply_handler) == SUCCESS)
-			return SUCCESS;
-		actor->state = ACTOR_DO_MIGRATE;
+
+		// migrate actor if all ports are disconnected
+		if (ports_ready)
+			if (proto_send_actor_new(node, actor, actor_migrate_reply_handler) == SUCCESS)
+				actor->state = ACTOR_PENDING;
+		break;
+	case ACTOR_ENABLED:
+	case ACTOR_PENDING:
 	default:
-		list = actor->in_ports;
-		while (list != NULL) {
-			port = (port_t *)list->data;
-			if (port_transmit(node, port) == SUCCESS)
-				return SUCCESS;
-			list = list->next;
-		}
-		list = actor->out_ports;
-		while (list != NULL) {
-			port = (port_t *)list->data;
-			if (port_transmit(node, port) == SUCCESS)
-				return SUCCESS;
-			list = list->next;
-		}
+		break;
 	}
 
-	return FAIL;
+	// trigger inports
+	list = actor->in_ports;
+	while (list != NULL && transport_can_transmit()) {
+		port_transmit(node, (port_t *)list->data);
+		list = list->next;
+	}
+
+	// trigger outports
+	list = actor->out_ports;
+	while (list != NULL && transport_can_transmit()) {
+		port_transmit(node, (port_t *)list->data);
+		list = list->next;
+	}
 }

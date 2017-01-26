@@ -16,12 +16,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include "app_timer.h"
 #include "boards.h"
 #include "sdk_config.h"
-#include "app_timer_appsh.h"
-#include "app_scheduler.h"
 #include "nordic_common.h"
-#include "softdevice_handler_appsh.h"
 #include "ble_advdata.h"
 #include "ble_srv_common.h"
 #include "ble_ipsp.h"
@@ -35,14 +33,11 @@
 #include "../../platform.h"
 #include "../../node.h"
 
-#define APP_TIMER_OP_QUEUE_SIZE             5
-#define LWIP_SYS_TICK_MS                    100
-#define SCHED_MAX_EVENT_DATA_SIZE           128
-#define SCHED_QUEUE_SIZE                    12
-#define DEAD_BEEF                           0xDEADBEEF
-#define APP_CALVIN_INITTIMER_INTERVAL       APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)
+#define APP_TIMER_OP_QUEUE_SIZE							5
+#define LWIP_SYS_TIMER_INTERVAL							APP_TIMER_TICKS(100, APP_TIMER_PRESCALER)
+#define APP_CALVIN_INITTIMER_INTERVAL				APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)
 
-APP_TIMER_DEF(m_iot_timer_tick_src_id);
+APP_TIMER_DEF(m_lwip_timer_id);
 APP_TIMER_DEF(m_calvin_inittimer_id);
 eui64_t                                     eui64_local_iid;
 static ipv6_medium_instance_t               m_ipv6_medium;
@@ -52,123 +47,14 @@ static char                                 m_mac[20]; // MAC address of connect
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
 {
 	log_error("Error 0x%08lX, Line %ld, File %s", error_code, line_num, p_file_name);
-//	NVIC_SystemReset();
+	NVIC_SystemReset();
 	for (;;) {
 	}
 }
 
 void assert_nrf_callback(uint16_t line_num, const uint8_t *p_file_name)
 {
-	app_error_handler(DEAD_BEEF, line_num, p_file_name);
-}
-
-static void scheduler_init(void)
-{
-	APP_SCHED_INIT(SCHED_MAX_EVENT_DATA_SIZE, SCHED_QUEUE_SIZE);
-}
-
-static void ip_stack_init(void)
-{
-	uint32_t err_code;
-
-	err_code = ipv6_medium_eui64_get(m_ipv6_medium.ipv6_medium_instance_id, &eui64_local_iid);
-	APP_ERROR_CHECK(err_code);
-
-	err_code = nrf_mem_init();
-	APP_ERROR_CHECK(err_code);
-
-	lwip_init();
-
-	err_code = nrf_driver_init();
-	APP_ERROR_CHECK(err_code);
-}
-
-static void system_timer_callback(iot_timer_time_in_ms_t wall_clock_value)
-{
-	UNUSED_VARIABLE(wall_clock_value);
-
-	sys_check_timeouts();
-}
-
-static void iot_timer_tick_callback(void *p_context)
-{
-	UNUSED_VARIABLE(p_context);
-	uint32_t err_code = iot_timer_update();
-
-	APP_ERROR_CHECK(err_code);
-}
-
-static void start_calvin_inittimer(void)
-{
-	uint32_t err_code;
-
-	err_code = app_timer_start(m_calvin_inittimer_id, APP_CALVIN_INITTIMER_INTERVAL, NULL);
-	APP_ERROR_CHECK(err_code);
-
-	log("Started calvin init timer");
-}
-
-static void calvin_inittimer_callback(void *p_context)
-{
-	UNUSED_VARIABLE(p_context);
-	log("Executing calvin init timer");
-	if (node_start(NULL, m_mac, 5000) != SUCCESS) {
-		log_error("Failed to start node");
-		start_calvin_inittimer();
-	}
-}
-
-static void timers_init(void)
-{
-	uint32_t err_code;
-
-	APP_TIMER_APPSH_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, true);
-
-	err_code = app_timer_create(&m_iot_timer_tick_src_id,
-								APP_TIMER_MODE_REPEATED,
-								iot_timer_tick_callback);
-	APP_ERROR_CHECK(err_code);
-
-	err_code = app_timer_create(&m_calvin_inittimer_id,
-								APP_TIMER_MODE_SINGLE_SHOT,
-								calvin_inittimer_callback);
-	APP_ERROR_CHECK(err_code);
-}
-
-static void iot_timer_init(void)
-{
-	uint32_t err_code;
-
-	static const iot_timer_client_t list_of_clients[] = {
-		{system_timer_callback,      LWIP_SYS_TICK_MS}
-	};
-
-	static const iot_timer_clients_list_t iot_timer_clients = {
-		(sizeof(list_of_clients) / sizeof(iot_timer_client_t)),
-		&(list_of_clients[0]),
-	};
-
-	err_code = iot_timer_client_list_set(&iot_timer_clients);
-	APP_ERROR_CHECK(err_code);
-
-	err_code = app_timer_start(m_iot_timer_tick_src_id,
-							   APP_TIMER_TICKS(IOT_TIMER_RESOLUTION_IN_MS, APP_TIMER_PRESCALER),
-							   NULL);
-	APP_ERROR_CHECK(err_code);
-}
-
-void nrf_driver_interface_up(void)
-{
-	log("IPv6 interface up");
-
-	sys_check_timeouts();
-
-	start_calvin_inittimer();
-}
-
-void nrf_driver_interface_down(void)
-{
-	log_debug("IPv6 interface down");
+	app_error_handler(0xDEADBEEF, line_num, p_file_name);
 }
 
 static void connectable_mode_enter(void)
@@ -207,23 +93,18 @@ static void on_ipv6_medium_error(ipv6_medium_error_t *p_ipv6_medium_error)
 	log_error("Physical layer error");
 }
 
-void platform_init(void)
+static void ip_stack_init(void)
 {
 	uint32_t err_code;
-	uint8_t rnd_seed = 0;
-	int i = 0;
 	static ipv6_medium_init_params_t ipv6_medium_init_params;
 	eui48_t ipv6_medium_eui48;
 
-	app_trace_init();
-	scheduler_init();
-	timers_init();
-	iot_timer_init();
+	APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, NULL);
 
 	memset(&ipv6_medium_init_params, 0x00, sizeof(ipv6_medium_init_params));
 	ipv6_medium_init_params.ipv6_medium_evt_handler    = on_ipv6_medium_evt;
 	ipv6_medium_init_params.ipv6_medium_error_handler  = on_ipv6_medium_error;
-	ipv6_medium_init_params.use_scheduler              = true;
+	ipv6_medium_init_params.use_scheduler              = false;
 
 	err_code = ipv6_medium_init(&ipv6_medium_init_params, IPV6_MEDIUM_ID_BLE, &m_ipv6_medium);
 	APP_ERROR_CHECK(err_code);
@@ -235,7 +116,83 @@ void platform_init(void)
 	err_code = ipv6_medium_eui48_set(m_ipv6_medium.ipv6_medium_instance_id, &ipv6_medium_eui48);
 	APP_ERROR_CHECK(err_code);
 
+	err_code = ipv6_medium_eui64_get(m_ipv6_medium.ipv6_medium_instance_id, &eui64_local_iid);
+	APP_ERROR_CHECK(err_code);
+
+	err_code = nrf_mem_init();
+	APP_ERROR_CHECK(err_code);
+
+	lwip_init();
+}
+
+static void start_calvin_inittimer(void)
+{
+	uint32_t err_code;
+
+	err_code = app_timer_start(m_calvin_inittimer_id, APP_CALVIN_INITTIMER_INTERVAL, NULL);
+	APP_ERROR_CHECK(err_code);
+
+	log("Started calvin init timer");
+}
+
+static void calvin_inittimer_callback(void *p_context)
+{
+	UNUSED_VARIABLE(p_context);
+
+	if (node_start(NULL, m_mac, 5000) != SUCCESS) {
+		log_error("Failed to start node");
+		start_calvin_inittimer();
+	}
+}
+
+static void lwip_timer_callback(void *p_ctx)
+{
+	(void) p_ctx;
+	sys_check_timeouts();
+}
+
+static void timers_init(void)
+{
+	uint32_t err_code;
+
+	// Create and start lwip timer
+	err_code = app_timer_create(&m_lwip_timer_id,
+															APP_TIMER_MODE_REPEATED,
+															lwip_timer_callback);
+	APP_ERROR_CHECK(err_code);
+	err_code = app_timer_start(m_lwip_timer_id, LWIP_SYS_TIMER_INTERVAL, NULL);
+	APP_ERROR_CHECK(err_code);
+
+	// Create calvin init timer used to start the node when a connection is made
+	err_code = app_timer_create(&m_calvin_inittimer_id,
+								APP_TIMER_MODE_SINGLE_SHOT,
+								calvin_inittimer_callback);
+	APP_ERROR_CHECK(err_code);
+}
+
+void nrf_driver_interface_up(void)
+{
+	log("IPv6 interface up");
+
+	start_calvin_inittimer();
+}
+
+void nrf_driver_interface_down(void)
+{
+	log_debug("IPv6 interface down");
+}
+
+void platform_init(void)
+{
+	uint32_t err_code;
+	uint8_t rnd_seed = 0;
+	int i = 0;
+
+	app_trace_init();
 	ip_stack_init();
+	err_code = nrf_driver_init();
+	APP_ERROR_CHECK(err_code);
+	timers_init();
 
 	connectable_mode_enter();
 
@@ -250,22 +207,17 @@ void platform_init(void)
 	log("Platform initialized");
 }
 
-result_t platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
+void platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
 {
-	uint32_t err_code;
-
 	while (1) {
-		app_sched_execute();
-		err_code = sd_app_evt_wait();
-		APP_ERROR_CHECK(err_code);
+		if (sd_app_evt_wait() != ERR_OK)
+			log_error("sd_app_evt_wait failed");
 	}
-
-	return SUCCESS;
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)
 {
-	// TODO: Create or use NRF SDKs memory pool
+	// TODO: If fragmentation is a problem create a pool used for allocations
 	*buffer = malloc(size);
 	if (*buffer == NULL) {
 		log_error("Failed to allocate '%ld'", (unsigned long)size);
@@ -277,7 +229,6 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 
 void platform_mem_free(void *buffer)
 {
-	// TODO: Create or use NRF SDKs memory pool
 	free(buffer);
 }
 
@@ -299,7 +250,8 @@ static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t actio
 				}
 			}
 
-			node_loop_once();
+			if (node_loop_once())
+				node_transmit();
 			return;
 		}
 	}

@@ -141,13 +141,26 @@ uint32_t list_count(list_t *list)
 	return count;
 }
 
-list_t *list_get(list_t *list, const char *id)
+void *list_get_n(list_t *list, const char *id, uint32_t id_len)
+{
+	list_t *tmp = list;
+
+	while (tmp != NULL) {
+		if (strncmp(tmp->id, id, id_len) == 0)
+			return (void *)tmp->data;
+		tmp = tmp->next;
+	}
+
+	return NULL;
+}
+
+void *list_get(list_t *list, const char *id)
 {
 	list_t *tmp = list;
 
 	while (tmp != NULL) {
 		if (strncmp(tmp->id, id, strlen(tmp->id)) == 0)
-			return tmp;
+			return (void *)tmp->data;
 		tmp = tmp->next;
 	}
 

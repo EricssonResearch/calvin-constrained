@@ -272,13 +272,12 @@ void transport_stop(void)
 	m_client.state = TRANSPORT_DISCONNECTED;
 }
 
-static result_t transport_free_tx_buffer(void)
+static void transport_free_tx_buffer(void)
 {
 	platform_mem_free((void *)m_client.tx_buffer.buffer);
 	m_client.tx_buffer.pos = 0;
 	m_client.tx_buffer.size = 0;
 	m_client.tx_buffer.buffer = NULL;
-	return SUCCESS;
 }
 
 result_t transport_send(size_t len)
@@ -296,8 +295,6 @@ result_t transport_send(size_t len)
 	transport_free_tx_buffer();
 
 	log_debug("Sent %zu", len + 4);
-
-	node_transmit();
 
 	return SUCCESS;
 }
@@ -387,11 +384,6 @@ transport_state_t transport_get_state(void)
 	return m_client.state;
 }
 
-bool transport_can_send(void)
-{
-	return m_client.tx_buffer.buffer == NULL;
-}
-
 result_t transport_get_tx_buffer(char **buffer, uint32_t size)
 {
 	if (m_client.tx_buffer.buffer != NULL) {
@@ -408,6 +400,11 @@ result_t transport_get_tx_buffer(char **buffer, uint32_t size)
 	m_client.tx_buffer.size = 0;
 	m_client.tx_buffer.buffer = *buffer;
 	return SUCCESS;
+}
+
+bool transport_can_transmit(void)
+{
+	return true;
 }
 
 #ifdef LWM2M_HTTP_CLIENT

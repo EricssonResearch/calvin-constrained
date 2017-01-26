@@ -18,6 +18,6 @@
 
 #include "../actor.h"
 
-result_t actor_temperature_fire(actor_t *actor);
+bool actor_temperature_fire(actor_t *actor);
 
 #endif /* ACTOR_TEMPERATURE_H */

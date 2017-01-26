@@ -17,6 +17,8 @@
 #ifndef MPY_PORT_H
 #define MPY_PORT_H
 
-void mpy_port_init(void);
+#include <stdint.h>
+
+bool mpy_port_init(uint32_t heap_size);
 
 #endif /* MPY_PORT_H */

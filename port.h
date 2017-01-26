@@ -33,13 +33,18 @@ typedef enum {
 
 typedef enum {
 	PORT_DO_CONNECT,
+	PORT_PENDING_CONNECT,
 	PORT_DO_DISCONNECT,
+	PORT_PENDING_DISCONNECT,
 	PORT_DO_DELETE,
+	PORT_PENDING_DELETE,
 	PORT_DO_ENABLE,
+	PORT_PENDING_ENABLE,
 	PORT_DO_PEER_LOOKUP,
+	PORT_PENDING_PEER_LOOKUP,
 	PORT_DISCONNECTED,
 	PORT_ENABLED,
-	PORT_PENDING
+	PORT_DELETED
 } port_state_t;
 
 typedef enum {
@@ -55,11 +60,11 @@ typedef struct pending_token_response_t {
 } pending_token_response_t;
 
 typedef struct port_t {
-	char port_id[UUID_BUFFER_SIZE];
-	char peer_id[UUID_BUFFER_SIZE];
+	char id[UUID_BUFFER_SIZE];
+	char name[MAX_PORT_NAME_LENGTH];
 	char peer_port_id[UUID_BUFFER_SIZE];
-	char port_name[MAX_PORT_NAME_LENGTH];
 	port_direction_t direction;
+	struct port_t *peer_port;
 	tunnel_t *tunnel;
 	port_state_t state;
 	fifo_t fifo;
@@ -70,13 +75,12 @@ typedef struct port_t {
 port_t *port_create(struct node_t *node, struct actor_t *actor, char *obj_port, char *obj_prev_connections, port_direction_t direction);
 void port_free(port_t *port);
 result_t add_pending_token_response(port_t *port, uint32_t sequencenbr, bool ack);
-void port_disconnect(port_t *port);
+char *port_get_peer_id(const struct node_t *node, port_t *port);
 port_t *port_get(struct node_t *node, const char *port_id, uint32_t port_id_len);
 port_t *port_get_from_name(struct actor_t *actor, const char *name, port_direction_t direction);
 result_t port_handle_disconnect(struct node_t *node, const char *port_id, uint32_t port_id_len);
 result_t port_handle_connect(struct node_t *node, const char *port_id, uint32_t port_id_len, const char *tunnel_id, uint32_t tunnel_id_len);
 result_t port_iniate_connect(struct node_t *node, port_t *port);
-void port_delete(port_t *port);
-result_t port_transmit(struct node_t *node, port_t *port);
+void port_transmit(struct node_t *node, port_t *port);
 
 #endif /* PORT_H */

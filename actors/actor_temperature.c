@@ -21,46 +21,23 @@
 #include "../platform.h"
 #include "../port.h"
 
-result_t actor_temperature_fire(struct actor_t *actor)
+bool actor_temperature_fire(struct actor_t *actor)
 {
 	token_t out_token;
-	double temperature = 0.5;
-	port_t *inport = NULL, *outport = NULL;
-	bool did_fire = false;
-
-	inport = port_get_from_name(actor, "measure", PORT_DIRECTION_IN);
-	if (inport == NULL) {
-		log_error("No port with name 'measure'");
-		return FAIL;
-	}
-
-	outport = port_get_from_name(actor, "centigrade", PORT_DIRECTION_OUT);
-	if (outport == NULL) {
-		log_error("No port with name 'centigrade'");
-		return FAIL;
-	}
+	double temperature;
+	port_t *inport = (port_t *)actor->in_ports->data, *outport = (port_t *)actor->out_ports->data;
 
 	if (fifo_tokens_available(&inport->fifo, 1) == 1 && fifo_slots_available(&outport->fifo, 1) == 1) {
-		if (platform_get_temperature(&temperature) != SUCCESS) {
-			log_error("Failed to get temperature");
-			return FAIL;
-		}
-
-		fifo_peek(&inport->fifo);
-		token_set_double(&out_token, temperature);
-
-		if (fifo_write(&outport->fifo, out_token.value, out_token.size) != SUCCESS) {
-			log_error("Failed to write token");
+		if (platform_get_temperature(&temperature) == SUCCESS) {
+			fifo_peek(&inport->fifo);
+			token_set_double(&out_token, temperature);
+			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == SUCCESS) {
+				fifo_commit_read(&inport->fifo);
+				return true;
+			}
 			fifo_cancel_commit(&inport->fifo);
-			return FAIL;
-		}
-
-		fifo_commit_read(&inport->fifo);
-		did_fire = true;
+		} else
+			log_error("Failed to get temperature");
 	}
-
-	if (did_fire)
-		return SUCCESS;
-
-	return FAIL;
+	return false;
 }

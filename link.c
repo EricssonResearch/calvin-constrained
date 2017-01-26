@@ -34,6 +34,7 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, con
 
 	link->state = state;
 	strncpy(link->peer_id, peer_id, peer_id_len);
+	link->ref_count = 0;
 
 	if (list_add(&node->links, link->peer_id, (void *)link, sizeof(link_t)) != SUCCESS) {
 		log_error("Failed to add link");
@@ -41,15 +42,34 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, con
 		return NULL;
 	}
 
-	log_debug("Link created to '%s'", link->peer_id);
+	log("Link created to '%s'", link->peer_id);
+
 	return link;
 }
 
-void link_free(node_t *node, link_t *link)
+static void link_free(node_t *node, link_t *link)
 {
 	log("Freeing link to '%s'", link->peer_id);
 	list_remove(&node->links, link->peer_id);
 	platform_mem_free((void *)link);
+}
+
+void link_add_ref(link_t *link)
+{
+	if (link != NULL) {
+		link->ref_count++;
+		log_debug("Link ref added '%s' ref: %d", link->id, link->ref_count);
+	}
+}
+
+void link_remove_ref(node_t *node, link_t *link)
+{
+	if (link != NULL) {
+		link->ref_count--;
+		log_debug("Link ref removed '%s' ref: %d", link->id, link->ref_count);
+		if (link->ref_count == 0)
+			link_free(node, link);
+	}
 }
 
 link_t *link_get(node_t *node, const char *peer_id, uint32_t peer_id_len)
@@ -111,33 +131,14 @@ static result_t link_request_handler(char *data, void *msg_data)
 	return result;
 }
 
-void link_remove(node_t *node, const char *peer_id)
-{
-	list_t *links = node->links;
-	link_t *link = NULL;
-
-	while (links != NULL) {
-		link = (link_t *)links->data;
-		if (strncmp(link->peer_id, peer_id, strlen(peer_id)) == 0) {
-			link_free(node, link);
-			return;
-		}
-		links = links->next;
-	}
-}
-
-result_t link_transmit(node_t *node, link_t *link)
+void link_transmit(node_t *node, link_t *link)
 {
 	switch (link->state) {
 	case LINK_DO_CONNECT:
-		link->state = LINK_PENDING;
 		if (proto_send_route_request(node, link->peer_id, strlen(link->peer_id), link_request_handler) == SUCCESS)
-			return SUCCESS;
-		link->state = LINK_DO_CONNECT;
+			link->state = LINK_PENDING;
 		break;
 	default:
 		break;
 	}
-
-	return FAIL;
 }

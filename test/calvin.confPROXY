@@ -1,0 +1,6 @@
+{
+  "global": {
+    "storage_type": "proxy",
+    "storage_proxy": "calvinip://127.0.0.1:5000"
+  }
+}

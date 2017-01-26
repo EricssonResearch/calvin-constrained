@@ -20,13 +20,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_TOKENS		5
-#define MAX_PENDING_MSGS	30
+#define MAX_TOKENS				5
+#define MAX_PENDING_MSGS	10
 #define MAX_TOKEN_SIZE		10
 #define STORAGE_TUNNEL		"storage"
-#define TOKEN_TUNNEL		"token"
+#define TOKEN_TUNNEL			"token"
 #define UUID_BUFFER_SIZE	50
-#define SERIALIZER		"msgpack"
+#define SERIALIZER				"msgpack"
 
 typedef enum {
 	SUCCESS,
@@ -48,6 +48,7 @@ result_t list_add(list_t **head, char *id, void *data, uint32_t data_len);
 result_t list_addn(list_t **head, char *id, uint32_t len, void *data, uint32_t data_len);
 void list_remove(list_t **head, const char *id);
 uint32_t list_count(list_t *list);
-list_t *list_get(list_t *list, const char *id);
+void *list_get_n(list_t *list, const char *id, uint32_t id_len);
+void *list_get(list_t *list, const char *id);
 
 #endif /* COMMON_H */

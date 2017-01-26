@@ -23,10 +23,6 @@
 #include "../micropython/py/gc.h"
 #include "../micropython/py/runtime.h"
 
-#define MPY_HEAP_SIZE (16 * 1024)
-
-void *mpy_heap[MPY_HEAP_SIZE];
-
 void nlr_jump_fail(void *val)
 {
 	log_error("FATAL: uncaught NLR %p", val);
@@ -45,12 +41,21 @@ mp_import_stat_t mp_import_stat(const char *path)
 	return 0; // return MP_IMPORT_STAT_NO_EXIST;
 }
 
-void mpy_port_init(void)
+bool mpy_port_init(uint32_t heap_size)
 {
+	void *heap = NULL;
+
+	if (platform_mem_alloc(&heap, heap_size) != SUCCESS) {
+		log_error("Failed allocate MicroPython heap");
+		return false;
+	}
+
 	mp_stack_set_limit(8192);
 	mp_stack_ctrl_init();
-	gc_init(mpy_heap, mpy_heap + MPY_HEAP_SIZE);
+	gc_init(heap, heap + heap_size);
 	mp_init();
+
+	return true;
 }
 
 STATIC mp_obj_t mpy_port_ccmp_tokens_available(mp_obj_t mp_actor, mp_obj_t mp_port_name, mp_obj_t mp_nbr_of_tokens)

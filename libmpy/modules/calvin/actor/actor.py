@@ -73,6 +73,8 @@ def condition(action_input=[], action_output=[]):
 
             # Perform the action (N.B. the method may be wrapped in a guard)
             production = action_method(self, *args)
+            if production is None:
+                production = []
 
             valid_production = (tokens_produced == len(production))
 

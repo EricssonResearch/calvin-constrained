@@ -25,18 +25,20 @@ typedef enum {
 	LINK_DO_CONNECT,
 	LINK_ENABLED,
 	LINK_CONNECT_FAILED,
-	LINK_PENDING
+	LINK_PENDING,
+	LINK_DO_DISCONNECT
 } link_state_t;
 
 typedef struct link_t {
 	char peer_id[UUID_BUFFER_SIZE];
 	link_state_t state;
+	uint8_t ref_count;
 } link_t;
 
 link_t *link_create(struct node_t *node, const char *peer_id, uint32_t peer_id_len, const link_state_t state);
-void link_free(struct node_t *node, link_t *link);
+void link_add_ref(link_t *link);
+void link_remove_ref(struct node_t *node, link_t *link);
 link_t *link_get(struct node_t *node, const char *peer_id, uint32_t peer_id_len);
-void link_remove(struct node_t *node, const char *peer_id);
-result_t link_transmit(struct node_t *node, link_t *link);
+void link_transmit(struct node_t *node, link_t *link);
 
 #endif /* LINK_H */

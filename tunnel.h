@@ -36,20 +36,19 @@ typedef enum {
 } tunnel_type_t;
 
 typedef struct tunnel_t {
-	char tunnel_id[UUID_BUFFER_SIZE];
+	char id[UUID_BUFFER_SIZE];
 	link_t *link;
 	tunnel_state_t state;
-	int ref_count;
+	uint8_t ref_count;
 	tunnel_type_t type;
 } tunnel_t;
 
 tunnel_t *tunnel_create(struct node_t *node, tunnel_type_t type, tunnel_state_t state, char *peer_id, uint32_t peer_id_len, char *tunnel_id, uint32_t tunnel_id_len);
-void tunnel_free(struct node_t *node, tunnel_t *tunnel);
-tunnel_t *tunnel_get_from_id(struct node_t *node, const char *tunnel_id, uint32_t tunnel_id_len, tunnel_type_t type);
-tunnel_t *tunnel_get_from_peerid(struct node_t *node, const char *peer_id, uint32_t peer_id_len, tunnel_type_t type);
+tunnel_t *tunnel_get_from_id(struct node_t *node, const char *tunnel_id, uint32_t tunnel_id_len);
+tunnel_t *tunnel_get_from_peerid_and_type(struct node_t *node, const char *peer_id, uint32_t peer_id_len, tunnel_type_t type);
 void tunnel_add_ref(tunnel_t *tunnel);
 void tunnel_remove_ref(struct node_t *node, tunnel_t *tunnel);
 result_t tunnel_handle_tunnel_new_request(struct node_t *node, char *peer_id, uint32_t peer_id_len, char *tunnel_id, uint32_t tunnel_id_len);
-result_t tunnel_transmit(struct node_t *node, tunnel_t *tunnel);
+void tunnel_transmit(struct node_t *node, tunnel_t *tunnel);
 
 #endif /* TUNNEL_H */

@@ -299,15 +299,15 @@ result_t actor_mpy_get_managed_attributes(actor_t *actor, list_t **attributes)
 	return SUCCESS;
 }
 
-result_t actor_mpy_fire(actor_t *actor)
+bool actor_mpy_fire(actor_t *actor)
 {
-	result_t result = FAIL;
 	mp_obj_t res;
 	ccmp_state_actor_t *state = (ccmp_state_actor_t *)actor->instance_state;
+	bool did_fire = false;
 
 	res = mp_call_method_n_kw(0, 0, state->actor_fire_method);
-	if (res != mp_const_none && mp_obj_is_true(res) > 0)
-		result = SUCCESS;
+	if (res != mp_const_none && mp_obj_is_true(res))
+		did_fire = true;
 	res = MP_OBJ_NULL;
 
 	gc_collect();
@@ -315,7 +315,7 @@ result_t actor_mpy_fire(actor_t *actor)
 	gc_dump_info();
 #endif
 
-	return result;
+	return did_fire;
 }
 
 void actor_mpy_free_state(actor_t *actor)
@@ -343,12 +343,15 @@ void actor_mpy_free_state(actor_t *actor)
 
 result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 {
-	char *tmp = NULL;
+	char *tmp = NULL, instance_name[30];
 	qstr actor_type_qstr, actor_class_qstr;
 	mp_obj_t args[1];
 	ccmp_state_actor_t *state = NULL;
 	mp_obj_t actor_module;
 	mp_obj_t actor_class_ref[2];
+	static int counter;
+
+	sprintf(instance_name, "actor_obj%d", counter++);
 
 	if (platform_mem_alloc((void **)&state, sizeof(ccmp_state_actor_t)) != SUCCESS) {
 		log_error("Failed to allocate memory");
@@ -376,7 +379,7 @@ result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	//pass the actor as a mp_obj_t
 	args[0] = MP_OBJ_FROM_PTR(actor);
 	state->actor_class_instance = mp_call_function_n_kw(actor_class_ref[0], 1, 0, args);
-	mp_store_name(QSTR_FROM_STR_STATIC(actor->name), state->actor_class_instance);
+	mp_store_name(QSTR_FROM_STR_STATIC(instance_name), state->actor_class_instance);
 
 	// load the fire method
 	mp_load_method(state->actor_class_instance, QSTR_FROM_STR_STATIC("fire"), state->actor_fire_method);

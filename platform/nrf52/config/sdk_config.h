@@ -60,7 +60,7 @@
  *          Maximum value : 255
  *          Dependencies  : None.
  */
-#define  MEMORY_MANAGER_MEDIUM_BLOCK_COUNT                 4
+#define  MEMORY_MANAGER_MEDIUM_BLOCK_COUNT                 2
 
 /**
  * @brief Size of each memory blocks identified as 'medium' block.
@@ -82,7 +82,7 @@
  *          Maximum value : 255
  *          Dependencies  : None.
  */
-#define  MEMORY_MANAGER_LARGE_BLOCK_COUNT                  3
+#define  MEMORY_MANAGER_LARGE_BLOCK_COUNT                  2
 
 /**
  * @brief Size of each memory blocks identified as 'medium' block.

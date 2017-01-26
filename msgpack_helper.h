@@ -31,6 +31,7 @@ char *encode_value(char **buffer, const char *key, const char *value, size_t siz
 bool has_key(char *buffer, const char *key);
 uint32_t get_size_of_array(char *buffer);
 result_t get_value_from_array(char *buffer, int index, char **value);
+result_t get_value_from_map_n(char *buffer, const char *key, uint32_t key_len, char **value);
 result_t get_value_from_map(char *buffer, const char *key, char **value);
 result_t decode_bool(char *buffer, bool *value);
 result_t decode_uint(char *buffer, uint32_t *value);

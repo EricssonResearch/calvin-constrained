@@ -100,15 +100,16 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef MICROPYTHON
-	mpy_port_init();
+	if (!mpy_port_init(MICROPYTHON_HEAP_SIZE))
+		return 0;
 #endif
 
 	if (ssdp_iface == NULL && proxy_iface == NULL)
 		ssdp_iface = "0.0.0.0";
 
-	if (platform_run(ssdp_iface, proxy_iface, proxy_port) != SUCCESS)
-		log_error("Exiting");
+	platform_run(ssdp_iface, proxy_iface, proxy_port);
+
+	log("Exiting");
 
 	return 0;
 }
-

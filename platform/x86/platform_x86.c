@@ -50,22 +50,28 @@ void platform_init_lwm2m(char *iface, int port, char *url)
 }
 #endif
 
-result_t platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
+result_t platform_evt_wait(void)
+{
+	return transport_select(60);
+}
+
+void platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
 {
 	uint32_t timeout = 60;
 
 	if (node_start(ssdp_iface, proxy_iface, proxy_port) != SUCCESS) {
 		log_error("Failed to start node");
-		return FAIL;
+		return;
 	}
 
 	while (1) {
 		if (transport_select(timeout) != SUCCESS) {
 			log_error("Failed to receive data");
-			node_stop(true);
-			return FAIL;
+			break;
 		}
 	}
+
+	node_stop(true);
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)

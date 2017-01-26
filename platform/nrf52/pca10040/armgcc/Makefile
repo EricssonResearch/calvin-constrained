@@ -42,9 +42,7 @@ C_SOURCE_FILES += \
 $(abspath $(NORDIC_SDK_PATH)/components/libraries/button/app_button.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/libraries/util/app_error.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/libraries/fifo/app_fifo.c) \
-$(abspath $(NORDIC_SDK_PATH)/components/libraries/scheduler/app_scheduler.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/libraries/timer/app_timer.c) \
-$(abspath $(NORDIC_SDK_PATH)/components/libraries/timer/app_timer_appsh.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/libraries/trace/app_trace.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/libraries/mem_manager/mem_manager.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/libraries/util/nrf_assert.c) \
@@ -80,8 +78,6 @@ $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/delay/nrf_delay.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/common/nrf_drv_common.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/gpiote/nrf_drv_gpiote.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/uart/nrf_drv_uart.c) \
-$(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/pstorage/pstorage.c) \
-$(abspath $(NORDIC_SDK_PATH)/examples/bsp/bsp.c) \
 $(abspath main.c) \
 $(abspath platform/nrf52/platform_nrf52.c) \
 $(abspath common.c) \
@@ -105,14 +101,11 @@ $(abspath $(NORDIC_SDK_PATH)/components/ble/common/ble_conn_params.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/ble/common/ble_srv_common.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/iot/errno/errno.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/iot/context_manager/iot_context_manager.c) \
-$(abspath $(NORDIC_SDK_PATH)/components/iot/iot_timer/iot_timer.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/iot/medium/ipv6_medium_ble.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/iot/common/ipv6_parse.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/toolchain/system_nrf52.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/iot/medium/ble_ncfgs/ble_ncfgs.c) \
-$(abspath $(NORDIC_SDK_PATH)/components/iot/medium/commissioning/commissioning.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/softdevice/common/softdevice_handler/softdevice_handler.c) \
-$(abspath $(NORDIC_SDK_PATH)/components/softdevice/common/softdevice_handler/softdevice_handler_appsh.c) \
 
 #assembly files common to all targets
 ASM_SOURCE_FILES  = $(abspath $(NORDIC_SDK_PATH)/components/toolchain/gcc/gcc_startup_nrf52.s)
@@ -143,12 +136,10 @@ INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/config)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/libraries/mem_manager)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/uart)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/iot/ble_ipsp)
-INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/libraries/scheduler)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/iot/iot_timer)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/external/lwip/src/include/netif)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/iot/medium/commissioning)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/iot/include)
-INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/pstorage)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/iot/context_manager)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/toolchain/gcc)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/delay)

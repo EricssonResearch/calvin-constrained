@@ -42,7 +42,7 @@ typedef struct actor_t {
 	list_t *attributes;
 	result_t (*init)(struct actor_t **actor, list_t *attributes);
 	result_t (*set_state)(struct actor_t **actor, list_t *attributes);
-	result_t (*fire)(struct actor_t *actor);
+	bool (*fire)(struct actor_t *actor);
 	void (*free_state)(struct actor_t *actor);
 	result_t (*get_managed_attributes)(struct actor_t *actor, list_t **attributes);
 } actor_t;
@@ -55,7 +55,7 @@ void actor_port_enabled(actor_t *actor);
 void actor_delete(actor_t *actor);
 result_t actor_migrate(actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len);
 char *actor_serialize_managed_list(list_t *managed_attributes, char **buffer);
-char *actor_serialize(const actor_t *actor, char **buffer);
-result_t actor_transmit(struct node_t *node, actor_t *actor);
+char *actor_serialize(const struct node_t *node, const actor_t *actor, char **buffer);
+void actor_transmit(struct node_t *node, actor_t *actor);
 
 #endif /* ACTOR_H */

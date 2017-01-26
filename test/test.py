@@ -13,17 +13,35 @@ rt2 = None
 request_handler = None
 constrained_id = None
 
-def check_registry(rt):
-    request_handler = RequestHandler()
-    for x in range(0, 10):
+def verify_actor_placement(request_handler, rt, actor_id, rt_id):
+    retry = 0
+    migrated = False
+    while retry < 20:
         try:
-            peers = request_handler.get_index(rt, '/node/attribute/node_name')
-            if 'result' in peers and len(peers['result']) is 3:
-                return True
-            time.sleep(1)
+            actor = request_handler.get_actor(rt, actor_id)
         except:
-            print "Failed to get nodes from index for %s, retrying" % rt.control_uri
-    return False
+            retry = retry + 1
+            time.sleep(1)
+            continue
+        if actor['node_id'] == rt_id:
+            migrated = True
+            break
+        retry = retry + 1
+        time.sleep(1)
+    return migrated
+
+def verify_actor_removal(request_handler, rt, actor_id):
+    retry = 0
+    removed = False
+    while retry < 20:
+        try:
+            actor = request_handler.get_actor(rt, actor_id)
+        except:
+            removed = True
+            break
+        retry = retry + 1
+        time.sleep(1)
+    return removed
 
 def setup_module(module):
     global rt1
@@ -40,19 +58,14 @@ def setup_module(module):
     # get constrained id
     for x in range(0, 10):
         peers = request_handler.get_nodes(rt1)
-        if peers:
-            constrained_id = peers[0]
-            break
+        for peer in peers:
+            peer_info = request_handler.get_node(rt1, peer)
+            if "constrained" in peer_info["attributes"]["indexed_public"][0]:
+                constrained_id = peer
+                return
         time.sleep(1)
 
-    if constrained_id is None:
-        pytest.exit("Failed to get constrained runtime id")
-
-    if not check_registry(rt1):
-        pytest.exit("rt1 registry not updated")
-
-    if not check_registry(rt2):
-        pytest.exit("rt1 registry not updated")
+    pytest.exit("Failed to get constrained runtime id")
 
 def testDataAndDestruction():
     assert rt1 is not None
@@ -60,7 +73,7 @@ def testDataAndDestruction():
 
     script_name = "testDataAndDestruction"
     script = """
-    src : std.CountTimer(sleep=0.5)
+    src : std.CountTimer(sleep=0.1)
     id : std.Identity()
     snk : io.StandardOut(store_tokens=1, quiet=1)
     src.integer > id.token
@@ -97,22 +110,8 @@ def testDataAndDestruction():
                                               script,
                                               deploy_info=json.loads(deploy_info))
 
-    # verify actor placement
-    retry = 0
-    migrated = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, resp['actor_map'][script_name + ':id'])
-        except:
-            retry = retry + 1
-            time.sleep(0.5)
-            continue
-        if actor['node_id'] == constrained_id:
-            migrated = True
-            break
-        retry = retry + 1
-        time.sleep(0.5)
-    assert migrated
+    # verify placement
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
 
     # verify data
     wait_for_tokens(request_handler,
@@ -122,19 +121,11 @@ def testDataAndDestruction():
                                     resp['actor_map'][script_name + ':snk'])
     assert len(actual) >= 5
 
-    # Verify actor removal
+    # remove app
     request_handler.delete_application(rt1, resp['application_id'])
-    retry = 0
-    removed = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, resp['actor_map'][script_name + ':id'])
-        except:
-            removed = True
-            break
-        retry = retry + 1
-        time.sleep(1)
-    assert removed is True
+
+    # verify actor removal
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id'])
 
 def testPortConnect():
     assert rt1 is not None
@@ -143,7 +134,7 @@ def testPortConnect():
 
     script_name = "testPortConnect"
     script = """
-    src : std.CountTimer(sleep=0.5)
+    src : std.CountTimer(sleep=0.1)
     id : std.Identity()
     snk : io.StandardOut(store_tokens=1, quiet=1)
     src.integer > id.token
@@ -174,7 +165,6 @@ def testPortConnect():
         }
     }
     """
-
     resp = request_handler.deploy_application(rt1,
                                               script_name,
                                               script,
@@ -184,69 +174,20 @@ def testPortConnect():
     identity_id = resp['actor_map'][script_name + ':id']
     snk_id = resp['actor_map'][script_name + ':snk']
 
-    # verify actor placement
-    retry = 0
-    migrated = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, identity_id)
-        except:
-            retry = retry + 1
-            time.sleep(0.5)
-            continue
-        if actor['node_id'] == constrained_id:
-            migrated = True
-            break
-        retry = retry + 1
-        time.sleep(0.5)
-    assert migrated
+    # verify placement
+    assert verify_actor_placement(request_handler, rt1, identity_id, constrained_id)
 
     # migrate snk to rt2
     request_handler.migrate(rt1, snk_id, rt2.id)
 
-    # Verify placement
-    retry = 0
-    migrated = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt2, snk_id)
-        except:
-            retry = retry + 1
-            time.sleep(0.5)
-            continue
-        if actor['node_id'] == rt2.id:
-            migrated = True
-            break
-        retry = retry + 1
-        time.sleep(0.5)
-    assert migrated
+    # verify placement
+    assert verify_actor_placement(request_handler, rt2, snk_id, rt2.id)
 
-    # Verify ports connected
-    retry = 0
-    connected = False
-    while retry < 20:
-        port = request_handler.get_port(rt2,
-                                        snk_id,
-                                        actor['inports'][0]['id'])
-        connected = port['connected']
-        if connected:
-            break
-        retry = retry + 1
-        time.sleep(0.5)
-    assert connected
-
+    # delete app
     request_handler.delete_application(rt1, app_id)
-    retry = 0
-    removed = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, resp['actor_map'][script_name + ':id'])
-        except:
-            removed = True
-            break
-        retry = retry + 1
-        time.sleep(1)
-    assert removed is True
+
+    # verify removal
+    assert verify_actor_removal(request_handler, rt1, identity_id)
 
 def testMigration():
     assert rt1 is not None
@@ -254,7 +195,7 @@ def testMigration():
 
     script_name = "testMigration"
     script = """
-    src : std.CountTimer(sleep=0.5)
+    src : std.CountTimer(sleep=0.1)
     id : std.Identity()
     snk : io.StandardOut(store_tokens=1, quiet=1)
     src.integer > id.token
@@ -285,29 +226,15 @@ def testMigration():
         }
     }
     """
-
     resp = request_handler.deploy_application(rt1,
                                               script_name,
                                               script,
                                               deploy_info=json.loads(deploy_info))
 
     # verify placement
-    retry = 0
-    migrated = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, resp['actor_map'][script_name + ':id'])
-        except:
-            retry = retry + 1
-            time.sleep(0.5)
-            continue
-        if actor['node_id'] == constrained_id:
-            migrated = True
-            break
-        retry = retry + 1
-        time.sleep(0.5)
-    assert migrated
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
 
+    # migrate back and verify placement
     deploy_info = """
     {
         "requirements": {
@@ -332,31 +259,19 @@ def testMigration():
         }
     }
     """
-
-    # Migrate back and verify placement
     request_handler.migrate_app_use_req(rt1,
                                         resp['application_id'],
                                         json.loads(deploy_info))
 
 
     # verify placement
-    retry = 0
-    migrated = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, resp['actor_map'][script_name + ':id'])
-        except:
-            retry = retry + 1
-            time.sleep(0.5)
-            continue
-        if actor['node_id'] == rt1.id:
-            migrated = True
-            break
-        retry = retry + 1
-        time.sleep(0.5)
-    assert migrated
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], rt1.id)
 
+    # delete application
     request_handler.delete_application(rt1, resp['application_id'])
+
+    # verify removal
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id'])
 
 def testTemperatureActor():
     assert rt1 is not None
@@ -364,7 +279,7 @@ def testTemperatureActor():
 
     script_name = "testTemperatureActor"
     script = """
-    src : std.CountTimer(sleep=0.5)
+    src : std.CountTimer(sleep=0.1)
     temp : sensor.Temperature()
     snk : io.StandardOut(store_tokens=1, quiet=1)
     src.integer > temp.measure
@@ -395,28 +310,13 @@ def testTemperatureActor():
         }
     }
     """
-
     resp = request_handler.deploy_application(rt1,
                                               script_name,
                                               script,
                                               deploy_info=json.loads(deploy_info))
 
     # verify actor placement
-    retry = 0
-    migrated = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, resp['actor_map'][script_name + ':temp'])
-        except:
-            retry = retry + 1
-            time.sleep(0.5)
-            continue
-        if actor['node_id'] == constrained_id:
-            migrated = True
-            break
-        retry = retry + 1
-        time.sleep(0.5)
-    assert migrated
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':temp'], constrained_id)
 
     # verify data
     wait_for_tokens(request_handler,
@@ -427,19 +327,11 @@ def testTemperatureActor():
     assert len(actual) >= 5
     assert all(x == 15.5 for x in actual)
 
-    # Delete application
+    # delete application
     request_handler.delete_application(rt1, resp['application_id'])
-    retry = 0
-    removed = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, resp['actor_map'][script_name + ':temp'])
-        except:
-            removed = True
-            break
-        retry = retry + 1
-        time.sleep(1)
-    assert removed is True
+
+    # verify removal
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':temp'])
 
 def testGPIOReader():
     assert rt1 is not None
@@ -470,42 +362,19 @@ def testGPIOReader():
         }
     }
     """
-
     resp = request_handler.deploy_application(rt1,
                                               script_name,
                                               script,
                                               deploy_info=json.loads(deploy_info))
 
     # verify actor placement
-    retry = 0
-    migrated = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, resp['actor_map'][script_name + ':gpio'])
-        except:
-            retry = retry + 1
-            time.sleep(0.5)
-            continue
-        if actor['node_id'] == constrained_id:
-            migrated = True
-            break
-        retry = retry + 1
-        time.sleep(0.5)
-    assert migrated
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':gpio'], constrained_id)
 
-    # Delete application
+    # delete application
     request_handler.delete_application(rt1, resp['application_id'])
-    retry = 0
-    removed = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, resp['actor_map'][script_name + ':gpio'])
-        except:
-            removed = True
-            break
-        retry = retry + 1
-        time.sleep(1)
-    assert removed is True
+
+    # verify removal
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':gpio'])
 
 def testGPIOWriter():
     assert rt1 is not None
@@ -513,7 +382,7 @@ def testGPIOWriter():
 
     script_name = "testGPIOWriterActor"
     script = """
-    src : std.CountTimer(sleep=0.5)
+    src : std.CountTimer(sleep=0.1)
     alt : std.Dealternate()
     zero : std.Constantify(constant=0)
     one : std.Constantify(constant=1)
@@ -570,39 +439,86 @@ def testGPIOWriter():
         }
     }
     """
-
     resp = request_handler.deploy_application(rt1,
                                               script_name,
                                               script,
                                               deploy_info=json.loads(deploy_info))
 
     # verify actor placement
-    retry = 0
-    migrated = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, resp['actor_map'][script_name + ':gpio'])
-        except:
-            retry = retry + 1
-            time.sleep(0.5)
-            continue
-        if actor['node_id'] == constrained_id:
-            migrated = True
-            break
-        retry = retry + 1
-        time.sleep(0.5)
-    assert migrated
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':gpio'], constrained_id)
 
-    # Destroy application
+    # destroy application
     request_handler.delete_application(rt1, resp['application_id'])
-    retry = 0
-    removed = False
-    while retry < 20:
-        try:
-            actor = request_handler.get_actor(rt1, resp['actor_map'][script_name + ':gpio'])
-        except:
-            removed = True
-            break
-        retry = retry + 1
-        time.sleep(1)
-    assert removed is True
+
+    # verify removal
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':gpio'])
+
+def testLocalConnections():
+    assert rt1 is not None
+    assert constrained_id is not None
+
+    script_name = "testLocalConnections"
+    script = """
+    src : std.CountTimer(sleep=0.1)
+    id1 : std.Identity()
+    id2 : std.Identity()
+    snk : io.StandardOut(store_tokens=1, quiet=1)
+    src.integer > id1.token
+    id1.token > id2.token
+    id2.token > snk.token
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "src": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "type": "+"
+               }],
+            "id1": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "id2": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                    "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "type": "+"
+                }]
+        }
+    }
+    """
+
+    resp = request_handler.deploy_application(rt1,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+
+    # verify placement
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id1'], constrained_id)
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id2'], constrained_id)
+
+    # verify data
+    wait_for_tokens(request_handler,
+                    rt1,
+                    resp['actor_map'][script_name + ':snk'], 5, 20)
+    actual = request_handler.report(rt1,
+                                    resp['actor_map'][script_name + ':snk'])
+    assert len(actual) >= 5
+
+    # remove app
+    request_handler.delete_application(rt1, resp['application_id'])
+
+    # verify actor removal
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id1'])
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id2'])
