@@ -20,14 +20,6 @@
 #include "../../node.h"
 #include "../../transport.h"
 
-#ifdef LWM2M_HTTP_CLIENT
-typedef struct lwm2m_client_t {
-	char *iface;
-	int port;
-	char *url;
-} lwm2m_client_t;
-static lwm2m_client_t m_lwm2m_client;
-#endif
 static calvin_gpio_t *m_gpios[MAX_GPIOS];
 
 void platform_init(void)
@@ -40,15 +32,6 @@ void platform_init(void)
 		m_gpios[i] = NULL;
 	}
 }
-
-#ifdef LWM2M_HTTP_CLIENT
-void platform_init_lwm2m(char *iface, int port, char *url)
-{
-	m_lwm2m_client.iface = iface;
-	m_lwm2m_client.port = port;
-	m_lwm2m_client.url = url;
-}
-#endif
 
 result_t platform_evt_wait(void)
 {
@@ -164,29 +147,6 @@ void platform_set_gpio(calvin_gpio_t *gpio, uint32_t value)
 
 result_t platform_get_temperature(double *temp)
 {
-#ifdef LWM2M_HTTP_CLIENT
-	char buffer[BUFFER_SIZE], *start = NULL, *end = NULL;
-
-	if (m_lwm2m_client.iface == NULL || m_lwm2m_client.port == 0 || m_lwm2m_client.url == NULL) {
-		log_error("Bad lwm2m arguments");
-		return FAIL;
-	}
-
-	if (transport_http_get(m_lwm2m_client.iface, m_lwm2m_client.port, m_lwm2m_client.url, buffer, BUFFER_SIZE) != SUCCESS) {
-		log_error("Failed to send '%s' to '%s:%d'", buffer, m_lwm2m_client.iface, m_lwm2m_client.port);
-		return FAIL;
-	}
-
-	start = strstr(buffer, "\"value\":");
-	if (start == NULL) {
-		log_error("Bad response '%s'", buffer);
-		return FAIL;
-	}
-
-	start += 8;
-	*temp = strtod(start, &end);
-#else
 	*temp = 15.5;
-#endif
 	return SUCCESS;
 }

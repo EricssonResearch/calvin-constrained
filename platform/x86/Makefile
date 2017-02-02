@@ -6,7 +6,6 @@ CFLAGS  = -g -Wall
 CFLAGS += --std=gnu99
 #CFLAGS += -DDEBUG
 CFLAGS += -DPARSE_ARGS
-#CFLAGS += -DLWM2M_HTTP_CLIENT
 ifneq ($(PLATFORM), Darwin)
 CFLAGS += -lrt
 endif

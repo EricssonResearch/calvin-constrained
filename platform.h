@@ -71,9 +71,6 @@ typedef struct calvin_gpio_t {
 } calvin_gpio_t;
 
 void platform_init(void);
-#ifdef LWM2M_HTTP_CLIENT
-void platform_init_lwm2m(char *iface, int port, char *url);
-#endif
 void platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port);
 result_t platform_mem_alloc(void **buffer, uint32_t size);
 void platform_mem_free(void *buffer);

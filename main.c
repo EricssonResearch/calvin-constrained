@@ -30,24 +30,15 @@ int main(int argc, char **argv)
 	int proxy_port = 0;
 #ifdef PARSE_ARGS
 	int c = 0;
-#ifdef LWM2M_HTTP_CLIENT
-	int lwm2m_port = 0;
-	char *lwm2m_iface = NULL, *lwm2m_url = NULL;
-#endif
 	static struct option long_options[] = {
 		{"name", required_argument, NULL, 'a'},
 		{"ssdp_iface", required_argument, NULL, 'b'},
 		{"proxy_iface", required_argument, NULL, 'c'},
 		{"proxy_port", required_argument, NULL, 'd'},
-#ifdef LWM2M_HTTP_CLIENT
-		{"lwm2m_iface", required_argument, NULL, 'e'},
-		{"lwm2m_port", required_argument, NULL, 'f'},
-		{"lwm2m_url", required_argument, NULL, 'g'},
-#endif
 		{NULL, 0, NULL, 0}
 	};
 
-	while ((c = getopt_long (argc, argv, "a:b:c:d:e:f:g:", long_options, NULL)) != -1) {
+	while ((c = getopt_long (argc, argv, "a:b:c:d:", long_options, NULL)) != -1) {
 		switch (c) {
 		case 'a':
 			name = strdup(optarg);
@@ -61,17 +52,6 @@ int main(int argc, char **argv)
 		case 'd':
 			proxy_port = atoi(optarg);
 			break;
-#ifdef LWM2M_HTTP_CLIENT
-		case 'e':
-			lwm2m_iface = strdup(optarg);
-			break;
-		case 'f':
-			lwm2m_port = atoi(optarg);
-			break;
-		case 'g':
-			lwm2m_url = strdup(optarg);
-			break;
-#endif
 		default:
 			break;
 		}
@@ -80,13 +60,6 @@ int main(int argc, char **argv)
 
 	platform_init();
 
-#if defined(PARSE_ARGS) && defined(LWM2M_HTTP_CLIENT)
-	if (lwm2m_url != NULL && strstr(lwm2m_url, "3303") != NULL)
-		capabilities = "[3303]";
-
-	platform_init_lwm2m(lwm2m_iface, lwm2m_port, lwm2m_url);
-#endif
-
 	if (name == NULL)
 		name = "constrained";
 
@@ -94,10 +67,6 @@ int main(int argc, char **argv)
 		capabilities = "[3303, 3201, 3200]";
 
 	node_create(name, capabilities);
-
-#if defined(PARSE_ARGS) && defined(LWM2M_HTTP_CLIENT)
-	platform_init_lwm2m(lwm2m_iface, lwm2m_port, lwm2m_url);
-#endif
 
 #ifdef MICROPYTHON
 	if (!mpy_port_init(MICROPYTHON_HEAP_SIZE))
