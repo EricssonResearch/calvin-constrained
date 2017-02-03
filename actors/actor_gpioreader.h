@@ -21,10 +21,8 @@
 #include "../platform.h"
 
 typedef struct state_gpioreader_t {
-	calvin_gpio_t *gpio;
-	uint32_t pin;
-	char pull;
-	char edge;
+	calvin_ingpio_t *gpio;
+	calvinsys_io_giohandler_t *gpiohandler;
 } state_gpioreader_t;
 
 result_t actor_gpioreader_init(actor_t **actor, list_t *attributes);

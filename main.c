@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 #include <stdlib.h>
+#include <string.h>
 #include "platform.h"
 #include "node.h"
 #ifdef PARSE_ARGS
-#include <string.h>
 #include <getopt.h>
 #endif
 #ifdef MICROPYTHON
@@ -57,17 +57,21 @@ int main(int argc, char **argv)
 
 	platform_init();
 
+	if (name == NULL)
+		name = strdup("constrained");
+
+	node = node_create(name);
+
+	if (platform_create_calvinsys(node) != SUCCESS)
+		return EXIT_FAILURE;
+
 #ifdef MICROPYTHON
 	if (!mpy_port_init(MICROPYTHON_HEAP_SIZE))
 		return EXIT_FAILURE;
 #endif
 
-	if (name == NULL)
-		name = strdup("constrained");
-
-	node = node_create(name);
-	if (node != NULL)
-		platform_run(node, iface, port);
+	// run the event loop
+	platform_run(node, iface, port);
 
 	return EXIT_SUCCESS;
 }

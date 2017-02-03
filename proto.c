@@ -88,15 +88,22 @@ result_t proto_send_node_setup(const node_t *node, result_t (*handler)(char*, vo
 {
 	result_t result = SUCCESS;
 	char *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
+	list_t *calvinsys = node->calvinsys;
+	uint32_t nbr_of_capabilities = 0;
 
 	if (!node_can_add_pending_msg(node))
 		return PENDING;
 
-	result = transport_create_tx_buffer(node->transport_client, 600);
+	result = transport_create_tx_buffer(node->transport_client, 1000);
 	if (result != SUCCESS)
 		return result;
 
 	gen_uuid(msg_uuid, "MSGID_");
+
+	while (calvinsys != NULL) {
+		nbr_of_capabilities++;
+		calvinsys = calvinsys->next;
+	}
 
 	w = node->transport_client->tx_buffer.buffer + 4;
 	w = mp_encode_map(w, 7);
@@ -106,7 +113,15 @@ result_t proto_send_node_setup(const node_t *node, result_t (*handler)(char*, vo
 		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
 		w = encode_str(&w, "cmd", "PROXY_CONFIG", strlen("PROXY_CONFIG"));
 		w = encode_str(&w, "name", node->name, strlen(node->name));
-		w = encode_str(&w, "capabilities", "[]", 2); // TODO: Query node for capabilities based on available calvinsys objects
+		w = encode_array(&w, "capabilities", nbr_of_capabilities);
+		{
+			calvinsys = node->calvinsys;
+			while (calvinsys != NULL) {
+				log("Adding capability %s", calvinsys->id);
+				w = mp_encode_str(w, calvinsys->id, strlen(calvinsys->id));
+				calvinsys = calvinsys->next;
+			}
+		}
 		w = encode_str(&w, "port_property_capability", "runtime.constrained.1", strlen("runtime.constrained.1"));
 	}
 

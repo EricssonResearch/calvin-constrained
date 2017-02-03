@@ -19,14 +19,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "common.h"
-#include "node.h"
 #ifdef NRF52
 #include "app_trace.h"
 #else
 #include <stdio.h>
 #endif
 
-#define MAX_GPIOS 5
+#define MAX_INGPIOS 5
+
+struct node_t;
 
 #ifdef NRF52
 #ifdef DEBUG
@@ -51,34 +52,30 @@ typedef enum {
 	GPIO_OUT
 } gpio_direction_t;
 
-typedef enum {
-	EDGE_RISING,
-	EDGE_FALLING,
-	EDGE_BOTH
-} gpio_edge_t;
-
-typedef enum {
-	PULL_UP,
-	PULL_DOWN
-} gpio_pull_t;
-
-typedef struct calvin_gpio_t {
+typedef struct calvin_ingpio_t {
 	uint32_t pin;
 	bool has_triggered;
 	uint32_t value;
-	gpio_direction_t direction;
-	gpio_edge_t gpio_edge;
-	gpio_pull_t gpio_pull;
-} calvin_gpio_t;
+	char pull;
+	char edge;
+} calvin_ingpio_t;
 
-void platform_init();
-void platform_run(node_t *node, const char *iface, const int port);
+typedef struct calvinsys_io_giohandler_t {
+	calvin_ingpio_t *(*init_in_gpio)(struct calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, char pull, char edge);
+	result_t (*init_out_gpio)(uint32_t pin);
+  void (*set_gpio)(uint32_t pin, uint32_t value);
+	void (*uninit_gpio)(struct calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, gpio_direction_t direction);
+	calvin_ingpio_t *ingpios[MAX_INGPIOS];
+} calvinsys_io_giohandler_t;
+
+typedef struct calvinsys_sensors_environmental_t {
+  result_t (*get_temperature)(double *temp);
+} calvinsys_sensors_environmental_t;
+
+void platform_init(void);
+result_t platform_create_calvinsys(struct node_t *node);
+void platform_run(struct node_t *node, const char *iface, const int port);
 result_t platform_mem_alloc(void **buffer, uint32_t size);
 void platform_mem_free(void *buffer);
-calvin_gpio_t *platform_create_in_gpio(uint32_t pin, char pull, char edge);
-calvin_gpio_t *platform_create_out_gpio(uint32_t pin);
-void platform_set_gpio(calvin_gpio_t *gpio, uint32_t value);
-void platform_uninit_gpio(calvin_gpio_t *gpio);
-result_t platform_get_temperature(double *temp);
 
 #endif /* PLATFORM_H */

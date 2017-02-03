@@ -41,7 +41,6 @@ APP_TIMER_DEF(m_lwip_timer_id);
 APP_TIMER_DEF(m_calvin_inittimer_id);
 eui64_t                                     eui64_local_iid;
 static ipv6_medium_instance_t               m_ipv6_medium;
-static calvin_gpio_t                        *m_gpios[MAX_GPIOS];
 static char                                 m_mac[20]; // MAC address of connected peer
 
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
@@ -183,6 +182,195 @@ void nrf_driver_interface_down(void)
 	log_debug("IPv6 interface down");
 }
 
+static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+{
+	int i = 0;
+	node_t *node = node_get();
+	calvinsys_io_giohandler_t *gpiohandler = (calvinsys_io_giohandler_t *)list_get(node->calvinsys, "calvinsys.io.gpiohandler");
+
+	for (i = 0; i < MAX_INGPIOS; i++) {
+		if (gpiohandler->ingpios[i] != NULL && gpiohandler->ingpios[i]->pin == pin) {
+			gpiohandler->ingpios[i]->has_triggered = true;
+			gpiohandler->ingpios[i]->value = nrf_drv_gpiote_in_is_set(pin) ? 1 : 0;
+
+			// fire actors and trigger transmission
+			if (node_loop_once())
+				node_transmit();
+			return;
+		}
+	}
+}
+
+static calvin_ingpio_t *platform_init_in_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, char pull, char edge)
+{
+	nrf_drv_gpiote_in_config_t config;
+	int i = 0;
+
+	memset(&config, 0, sizeof(nrf_drv_gpiote_in_config_t));
+
+	if (pull != 'u' && pull != 'd') {
+		log_error("Unsupported pull direction");
+		return NULL;
+	}
+
+	if (edge != 'r' && edge != 'f' && edge != 'b') {
+		log_error("Unsupported edge");
+		return NULL;
+	}
+
+	for (i = 0; i < MAX_INGPIOS; i++) {
+		if (gpiohandler->ingpios[i] == NULL) {
+			if (!nrf_drv_gpiote_is_init()) {
+				if (nrf_drv_gpiote_init() != NRF_SUCCESS) {
+					log_error("Failed to initialize gpio");
+					return NULL;
+				}
+			}
+
+			if (edge == 'b')
+				config.sense = NRF_GPIOTE_POLARITY_TOGGLE;
+			else if (edge == 'r')
+				config.sense = NRF_GPIOTE_POLARITY_LOTOHI;
+			else
+				config.sense = NRF_GPIOTE_POLARITY_HITOLO;
+
+			if (pull == 'd')
+				config.pull = NRF_GPIO_PIN_PULLDOWN;
+			else
+				config.pull = NRF_GPIO_PIN_PULLUP;
+
+			if (nrf_drv_gpiote_in_init(pin, &config, in_pin_handler) != NRF_SUCCESS) {
+				log_error("Failed to initialize gpio");
+				return NULL;
+			}
+
+			nrf_drv_gpiote_in_event_enable(pin, true);
+
+			if (platform_mem_alloc((void **)&gpiohandler->ingpios[i], sizeof(calvin_ingpio_t)) != SUCCESS) {
+				log_error("Failed to allocate memory");
+				nrf_drv_gpiote_out_uninit(pin);
+				return NULL;
+			}
+
+			gpiohandler->ingpios[i]->pin = pin;
+			gpiohandler->ingpios[i]->has_triggered = false;
+			gpiohandler->ingpios[i]->pull = pull;
+			gpiohandler->ingpios[i]->edge = edge;
+			return gpiohandler->ingpios[i];
+		}
+	}
+
+	return NULL;
+}
+
+static result_t platform_init_out_gpio(uint32_t pin)
+{
+	if (!nrf_drv_gpiote_is_init()) {
+		if (nrf_drv_gpiote_init() != NRF_SUCCESS) {
+			log_error("Failed to initialize gpio");
+			return FAIL;
+		}
+	}
+
+	nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(false);
+
+	if (nrf_drv_gpiote_out_init(pin, &out_config) != NRF_SUCCESS) {
+		log_error("Failed to initialize gpio");
+		return FAIL;
+	}
+
+	log("Initialized gpio '%ld' as output", (unsigned long)pin);
+
+	return SUCCESS;
+}
+
+static void platform_set_gpio(uint32_t pin, uint32_t value)
+{
+	if (value == 1)
+		nrf_drv_gpiote_out_set(pin);
+	else
+		nrf_drv_gpiote_out_clear(pin);
+}
+
+static void platform_uninit_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, gpio_direction_t direction)
+{
+	int i = 0;
+
+	if (direction == GPIO_IN)
+		nrf_drv_gpiote_in_uninit(pin);
+	else
+		nrf_drv_gpiote_out_uninit(pin);
+
+	for (i = 0; i < MAX_INGPIOS; i++) {
+		if (gpiohandler->ingpios[i] != NULL && gpiohandler->ingpios[i]->pin == pin) {
+			platform_mem_free(gpiohandler->ingpios[i]);
+			gpiohandler->ingpios[i] = NULL;
+			break;
+		}
+	}
+}
+
+static result_t platform_get_temperature(double *temp)
+{
+	uint32_t err_code;
+	int32_t value;
+
+	err_code = sd_temp_get(&value);
+
+	*temp = value / 4;
+
+	return err_code == NRF_SUCCESS ? SUCCESS : FAIL;
+}
+
+static result_t platform_create_sensors_environmental(node_t *node)
+{
+	char name[] = "calvinsys.sensors.environmental";
+	calvinsys_sensors_environmental_t *sensors_env = NULL;
+
+	if (platform_mem_alloc((void **)&sensors_env, sizeof(calvinsys_sensors_environmental_t)) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	sensors_env->get_temperature = platform_get_temperature;
+
+ 	return list_add_n(&node->calvinsys, name, strlen(name), sensors_env, sizeof(calvinsys_sensors_environmental_t));
+}
+
+static result_t platform_create_io_gpiohandler(node_t *node)
+{
+	char name[] = "calvinsys.io.gpiohandler";
+	calvinsys_io_giohandler_t *io_gpiohandler = NULL;
+	int i = 0;
+
+	if (platform_mem_alloc((void **)&io_gpiohandler, sizeof(calvinsys_io_giohandler_t)) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		platform_mem_free((void *)io_gpiohandler);
+		return FAIL;
+	}
+
+	io_gpiohandler->init_in_gpio = platform_init_in_gpio;
+	io_gpiohandler->init_out_gpio = platform_init_out_gpio;
+	io_gpiohandler->set_gpio = platform_set_gpio;
+	io_gpiohandler->uninit_gpio = platform_uninit_gpio;
+
+	for (i = 0; i < MAX_INGPIOS; i++)
+		io_gpiohandler->ingpios[i] = NULL;
+
+	return list_add_n(&node->calvinsys, name, strlen(name), io_gpiohandler, sizeof(calvinsys_io_giohandler_t));
+}
+
+result_t platform_create_calvinsys(node_t *node)
+{
+	if (platform_create_sensors_environmental(node) != SUCCESS)
+		return FAIL;
+
+	if (platform_create_io_gpiohandler(node) != SUCCESS)
+		return FAIL;
+
+	return SUCCESS;
+}
+
 void platform_init(void)
 {
 	uint32_t err_code;
@@ -196,9 +384,6 @@ void platform_init(void)
 	timers_init();
 
 	connectable_mode_enter();
-
-	for (i = 0; i < MAX_GPIOS; i++)
-		m_gpios[i] = NULL;
 
 	do {
 		err_code = sd_rand_application_vector_get(&rnd_seed, 1);
@@ -235,180 +420,4 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 void platform_mem_free(void *buffer)
 {
 	free(buffer);
-}
-
-static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
-{
-	int i = 0;
-
-	for (i = 0; i < MAX_GPIOS; i++) {
-		if (m_gpios[i] != NULL && m_gpios[i]->pin == pin) {
-			if (nrf_drv_gpiote_in_is_set(pin)) {
-				if (m_gpios[i]->value == 0) {
-					m_gpios[i]->value = 1;
-					m_gpios[i]->has_triggered = true;
-				}
-			} else {
-				if (m_gpios[i]->value == 1) {
-					m_gpios[i]->value = 0;
-					m_gpios[i]->has_triggered = true;
-				}
-			}
-
-			// fire actors and trigger transmission
-			if (node_loop_once())
-				node_transmit();
-			return;
-		}
-	}
-}
-
-calvin_gpio_t *platform_create_in_gpio(uint32_t pin, char pull, char edge)
-{
-	int i = 0;
-	nrf_drv_gpiote_in_config_t config;
-
-	memset(&config, 0, sizeof(nrf_drv_gpiote_in_config_t));
-
-	if (pull != 'u' && pull != 'd') {
-		log_error("Unsupported pull direction");
-		return NULL;
-	}
-
-	if (edge != 'r' && edge != 'f' && edge != 'b') {
-		log_error("Unsupported edge");
-		return NULL;
-	}
-
-	for (i = 0; i < MAX_GPIOS; i++) {
-		if (m_gpios[i] == NULL) {
-			if (platform_mem_alloc((void **)&m_gpios[i], sizeof(calvin_gpio_t)) != SUCCESS) {
-				log_error("Failed to allocate memory");
-				return NULL;
-			}
-
-			if (!nrf_drv_gpiote_is_init()) {
-				if (nrf_drv_gpiote_init() != NRF_SUCCESS) {
-					log_error("Failed to initialize gpio");
-					platform_mem_free((void *)m_gpios[i]);
-					m_gpios[i] = NULL;
-					return NULL;
-				}
-			}
-
-			if (edge == 'b')
-				config.sense = NRF_GPIOTE_POLARITY_TOGGLE;
-			else if (edge == 'r')
-				config.sense = NRF_GPIOTE_POLARITY_LOTOHI;
-			else
-				config.sense = NRF_GPIOTE_POLARITY_HITOLO;
-
-			if (pull == 'd')
-				config.pull = NRF_GPIO_PIN_PULLDOWN;
-			else
-				config.pull = NRF_GPIO_PIN_PULLUP;
-
-			if (nrf_drv_gpiote_in_init(pin, &config, in_pin_handler) != NRF_SUCCESS) {
-				log_error("Failed to initialize gpio");
-				platform_mem_free((void *)m_gpios[i]);
-				m_gpios[i] = NULL;
-				return NULL;
-			}
-
-			nrf_drv_gpiote_in_event_enable(pin, true);
-
-			m_gpios[i]->pin = pin;
-			m_gpios[i]->has_triggered = false;
-			m_gpios[i]->value = 0;
-			m_gpios[i]->direction = GPIO_IN;
-
-			log("Initialized gpio pin '%ld' as input", (unsigned long)pin);
-
-			return m_gpios[i];
-		}
-	}
-
-	return NULL;
-}
-
-calvin_gpio_t *platform_create_out_gpio(uint32_t pin)
-{
-	int i = 0;
-
-	for (i = 0; i < MAX_GPIOS; i++) {
-		if (m_gpios[i] == NULL) {
-			if (platform_mem_alloc((void **)&m_gpios[i], sizeof(calvin_gpio_t)) != SUCCESS) {
-				log_error("Failed to allocate memory");
-				return NULL;
-			}
-
-			if (!nrf_drv_gpiote_is_init()) {
-				if (nrf_drv_gpiote_init() != NRF_SUCCESS) {
-					log_error("Failed to initialize gpio");
-					platform_mem_free((void *)m_gpios[i]);
-					m_gpios[i] = NULL;
-					return NULL;
-				}
-			}
-
-			nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(false);
-
-			if (nrf_drv_gpiote_out_init(pin, &out_config) != NRF_SUCCESS) {
-				log_error("Failed to initialize gpio");
-				platform_mem_free((void *)m_gpios[i]);
-				m_gpios[i] = NULL;
-				return NULL;
-			}
-
-			m_gpios[i]->pin = pin;
-			m_gpios[i]->direction = GPIO_OUT;
-
-			log("Initialized gpio '%ld' as output", (unsigned long)pin);
-
-			return m_gpios[i];
-		}
-	}
-
-	return NULL;
-}
-
-void platform_set_gpio(calvin_gpio_t *gpio, uint32_t value)
-{
-	if (value == 1)
-		nrf_drv_gpiote_out_set(gpio->pin);
-	else
-		nrf_drv_gpiote_out_clear(gpio->pin);
-}
-
-void platform_uninit_gpio(calvin_gpio_t *gpio)
-{
-	int i = 0;
-
-	log("Unitializing gpio pin '%d'", gpio->pin);
-
-	if (gpio->direction == GPIO_IN)
-		nrf_drv_gpiote_in_uninit(gpio->pin);
-	else
-		nrf_drv_gpiote_out_uninit(gpio->pin);
-
-	for (i = 0; i < MAX_GPIOS; i++) {
-		if (m_gpios[i] != NULL && m_gpios[i]->pin == gpio->pin) {
-			m_gpios[i] = NULL;
-			break;
-		}
-	}
-
-	platform_mem_free(gpio);
-}
-
-result_t platform_get_temperature(double *temp)
-{
-	uint32_t err_code;
-	int32_t value;
-
-	err_code = sd_temp_get(&value);
-
-	*temp = value / 4;
-
-	return err_code == NRF_SUCCESS ? SUCCESS : FAIL;
 }

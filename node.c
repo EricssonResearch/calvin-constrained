@@ -245,6 +245,7 @@ node_t *node_create(char *name)
 	gen_uuid(m_node.id, NULL);
 	m_node.name = name;
 	m_node.transport_client = NULL;
+	m_node.calvinsys = NULL;
 
 	log("Node created with name '%s' and id '%s'", m_node.name, m_node.id);
 

@@ -70,9 +70,9 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 	},
 	{
 		"sensor.Temperature",
-		NULL,
-		NULL,
-		NULL,
+		actor_temperature_init,
+		actor_temperature_set_state,
+		actor_temperature_free,
 		actor_temperature_fire,
 		NULL
 	}
@@ -333,7 +333,10 @@ actor_t *actor_create(node_t *node, char *root)
 		log_error("Failed to allocate memory");
 		return NULL;
 	}
+
 	memset(actor, 0, sizeof(actor_t));
+
+	actor->calvinsys = node->calvinsys;
 
 	if (get_value_from_map(r, "state", &obj_state) != SUCCESS) {
 		actor_free(node, actor);

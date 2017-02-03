@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include "common.h"
 #include "port.h"
+#include "platform.h"
 
 struct node_t;
 
@@ -45,6 +46,7 @@ typedef struct actor_t {
 	bool (*fire)(struct actor_t *actor);
 	void (*free_state)(struct actor_t *actor);
 	result_t (*get_managed_attributes)(struct actor_t *actor, list_t **attributes);
+	list_t *calvinsys;
 } actor_t;
 
 result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len);

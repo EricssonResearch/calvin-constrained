@@ -17,16 +17,19 @@
 #include <string.h>
 #include "py/objstr.h"
 #include "../platform.h"
+#include "../node.h"
 
 typedef struct cc_mp_environmental_t {
 	mp_obj_base_t base;
+	calvinsys_sensors_environmental_t *environmental;
 } cc_mp_environmental_t;
 
 static mp_obj_t environmental_get_temperature(mp_obj_t self_in)
 {
+	cc_mp_environmental_t *environmental = self_in;
 	double temperature = 0;
 
-	if (platform_get_temperature(&temperature) != SUCCESS) {
+	if (environmental->environmental->get_temperature(&temperature) != SUCCESS) {
 		log_error("Failed to get temperature");
 		return mp_const_none;
 	}
@@ -46,14 +49,16 @@ static const mp_obj_type_t environmental_type = {
 	.locals_dict = (mp_obj_dict_t *)&environmental_locals_dict
 };
 
-static mp_obj_t environmental_register(void)
+static mp_obj_t environmental_register()
 {
 	static cc_mp_environmental_t *environmental;
+	node_t *node = node_get();
 
 	if (environmental == NULL) {
 		environmental = m_new_obj(cc_mp_environmental_t);
 		memset(environmental, 0, sizeof(cc_mp_environmental_t));
 		environmental->base.type = &environmental_type;
+		environmental->environmental = (calvinsys_sensors_environmental_t *)list_get(node->calvinsys, "calvinsys.sensors.environmental");
 	}
 
 	return MP_OBJ_FROM_PTR(environmental);

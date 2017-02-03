@@ -18,17 +18,45 @@
 #include "actor_temperature.h"
 #include "../fifo.h"
 #include "../token.h"
-#include "../platform.h"
 #include "../port.h"
+#include "../common.h"
+
+result_t actor_temperature_init(actor_t **actor, list_t *attributes)
+{
+	calvinsys_sensors_environmental_t *environmental = NULL;
+	state_temperature_t *state = NULL;
+
+	environmental = (calvinsys_sensors_environmental_t *)list_get((*actor)->calvinsys, "calvinsys.sensors.environmental");
+	if (environmental == NULL) {
+		log_error("calvinsys.sensors.environmental is not supported");
+		return FAIL;
+	}
+
+	if (platform_mem_alloc((void **)&state, sizeof(state_temperature_t)) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	state->environmental = environmental;
+	(*actor)->instance_state = (void *)state;
+
+	return SUCCESS;
+}
+
+result_t actor_temperature_set_state(actor_t **actor, list_t *attributes)
+{
+	return actor_temperature_init(actor, attributes);
+}
 
 bool actor_temperature_fire(struct actor_t *actor)
 {
 	token_t out_token;
 	double temperature;
 	port_t *inport = (port_t *)actor->in_ports->data, *outport = (port_t *)actor->out_ports->data;
+	calvinsys_sensors_environmental_t *environmental = ((state_temperature_t *)actor->instance_state)->environmental;
 
 	if (fifo_tokens_available(&inport->fifo, 1) == 1 && fifo_slots_available(&outport->fifo, 1) == 1) {
-		if (platform_get_temperature(&temperature) == SUCCESS) {
+		if (environmental->get_temperature(&temperature) == SUCCESS) {
 			fifo_peek(&inport->fifo);
 			token_set_double(&out_token, temperature);
 			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == SUCCESS) {
@@ -40,4 +68,12 @@ bool actor_temperature_fire(struct actor_t *actor)
 			log_error("Failed to get temperature");
 	}
 	return false;
+}
+
+void actor_temperature_free(actor_t *actor)
+{
+	state_temperature_t *state = (state_temperature_t *)actor->instance_state;
+
+	if (state != NULL)
+		platform_mem_free((void *)state);
 }

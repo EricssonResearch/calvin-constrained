@@ -23,6 +23,7 @@
 #include "actor.h"
 #include "port.h"
 #include "link.h"
+#include "platform.h"
 
 typedef enum {
 	NODE_DO_JOIN,
@@ -44,7 +45,6 @@ typedef struct node_t {
 	node_state_t state;
 	char id[UUID_BUFFER_SIZE];
 	char *name;
-	char *capabilities;
 	pending_msg_t pending_msgs[MAX_PENDING_MSGS];
 	link_t *proxy_link;
 	list_t *links;
@@ -52,6 +52,7 @@ typedef struct node_t {
 	list_t *tunnels;
 	list_t *actors;
 	transport_client_t *transport_client;
+	list_t *calvinsys;
 } node_t;
 
 node_t *node_get();

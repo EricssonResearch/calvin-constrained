@@ -17,10 +17,14 @@
 #include <string.h>
 #include "py/objstr.h"
 #include "../platform.h"
+#include "../actor.h"
+#include "../node.h"
 
 typedef struct cc_mp_gpiopin_t {
 	mp_obj_base_t base;
-	calvin_gpio_t *gpio;
+	uint32_t pin;
+	calvin_ingpio_t *gpio;
+	calvinsys_io_giohandler_t *gpiohandler;
 } cc_mp_gpiopin_t;
 
 typedef struct cc_mp_gpiohandler_t {
@@ -43,7 +47,7 @@ static mp_obj_t gpiopin_set_state(mp_obj_t self_in, mp_obj_t state)
 {
 	cc_mp_gpiopin_t *gpio = self_in;
 
-	platform_set_gpio(gpio->gpio, mp_obj_get_int(state));
+	gpio->gpiohandler->set_gpio(gpio->pin, mp_obj_get_int(state));
 
 	return mp_const_none;
 }
@@ -61,8 +65,12 @@ static mp_obj_t gpiopin_close(mp_obj_t self_in)
 {
 	cc_mp_gpiopin_t *gpio = self_in;
 
-	platform_uninit_gpio(gpio->gpio);
-	gpio = NULL;
+	if (gpio->gpio != NULL)
+		gpio->gpiohandler->uninit_gpio(gpio->gpiohandler, gpio->pin, GPIO_IN);
+	else
+		gpio->gpiohandler->uninit_gpio(gpio->gpiohandler, gpio->pin, GPIO_OUT);
+
+	gpio = MP_OBJ_NULL;
 
 	return mp_const_none;
 }
@@ -92,31 +100,44 @@ static mp_obj_t gpiohandler_open(mp_uint_t n_args, const mp_obj_t *args)
 	uint32_t pin = 0;
 	char *dir = NULL, *pull = NULL, *edge = NULL;
 	mp_uint_t len;
+	node_t *node = node_get();
+	calvinsys_io_giohandler_t *gpiohandler = NULL;
 
-	gpiopin = m_new_obj(cc_mp_gpiopin_t);
-	memset(gpiopin, 0, sizeof(cc_mp_gpiopin_t));
-	gpiopin->base.type = &gpiopin_type;
-
-	pin = mp_obj_get_int(args[1]);
-	dir = (char *)mp_obj_str_get_data(args[2], &len);
-	if (dir[0] == 'o')
-		gpiopin->gpio = platform_create_out_gpio(pin);
-	else if (dir[0] == 'i') {
-		if (n_args == 5) {
-			pull = (char *)mp_obj_str_get_data(args[3], &len);
-			edge = (char *)mp_obj_str_get_data(args[4], &len);
-			gpiopin->gpio = platform_create_in_gpio(pin, pull[0], edge[0]);
-		} else
-			log_error("Missing argument");
-	} else
-		log_error("Unsupported direction");
-
-	if (gpiopin->gpio == NULL) {
-		gpiopin = NULL;
+	gpiohandler = (calvinsys_io_giohandler_t *)list_get(node->calvinsys, "calvinsys.io.gpiohandler");
+	if (gpiohandler == NULL) {
+		log_error("calvinsys.io.gpiohandler is not supported");
 		return mp_const_none;
 	}
 
-	return MP_OBJ_FROM_PTR(gpiopin);
+	pin = mp_obj_get_int(args[1]);
+	dir = (char *)mp_obj_str_get_data(args[2], &len);
+	if (dir[0] == 'o') {
+		if (gpiohandler->init_out_gpio(pin) == SUCCESS) {
+			gpiopin = m_new_obj(cc_mp_gpiopin_t);
+			memset(gpiopin, 0, sizeof(cc_mp_gpiopin_t));
+			gpiopin->base.type = &gpiopin_type;
+			gpiopin->pin = pin;
+			gpiopin->gpiohandler = gpiohandler;
+			return MP_OBJ_FROM_PTR(gpiopin);
+		} else
+			log_error("Failed to initialize gpio");
+	} else if (dir[0] == 'i') {
+		if (n_args == 5) {
+			gpiopin = m_new_obj(cc_mp_gpiopin_t);
+			memset(gpiopin, 0, sizeof(cc_mp_gpiopin_t));
+			gpiopin->base.type = &gpiopin_type;
+			gpiopin->pin = pin;
+			gpiopin->gpiohandler = gpiohandler;
+			pull = (char *)mp_obj_str_get_data(args[3], &len);
+			edge = (char *)mp_obj_str_get_data(args[4], &len);
+			gpiopin->gpio = gpiohandler->init_in_gpio(gpiohandler, pin, pull[0], edge[0]);
+			return MP_OBJ_FROM_PTR(gpiopin);
+		} else
+			log_error("Missing argument(s)");
+	} else
+		log_error("Unsupported direction");
+
+	return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(gpiohandler_obj_open, 3, 5, gpiohandler_open);
 
@@ -131,7 +152,7 @@ static const mp_obj_type_t gpiohandler_type = {
 	.locals_dict = (mp_obj_dict_t *)&gpiohandler_locals_dict
 };
 
-static mp_obj_t gpiohandler_register(void)
+static mp_obj_t gpiohandler_register()
 {
 	static cc_mp_gpiohandler_t *gpiohandler;
 

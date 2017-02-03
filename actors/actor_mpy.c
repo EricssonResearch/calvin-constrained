@@ -290,7 +290,7 @@ result_t actor_mpy_get_managed_attributes(actor_t *actor, list_t **attributes)
 		if (encode_from_mpy_obj(&packed_value, &size, mpy_attr[0]) != SUCCESS)
 			return FAIL;
 
-		if (list_addn(attributes, (char *)name, len, packed_value, size) != SUCCESS) {
+		if (list_add_n(attributes, (char *)name, len, packed_value, size) != SUCCESS) {
 			platform_mem_free(packed_value);
 			return FAIL;
 		}

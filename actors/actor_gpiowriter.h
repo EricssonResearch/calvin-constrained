@@ -20,8 +20,8 @@
 #include "../platform.h"
 
 typedef struct state_gpiowriter_t {
-	calvin_gpio_t *gpio;
 	uint32_t pin;
+	calvinsys_io_giohandler_t *gpiohandler;
 } state_gpiowriter_t;
 
 result_t actor_gpiowriter_init(actor_t **actor, list_t *attributes);

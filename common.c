@@ -56,7 +56,7 @@ bool uuid_is_higher(char *id1, size_t len1, char *id2, size_t len2)
 	return false;
 }
 
-result_t list_addn(list_t **head, char *id, uint32_t len, void *data, uint32_t data_len)
+result_t list_add_n(list_t **head, char *id, uint32_t len, void *data, uint32_t data_len)
 {
 	char *name = NULL;
 
