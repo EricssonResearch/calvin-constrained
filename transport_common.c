@@ -1,0 +1,103 @@
+/*
+ * Copyright (c) 2016 Ericsson AB
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+#include <string.h>
+#include "transport_common.h"
+#include "node.h"
+#include "platform.h"
+
+static unsigned int get_message_len(const char *buffer)
+{
+	unsigned int value =
+		((buffer[3] & 0xFF) <<  0) |
+		((buffer[2] & 0xFF) <<  8) |
+		((buffer[1] & 0xFF) << 16) |
+		((buffer[0] & 0xFF) << 24);
+	return value;
+}
+
+void transport_handle_data(transport_client_t *transport_client, char *buffer, size_t len)
+{
+	int read_pos = 0, msg_size = 0;
+
+	while (read_pos < len) {
+		// New message?
+		if (transport_client->rx_buffer.buffer == NULL) {
+			msg_size = get_message_len(buffer + read_pos);
+			read_pos += 4;
+
+			// Complete message?
+			if (msg_size <= len - read_pos) {
+				node_handle_message(buffer + read_pos, msg_size);
+				read_pos += msg_size;
+			} else {
+				if (platform_mem_alloc((void **)&transport_client->rx_buffer.buffer, msg_size) != SUCCESS) {
+					log_error("Failed to allocate rx buffer");
+					return;
+				}
+				memcpy(transport_client->rx_buffer.buffer, buffer + read_pos, len - read_pos);
+				transport_client->rx_buffer.pos = len - read_pos;
+				transport_client->rx_buffer.size = msg_size;
+				return;
+			}
+		} else {
+			// Fragment completing message?
+			if (transport_client->rx_buffer.size - transport_client->rx_buffer.pos <= len - read_pos) {
+				memcpy(transport_client->rx_buffer.buffer + transport_client->rx_buffer.pos, buffer + read_pos, transport_client->rx_buffer.size - transport_client->rx_buffer.pos);
+				node_handle_message(transport_client->rx_buffer.buffer, transport_client->rx_buffer.size);
+				platform_mem_free((void *)transport_client->rx_buffer.buffer);
+				read_pos += transport_client->rx_buffer.size - transport_client->rx_buffer.pos;
+				transport_client->rx_buffer.buffer = NULL;
+				transport_client->rx_buffer.pos = 0;
+				transport_client->rx_buffer.size = 0;
+			} else {
+				memcpy(transport_client->rx_buffer.buffer + transport_client->rx_buffer.pos, buffer + read_pos, len - read_pos);
+				transport_client->rx_buffer.pos += len - read_pos;
+				return;
+			}
+		}
+	}
+}
+
+result_t transport_create_tx_buffer(transport_client_t *transport_client, size_t size)
+{
+	if (transport_client->tx_buffer.buffer != NULL)
+		return PENDING;
+
+	if (platform_mem_alloc((void **)&transport_client->tx_buffer.buffer, size) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	transport_client->tx_buffer.pos = 0;
+	transport_client->tx_buffer.size = 0;
+	return SUCCESS;
+}
+
+void transport_free_tx_buffer(transport_client_t *transport_client)
+{
+	platform_mem_free((void *)transport_client->tx_buffer.buffer);
+	transport_client->tx_buffer.pos = 0;
+	transport_client->tx_buffer.size = 0;
+	transport_client->tx_buffer.buffer = NULL;
+}
+
+void transport_append_buffer_prefix(char *buffer, size_t size)
+{
+	buffer[0] = size >> 24 & 0xFF;
+	buffer[1] = size >> 16 & 0xFF;
+	buffer[2] = size >> 8 & 0xFF;
+	buffer[3] = size & 0xFF;
+}

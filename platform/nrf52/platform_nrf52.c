@@ -138,8 +138,9 @@ static void start_calvin_inittimer(void)
 static void calvin_inittimer_callback(void *p_context)
 {
 	UNUSED_VARIABLE(p_context);
+	node_t *node = node_get();
 
-	if (node_start(NULL, m_mac, 5000) != SUCCESS) {
+	if (transport_connect(node->transport_client, m_mac, 5000) != SUCCESS) {
 		log_error("Failed to start node");
 		start_calvin_inittimer();
 	}
@@ -207,8 +208,12 @@ void platform_init(void)
 	log("Platform initialized");
 }
 
-void platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
+void platform_run(node_t *node, const char *iface, const int port)
 {
+	node->transport_client = transport_create();
+	if (node->transport_client == NULL)
+		return;
+
 	while (1) {
 		if (sd_app_evt_wait() != ERR_OK)
 			log_error("sd_app_evt_wait failed");
@@ -250,6 +255,7 @@ static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t actio
 				}
 			}
 
+			// fire actors and trigger transmission
 			if (node_loop_once())
 				node_transmit();
 			return;

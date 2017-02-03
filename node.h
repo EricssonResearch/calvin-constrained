@@ -28,6 +28,8 @@ typedef enum {
 	NODE_DO_JOIN,
 	NODE_DO_CONNECT_STORAGE_TUNNEL,
 	NODE_DO_CONFIGURE,
+	NODE_DO_TERMINATE,
+	NODE_PENDING_JOIN,
 	NODE_STARTED,
 	NODE_PENDING
 } node_state_t;
@@ -49,6 +51,7 @@ typedef struct node_t {
 	tunnel_t *storage_tunnel;
 	list_t *tunnels;
 	list_t *actors;
+	transport_client_t *transport_client;
 } node_t;
 
 node_t *node_get();
@@ -58,12 +61,10 @@ result_t node_get_pending_msg(const char *msg_uuid, uint32_t msg_uuid_len, pendi
 bool node_can_add_pending_msg(const node_t *node);
 result_t node_handle_token(port_t *port, const char *data, const size_t size, uint32_t sequencenbr);
 void node_handle_token_reply(char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr);
-void node_handle_data(char *data, int len);
-void node_transmit(void);
-result_t node_create(char *name, char *capabilities);
-result_t node_start(const char *ssdp_iface, const char *proxy_iface, const int proxy_port);
-void node_run(void);
+void node_handle_message(char *buffer, size_t len);
+node_t *node_create(char *name);
+result_t node_start(const char *iface, const int port);
 bool node_loop_once(void);
-void node_stop(bool terminate);
+void node_transmit(void);
 
 #endif /* NODE_H */

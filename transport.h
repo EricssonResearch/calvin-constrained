@@ -16,10 +16,10 @@
 #ifndef TRANSPORT_H
 #define TRANSPORT_H
 
-#include "common.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include "common.h"
 #ifdef USE_LWIP
 #include "lwip/tcp.h"
 #endif
@@ -30,14 +30,13 @@
 
 typedef enum {
 	TRANSPORT_DISCONNECTED,
-	TRANSPORT_CONNECTED,
-	TRANSPORT_JOINED
+	TRANSPORT_CONNECTED
 } transport_state_t;
 
 typedef struct transport_buffer_t {
 	char *buffer;
-	uint32_t pos;
-	uint32_t size;
+	int pos;
+	int size;
 } transport_buffer_t;
 
 typedef struct transport_client_t {
@@ -46,18 +45,14 @@ typedef struct transport_client_t {
 #else
 	int fd;
 #endif
+	bool has_pending_tx;
 	transport_state_t state;
 	transport_buffer_t rx_buffer;
 	transport_buffer_t tx_buffer;
 } transport_client_t;
 
-result_t transport_start(const char *ssdp_iface, const char *proxy_iface, const int proxy_port);
-result_t transport_send(size_t len);
-result_t transport_select(uint32_t timeout);
-void transport_set_state(const transport_state_t state);
-transport_state_t transport_get_state(void);
-void transport_stop(void);
-result_t transport_get_tx_buffer(char **buffer, uint32_t size);
-bool transport_can_transmit(void);
+transport_client_t *transport_create();
+result_t transport_connect(transport_client_t *transport_client, const char *iface, const int port);
+result_t transport_send(transport_client_t *transport_client, size_t size);
 
 #endif /* TRANSPORT_H */

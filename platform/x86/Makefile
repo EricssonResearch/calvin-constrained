@@ -16,6 +16,7 @@ main.c \
 common.c \
 node.c \
 proto.c \
+transport_common.c \
 transport_socket.c \
 tunnel.c \
 link.c \

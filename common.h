@@ -30,7 +30,8 @@
 
 typedef enum {
 	SUCCESS,
-	FAIL
+	FAIL,
+	PENDING
 } result_t;
 
 // list with a string identifier
@@ -43,7 +44,6 @@ typedef struct list_t {
 
 void gen_uuid(char *buffer, const char *prefix);
 bool uuid_is_higher(char *id1, size_t len1, char *id2, size_t len2);
-unsigned int get_message_len(const char *buffer);
 result_t list_add(list_t **head, char *id, void *data, uint32_t data_len);
 result_t list_addn(list_t **head, char *id, uint32_t len, void *data, uint32_t data_len);
 void list_remove(list_t **head, const char *id);

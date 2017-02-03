@@ -788,14 +788,14 @@ void actor_transmit(node_t *node, actor_t *actor)
 
 	// trigger inports
 	list = actor->in_ports;
-	while (list != NULL && transport_can_transmit()) {
+	while (list != NULL && !node->transport_client->has_pending_tx) {
 		port_transmit(node, (port_t *)list->data);
 		list = list->next;
 	}
 
 	// trigger outports
 	list = actor->out_ports;
-	while (list != NULL && transport_can_transmit()) {
+	while (list != NULL && !node->transport_client->has_pending_tx) {
 		port_transmit(node, (port_t *)list->data);
 		list = list->next;
 	}

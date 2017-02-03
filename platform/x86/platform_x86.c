@@ -16,13 +16,16 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <sys/socket.h>
 #include "../../platform.h"
-#include "../../node.h"
+#include "../../transport_common.h"
 #include "../../transport.h"
+
+#define PLATFORM_RECEIVE_BUFFER_SIZE 512
 
 static calvin_gpio_t *m_gpios[MAX_GPIOS];
 
-void platform_init(void)
+void platform_init()
 {
 	int i = 0;
 
@@ -33,28 +36,50 @@ void platform_init(void)
 	}
 }
 
-result_t platform_evt_wait(void)
+static void platform_x86_handle_data(transport_client_t *transport_client)
 {
-	return transport_select(60);
+	char buffer[PLATFORM_RECEIVE_BUFFER_SIZE];
+	int size = 0;
+
+	memset(&buffer, 0, PLATFORM_RECEIVE_BUFFER_SIZE);
+
+	size = recv(transport_client->fd, buffer, PLATFORM_RECEIVE_BUFFER_SIZE, 0);
+	if (size < 0)
+		log_error("Failed to read data");
+	else if (size == 0) {
+		log("Disconnected");
+		transport_client->state = TRANSPORT_DISCONNECTED;
+	} else
+		transport_handle_data(transport_client, buffer, size);
 }
 
-void platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
+void platform_run(node_t *node, const char *iface, const int port)
 {
-	uint32_t timeout = 60;
+	fd_set set;
+	struct timeval reconnect_timeout = {10, 0};
 
-	if (node_start(ssdp_iface, proxy_iface, proxy_port) != SUCCESS) {
-		log_error("Failed to start node");
+	node->transport_client = transport_create();
+	if (node->transport_client == NULL)
 		return;
-	}
 
-	while (1) {
-		if (transport_select(timeout) != SUCCESS) {
-			log_error("Failed to receive data");
-			break;
+	while (true) {
+		if (node->transport_client->state != TRANSPORT_CONNECTED) {
+			if (transport_connect(node->transport_client, iface, port) != SUCCESS) {
+				select(1, NULL, NULL, NULL, &reconnect_timeout);
+				continue;
+			} else
+				node_transmit();
+		}
+
+		FD_ZERO(&set);
+		FD_SET(node->transport_client->fd, &set);
+
+		if (select(node->transport_client->fd + 1, &set, NULL, NULL, NULL) < 0)
+			log_error("ERROR on select");
+		else {
+			platform_x86_handle_data(node->transport_client);
 		}
 	}
-
-	node_stop(true);
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)

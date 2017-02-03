@@ -56,21 +56,11 @@ bool uuid_is_higher(char *id1, size_t len1, char *id2, size_t len2)
 	return false;
 }
 
-unsigned int get_message_len(const char *buffer)
-{
-	unsigned int value =
-		((buffer[3] & 0xFF) <<  0) |
-		((buffer[2] & 0xFF) <<  8) |
-		((buffer[1] & 0xFF) << 16) |
-		((buffer[0] & 0xFF) << 24);
-	return value;
-}
-
 result_t list_addn(list_t **head, char *id, uint32_t len, void *data, uint32_t data_len)
 {
 	char *name = NULL;
 
-	if (platform_mem_alloc((void *)&name, sizeof(char) * (len + 1)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&name, sizeof(char) * (len + 1)) != SUCCESS) {
 		log_error("Failed to allocate memory");
 		return FAIL;
 	}
@@ -88,25 +78,25 @@ result_t list_addn(list_t **head, char *id, uint32_t len, void *data, uint32_t d
 
 result_t list_add(list_t **head, char *id, void *data, uint32_t data_len)
 {
-	list_t *new = NULL, *tmp = NULL;
+	list_t *new_item = NULL, *tmp = NULL;
 
-	if (platform_mem_alloc((void *)&new, sizeof(list_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&new_item, sizeof(list_t)) != SUCCESS) {
 		log_error("Failed to allocate memory");
 		return FAIL;
 	}
 
-	new->id = id;
-	new->data = data;
-	new->data_len = data_len;
-	new->next = NULL;
+	new_item->id = id;
+	new_item->data = data;
+	new_item->data_len = data_len;
+	new_item->next = NULL;
 
 	if (*head == NULL) {
-		*head = new;
+		*head = new_item;
 	} else {
 		tmp = *head;
 		while (tmp->next != NULL)
 			tmp = tmp->next;
-		tmp->next = new;
+		tmp->next = new_item;
 	}
 
 	return SUCCESS;

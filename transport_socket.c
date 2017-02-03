@@ -23,6 +23,7 @@
 #include "transport.h"
 #include "platform.h"
 #include "node.h"
+#include "transport_common.h"
 
 #define LOCATION_SIZE       100
 #define URL_SIZE            100
@@ -32,8 +33,6 @@
 #define SSDP_MULTICAST      "239.255.255.250"
 #define SSDP_PORT           1900
 #define SERVICE_UUID        "1693326a-abb9-11e4-8dfb-9cb654a16426"
-
-static transport_client_t m_client;
 
 static result_t transport_discover_location(const char *interface, char *location)
 {
@@ -216,193 +215,80 @@ static result_t transport_discover_proxy(const char *iface, char *ip, int *port)
 	return FAIL;
 }
 
-result_t transport_start(const char *ssdp_iface, const char *proxy_iface, const int proxy_port)
+transport_client_t *transport_create()
+{
+	transport_client_t *transport_client = NULL;
+
+	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return NULL;
+	}
+
+	memset(transport_client, 0, sizeof(transport_client_t));
+
+	transport_client->state = TRANSPORT_DISCONNECTED;
+	transport_client->rx_buffer.buffer = NULL;
+	transport_client->rx_buffer.pos = 0;
+	transport_client->rx_buffer.size = 0;
+	transport_client->tx_buffer.buffer = NULL;
+	transport_client->tx_buffer.pos = 0;
+	transport_client->tx_buffer.size = 0;
+	transport_client->has_pending_tx = false;
+
+	return transport_client;
+}
+
+result_t transport_connect(transport_client_t *transport_client, const char *iface, const int port)
 {
 	struct sockaddr_in server;
 	char ip[40];
-	int port = 0;
+	int connect_port = 0;
 
 	memset(ip, 0, 40);
 
-	if (proxy_iface == NULL) {
+	if (port == 0) {
 		log("Starting discovery");
-		if (transport_discover_proxy(ssdp_iface, ip, &port) != SUCCESS) {
+		if (transport_discover_proxy("0.0.0.0", ip, &connect_port) != SUCCESS) {
 			log_error("No proxy found");
 			return FAIL;
 		}
 	} else {
-		strncpy(ip, proxy_iface, strlen(proxy_iface));
-		port = proxy_port;
+		strncpy(ip, iface, strlen(iface));
+		connect_port = port;
 	}
 
-	m_client.fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (m_client.fd < 0) {
+	transport_client->fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (transport_client->fd < 0) {
 		log_error("Failed to create socket");
 		return FAIL;
 	}
 
-	m_client.state = TRANSPORT_DISCONNECTED;
-	m_client.state = TRANSPORT_DISCONNECTED;
-	m_client.rx_buffer.buffer = NULL;
-	m_client.rx_buffer.pos = 0;
-	m_client.rx_buffer.size = 0;
-	m_client.tx_buffer.buffer = NULL;
-	m_client.tx_buffer.pos = 0;
-	m_client.tx_buffer.size = 0;
-
 	server.sin_addr.s_addr = inet_addr(ip);
 	server.sin_family = AF_INET;
-	server.sin_port = htons(port);
+	server.sin_port = htons(connect_port);
 
-	log("Connecting to proxy '%s:%d'", ip, port);
-
-	if (connect(m_client.fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
+	if (connect(transport_client->fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
 		log_error("Failed to connect socket");
 		return FAIL;
 	}
 
-	m_client.state = TRANSPORT_CONNECTED;
-	node_transmit();
+	transport_client->state = TRANSPORT_CONNECTED;
+	log("Connected to proxy '%s:%d'", ip, connect_port);
 
 	return SUCCESS;
 }
 
-void transport_stop(void)
+result_t transport_send(transport_client_t *transport_client, size_t size)
 {
-	m_client.state = TRANSPORT_DISCONNECTED;
-}
+	transport_append_buffer_prefix(transport_client->tx_buffer.buffer, size);
 
-static void transport_free_tx_buffer(void)
-{
-	platform_mem_free((void *)m_client.tx_buffer.buffer);
-	m_client.tx_buffer.pos = 0;
-	m_client.tx_buffer.size = 0;
-	m_client.tx_buffer.buffer = NULL;
-}
-
-result_t transport_send(size_t len)
-{
-	m_client.tx_buffer.buffer[0] = len >> 24 & 0xFF;
-	m_client.tx_buffer.buffer[1] = len >> 16 & 0xFF;
-	m_client.tx_buffer.buffer[2] = len >> 8 & 0xFF;
-	m_client.tx_buffer.buffer[3] = len & 0xFF;
-
-	if (send(m_client.fd, m_client.tx_buffer.buffer, len + 4, 0) < 0) {
+	if (send(transport_client->fd, transport_client->tx_buffer.buffer, size + 4, 0) < 0) {
 		log_error("Failed to send data");
 		return FAIL;
 	}
 
-	transport_free_tx_buffer();
-
-	log_debug("Sent %zu", len + 4);
+	log_debug("Sent %zu", size + 4);
+	transport_free_tx_buffer(transport_client);
 
 	return SUCCESS;
-}
-
-result_t transport_select(uint32_t timeout)
-{
-	result_t result = SUCCESS;
-	fd_set fd_set1;
-	int max_fd = 0, status = 0, read_pos = 0;
-	size_t msg_size = 0;
-	char buffer[BUFFER_SIZE];
-	struct timeval tv = {timeout, 0};
-
-	FD_ZERO(&fd_set1);
-
-	if (m_client.state != TRANSPORT_DISCONNECTED) {
-		FD_SET(m_client.fd, &fd_set1);
-		if (m_client.fd > max_fd)
-			max_fd = m_client.fd;
-	}
-
-	if (select(max_fd + 1, &fd_set1, NULL, NULL, &tv) < 0) {
-		log_error("ERROR on select");
-		return FAIL;
-	}
-
-	memset(&buffer, 0, BUFFER_SIZE);
-
-	if (m_client.state != TRANSPORT_DISCONNECTED) {
-		status = recv(m_client.fd, buffer, BUFFER_SIZE, 0);
-		if (status == 0) {
-			// TODO: disconnect tunnels using this connection
-			m_client.state = TRANSPORT_DISCONNECTED;
-			log_error("Connection closed");
-			return FAIL;
-		}
-
-		while (read_pos < status) {
-			// New message?
-			if (m_client.rx_buffer.buffer == NULL) {
-				msg_size = get_message_len(buffer + read_pos);
-				read_pos += 4;
-
-				// Complete message?
-				if (msg_size <= status - read_pos) {
-					node_handle_data(buffer + read_pos, msg_size);
-					read_pos += msg_size;
-				} else {
-					if (platform_mem_alloc((void **)&m_client.rx_buffer.buffer, msg_size) != SUCCESS) {
-						log_error("Failed to allocate rx buffer");
-						return FAIL;
-					}
-					memcpy(m_client.rx_buffer.buffer, buffer + read_pos, status - read_pos);
-					m_client.rx_buffer.pos = status - read_pos;
-					m_client.rx_buffer.size = msg_size;
-					return SUCCESS;
-				}
-			} else {
-				// Fragment completing message?
-				if (m_client.rx_buffer.size - m_client.rx_buffer.pos <= status - read_pos) {
-					memcpy(m_client.rx_buffer.buffer + m_client.rx_buffer.pos, buffer + read_pos, m_client.rx_buffer.size - m_client.rx_buffer.pos);
-					node_handle_data(m_client.rx_buffer.buffer, m_client.rx_buffer.size);
-					platform_mem_free((void *)m_client.rx_buffer.buffer);
-					read_pos += m_client.rx_buffer.size - m_client.rx_buffer.pos;
-					m_client.rx_buffer.buffer = NULL;
-					m_client.rx_buffer.pos = 0;
-					m_client.rx_buffer.size = 0;
-				} else {
-					memcpy(m_client.rx_buffer.buffer + m_client.rx_buffer.pos, buffer + read_pos, status - read_pos);
-					m_client.rx_buffer.pos += status - read_pos;
-					return SUCCESS;
-				}
-			}
-		}
-	}
-
-	return result;
-}
-
-void transport_set_state(const transport_state_t state)
-{
-	m_client.state = state;
-}
-
-transport_state_t transport_get_state(void)
-{
-	return m_client.state;
-}
-
-result_t transport_get_tx_buffer(char **buffer, uint32_t size)
-{
-	if (m_client.tx_buffer.buffer != NULL) {
-		log_error("TX buffer is not NULL");
-		return FAIL;
-	}
-
-	if (platform_mem_alloc((void **)buffer, size) != SUCCESS) {
-		log_error("Failed to allocate memory");
-		return FAIL;
-	}
-
-	m_client.tx_buffer.pos = 0;
-	m_client.tx_buffer.size = 0;
-	m_client.tx_buffer.buffer = *buffer;
-	return SUCCESS;
-}
-
-bool transport_can_transmit(void)
-{
-	return true;
 }

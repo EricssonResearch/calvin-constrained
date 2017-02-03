@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "common.h"
+#include "node.h"
 #ifdef NRF52
 #include "app_trace.h"
 #else
@@ -70,8 +71,8 @@ typedef struct calvin_gpio_t {
 	gpio_pull_t gpio_pull;
 } calvin_gpio_t;
 
-void platform_init(void);
-void platform_run(const char *ssdp_iface, const char *proxy_iface, const int proxy_port);
+void platform_init();
+void platform_run(node_t *node, const char *iface, const int port);
 result_t platform_mem_alloc(void **buffer, uint32_t size);
 void platform_mem_free(void *buffer);
 calvin_gpio_t *platform_create_in_gpio(uint32_t pin, char pull, char edge);

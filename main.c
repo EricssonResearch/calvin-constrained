@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <stdlib.h>
 #include "platform.h"
 #include "node.h"
 #ifdef PARSE_ARGS
-#include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
 #endif
@@ -26,31 +26,28 @@
 
 int main(int argc, char **argv)
 {
-	char *name = NULL, *ssdp_iface = NULL, *proxy_iface = NULL, *capabilities = NULL;
-	int proxy_port = 0;
+	char *name = NULL, *iface = NULL;
+	int port = 0;
+	node_t *node = NULL;
 #ifdef PARSE_ARGS
 	int c = 0;
 	static struct option long_options[] = {
-		{"name", required_argument, NULL, 'a'},
-		{"ssdp_iface", required_argument, NULL, 'b'},
-		{"proxy_iface", required_argument, NULL, 'c'},
-		{"proxy_port", required_argument, NULL, 'd'},
+		{"name", required_argument, NULL, 'n'},
+		{"iface", required_argument, NULL, 'i'},
+		{"port", required_argument, NULL, 'p'},
 		{NULL, 0, NULL, 0}
 	};
 
-	while ((c = getopt_long (argc, argv, "a:b:c:d:", long_options, NULL)) != -1) {
+	while ((c = getopt_long (argc, argv, "n:i:p:", long_options, NULL)) != -1) {
 		switch (c) {
-		case 'a':
+		case 'n':
 			name = strdup(optarg);
 			break;
-		case 'b':
-			ssdp_iface = strdup(optarg);
+		case 'i':
+			iface = strdup(optarg);
 			break;
-		case 'c':
-			proxy_iface = strdup(optarg);
-			break;
-		case 'd':
-			proxy_port = atoi(optarg);
+		case 'p':
+			port = atoi(optarg);
 			break;
 		default:
 			break;
@@ -60,25 +57,17 @@ int main(int argc, char **argv)
 
 	platform_init();
 
-	if (name == NULL)
-		name = "constrained";
-
-	if (capabilities == NULL)
-		capabilities = "[3303, 3201, 3200]";
-
-	node_create(name, capabilities);
-
 #ifdef MICROPYTHON
 	if (!mpy_port_init(MICROPYTHON_HEAP_SIZE))
-		return 0;
+		return EXIT_FAILURE;
 #endif
 
-	if (ssdp_iface == NULL && proxy_iface == NULL)
-		ssdp_iface = "0.0.0.0";
+	if (name == NULL)
+		name = strdup("constrained");
 
-	platform_run(ssdp_iface, proxy_iface, proxy_port);
+	node = node_create(name);
+	if (node != NULL)
+		platform_run(node, iface, port);
 
-	log("Exiting");
-
-	return 0;
+	return EXIT_SUCCESS;
 }
