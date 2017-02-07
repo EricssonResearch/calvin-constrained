@@ -1,0 +1,23 @@
+# DMCE install path
+DMCE_EXEC_PATH:/home/travis/dmce
+
+# Working directory root
+DMCE_WORK_PATH:/tmp/travis/dmce
+
+# config files path. (dmce.exclude, dmce.include etc.)
+DMCE_CONFIG_PATH:/home/travis/dmce
+
+# Command line lookup hook (builds list of individual compile commands per file if not enough with the default ones)
+DMCE_CMD_LOOKUP_HOOK:/home/travis/dmce/cmdlookuphook.sh
+
+# Default compiler command line for c files
+DMCE_DEFAULT_C_COMMAND_LINE:gcc -isystem /tmp/travis/dmce/inc -I/tmp/travis/dmce/inc
+
+# Default compiler command line for cpp files
+DMCE_DEFAULT_CPP_COMMAND_LINE:gcc -std=c++11 /usr/include -isystem /tmp/travis/dmce/inc -I/tmp/travis/dmce/inc
+
+# Probe definition c file
+DMCE_PROBE_SOURCE:/home/travis/dmce/dmce-probe-user.c
+
+# Log files
+DMCE_LOG_FILES:/tmp/travis/dmce

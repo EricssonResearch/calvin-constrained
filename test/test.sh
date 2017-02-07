@@ -25,14 +25,18 @@ if [ $? -ne 0 ]; then
     exit
 fi
 
+# Run dmce
+../dmce/dmce-launcher -n 2
 # build and start calvin-constrained
 make -f platform/x86/Makefile
-./calvin_c -n constrained -i 127.0.0.1 -p 5000 &
+
+./calvin_c -n constrained -i 127.0.0.1 -p 5000 2> cc_stderr.log &
 CONSTRAINED_RT_PID=$!
 
 # run test
 PYTHONPATH=calvin-base py.test -sv test/test.py
 
+../dmce/dmce-summary cc_stderr.log
 # clean up
 kill -9 $CONSTRAINED_RT_PID
 kill -9 $RT1_PID
