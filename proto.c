@@ -117,7 +117,7 @@ result_t proto_send_node_setup(const node_t *node, result_t (*handler)(char*, vo
 		{
 			calvinsys = node->calvinsys;
 			while (calvinsys != NULL) {
-				log("Adding capability %s", calvinsys->id);
+				log("Setting capability %s", calvinsys->id);
 				w = mp_encode_str(w, calvinsys->id, strlen(calvinsys->id));
 				calvinsys = calvinsys->next;
 			}
@@ -568,47 +568,6 @@ result_t proto_send_port_disconnect(const node_t *node, port_t *port, result_t (
 	return FAIL;
 }
 
-result_t proto_send_remove_node(const node_t *node, result_t (*handler)(char*, void*))
-{
-	result_t result = SUCCESS;
-	char *w = NULL, key[50] = "", msg_uuid[UUID_BUFFER_SIZE];
-
-	sprintf(key, "node-%s", node->id);
-
-	if (!node_can_add_pending_msg(node))
-		return PENDING;
-
-	result = transport_create_tx_buffer(node->transport_client, 600);
-	if (result != SUCCESS)
-		return result;
-
-	gen_uuid(msg_uuid, "MSGID_");
-
-	w = node->transport_client->tx_buffer.buffer + 4;
-	w = mp_encode_map(w, 5);
-	{
-		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "cmd", "TUNNEL_DATA", strlen("TUNNEL_DATA"));
-		w = encode_str(&w, "tunnel_id", node->storage_tunnel->id, strlen(node->storage_tunnel->id));
-		w = encode_map(&w, "value", 4);
-		{
-			w = encode_str(&w, "cmd", "SET", strlen("SET"));
-			w = encode_str(&w, "key", key, strlen(key));
-			w = encode_nil(&w, "value");
-			w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
-		}
-	}
-
-	if (transport_send(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
-		node_add_pending_msg(msg_uuid, strlen(msg_uuid), handler, NULL);
-		log_debug("Sent SET '%s'", key);
-		return SUCCESS;
-	}
-
-	return FAIL;
-}
-
 result_t proto_send_set_actor(const node_t *node, const actor_t *actor, result_t (*handler)(char*, void*))
 {
 	result_t result = SUCCESS;
@@ -889,7 +848,7 @@ result_t proto_send_actor_new(const node_t *node, actor_t *actor, result_t (*han
 		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
 		w = encode_str(&w, "cmd", "ACTOR_NEW", 9);
 		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
-		w = actor_serialize(node, actor, &w);
+		w = actor_serialize(node, actor, &w, false);
 	}
 
 	if (transport_send(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
@@ -1258,7 +1217,7 @@ static result_t proto_parse_route_request(node_t *node, char *root)
 		if (link != NULL)
 			log_debug("Link already exists");
 		else {
-			link = link_create(node, org_peer_id, org_peer_id_len, LINK_ENABLED);
+			link = link_create(node, org_peer_id, org_peer_id_len, LINK_ENABLED, false);
 			if (link == NULL) {
 				log_error("Failed to create link");
 				result = FAIL;

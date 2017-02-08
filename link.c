@@ -19,11 +19,16 @@
 #include "node.h"
 #include "platform.h"
 #include "msgpack_helper.h"
+#include "msgpuck/msgpuck.h"
 #include "proto.h"
 
-link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, const link_state_t state)
+link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, const link_state_t state, bool is_proxy)
 {
 	link_t *link = NULL;
+
+	link = link_get(node, peer_id, peer_id_len);
+	if (link != NULL)
+		return link;
 
 	if (platform_mem_alloc((void **)&link, sizeof(link_t)) != SUCCESS) {
 		log_error("Failed to allocate memory");
@@ -32,6 +37,7 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, con
 
 	memset(link, 0, sizeof(link_t));
 
+	link->is_proxy = is_proxy;
 	link->state = state;
 	strncpy(link->peer_id, peer_id, peer_id_len);
 	link->ref_count = 0;
@@ -42,14 +48,44 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, con
 		return NULL;
 	}
 
-	log("Link created to '%s'", link->peer_id);
+	log("Link created, peer id '%s' is_proxy '%s'", link->peer_id, link->is_proxy ? "yes" : "no");
 
 	return link;
 }
 
-static void link_free(node_t *node, link_t *link)
+char *link_serialize(const link_t *link, char **buffer)
 {
-	log("Freeing link to '%s'", link->peer_id);
+	*buffer = mp_encode_map(*buffer, 3);
+	{
+		*buffer = encode_str(buffer, "peer_id", link->peer_id, strlen(link->peer_id));
+		*buffer = encode_uint(buffer, "state", link->state);
+		*buffer = encode_bool(buffer, "is_proxy", link->is_proxy);
+	}
+
+	return *buffer;
+}
+
+link_t *link_deserialize(node_t *node, char *buffer)
+{
+	char *peer_id = NULL;
+	uint32_t len = 0, state = 0;
+	bool is_proxy = false;
+
+	if (decode_string_from_map(buffer, "peer_id", &peer_id, &len) != SUCCESS)
+		return NULL;
+
+	if (decode_uint_from_map(buffer, "state", &state) != SUCCESS)
+		return NULL;
+
+	if (decode_bool_from_map(buffer, "is_proxy", &is_proxy) != SUCCESS)
+		return NULL;
+
+	return link_create(node, peer_id, len, (const link_state_t)state, is_proxy);
+}
+
+void link_free(node_t *node, link_t *link)
+{
+	log("Deleting link to '%s'", link->peer_id);
 	list_remove(&node->links, link->peer_id);
 	platform_mem_free((void *)link);
 }
@@ -58,7 +94,7 @@ void link_add_ref(link_t *link)
 {
 	if (link != NULL) {
 		link->ref_count++;
-		log_debug("Link ref added '%s' ref: %d", link->id, link->ref_count);
+		log_debug("Link ref added '%s' ref: %d", link->peer_id, link->ref_count);
 	}
 }
 
@@ -66,7 +102,7 @@ void link_remove_ref(node_t *node, link_t *link)
 {
 	if (link != NULL) {
 		link->ref_count--;
-		log_debug("Link ref removed '%s' ref: %d", link->id, link->ref_count);
+		log_debug("Link ref removed '%s' ref: %d", link->peer_id, link->ref_count);
 		if (link->ref_count == 0)
 			link_free(node, link);
 	}
@@ -119,7 +155,7 @@ static result_t link_request_handler(char *data, void *msg_data)
 
 	if (result == SUCCESS) {
 		if (status == 200) {
-			log("Link to '%s' enabled", link->peer_id);
+			log_debug("Link to '%s' enabled", link->peer_id);
 			link->state = LINK_ENABLED;
 		} else {
 			log_error("Link request failed");

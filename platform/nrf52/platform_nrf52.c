@@ -35,13 +35,10 @@
 
 #define APP_TIMER_OP_QUEUE_SIZE							5
 #define LWIP_SYS_TIMER_INTERVAL							APP_TIMER_TICKS(100, APP_TIMER_PRESCALER)
-#define APP_CALVIN_INITTIMER_INTERVAL				APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)
 
 APP_TIMER_DEF(m_lwip_timer_id);
-APP_TIMER_DEF(m_calvin_inittimer_id);
 eui64_t                                     eui64_local_iid;
 static ipv6_medium_instance_t               m_ipv6_medium;
-static char                                 m_mac[20]; // MAC address of connected peer
 
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
 {
@@ -67,17 +64,22 @@ static void connectable_mode_enter(void)
 
 static void on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt)
 {
+	size_t len = 0;
+	node_t *node = NULL;
+
 	switch (p_ipv6_medium_evt->ipv6_medium_evt_id) {
 	case IPV6_MEDIUM_EVT_CONN_UP:
 	{
-		log("Physical layer connected mac: %s", p_ipv6_medium_evt->mac);
-		strncpy(m_mac, p_ipv6_medium_evt->mac, strlen(p_ipv6_medium_evt->mac));
+		log("Physical layer connected mac '%s'", p_ipv6_medium_evt->mac);
+		node = node_get();
+		strncpy(node->transport_client->uri, p_ipv6_medium_evt->mac, strlen(p_ipv6_medium_evt->mac));
 		break;
 	}
 	case IPV6_MEDIUM_EVT_CONN_DOWN:
 	{
-		log_debug("Physical layer disconnected");
+		log("Physical layer disconnected");
 		connectable_mode_enter();
+		node->transport_client->state = TRANSPORT_INTERFACE_DOWN;
 		break;
 	}
 	default:
@@ -124,27 +126,6 @@ static void ip_stack_init(void)
 	lwip_init();
 }
 
-static void start_calvin_inittimer(void)
-{
-	uint32_t err_code;
-
-	err_code = app_timer_start(m_calvin_inittimer_id, APP_CALVIN_INITTIMER_INTERVAL, NULL);
-	APP_ERROR_CHECK(err_code);
-
-	log("Started calvin init timer");
-}
-
-static void calvin_inittimer_callback(void *p_context)
-{
-	UNUSED_VARIABLE(p_context);
-	node_t *node = node_get();
-
-	if (transport_connect(node->transport_client, m_mac, 5000) != SUCCESS) {
-		log_error("Failed to start node");
-		start_calvin_inittimer();
-	}
-}
-
 static void lwip_timer_callback(void *p_ctx)
 {
 	(void) p_ctx;
@@ -162,24 +143,22 @@ static void timers_init(void)
 	APP_ERROR_CHECK(err_code);
 	err_code = app_timer_start(m_lwip_timer_id, LWIP_SYS_TIMER_INTERVAL, NULL);
 	APP_ERROR_CHECK(err_code);
-
-	// Create calvin init timer used to start the node when a connection is made
-	err_code = app_timer_create(&m_calvin_inittimer_id,
-								APP_TIMER_MODE_SINGLE_SHOT,
-								calvin_inittimer_callback);
-	APP_ERROR_CHECK(err_code);
 }
 
 void nrf_driver_interface_up(void)
 {
-	log("IPv6 interface up");
+	node_t *node = node_get();
 
-	start_calvin_inittimer();
+	log("IPv6 interface up");
+	node->transport_client->state = TRANSPORT_DISCONNECTED;
 }
 
 void nrf_driver_interface_down(void)
 {
+	node_t *node = node_get();
+
 	log_debug("IPv6 interface down");
+	node->transport_client->state = TRANSPORT_INTERFACE_DOWN;
 }
 
 static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
@@ -192,10 +171,6 @@ static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t actio
 		if (gpiohandler->ingpios[i] != NULL && gpiohandler->ingpios[i]->pin == pin) {
 			gpiohandler->ingpios[i]->has_triggered = true;
 			gpiohandler->ingpios[i]->value = nrf_drv_gpiote_in_is_set(pin) ? 1 : 0;
-
-			// fire actors and trigger transmission
-			if (node_loop_once())
-				node_transmit();
 			return;
 		}
 	}
@@ -393,16 +368,10 @@ void platform_init(void)
 	log("Platform initialized");
 }
 
-void platform_run(node_t *node, const char *iface, const int port)
+void platform_evt_wait(node_t *node, struct timeval *timeout)
 {
-	node->transport_client = transport_create();
-	if (node->transport_client == NULL)
-		return;
-
-	while (1) {
-		if (sd_app_evt_wait() != ERR_OK)
-			log_error("sd_app_evt_wait failed");
-	}
+	if (sd_app_evt_wait() != ERR_OK)
+		log_error("sd_app_evt_wait failed");
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)

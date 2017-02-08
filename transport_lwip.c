@@ -85,7 +85,6 @@ static err_t transport_write_complete(void *p_arg, struct tcp_pcb *p_pcb, u16_t 
 	if (node->transport_client->tx_buffer.pos == node->transport_client->tx_buffer.size) {
 		node->transport_client->has_pending_tx = false;
 		transport_free_tx_buffer(node->transport_client);
-		node_transmit();
 		return ERR_OK;
 	}
 
@@ -122,7 +121,7 @@ static err_t transport_connection_callback(void *p_arg, struct tcp_pcb *p_pcb, e
 
 	log("TCP client connected");
 
-	node->transport_client->state = TRANSPORT_CONNECTED;
+	node->transport_client->state = TRANSPORT_DO_JOIN;
 
 	tcp_setprio(p_pcb, TCP_PRIO_MIN);
 	tcp_arg(p_pcb, NULL);
@@ -130,9 +129,6 @@ static err_t transport_connection_callback(void *p_arg, struct tcp_pcb *p_pcb, e
 	tcp_err(p_pcb, transport_error_handler);
 	tcp_poll(p_pcb, transport_connection_poll, 0);
 	tcp_sent(p_pcb, transport_write_complete);
-
-	// trigger join request
-	node_transmit();
 
 	return ERR_OK;
 }
@@ -177,7 +173,7 @@ result_t transport_send(transport_client_t *transport_client, size_t size)
 	return SUCCESS;
 }
 
-transport_client_t *transport_create()
+transport_client_t *transport_create(char *uri)
 {
 	transport_client_t *transport_client = NULL;
 
@@ -186,10 +182,8 @@ transport_client_t *transport_create()
 		return NULL;
 	}
 
-	memset(transport_client, 0, sizeof(transport_client_t));
-
 	transport_client->tcp_port = tcp_new_ip6();
-	transport_client->state = TRANSPORT_DISCONNECTED;
+	transport_client->state = TRANSPORT_INTERFACE_DOWN;
 	transport_client->rx_buffer.buffer = NULL;
 	transport_client->rx_buffer.pos = 0;
 	transport_client->rx_buffer.size = 0;
@@ -201,14 +195,14 @@ transport_client_t *transport_create()
 	return transport_client;
 }
 
-result_t transport_connect(transport_client_t *transport_client, const char *iface, const int port)
+result_t transport_connect(transport_client_t *transport_client)
 {
 	ip6_addr_t ipv6_addr;
 	err_t err;
 	char ip[40];
 
-	if (transport_convert_mac_to_link_local(iface, ip) != SUCCESS) {
-		log_error("Failed to convert MAC address");
+	if (transport_convert_mac_to_link_local(transport_client->uri, ip) != SUCCESS) {
+		log_error("Failed to convert MAC address '%s'", transport_client->uri);
 		return FAIL;
 	}
 
@@ -217,13 +211,19 @@ result_t transport_connect(transport_client_t *transport_client, const char *ifa
 		return FAIL;
 	}
 
-	err = tcp_connect_ip6(transport_client->tcp_port, &ipv6_addr, port, transport_connection_callback);
-	if (err != ERR_OK) {
-		log_error("Failed to connect socket");
+	err = tcp_connect_ip6(transport_client->tcp_port, &ipv6_addr, 5000, transport_connection_callback);
+	if (err != ERR_OK)
 		return FAIL;
-	}
 
-	log("TCP connection requested to %s:%d.", ip, port);
+	transport_client->state = TRANSPORT_PENDING;
+
+	log("TCP connection requested to %s:%d.", ip, 5000);
 
 	return SUCCESS;
+}
+
+void transport_disconnect(transport_client_t *transport_client)
+{
+	tcp_close(transport_client->tcp_port);
+	transport_client->state = TRANSPORT_DISCONNECTED;
 }

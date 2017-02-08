@@ -18,11 +18,13 @@
 
 #include "common.h"
 #include "transport.h"
+#include "node.h"
 
 void transport_handle_data(transport_client_t *transport_client, char *buffer, size_t size);
 result_t transport_create_tx_buffer(transport_client_t *transport_client, size_t size);
 void transport_free_tx_buffer(transport_client_t *transport_client);
 void transport_append_buffer_prefix(char *buffer, size_t size);
+void transport_join(node_t *node, transport_client_t *transport_client);
 
 
 #endif /* TRANSPORT_COMMON_H */

@@ -25,6 +25,7 @@
 #include "node.h"
 #include "transport_common.h"
 
+#define BUFFER_SIZE					512
 #define LOCATION_SIZE       100
 #define URL_SIZE            100
 #define URI_SIZE            100
@@ -66,6 +67,8 @@ static result_t transport_discover_location(const char *interface, char *locatio
 	sockname.sin_family = AF_INET;
 	sockname.sin_port = htons(SSDP_PORT);
 	sockname.sin_addr.s_addr = inet_addr(interface);
+
+	log("Sending ssdp request, iface '%s' port '%d'", interface, SSDP_PORT);
 
 	ret = sendto(sock, buffer, strlen(buffer), 0, (struct sockaddr *) &sockname, sizeof(struct sockaddr_in));
 	if (ret != strlen(buffer)) {
@@ -179,22 +182,12 @@ static result_t transport_get_ip_uri(const char *address, int port, const char *
 	return SUCCESS;
 }
 
-/**
- * Find a peer runtime by broadcasting on iface
- * @param  iface interface to broadcast on
- * @param  ip    returned ip
- * @param  port  returned port
- * @return       result SUCCESS/FAIL
- */
-static result_t transport_discover_proxy(const char *iface, char *ip, int *port)
+static result_t transport_discover_proxy(const char *iface, char *uri)
 {
 	int control_port;
 	char location[LOCATION_SIZE];
 	char address[ADDRESS_SIZE];
 	char url[URL_SIZE];
-	char uri[URI_SIZE];
-
-	log_debug("Starting discovery on %s", iface);
 
 	if (transport_discover_location(iface, location) == SUCCESS) {
 		if (sscanf(location, "http://%99[^:]:%99d/%99[^\n]", address, &control_port, url) != 3) {
@@ -202,20 +195,13 @@ static result_t transport_discover_proxy(const char *iface, char *ip, int *port)
 			return FAIL;
 		}
 
-		if (transport_get_ip_uri(address, control_port, url, uri) == SUCCESS) {
-			if (sscanf(uri, "calvinip://%99[^:]:%99d", ip, port) != 2) {
-				log_error("Failed to parse discovery response");
-				return FAIL;
-			}
-
-			return SUCCESS;
-		}
+		return transport_get_ip_uri(address, control_port, url, uri);
 	}
 
 	return FAIL;
 }
 
-transport_client_t *transport_create()
+transport_client_t *transport_create(char *uri)
 {
 	transport_client_t *transport_client = NULL;
 
@@ -226,6 +212,13 @@ transport_client_t *transport_create()
 
 	memset(transport_client, 0, sizeof(transport_client_t));
 
+	if (uri != NULL) {
+		strncpy(transport_client->uri, uri, strlen(uri));
+		transport_client->do_discover = false;
+	} else
+		transport_client->do_discover = true;
+	transport_client->fd = 0;
+	transport_client->has_pending_tx = false;
 	transport_client->state = TRANSPORT_DISCONNECTED;
 	transport_client->rx_buffer.buffer = NULL;
 	transport_client->rx_buffer.pos = 0;
@@ -233,28 +226,26 @@ transport_client_t *transport_create()
 	transport_client->tx_buffer.buffer = NULL;
 	transport_client->tx_buffer.pos = 0;
 	transport_client->tx_buffer.size = 0;
-	transport_client->has_pending_tx = false;
 
 	return transport_client;
 }
 
-result_t transport_connect(transport_client_t *transport_client, const char *iface, const int port)
+result_t transport_connect(transport_client_t *transport_client)
 {
 	struct sockaddr_in server;
 	char ip[40];
-	int connect_port = 0;
+	int port = 0;
 
-	memset(ip, 0, 40);
-
-	if (port == 0) {
-		log("Starting discovery");
-		if (transport_discover_proxy("0.0.0.0", ip, &connect_port) != SUCCESS) {
-			log_error("No proxy found");
+	if (transport_client->do_discover) {
+		if (transport_discover_proxy("0.0.0.0", transport_client->uri) != SUCCESS) {
+			log_error("Discovery failed");
 			return FAIL;
 		}
-	} else {
-		strncpy(ip, iface, strlen(iface));
-		connect_port = port;
+	}
+
+	if (sscanf(transport_client->uri, "calvinip://%99[^:]:%99d", ip, &port) != 2) {
+		log_error("Failed to parse uri '%s'", transport_client->uri);
+		return FAIL;
 	}
 
 	transport_client->fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -265,15 +256,18 @@ result_t transport_connect(transport_client_t *transport_client, const char *ifa
 
 	server.sin_addr.s_addr = inet_addr(ip);
 	server.sin_family = AF_INET;
-	server.sin_port = htons(connect_port);
+	server.sin_port = htons(port);
 
 	if (connect(transport_client->fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
 		log_error("Failed to connect socket");
 		return FAIL;
 	}
 
-	transport_client->state = TRANSPORT_CONNECTED;
-	log("Connected to proxy '%s:%d'", ip, connect_port);
+	transport_client->state = TRANSPORT_DO_JOIN;
+
+	sprintf(transport_client->uri, "calvinip://%s:%d", ip, port);
+
+	log("Connected to '%s:%d'", ip, port);
 
 	return SUCCESS;
 }
@@ -287,8 +281,13 @@ result_t transport_send(transport_client_t *transport_client, size_t size)
 		return FAIL;
 	}
 
-	log_debug("Sent %zu", size + 4);
 	transport_free_tx_buffer(transport_client);
 
 	return SUCCESS;
+}
+
+void transport_disconnect(transport_client_t *transport_client)
+{
+	close(transport_client->fd);
+	transport_client->state = TRANSPORT_DISCONNECTED;
 }

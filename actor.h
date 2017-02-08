@@ -55,9 +55,10 @@ void actor_free(struct node_t *node, actor_t *actor);
 actor_t *actor_get(struct node_t *node, const char *actor_id, uint32_t actor_id_len);
 void actor_port_enabled(actor_t *actor);
 void actor_delete(actor_t *actor);
+void actor_disconnect(actor_t *actor);
 result_t actor_migrate(actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len);
 char *actor_serialize_managed_list(list_t *managed_attributes, char **buffer);
-char *actor_serialize(const struct node_t *node, const actor_t *actor, char **buffer);
+char *actor_serialize(const struct node_t *node, const actor_t *actor, char **buffer, bool include_state);
 void actor_transmit(struct node_t *node, actor_t *actor);
 
 #endif /* ACTOR_H */

@@ -38,11 +38,11 @@ Start a calvin-base runtime:
 
 Start calvin-constrained using service discovery to find a calvin-base runtime:
 
-    ./calvin_c --name calvin-klein
+    ./calvin_c -n calvin-klein
 
-Or start calvin-constrained specifying interface and port to connect to:
+Or start calvin-constrained specifying the uri to connect to:
 
-    ./calvin_c --name calvin-klein --proxy_iface 127.0.0.1 --proxy_port 5000
+    ./calvin_c -n constrained -u calvinip://127.0.0.1:5000
 
 Verify that the connection is made by:
 

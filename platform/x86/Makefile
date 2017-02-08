@@ -9,6 +9,7 @@ CFLAGS += -DPARSE_ARGS
 ifneq ($(PLATFORM), Darwin)
 CFLAGS += -lrt
 endif
+CFLAGS += -DUSE_PERSISTENT_STORAGE
 
 C_SOURCE_FILES += \
 platform/x86/platform_x86.c \

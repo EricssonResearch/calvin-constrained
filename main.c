@@ -26,28 +26,22 @@
 
 int main(int argc, char **argv)
 {
-	char *name = NULL, *iface = NULL;
-	int port = 0;
-	node_t *node = NULL;
+	char *uri = NULL, *name = NULL;
 #ifdef PARSE_ARGS
 	int c = 0;
 	static struct option long_options[] = {
 		{"name", required_argument, NULL, 'n'},
-		{"iface", required_argument, NULL, 'i'},
-		{"port", required_argument, NULL, 'p'},
+		{"uri", required_argument, NULL, 'u'},
 		{NULL, 0, NULL, 0}
 	};
 
-	while ((c = getopt_long (argc, argv, "n:i:p:", long_options, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "n:u:", long_options, NULL)) != -1) {
 		switch (c) {
 		case 'n':
-			name = strdup(optarg);
+			name = optarg;
 			break;
-		case 'i':
-			iface = strdup(optarg);
-			break;
-		case 'p':
-			port = atoi(optarg);
+		case 'u':
+			uri = optarg;
 			break;
 		default:
 			break;
@@ -57,21 +51,12 @@ int main(int argc, char **argv)
 
 	platform_init();
 
-	if (name == NULL)
-		name = strdup("constrained");
-
-	node = node_create(name);
-
-	if (platform_create_calvinsys(node) != SUCCESS)
-		return EXIT_FAILURE;
-
 #ifdef MICROPYTHON
 	if (!mpy_port_init(MICROPYTHON_HEAP_SIZE))
 		return EXIT_FAILURE;
 #endif
 
-	// run the event loop
-	platform_run(node, iface, port);
+	node_run(name, uri);
 
 	return EXIT_SUCCESS;
 }

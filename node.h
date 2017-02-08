@@ -26,13 +26,10 @@
 #include "platform.h"
 
 typedef enum {
-	NODE_DO_JOIN,
-	NODE_DO_CONNECT_STORAGE_TUNNEL,
-	NODE_DO_CONFIGURE,
-	NODE_DO_TERMINATE,
-	NODE_PENDING_JOIN,
+	NODE_DO_START,
+	NODE_PENDING,
 	NODE_STARTED,
-	NODE_PENDING
+	NODE_STOP
 } node_state_t;
 
 typedef struct pending_msg_t {
@@ -44,7 +41,7 @@ typedef struct pending_msg_t {
 typedef struct node_t {
 	node_state_t state;
 	char id[UUID_BUFFER_SIZE];
-	char *name;
+	char name[50];
 	pending_msg_t pending_msgs[MAX_PENDING_MSGS];
 	link_t *proxy_link;
 	list_t *links;
@@ -63,9 +60,7 @@ bool node_can_add_pending_msg(const node_t *node);
 result_t node_handle_token(port_t *port, const char *data, const size_t size, uint32_t sequencenbr);
 void node_handle_token_reply(char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr);
 void node_handle_message(char *buffer, size_t len);
-node_t *node_create(char *name);
-result_t node_start(const char *iface, const int port);
-bool node_loop_once(void);
-void node_transmit(void);
+void node_transport_joined(transport_client_t *transport_client, char *peer_id, uint32_t peer_id_len);
+void node_run(char *name, char *uri);
 
 #endif /* NODE_H */

@@ -232,7 +232,7 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 {
 	char *obj_prev_ports = NULL, *obj_prev_port = NULL, *obj_peer = NULL, *obj_queue = NULL, *obj_properties = NULL;
 	char *r = obj_port, *port_id = NULL, *port_name = NULL, *routing = NULL, *peer_id = NULL, *peer_port_id = NULL, *tmp_value = NULL;
-	uint32_t nbr_peers = 0, port_id_len = 0, port_name_len = 0, routing_len = 0, peer_id_len = 0, peer_port_id_len = 0;
+	uint32_t nbr_peers = 0, port_id_len = 0, port_name_len = 0, routing_len = 0, peer_id_len = 0, peer_port_id_len = 0, port_state = PORT_DISCONNECTED;
 	port_t *port = NULL;
 
 	if (decode_string_from_map(r, "id", &port_id, &port_id_len) != SUCCESS)
@@ -240,6 +240,11 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 
 	if (decode_string_from_map(r, "name", &port_name, &port_name_len) != SUCCESS)
 		return NULL;
+
+	if (has_key(r, "constrained_state")) {
+		if (decode_uint_from_map(r, "constrained_state", &port_state) != SUCCESS)
+			return NULL;
+	}
 
 	if (get_value_from_map(r, "properties", &obj_properties) != SUCCESS)
 		return NULL;
@@ -293,7 +298,7 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 	memset(port, 0, sizeof(port_t));
 
 	port->direction = direction;
-	port->state = PORT_DISCONNECTED;
+	port->state = (port_state_t)port_state;
 	port->actor = actor;
 	port->pending_token_responses = NULL;
 	port->peer_port = NULL;
@@ -537,9 +542,9 @@ void port_transmit(node_t *node, port_t *port)
 						if (proto_send_token(node, port, *token, sequencenbr) != SUCCESS)
 							fifo_com_cancel_read(&port->fifo, sequencenbr);
 					} else if (port->peer_port != NULL) {
-						if (fifo_write(&port->peer_port->fifo, token->value, token->size) == SUCCESS) {
+						if (fifo_write(&port->peer_port->fifo, token->value, token->size) == SUCCESS)
 							fifo_com_commit_read(&port->fifo, sequencenbr);
-						} else
+						else
 							fifo_com_cancel_read(&port->fifo, sequencenbr);
 					} else {
 						log_error("Port '%s' is enabled without a peer", port->name);

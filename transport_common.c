@@ -17,6 +17,9 @@
 #include "transport_common.h"
 #include "node.h"
 #include "platform.h"
+#include "proto.h"
+
+#define SERIALIZER "msgpack"
 
 static unsigned int get_message_len(const char *buffer)
 {
@@ -28,9 +31,33 @@ static unsigned int get_message_len(const char *buffer)
 	return value;
 }
 
+static result_t transport_handle_join_reply(transport_client_t *transport_client, char *data)
+{
+	char id[50] = "", serializer[20] = "", sid[50] = "";
+
+	if (sscanf(data, "{\"cmd\": \"JOIN_REPLY\", \"id\": \"%[^\"]\", \"serializer\": \"%[^\"]\", \"sid\": \"%[^\"]\"}",
+		id, serializer, sid) != 3) {
+		transport_client->state = TRANSPORT_DO_JOIN;
+		log_error("Failed to parse JOIN_REPLY");
+		return FAIL;
+	}
+
+	if (strcmp(serializer, SERIALIZER) != 0) {
+		transport_client->state = TRANSPORT_DO_JOIN;
+		log_error("Unsupported serializer");
+		return FAIL;
+	}
+
+	transport_client->state = TRANSPORT_ENABLED;
+
+	node_transport_joined(transport_client, id, strlen(id));
+
+	return SUCCESS;
+}
+
 void transport_handle_data(transport_client_t *transport_client, char *buffer, size_t len)
 {
-	int read_pos = 0, msg_size = 0;
+	unsigned int read_pos = 0, msg_size = 0;
 
 	while (read_pos < len) {
 		// New message?
@@ -40,7 +67,10 @@ void transport_handle_data(transport_client_t *transport_client, char *buffer, s
 
 			// Complete message?
 			if (msg_size <= len - read_pos) {
-				node_handle_message(buffer + read_pos, msg_size);
+				if (transport_client->state == TRANSPORT_ENABLED)
+					node_handle_message(buffer + read_pos, msg_size);
+				else
+					transport_handle_join_reply(transport_client, buffer + read_pos);
 				read_pos += msg_size;
 			} else {
 				if (platform_mem_alloc((void **)&transport_client->rx_buffer.buffer, msg_size) != SUCCESS) {
@@ -56,7 +86,10 @@ void transport_handle_data(transport_client_t *transport_client, char *buffer, s
 			// Fragment completing message?
 			if (transport_client->rx_buffer.size - transport_client->rx_buffer.pos <= len - read_pos) {
 				memcpy(transport_client->rx_buffer.buffer + transport_client->rx_buffer.pos, buffer + read_pos, transport_client->rx_buffer.size - transport_client->rx_buffer.pos);
-				node_handle_message(transport_client->rx_buffer.buffer, transport_client->rx_buffer.size);
+				if (transport_client->state == TRANSPORT_ENABLED)
+					node_handle_message(transport_client->rx_buffer.buffer, transport_client->rx_buffer.size);
+				else
+					transport_handle_join_reply(transport_client, transport_client->rx_buffer.buffer);
 				platform_mem_free((void *)transport_client->rx_buffer.buffer);
 				read_pos += transport_client->rx_buffer.size - transport_client->rx_buffer.pos;
 				transport_client->rx_buffer.buffer = NULL;
@@ -100,4 +133,12 @@ void transport_append_buffer_prefix(char *buffer, size_t size)
 	buffer[1] = size >> 16 & 0xFF;
 	buffer[2] = size >> 8 & 0xFF;
 	buffer[3] = size & 0xFF;
+}
+
+void transport_join(node_t *node, transport_client_t *transport_client)
+{
+	if (proto_send_join_request(node, SERIALIZER) == SUCCESS)
+		transport_client->state = TRANSPORT_PENDING;
+	else
+		transport_client->state = TRANSPORT_DO_JOIN;
 }

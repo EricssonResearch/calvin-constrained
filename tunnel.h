@@ -30,7 +30,6 @@ typedef enum {
 } tunnel_state_t;
 
 typedef enum {
-	TUNNEL_TYPE_NONE,
 	TUNNEL_TYPE_STORAGE,
 	TUNNEL_TYPE_TOKEN
 } tunnel_type_t;
@@ -44,8 +43,11 @@ typedef struct tunnel_t {
 } tunnel_t;
 
 tunnel_t *tunnel_create(struct node_t *node, tunnel_type_t type, tunnel_state_t state, char *peer_id, uint32_t peer_id_len, char *tunnel_id, uint32_t tunnel_id_len);
+char *tunnel_serialize(const tunnel_t *tunnel, char **buffer);
+tunnel_t *tunnel_deserialize(struct node_t *node, char *buffer);
 tunnel_t *tunnel_get_from_id(struct node_t *node, const char *tunnel_id, uint32_t tunnel_id_len);
 tunnel_t *tunnel_get_from_peerid_and_type(struct node_t *node, const char *peer_id, uint32_t peer_id_len, tunnel_type_t type);
+void tunnel_free(struct node_t *node, tunnel_t *tunnel);
 void tunnel_add_ref(tunnel_t *tunnel);
 void tunnel_remove_ref(struct node_t *node, tunnel_t *tunnel);
 result_t tunnel_handle_tunnel_new_request(struct node_t *node, char *peer_id, uint32_t peer_id_len, char *tunnel_id, uint32_t tunnel_id_len);

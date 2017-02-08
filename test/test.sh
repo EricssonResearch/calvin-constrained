@@ -30,7 +30,7 @@ fi
 # build and start calvin-constrained
 make -f platform/x86/Makefile
 
-./calvin_c -n constrained -i 127.0.0.1 -p 5000 2> cc_stderr.log &
+./calvin_c -n constrained -u calvinip://127.0.0.1:5000 2> cc_stderr.log &
 CONSTRAINED_RT_PID=$!
 
 # run test
@@ -41,5 +41,6 @@ PYTHONPATH=calvin-base py.test -sv test/test.py
 kill -9 $CONSTRAINED_RT_PID
 kill -9 $RT1_PID
 kill -9 $RT2_PID
+rm calvinconstrained.config
 cd calvin-base
 git checkout calvin/csparser/parsetab.py

@@ -24,19 +24,18 @@
 #include "lwip/tcp.h"
 #endif
 
-#ifndef USE_LWIP
-#define BUFFER_SIZE			512
-#endif
-
 typedef enum {
+	TRANSPORT_INTERFACE_DOWN,
 	TRANSPORT_DISCONNECTED,
-	TRANSPORT_CONNECTED
+	TRANSPORT_DO_JOIN,
+	TRANSPORT_PENDING,
+	TRANSPORT_ENABLED
 } transport_state_t;
 
 typedef struct transport_buffer_t {
 	char *buffer;
-	int pos;
-	int size;
+	unsigned int pos;
+	unsigned int size;
 } transport_buffer_t;
 
 typedef struct transport_client_t {
@@ -44,15 +43,18 @@ typedef struct transport_client_t {
 	struct tcp_pcb *tcp_port;
 #else
 	int fd;
+	bool do_discover;
 #endif
+	char uri[100];
 	bool has_pending_tx;
 	transport_state_t state;
 	transport_buffer_t rx_buffer;
 	transport_buffer_t tx_buffer;
 } transport_client_t;
 
-transport_client_t *transport_create();
-result_t transport_connect(transport_client_t *transport_client, const char *iface, const int port);
+transport_client_t *transport_create(char *uri);
+result_t transport_connect(transport_client_t *transport_client);
 result_t transport_send(transport_client_t *transport_client, size_t size);
+void transport_disconnect(transport_client_t *transport_client);
 
 #endif /* TRANSPORT_H */

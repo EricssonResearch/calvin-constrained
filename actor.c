@@ -326,7 +326,7 @@ actor_t *actor_create(node_t *node, char *root)
 	actor_t *actor = NULL;
 	char *type = NULL, *obj_state = NULL, *obj_actor_state = NULL, *obj_prev_connections = NULL;
 	char *obj_ports = NULL, *obj_managed = NULL, *obj_shadow_args = NULL, *r = root, *id = NULL, *name = NULL;
-	uint32_t type_len = 0, id_len = 0, name_len = 0;
+	uint32_t type_len = 0, id_len = 0, name_len = 0, constrained_state = 0;
 	list_t *instance_attributes = NULL;
 
 	if (platform_mem_alloc((void **)&actor, sizeof(actor_t)) != SUCCESS) {
@@ -356,6 +356,14 @@ actor_t *actor_create(node_t *node, char *root)
 	if (list_add(&node->actors, actor->id, (void *)actor, sizeof(actor_t)) != SUCCESS) {
 		actor_free(node, actor);
 		return NULL;
+	}
+
+	if (has_key(obj_state, "constrained_state")) {
+		if (decode_uint_from_map(obj_state, "constrained_state", &constrained_state) != SUCCESS) {
+			actor_free(node, actor);
+			return NULL;
+		}
+		actor->state = (actor_state_t)constrained_state;
 	}
 
 	if (get_value_from_map(obj_state, "actor_state", &obj_actor_state) != SUCCESS) {
@@ -504,6 +512,30 @@ void actor_port_enabled(actor_t *actor)
 	actor->state = ACTOR_DO_ENABLE;
 }
 
+void actor_disconnect(actor_t *actor)
+{
+	list_t *list = NULL;
+	port_t *port = NULL;
+
+	list = actor->in_ports;
+	while (list != NULL) {
+		port = (port_t *)list->data;
+		port->state = PORT_DO_CONNECT;
+		port->tunnel = NULL;
+		list = list->next;
+	}
+
+	list = actor->out_ports;
+	while (list != NULL) {
+		port = (port_t *)list->data;
+		port->state = PORT_DO_CONNECT;
+		port->tunnel = NULL;
+		list = list->next;
+	}
+
+	actor->state = ACTOR_PENDING;
+}
+
 void actor_delete(actor_t *actor)
 {
 	list_t *list = NULL;
@@ -530,11 +562,12 @@ result_t actor_migrate(actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len
 	return SUCCESS;
 }
 
-char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer)
+char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, bool include_state)
 {
 	list_t *in_ports = NULL, *out_ports = NULL;
 	list_t *instance_attributes = NULL, *tmp_list = NULL;
 	port_t *port = NULL;
+	unsigned int nbr_state_attributes = 3, nbr_port_attributes = 4;
 	unsigned int nbr_inports = 0, nbr_outports = 0, i_token = 0, nbr_managed_attributes = 0;
 	char *peer_id = NULL;
 
@@ -552,8 +585,15 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer)
 	out_ports = actor->out_ports;
 	nbr_outports = list_count(out_ports);
 
-	*buffer = encode_map(buffer, "state", 3);
+	if (include_state) {
+		nbr_state_attributes += 1;
+		nbr_port_attributes += 1;
+	}
+
+	*buffer = encode_map(buffer, "state", nbr_state_attributes);
 	{
+		if (include_state)
+			*buffer = encode_uint(buffer, "constrained_state", actor->state);
 		*buffer = encode_str(buffer, "actor_type", actor->type, strlen(actor->type));
 		*buffer = encode_map(buffer, "prev_connections", 2);
 		{
@@ -565,7 +605,10 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer)
 				*buffer = mp_encode_str(*buffer, port->id, strlen(port->id));
 				*buffer = mp_encode_array(*buffer, 1);
 				*buffer = mp_encode_array(*buffer, 2);
-				*buffer = mp_encode_str(*buffer, peer_id, strlen(peer_id));
+				if (peer_id != NULL)
+					*buffer = mp_encode_str(*buffer, peer_id, strlen(peer_id));
+				else
+					*buffer = mp_encode_nil(*buffer);
 				*buffer = mp_encode_str(*buffer, port->peer_port_id, strlen(port->peer_port_id));
 				in_ports = in_ports->next;
 			}
@@ -578,7 +621,10 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer)
 				*buffer = mp_encode_str(*buffer, port->id, strlen(port->id));
 				*buffer = mp_encode_array(*buffer, 1);
 				*buffer = mp_encode_array(*buffer, 2);
-				*buffer = mp_encode_str(*buffer, peer_id, strlen(peer_id));
+				if (peer_id != NULL)
+					*buffer = mp_encode_str(*buffer, peer_id, strlen(peer_id));
+				else
+					*buffer = mp_encode_nil(*buffer);
 				*buffer = mp_encode_str(*buffer, port->peer_port_id, strlen(port->peer_port_id));
 				out_ports = out_ports->next;
 			}
@@ -632,8 +678,10 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer)
 				in_ports = actor->in_ports;
 				while (in_ports != NULL) {
 					port = (port_t *)in_ports->data;
-					*buffer = encode_map(buffer, port->name, 4);
+					*buffer = encode_map(buffer, port->name, nbr_port_attributes);
 					{
+						if (include_state)
+							*buffer = encode_uint(buffer, "constrained_state", port->state);
 						*buffer = encode_str(buffer, "id", port->id, strlen(port->id));
 						*buffer = encode_str(buffer, "name", port->name, strlen(port->name));
 						*buffer = encode_map(buffer, "queue", 7);
@@ -669,14 +717,15 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer)
 					in_ports = in_ports->next;
 				}
 			}
-
 			*buffer = encode_map(buffer, "outports", nbr_outports);
 			{
 				out_ports = actor->out_ports;
 				while (out_ports != NULL) {
 					port = (port_t *)out_ports->data;
-					*buffer = encode_map(buffer, port->name, 4);
+					*buffer = encode_map(buffer, port->name, nbr_port_attributes);
 					{
+						if (include_state)
+							*buffer = encode_uint(buffer, "constrained_state", port->state);
 						*buffer = encode_str(buffer, "id", port->id, strlen(port->id));
 						*buffer = encode_str(buffer, "name", port->name, strlen(port->name));
 						*buffer = encode_map(buffer, "queue", 7);
@@ -748,7 +797,7 @@ void actor_transmit(node_t *node, actor_t *actor)
 			list = list->next;
 		}
 
-		// remove actor if all ports where removed
+		// remove actor if all ports are removed
 		if (ports_ready)
 			if (proto_send_remove_actor(node, actor, actor_remove_reply_handler) == SUCCESS)
 				actor->state = ACTOR_PENDING;

@@ -145,44 +145,35 @@ static void platform_x86_handle_data(transport_client_t *transport_client)
 	char buffer[PLATFORM_RECEIVE_BUFFER_SIZE];
 	int size = 0;
 
-	memset(&buffer, 0, PLATFORM_RECEIVE_BUFFER_SIZE);
-
 	size = recv(transport_client->fd, buffer, PLATFORM_RECEIVE_BUFFER_SIZE, 0);
-	if (size < 0)
-		log_error("Failed to read data");
-	else if (size == 0) {
-		log("Disconnected");
+	if (size == 0)
 		transport_client->state = TRANSPORT_DISCONNECTED;
-	} else
+	else if (size > 0) {
 		transport_handle_data(transport_client, buffer, size);
+	} else
+		log_error("Failed to read data");
 }
 
-void platform_run(node_t *node, const char *iface, const int port)
+void platform_evt_wait(node_t *node, struct timeval *timeout)
 {
-	fd_set set;
-	struct timeval reconnect_timeout = {10, 0};
+	fd_set fds;
+	int fd = 0;
 
-	node->transport_client = transport_create();
-	if (node->transport_client == NULL)
+	FD_ZERO(&fds);
+
+	if (node->transport_client->state == TRANSPORT_PENDING || node->transport_client->state == TRANSPORT_ENABLED) {
+		FD_SET(node->transport_client->fd, &fds);
+		fd = node->transport_client->fd;
+	}
+
+	if (select(fd + 1, &fds, NULL, NULL, timeout) < 0) {
+		log_error("ERROR on select");
 		return;
+	}
 
-	while (true) {
-		if (node->transport_client->state != TRANSPORT_CONNECTED) {
-			if (transport_connect(node->transport_client, iface, port) != SUCCESS) {
-				select(1, NULL, NULL, NULL, &reconnect_timeout);
-				continue;
-			} else
-				node_transmit();
-		}
-
-		FD_ZERO(&set);
-		FD_SET(node->transport_client->fd, &set);
-
-		if (select(node->transport_client->fd + 1, &set, NULL, NULL, NULL) < 0)
-			log_error("ERROR on select");
-		else {
+	if (node->transport_client->state == TRANSPORT_PENDING || node->transport_client->state == TRANSPORT_ENABLED) {
+		if (FD_ISSET(node->transport_client->fd, &fds))
 			platform_x86_handle_data(node->transport_client);
-		}
 	}
 }
 
@@ -203,3 +194,32 @@ void platform_mem_free(void *buffer)
 {
 	free(buffer);
 }
+
+#ifdef USE_PERSISTENT_STORAGE
+void platform_write_node_state(char *buffer, size_t size)
+{
+	FILE *fp = NULL;
+
+	fp = fopen("calvinconstrained.config", "w+");
+	if (fp != NULL) {
+		if (fwrite(buffer, 1, size, fp) != size)
+			log_error("Failed to write node config");
+		fclose(fp);
+	} else
+		log("Failed to open calvinconstrained.config for writing");
+}
+
+result_t platform_read_node_state(char buffer[], size_t size)
+{
+	FILE *fp = NULL;
+
+	fp = fopen("calvinconstrained.config", "r+");
+	if (fp != NULL) {
+		fread(buffer, 1, size, fp);
+		fclose(fp);
+		return SUCCESS;
+	}
+
+	return FAIL;
+}
+#endif

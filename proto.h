@@ -37,7 +37,6 @@ result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t seque
 result_t proto_send_set_actor(const node_t *node, const actor_t *actor, result_t (*handler)(char*, void*));
 result_t proto_send_set_port(const node_t *node, port_t *port, result_t (*handler)(char*, void*));
 result_t proto_send_get_port(const node_t *node, char *port_id, result_t (*handler)(char*, void*), void *msg_data);
-result_t proto_send_remove_node(const node_t *node, result_t (*handler)(char*, void*));
 result_t proto_send_remove_actor(const node_t *node, actor_t *actor, result_t (*handler)(char*, void*));
 result_t proto_send_remove_port(const node_t *node, port_t *port, result_t (*handler)(char*, void*));
 result_t proto_send_actor_new(const node_t *node, actor_t *actor, result_t (*handler)(char*, void*));

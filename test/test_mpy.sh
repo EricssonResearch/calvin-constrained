@@ -27,7 +27,7 @@ fi
 
 # build and start calvin-constrained
 make -f platform/x86/Makefile_mpy
-./calvin_c_mpy -n constrained -i 127.0.0.1 -p 5000 &
+./calvin_c_mpy -n constrained -u calvinip://127.0.0.1:5000 &
 CONSTRAINED_RT_PID=$!
 
 # run test

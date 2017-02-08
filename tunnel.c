@@ -19,10 +19,9 @@
 #include "platform.h"
 #include "proto.h"
 #include "msgpack_helper.h"
+#include "msgpuck/msgpuck.h"
 #include "node.h"
 #include "link.h"
-
-static void tunnel_free(node_t *node, tunnel_t *tunnel);
 
 tunnel_t *tunnel_get_from_id(node_t *node, const char *tunnel_id, uint32_t tunnel_id_len)
 {
@@ -63,6 +62,10 @@ tunnel_t *tunnel_create(node_t *node, tunnel_type_t type, tunnel_state_t state, 
 	tunnel_t *tunnel = NULL;
 	link_t *link = NULL;
 
+	tunnel = tunnel_get_from_peerid_and_type(node, peer_id, peer_id_len, type);
+	if (tunnel != NULL)
+		return tunnel;
+
 	link = link_get(node, peer_id, peer_id_len);
 	if (link == NULL) {
 		log_error("Tunnel requested to '%.*s' without link", (int)peer_id_len, peer_id);
@@ -91,15 +94,49 @@ tunnel_t *tunnel_create(node_t *node, tunnel_type_t type, tunnel_state_t state, 
 		return NULL;
 	}
 
-	log("Tunnel '%s' created to '%s'", tunnel->id, tunnel->link->peer_id);
 	link_add_ref(link);
+
+	log("Tunnel created, id '%s' peer_id '%s'", tunnel->id, tunnel->link->peer_id);
 
 	return tunnel;
 }
 
-static void tunnel_free(node_t *node, tunnel_t *tunnel)
+char *tunnel_serialize(const tunnel_t *tunnel, char **buffer)
 {
-	log("Freeing tunnel '%s'", tunnel->id);
+	*buffer = mp_encode_map(*buffer, 4);
+	{
+		*buffer = encode_str(buffer, "id", tunnel->id, strlen(tunnel->id));
+		*buffer = encode_str(buffer, "peer_id", tunnel->link->peer_id, strlen(tunnel->link->peer_id));
+		*buffer = encode_uint(buffer, "state", tunnel->state);
+		*buffer = encode_uint(buffer, "type", tunnel->type);
+	}
+
+	return *buffer;
+}
+
+tunnel_t *tunnel_deserialize(struct node_t *node, char *buffer)
+{
+	char *id = NULL, *peer_id = NULL;
+	uint32_t len_id = 0, len_peer_id = 0, state = 0, type = 0;
+
+	if (decode_string_from_map(buffer, "id", &id, &len_id) != SUCCESS)
+		return NULL;
+
+	if (decode_string_from_map(buffer, "peer_id", &peer_id, &len_peer_id) != SUCCESS)
+		return NULL;
+
+	if (decode_uint_from_map(buffer, "state", &state) != SUCCESS)
+		return NULL;
+
+	if (decode_uint_from_map(buffer, "type", &type) != SUCCESS)
+		return NULL;
+
+	return tunnel_create(node, (tunnel_type_t)type, (tunnel_state_t)state, peer_id, len_peer_id, id, len_id);
+}
+
+void tunnel_free(node_t *node, tunnel_t *tunnel)
+{
+	log("Deleting tunnel '%s'", tunnel->id);
 	list_remove(&node->tunnels, tunnel->id);
 	link_remove_ref(node, tunnel->link);
 	platform_mem_free((void *)tunnel);
