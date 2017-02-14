@@ -30,23 +30,15 @@
 
 struct node_t;
 
-#ifdef NRF52
+void platform_print(const char *fmt, ...);
+
 #ifdef DEBUG
-#define log_debug(a, args...) app_trace_log("DEBUG:" a "\r\n", ##args)
+#define log_debug(a, args...) platform_print("DEBUG: %s(%s:%d) "a"",  __func__, __FILE__, __LINE__, ##args)
 #else
-#define log_debug(fmt, ...) do {} while (0)
+#define log_debug(a, args...) do {} while (0)
 #endif
-#define log_error(a, args...) app_trace_log("ERROR: " a "\r\n", ##args)
-#define log(a, args...) app_trace_log(a"\r\n", ##args)
-#else
-#ifdef DEBUG
-#define log_debug(a, args...) printf("DEBUG: %s(%s:%d) "a"\n",  __func__, __FILE__, __LINE__, ##args)
-#else
-#define log_debug(fmt, ...) do {} while (0)
-#endif
-#define log_error(a, args...) printf("ERROR: %s(%s:%d) "a"\n",  __func__, __FILE__, __LINE__, ##args)
-#define log(a, args...) printf(a"\r\n", ##args)
-#endif
+#define log_error(a, args...) platform_print("ERROR: %s(%s:%d) "a"",  __func__, __FILE__, __LINE__, ##args)
+#define log(a, args...) platform_print(a, ##args)
 
 typedef enum {
 	GPIO_IN,

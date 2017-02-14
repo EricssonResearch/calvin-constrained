@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 #include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <time.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -23,6 +25,15 @@
 #include "../../node.h"
 
 #define PLATFORM_RECEIVE_BUFFER_SIZE 512
+
+void platform_print(const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(stdout, fmt, args);
+	fprintf(stdout, "\n");
+	va_end(args);
+}
 
 static calvin_ingpio_t *platform_init_in_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, char pull, char edge)
 {
@@ -184,8 +195,6 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 		log_error("Failed to allocate '%ld' memory", (unsigned long)size);
 		return FAIL;
 	}
-
-	log_debug("Allocated '%ld'", (unsigned long)size);
 
 	return SUCCESS;
 }
