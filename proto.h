@@ -26,20 +26,20 @@
 #include "tunnel.h"
 
 result_t proto_send_join_request(const node_t *node, const char *serializer);
-result_t proto_send_node_setup(const node_t *node, result_t (*handler)(char*, void*));
-result_t proto_send_route_request(const node_t *node, char *dest_peer_id, uint32_t dest_peer_id_len, result_t (*handler)(char*, void*));
-result_t proto_send_tunnel_request(const node_t *node, tunnel_t *tunnel, result_t (*handler)(char*, void*));
-result_t proto_send_tunnel_destroy(const node_t *node, tunnel_t *tunnel, result_t (*handler)(char*, void*));
-result_t proto_send_port_connect(const node_t *node, port_t *port, result_t (*handler)(char*, void*));
-result_t proto_send_port_disconnect(const node_t *node, port_t *port, result_t (*handler)(char*, void*));
+result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*, void*));
+result_t proto_send_route_request(node_t *node, char *dest_peer_id, uint32_t dest_peer_id_len, result_t (*handler)(node_t*, char*, void*));
+result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, void*));
+result_t proto_send_tunnel_destroy(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, void*));
+result_t proto_send_port_connect(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*));
+result_t proto_send_port_disconnect(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*));
 result_t proto_send_token(const node_t *node, port_t *port, token_t token, uint32_t sequencenbr);
 result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t sequencenbr, bool ack);
-result_t proto_send_set_actor(const node_t *node, const actor_t *actor, result_t (*handler)(char*, void*));
-result_t proto_send_set_port(const node_t *node, port_t *port, result_t (*handler)(char*, void*));
-result_t proto_send_get_port(const node_t *node, char *port_id, result_t (*handler)(char*, void*), void *msg_data);
-result_t proto_send_remove_actor(const node_t *node, actor_t *actor, result_t (*handler)(char*, void*));
-result_t proto_send_remove_port(const node_t *node, port_t *port, result_t (*handler)(char*, void*));
-result_t proto_send_actor_new(const node_t *node, actor_t *actor, result_t (*handler)(char*, void*));
+result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*handler)(node_t*, char*, void*));
+result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*));
+result_t proto_send_get_port(node_t *node, char *port_id, result_t (*handler)(node_t*, char*, void*), void *msg_data);
+result_t proto_send_remove_actor(node_t *node, actor_t *actor, result_t (*handler)(node_t*, char*, void*));
+result_t proto_send_remove_port(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*));
+result_t proto_send_actor_new(node_t *node, actor_t *actor, result_t (*handler)(node_t*, char*, void*));
 result_t proto_parse_message(node_t *node, char *data);
 
 #endif /* PROTO_H */

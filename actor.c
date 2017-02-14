@@ -79,9 +79,8 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 };
 #endif
 
-static result_t actor_remove_reply_handler(char *data, void *msg_data)
+static result_t actor_remove_reply_handler(node_t *node, char *data, void *msg_data)
 {
-	node_t *node = node_get();
 	actor_t *actor = NULL;
 
 	actor = actor_get(node, (char *)msg_data, strlen((char *)msg_data));
@@ -95,9 +94,8 @@ static result_t actor_remove_reply_handler(char *data, void *msg_data)
 	return FAIL;
 }
 
-static result_t actor_migrate_reply_handler(char *data, void *msg_data)
+static result_t actor_migrate_reply_handler(node_t *node, char *data, void *msg_data)
 {
-	node_t *node = node_get();
 	actor_t *actor = NULL;
 	uint32_t status = 0;
 	char *value = NULL;
@@ -119,10 +117,9 @@ static result_t actor_migrate_reply_handler(char *data, void *msg_data)
 	return SUCCESS;
 }
 
-static result_t actor_set_reply_handler(char *data, void *msg_data)
+static result_t actor_set_reply_handler(node_t *node, char *data, void *msg_data)
 {
 	actor_t *actor = NULL;
-	node_t *node = node_get();
 	char *value = NULL;
 	bool status = false;
 
@@ -465,7 +462,7 @@ void actor_free(node_t *node, actor_t *actor)
 	while (list != NULL) {
 		tmp_list = list;
 		list = list->next;
-		port_free((port_t *)tmp_list->data);
+		port_free(node, (port_t *)tmp_list->data);
 		platform_mem_free((void *)tmp_list);
 	}
 
@@ -473,7 +470,7 @@ void actor_free(node_t *node, actor_t *actor)
 	while (list != NULL) {
 		tmp_list = list;
 		list = list->next;
-		port_free((port_t *)tmp_list->data);
+		port_free(node, (port_t *)tmp_list->data);
 		platform_mem_free((void *)tmp_list);
 	}
 

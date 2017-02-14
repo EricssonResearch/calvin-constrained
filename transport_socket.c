@@ -201,7 +201,7 @@ static result_t transport_discover_proxy(const char *iface, char *uri)
 	return FAIL;
 }
 
-transport_client_t *transport_create(char *uri)
+transport_client_t *transport_create(node_t *node, char *uri)
 {
 	transport_client_t *transport_client = NULL;
 

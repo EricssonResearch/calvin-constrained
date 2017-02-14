@@ -34,7 +34,7 @@ typedef enum {
 
 typedef struct pending_msg_t {
 	char msg_uuid[UUID_BUFFER_SIZE];
-	result_t (*handler)(char *data, void *msg_data);
+	result_t (*handler)(struct node_t *node, char *data, void *msg_data);
 	void *msg_data;
 } pending_msg_t;
 
@@ -52,15 +52,14 @@ typedef struct node_t {
 	list_t *calvinsys;
 } node_t;
 
-node_t *node_get();
-result_t node_add_pending_msg(char *msg_uuid, uint32_t msg_uuid_len, result_t (*handler)(char *data, void *msg_data), void *msg_data);
-result_t node_remove_pending_msg(char *msg_uuid, uint32_t msg_uuid_len);
-result_t node_get_pending_msg(const char *msg_uuid, uint32_t msg_uuid_len, pending_msg_t *pending_msg);
+result_t node_add_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_len, result_t (*handler)(node_t *node, char *data, void *msg_data), void *msg_data);
+result_t node_remove_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_len);
+result_t node_get_pending_msg(node_t *node, const char *msg_uuid, uint32_t msg_uuid_len, pending_msg_t *pending_msg);
 bool node_can_add_pending_msg(const node_t *node);
 result_t node_handle_token(port_t *port, const char *data, const size_t size, uint32_t sequencenbr);
-void node_handle_token_reply(char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr);
-void node_handle_message(char *buffer, size_t len);
-void node_transport_joined(transport_client_t *transport_client, char *peer_id, uint32_t peer_id_len);
+void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr);
+void node_handle_message(node_t *node, char *buffer, size_t len);
+void node_transport_joined(node_t *node, transport_client_t *transport_client, char *peer_id, uint32_t peer_id_len);
 void node_run(char *name, char *uri);
 
 #endif /* NODE_H */

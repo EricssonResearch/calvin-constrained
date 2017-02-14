@@ -123,12 +123,11 @@ link_t *link_get(node_t *node, const char *peer_id, uint32_t peer_id_len)
 	return NULL;
 }
 
-static result_t link_request_handler(char *data, void *msg_data)
+static result_t link_request_handler(node_t *node, char *data, void *msg_data)
 {
 	result_t result = FAIL;
 	char *value = NULL, *peer_id = NULL, *value_data = NULL;
 	uint32_t status = 0, peer_id_len = 0;
-	node_t *node = node_get();
 	link_t *link = NULL;
 
 	result = get_value_from_map(data, "value", &value);

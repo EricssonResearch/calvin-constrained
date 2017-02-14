@@ -43,9 +43,8 @@ tunnel_t *tunnel_get_from_peerid_and_type(node_t *node, const char *peer_id, uin
 	return NULL;
 }
 
-static result_t tunnel_destroy_handler(char *data, void *msg_data)
+static result_t tunnel_destroy_handler(node_t *node, char *data, void *msg_data)
 {
-	node_t *node = node_get();
 	tunnel_t *tunnel = NULL;
 
 	tunnel = (tunnel_t *)list_get(node->tunnels, (char *)msg_data);
@@ -160,13 +159,12 @@ void tunnel_remove_ref(node_t *node, tunnel_t *tunnel)
 	}
 }
 
-static result_t tunnel_request_handler(char *data, void *msg_data)
+static result_t tunnel_request_handler(node_t *node, char *data, void *msg_data)
 {
 	uint32_t status = 0, tunnel_id_len = 0;
 	char *value = NULL, *tunnel_id = NULL, *data_value = NULL;
 	result_t result = FAIL;
 	tunnel_t *tunnel = NULL;
-	node_t *node = node_get();
 
 	result = get_value_from_map(data, "value", &value);
 	if (result == SUCCESS)

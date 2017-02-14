@@ -22,6 +22,8 @@
 #include "platform.h"
 #include "node.h"
 
+static transport_client_t m_transport_client;
+
 result_t transport_convert_mac_to_link_local(const char *mac, char *ip)
 {
 	long col1, col2, col3, col4, col5, col6;
@@ -43,12 +45,11 @@ result_t transport_convert_mac_to_link_local(const char *mac, char *ip)
 
 err_t transport_recv_data_handler(void *p_arg, struct tcp_pcb *p_pcb, struct pbuf *p_buffer, err_t err)
 {
-	node_t *node = node_get();
 	int read_pos = 0, msg_size = 0;
 
 	if (err == ERR_OK) {
 		tcp_recved(p_pcb, p_buffer->tot_len);
-		transport_handle_data(node->transport_client, p_buffer->payload, p_buffer->tot_len);
+		transport_handle_data(m_transport_client.node, &m_transport_client, p_buffer->payload, p_buffer->tot_len);
 	} else
 		log_error("Error on receive, reason 0x%08x", err);
 
@@ -79,27 +80,26 @@ static err_t transport_write_complete(void *p_arg, struct tcp_pcb *p_pcb, u16_t 
 	UNUSED_PARAMETER(p_arg);
 	err_t err = ERR_OK;
 	uint32_t tcp_buffer_size = 0;
-	node_t *node = node_get();
 
 	// Complete message sent?
-	if (node->transport_client->tx_buffer.pos == node->transport_client->tx_buffer.size) {
-		node->transport_client->has_pending_tx = false;
-		transport_free_tx_buffer(node->transport_client);
+	if (m_transport_client.tx_buffer.pos == m_transport_client.tx_buffer.size) {
+		m_transport_client.has_pending_tx = false;
+		transport_free_tx_buffer(&m_transport_client);
 		return ERR_OK;
 	}
 
 	// Continue sending
 	tcp_buffer_size = tcp_sndbuf(p_pcb);
-	if (tcp_buffer_size >= node->transport_client->tx_buffer.size - node->transport_client->tx_buffer.pos) {
-		err = tcp_write(p_pcb, node->transport_client->tx_buffer.buffer + node->transport_client->tx_buffer.pos, node->transport_client->tx_buffer.size - node->transport_client->tx_buffer.pos, 1);
+	if (tcp_buffer_size >= m_transport_client.tx_buffer.size - m_transport_client.tx_buffer.pos) {
+		err = tcp_write(p_pcb, m_transport_client.tx_buffer.buffer + m_transport_client.tx_buffer.pos, m_transport_client.tx_buffer.size - m_transport_client.tx_buffer.pos, 1);
 		if (err == ERR_OK)
-			node->transport_client->tx_buffer.pos = node->transport_client->tx_buffer.size;
+			m_transport_client.tx_buffer.pos = m_transport_client.tx_buffer.size;
 		else
 			log_error("TODO: Handle tx failures");
 	} else if (tcp_buffer_size > 0) {
-		err = tcp_write(p_pcb, node->transport_client->tx_buffer.buffer + node->transport_client->tx_buffer.pos, tcp_buffer_size, 1);
+		err = tcp_write(p_pcb, m_transport_client.tx_buffer.buffer + m_transport_client.tx_buffer.pos, tcp_buffer_size, 1);
 		if (err == ERR_OK)
-			node->transport_client->tx_buffer.pos += tcp_buffer_size;
+			m_transport_client.tx_buffer.pos += tcp_buffer_size;
 		else
 			log_error("TODO: Handle tx failures");
 	} else {
@@ -112,8 +112,6 @@ static err_t transport_write_complete(void *p_arg, struct tcp_pcb *p_pcb, u16_t 
 
 static err_t transport_connection_callback(void *p_arg, struct tcp_pcb *p_pcb, err_t err)
 {
-	node_t *node = node_get();
-
 	if (err != ERR_OK) {
 		log_error("Failed to create TCP connection");
 		return err;
@@ -121,7 +119,7 @@ static err_t transport_connection_callback(void *p_arg, struct tcp_pcb *p_pcb, e
 
 	log("TCP client connected");
 
-	node->transport_client->state = TRANSPORT_DO_JOIN;
+	m_transport_client.state = TRANSPORT_DO_JOIN;
 
 	tcp_setprio(p_pcb, TCP_PRIO_MIN);
 	tcp_arg(p_pcb, NULL);
@@ -138,61 +136,54 @@ result_t transport_send(transport_client_t *transport_client, size_t size)
 {
 	err_t res = ERR_BUF;
 	uint32_t tcp_buffer_size = 0;
-	node_t *node = node_get();
-	struct tcp_pcb *pcb = node->transport_client->tcp_port;
+	struct tcp_pcb *pcb = transport_client->tcp_port;
 
-	if (!node->transport_client->has_pending_tx) {
-		transport_append_buffer_prefix(node->transport_client->tx_buffer.buffer, size);
+	if (!transport_client->has_pending_tx) {
+		transport_append_buffer_prefix(transport_client->tx_buffer.buffer, size);
 
 		tcp_buffer_size = tcp_sndbuf(pcb);
 		if (tcp_buffer_size >= size + 4) {
 			tcp_sent(pcb, transport_write_complete);
-			res = tcp_write(pcb, node->transport_client->tx_buffer.buffer, size + 4, 1);
+			res = tcp_write(pcb, transport_client->tx_buffer.buffer, size + 4, 1);
 			if (res == ERR_OK) {
-				node->transport_client->has_pending_tx = true;
-				node->transport_client->tx_buffer.pos = size + 4;
-				node->transport_client->tx_buffer.size = node->transport_client->tx_buffer.pos;
+				transport_client->has_pending_tx = true;
+				transport_client->tx_buffer.pos = size + 4;
+				transport_client->tx_buffer.size = transport_client->tx_buffer.pos;
 			}
 		} else if (tcp_buffer_size > 0) {
 			tcp_sent(pcb, transport_write_complete);
-			res = tcp_write(pcb, node->transport_client->tx_buffer.buffer, tcp_buffer_size, 1);
+			res = tcp_write(pcb, transport_client->tx_buffer.buffer, tcp_buffer_size, 1);
 			if (res == ERR_OK) {
-				node->transport_client->has_pending_tx = true;
-				node->transport_client->tx_buffer.size = size + 4;
-				node->transport_client->tx_buffer.pos = tcp_buffer_size;
+				transport_client->has_pending_tx = true;
+				transport_client->tx_buffer.size = size + 4;
+				transport_client->tx_buffer.pos = tcp_buffer_size;
 			}
 		} else
 			log_error("No space in send buffer");
 	}
 
 	if (res != ERR_OK) {
-		transport_free_tx_buffer(node->transport_client);
+		transport_free_tx_buffer(transport_client);
 		return FAIL;
 	}
 
 	return SUCCESS;
 }
 
-transport_client_t *transport_create(char *uri)
+transport_client_t *transport_create(node_t *node, char *uri)
 {
-	transport_client_t *transport_client = NULL;
+	m_transport_client.node = node;
+	m_transport_client.tcp_port = tcp_new_ip6();
+	m_transport_client.state = TRANSPORT_INTERFACE_DOWN;
+	m_transport_client.rx_buffer.buffer = NULL;
+	m_transport_client.rx_buffer.pos = 0;
+	m_transport_client.rx_buffer.size = 0;
+	m_transport_client.tx_buffer.buffer = NULL;
+	m_transport_client.tx_buffer.pos = 0;
+	m_transport_client.tx_buffer.size = 0;
+	m_transport_client.has_pending_tx = false;
 
-	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) != SUCCESS) {
-		log_error("Failed to allocate memory");
-		return NULL;
-	}
-
-	transport_client->tcp_port = tcp_new_ip6();
-	transport_client->state = TRANSPORT_INTERFACE_DOWN;
-	transport_client->rx_buffer.buffer = NULL;
-	transport_client->rx_buffer.pos = 0;
-	transport_client->rx_buffer.size = 0;
-	transport_client->tx_buffer.buffer = NULL;
-	transport_client->tx_buffer.pos = 0;
-	transport_client->tx_buffer.size = 0;
-	transport_client->has_pending_tx = false;
-
-	return transport_client;
+	return &m_transport_client;
 }
 
 result_t transport_connect(transport_client_t *transport_client)
@@ -226,4 +217,9 @@ void transport_disconnect(transport_client_t *transport_client)
 {
 	tcp_close(transport_client->tcp_port);
 	transport_client->state = TRANSPORT_DISCONNECTED;
+}
+
+transport_client_t *transport_get_client(void)
+{
+	return &m_transport_client;
 }

@@ -32,6 +32,7 @@
 #include "nrf_drv_gpiote.h"
 #include "../../platform.h"
 #include "../../node.h"
+#include "../../transport.h"
 
 #define APP_TIMER_OP_QUEUE_SIZE							5
 #define LWIP_SYS_TIMER_INTERVAL							APP_TIMER_TICKS(100, APP_TIMER_PRESCALER)
@@ -39,6 +40,7 @@
 APP_TIMER_DEF(m_lwip_timer_id);
 eui64_t                                     eui64_local_iid;
 static ipv6_medium_instance_t               m_ipv6_medium;
+static calvinsys_io_giohandler_t 						m_io_gpiohandler;
 
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
 {
@@ -65,21 +67,20 @@ static void connectable_mode_enter(void)
 static void on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt)
 {
 	size_t len = 0;
-	node_t *node = NULL;
+	transport_client_t *transport_client = transport_get_client();
 
 	switch (p_ipv6_medium_evt->ipv6_medium_evt_id) {
 	case IPV6_MEDIUM_EVT_CONN_UP:
 	{
 		log("Physical layer connected mac '%s'", p_ipv6_medium_evt->mac);
-		node = node_get();
-		strncpy(node->transport_client->uri, p_ipv6_medium_evt->mac, strlen(p_ipv6_medium_evt->mac));
+		strncpy(transport_client->uri, p_ipv6_medium_evt->mac, strlen(p_ipv6_medium_evt->mac));
 		break;
 	}
 	case IPV6_MEDIUM_EVT_CONN_DOWN:
 	{
 		log("Physical layer disconnected");
 		connectable_mode_enter();
-		node->transport_client->state = TRANSPORT_INTERFACE_DOWN;
+		transport_client->state = TRANSPORT_INTERFACE_DOWN;
 		break;
 	}
 	default:
@@ -147,30 +148,28 @@ static void timers_init(void)
 
 void nrf_driver_interface_up(void)
 {
-	node_t *node = node_get();
+	transport_client_t *transport_client = transport_get_client();
 
-	log("IPv6 interface up");
-	node->transport_client->state = TRANSPORT_DISCONNECTED;
+	log("IP interface up");
+	transport_client->state = TRANSPORT_DISCONNECTED;
 }
 
 void nrf_driver_interface_down(void)
 {
-	node_t *node = node_get();
+	transport_client_t *transport_client = transport_get_client();
 
-	log_debug("IPv6 interface down");
-	node->transport_client->state = TRANSPORT_INTERFACE_DOWN;
+	log("IP interface down");
+	transport_client->state = TRANSPORT_INTERFACE_DOWN;
 }
 
 static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
 	int i = 0;
-	node_t *node = node_get();
-	calvinsys_io_giohandler_t *gpiohandler = (calvinsys_io_giohandler_t *)list_get(node->calvinsys, "calvinsys.io.gpiohandler");
 
 	for (i = 0; i < MAX_INGPIOS; i++) {
-		if (gpiohandler->ingpios[i] != NULL && gpiohandler->ingpios[i]->pin == pin) {
-			gpiohandler->ingpios[i]->has_triggered = true;
-			gpiohandler->ingpios[i]->value = nrf_drv_gpiote_in_is_set(pin) ? 1 : 0;
+		if (m_io_gpiohandler.ingpios[i] != NULL && m_io_gpiohandler.ingpios[i]->pin == pin) {
+			m_io_gpiohandler.ingpios[i]->has_triggered = true;
+			m_io_gpiohandler.ingpios[i]->value = nrf_drv_gpiote_in_is_set(pin) ? 1 : 0;
 			return;
 		}
 	}
@@ -286,9 +285,9 @@ static void platform_uninit_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_
 		nrf_drv_gpiote_out_uninit(pin);
 
 	for (i = 0; i < MAX_INGPIOS; i++) {
-		if (gpiohandler->ingpios[i] != NULL && gpiohandler->ingpios[i]->pin == pin) {
-			platform_mem_free(gpiohandler->ingpios[i]);
-			gpiohandler->ingpios[i] = NULL;
+		if (m_io_gpiohandler.ingpios[i] != NULL && m_io_gpiohandler.ingpios[i]->pin == pin) {
+			platform_mem_free(m_io_gpiohandler.ingpios[i]);
+			m_io_gpiohandler.ingpios[i] = NULL;
 			break;
 		}
 	}
@@ -324,24 +323,17 @@ static result_t platform_create_sensors_environmental(node_t *node)
 static result_t platform_create_io_gpiohandler(node_t *node)
 {
 	char name[] = "calvinsys.io.gpiohandler";
-	calvinsys_io_giohandler_t *io_gpiohandler = NULL;
 	int i = 0;
 
-	if (platform_mem_alloc((void **)&io_gpiohandler, sizeof(calvinsys_io_giohandler_t)) != SUCCESS) {
-		log_error("Failed to allocate memory");
-		platform_mem_free((void *)io_gpiohandler);
-		return FAIL;
-	}
-
-	io_gpiohandler->init_in_gpio = platform_init_in_gpio;
-	io_gpiohandler->init_out_gpio = platform_init_out_gpio;
-	io_gpiohandler->set_gpio = platform_set_gpio;
-	io_gpiohandler->uninit_gpio = platform_uninit_gpio;
+	m_io_gpiohandler.init_in_gpio = platform_init_in_gpio;
+	m_io_gpiohandler.init_out_gpio = platform_init_out_gpio;
+	m_io_gpiohandler.set_gpio = platform_set_gpio;
+	m_io_gpiohandler.uninit_gpio = platform_uninit_gpio;
 
 	for (i = 0; i < MAX_INGPIOS; i++)
-		io_gpiohandler->ingpios[i] = NULL;
+		m_io_gpiohandler.ingpios[i] = NULL;
 
-	return list_add_n(&node->calvinsys, name, strlen(name), io_gpiohandler, sizeof(calvinsys_io_giohandler_t));
+	return list_add_n(&node->calvinsys, name, strlen(name), &m_io_gpiohandler, sizeof(calvinsys_io_giohandler_t));
 }
 
 result_t platform_create_calvinsys(node_t *node)

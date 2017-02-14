@@ -151,7 +151,7 @@ void platform_init(void)
 	srand(time(NULL));
 }
 
-static void platform_x86_handle_data(transport_client_t *transport_client)
+static void platform_x86_handle_data(node_t *node, transport_client_t *transport_client)
 {
 	char buffer[PLATFORM_RECEIVE_BUFFER_SIZE];
 	int size = 0;
@@ -160,7 +160,7 @@ static void platform_x86_handle_data(transport_client_t *transport_client)
 	if (size == 0)
 		transport_client->state = TRANSPORT_DISCONNECTED;
 	else if (size > 0) {
-		transport_handle_data(transport_client, buffer, size);
+		transport_handle_data(node, transport_client, buffer, size);
 	} else
 		log_error("Failed to read data");
 }
@@ -184,7 +184,7 @@ void platform_evt_wait(node_t *node, struct timeval *timeout)
 
 	if (node->transport_client->state == TRANSPORT_PENDING || node->transport_client->state == TRANSPORT_ENABLED) {
 		if (FD_ISSET(node->transport_client->fd, &fds))
-			platform_x86_handle_data(node->transport_client);
+			platform_x86_handle_data(node, node->transport_client);
 	}
 }
 

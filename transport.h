@@ -24,6 +24,8 @@
 #include "lwip/tcp.h"
 #endif
 
+struct node_t;
+
 typedef enum {
 	TRANSPORT_INTERFACE_DOWN,
 	TRANSPORT_DISCONNECTED,
@@ -41,6 +43,7 @@ typedef struct transport_buffer_t {
 typedef struct transport_client_t {
 #ifdef USE_LWIP
 	struct tcp_pcb *tcp_port;
+	struct node_t *node;
 #else
 	int fd;
 	bool do_discover;
@@ -52,9 +55,12 @@ typedef struct transport_client_t {
 	transport_buffer_t tx_buffer;
 } transport_client_t;
 
-transport_client_t *transport_create(char *uri);
+transport_client_t *transport_create(struct node_t *node, char *uri);
 result_t transport_connect(transport_client_t *transport_client);
 result_t transport_send(transport_client_t *transport_client, size_t size);
 void transport_disconnect(transport_client_t *transport_client);
+#ifdef USE_LWIP
+transport_client_t *transport_get_client(void);
+#endif
 
 #endif /* TRANSPORT_H */

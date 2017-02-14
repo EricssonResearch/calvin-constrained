@@ -25,10 +25,9 @@
 port_t *port_get(node_t *node, const char *port_id, uint32_t port_id_len);
 result_t port_setup_connection(node_t *node, port_t *port, char *peer_id, uint32_t peer_id_len, char *peer_port_id, uint32_t peer_port_id_len);
 
-static result_t port_remove_reply_handler(char *data, void *msg_data)
+static result_t port_remove_reply_handler(node_t *node, char *data, void *msg_data)
 {
 	port_t *port = NULL;
-	node_t *node = node_get();
 	char *value = NULL;
 	bool status = false;
 
@@ -57,13 +56,12 @@ static result_t port_remove_reply_handler(char *data, void *msg_data)
 	return FAIL;
 }
 
-static result_t port_get_peer_port_reply_handler(char *data, void *msg_data)
+static result_t port_get_peer_port_reply_handler(node_t *node, char *data, void *msg_data)
 {
 	result_t result = FAIL;
 	port_t *port = NULL;
 	char *value = NULL, *value_value = NULL, *node_id = NULL;
 	char *tmp = NULL, *end = NULL;
-	node_t *node = node_get();
 	uint32_t value_value_len = 0;
 
 	if (msg_data != NULL) {
@@ -108,12 +106,11 @@ static result_t port_get_peer_port_reply_handler(char *data, void *msg_data)
 	return result;
 }
 
-static result_t port_connect_reply_handler(char *data, void *msg_data)
+static result_t port_connect_reply_handler(node_t *node, char *data, void *msg_data)
 {
 	char *value = NULL;
 	uint32_t status = 0;
 	port_t *port = NULL;
-	node_t *node = node_get();
 
 	if (msg_data == NULL) {
 		log_error("msg_data is NULL");
@@ -146,10 +143,9 @@ static result_t port_connect_reply_handler(char *data, void *msg_data)
 	return FAIL;
 }
 
-static result_t port_store_reply_handler(char *data, void *msg_data)
+static result_t port_store_reply_handler(node_t *node, char *data, void *msg_data)
 {
 	port_t *port = NULL;
-	node_t *node = node_get();
 	char *value = NULL;
 	bool status = false;
 
@@ -181,10 +177,9 @@ static result_t port_store_reply_handler(char *data, void *msg_data)
 	return FAIL;
 }
 
-static result_t port_disconnect_reply_handler(char *data, void *msg_data)
+static result_t port_disconnect_reply_handler(node_t *node, char *data, void *msg_data)
 {
 	port_t *port = NULL;
-	node_t *node = node_get();
 
 	port = port_get(node, (char *)msg_data, strlen((char *)msg_data));
 	if (port == NULL) {
@@ -309,13 +304,13 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 
 	if (fifo_init(&port->fifo, obj_queue) != SUCCESS) {
 		log_error("Failed to init fifo");
-		port_free(port);
+		port_free(node, port);
 		return NULL;
 	}
 
 	if (port_setup_connection(node, port, peer_id, peer_id_len, port_id, port_id_len) != SUCCESS) {
 		log_error("Failed setup connections");
-		port_free(port);
+		port_free(node, port);
 		return NULL;
 	}
 
@@ -324,9 +319,8 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 	return port;
 }
 
-void port_free(port_t *port)
+void port_free(node_t *node, port_t *port)
 {
-	node_t *node = node_get();
 	pending_token_response_t *pending_resp = NULL;
 
 	log("Deleting port '%s'", port->id);
