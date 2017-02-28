@@ -18,7 +18,6 @@
 #include "py/objstr.h"
 #include "../platform.h"
 #include "../actor.h"
-#include "../node.h"
 
 typedef struct cc_mp_gpiopin_t {
 	mp_obj_base_t base;
@@ -29,6 +28,7 @@ typedef struct cc_mp_gpiopin_t {
 
 typedef struct cc_mp_gpiohandler_t {
 	mp_obj_base_t base;
+	calvinsys_io_giohandler_t *gpiohandler;
 } cc_mp_gpiohandler_t;
 
 static mp_obj_t gpiopin_edge_detected(mp_obj_t self_in)
@@ -100,14 +100,8 @@ static mp_obj_t gpiohandler_open(mp_uint_t n_args, const mp_obj_t *args)
 	uint32_t pin = 0;
 	char *dir = NULL, *pull = NULL, *edge = NULL;
 	mp_uint_t len;
-	node_t *node = node_get();
-	calvinsys_io_giohandler_t *gpiohandler = NULL;
-
-	gpiohandler = (calvinsys_io_giohandler_t *)list_get(node->calvinsys, "calvinsys.io.gpiohandler");
-	if (gpiohandler == NULL) {
-		log_error("calvinsys.io.gpiohandler is not supported");
-		return mp_const_none;
-	}
+	cc_mp_gpiohandler_t *cc_mp_gpiohandler = MP_OBJ_TO_PTR(args[0]);
+	calvinsys_io_giohandler_t *gpiohandler = cc_mp_gpiohandler->gpiohandler;
 
 	pin = mp_obj_get_int(args[1]);
 	dir = (char *)mp_obj_str_get_data(args[2], &len);
@@ -152,19 +146,25 @@ static const mp_obj_type_t gpiohandler_type = {
 	.locals_dict = (mp_obj_dict_t *)&gpiohandler_locals_dict
 };
 
-static mp_obj_t gpiohandler_register()
+static mp_obj_t gpiohandler_register(mp_obj_t mp_actor)
 {
 	static cc_mp_gpiohandler_t *gpiohandler;
+	actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
 
 	if (gpiohandler == NULL) {
 		gpiohandler = m_new_obj(cc_mp_gpiohandler_t);
 		memset(gpiohandler, 0, sizeof(cc_mp_gpiohandler_t));
 		gpiohandler->base.type = &gpiohandler_type;
+		gpiohandler->gpiohandler = (calvinsys_io_giohandler_t *)list_get(actor->calvinsys, "calvinsys.io.gpiohandler");
+		if (gpiohandler->gpiohandler == NULL) {
+			log_error("'calvinsys.io.gpiohandler' is not supported");
+			return mp_const_none;
+		}
 	}
 
 	return MP_OBJ_FROM_PTR(gpiohandler);
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(gpiohandler_register_obj, gpiohandler_register);
+static MP_DEFINE_CONST_FUN_OBJ_1(gpiohandler_register_obj, gpiohandler_register);
 
 static const mp_map_elem_t gpiohandler_globals_table[] = {
 	{ MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_gpiohandler)},

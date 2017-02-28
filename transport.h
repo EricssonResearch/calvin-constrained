@@ -20,16 +20,13 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "common.h"
-#ifdef USE_LWIP
-#include "lwip/tcp.h"
-#endif
 
 struct node_t;
 
 typedef enum {
 	TRANSPORT_INTERFACE_DOWN,
+	TRANSPORT_INTERFACE_UP,
 	TRANSPORT_DISCONNECTED,
-	TRANSPORT_DO_JOIN,
 	TRANSPORT_PENDING,
 	TRANSPORT_ENABLED
 } transport_state_t;
@@ -41,26 +38,22 @@ typedef struct transport_buffer_t {
 } transport_buffer_t;
 
 typedef struct transport_client_t {
-#ifdef USE_LWIP
-	struct tcp_pcb *tcp_port;
-	struct node_t *node;
-#else
-	int fd;
-	bool do_discover;
-#endif
-	char uri[100];
-	bool has_pending_tx;
+	char peer_id[UUID_BUFFER_SIZE];
 	transport_state_t state;
 	transport_buffer_t rx_buffer;
 	transport_buffer_t tx_buffer;
+	void *client_state;
+	result_t (*connect)(struct node_t *node, struct transport_client_t *transport_client);
+	result_t (*send_tx_buffer)(struct transport_client_t *transport_client, size_t size);
+	void (*disconnect)(struct transport_client_t *transport_client);
+	void (*free)(struct transport_client_t *transport_client);
 } transport_client_t;
 
 transport_client_t *transport_create(struct node_t *node, char *uri);
-result_t transport_connect(transport_client_t *transport_client);
-result_t transport_send(transport_client_t *transport_client, size_t size);
-void transport_disconnect(transport_client_t *transport_client);
-#ifdef USE_LWIP
-transport_client_t *transport_get_client(void);
-#endif
+void transport_handle_data(struct node_t *node, transport_client_t *transport_client, char *buffer, size_t size);
+result_t transport_create_tx_buffer(transport_client_t *transport_client, size_t size);
+void transport_free_tx_buffer(transport_client_t *transport_client);
+void transport_append_buffer_prefix(char *buffer, size_t size);
+void transport_join(struct node_t *node, transport_client_t *transport_client);
 
 #endif /* TRANSPORT_H */

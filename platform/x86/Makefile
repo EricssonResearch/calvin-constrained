@@ -9,7 +9,7 @@ CFLAGS += -DPARSE_ARGS
 ifneq ($(PLATFORM), Darwin)
 CFLAGS += -lrt
 endif
-CFLAGS += -DUSE_PERSISTENT_STORAGE
+CFLAGS += -DUSE_PERSISTENT_STORAGE -DTRANSPORT_SOCKET
 
 C_SOURCE_FILES += \
 platform/x86/platform_x86.c \
@@ -17,7 +17,7 @@ main.c \
 common.c \
 node.c \
 proto.c \
-transport_common.c \
+transport.c \
 transport_socket.c \
 tunnel.c \
 link.c \

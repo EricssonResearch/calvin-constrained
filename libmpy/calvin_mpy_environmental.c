@@ -17,7 +17,7 @@
 #include <string.h>
 #include "py/objstr.h"
 #include "../platform.h"
-#include "../node.h"
+#include "../actor.h"
 
 typedef struct cc_mp_environmental_t {
 	mp_obj_base_t base;
@@ -49,21 +49,27 @@ static const mp_obj_type_t environmental_type = {
 	.locals_dict = (mp_obj_dict_t *)&environmental_locals_dict
 };
 
-static mp_obj_t environmental_register()
+static mp_obj_t environmental_register(mp_obj_t mp_actor)
 {
 	static cc_mp_environmental_t *environmental;
-	node_t *node = node_get();
+	actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
+
+	log("Actor name: %s", actor->type);
 
 	if (environmental == NULL) {
 		environmental = m_new_obj(cc_mp_environmental_t);
 		memset(environmental, 0, sizeof(cc_mp_environmental_t));
 		environmental->base.type = &environmental_type;
-		environmental->environmental = (calvinsys_sensors_environmental_t *)list_get(node->calvinsys, "calvinsys.sensors.environmental");
+		environmental->environmental = (calvinsys_sensors_environmental_t *)list_get(actor->calvinsys, "calvinsys.sensors.environmental");
+		if (environmental->environmental == NULL) {
+			log_error("'calvinsys.sensors.environmental' is not supported");
+			return mp_const_none;
+		}
 	}
 
 	return MP_OBJ_FROM_PTR(environmental);
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(environmental_register_obj, environmental_register);
+static MP_DEFINE_CONST_FUN_OBJ_1(environmental_register_obj, environmental_register);
 
 static const mp_map_elem_t environmental_globals_table[] = {
 	{ MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_environmental)},

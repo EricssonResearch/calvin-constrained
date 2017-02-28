@@ -84,8 +84,8 @@ $(abspath common.c) \
 $(abspath node.c) \
 $(abspath link.c) \
 $(abspath proto.c) \
-$(abspath transport_common.c) \
 $(abspath transport_lwip.c) \
+$(abspath transport.c) \
 $(abspath tunnel.c) \
 $(abspath actor.c) \
 $(abspath port.c) \
@@ -165,7 +165,7 @@ OUTPUT_BINARY_DIRECTORY = $(OBJECT_DIRECTORY)
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY) $(LISTING_DIRECTORY) )
 
 #flags common to all targets
-CFLAGS  = -DUSE_LWIP
+CFLAGS  = -DTRANSPORT_LWIP
 #CFLAGS += -DDEBUG
 CFLAGS += -D__HEAP_SIZE=6144
 CFLAGS += -DSWI_DISABLE0

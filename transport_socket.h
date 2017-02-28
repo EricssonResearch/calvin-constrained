@@ -13,18 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef TRANSPORT_COMMON_H
-#define TRANSPORT_COMMON_H
+#ifndef TRANSPORT_SOCKET_H
+#define TRANSPORT_SOCKET_H
 
-#include "common.h"
 #include "transport.h"
-#include "node.h"
 
-void transport_handle_data(node_t *node, transport_client_t *transport_client, char *buffer, size_t size);
-result_t transport_create_tx_buffer(transport_client_t *transport_client, size_t size);
-void transport_free_tx_buffer(transport_client_t *transport_client);
-void transport_append_buffer_prefix(char *buffer, size_t size);
-void transport_join(node_t *node, transport_client_t *transport_client);
+struct node_t;
 
+typedef struct transport_socket_client_t {
+	int fd;
+	char ip[40];
+	int port;
+} transport_socket_client_t;
 
-#endif /* TRANSPORT_COMMON_H */
+transport_client_t *transport_socket_create(struct node_t *node, char *uri);
+
+#endif /* TRANSPORT_SOCKET_H */

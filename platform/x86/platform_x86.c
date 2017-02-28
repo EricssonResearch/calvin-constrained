@@ -20,7 +20,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include "../../platform.h"
-#include "../../transport_common.h"
+#include "../../transport_socket.h"
 #include "../../transport.h"
 #include "../../node.h"
 
@@ -146,7 +146,7 @@ result_t platform_create_calvinsys(node_t *node)
 	return SUCCESS;
 }
 
-void platform_init(void)
+void platform_init(node_t *node)
 {
 	srand(time(NULL));
 }
@@ -156,12 +156,12 @@ static void platform_x86_handle_data(node_t *node, transport_client_t *transport
 	char buffer[PLATFORM_RECEIVE_BUFFER_SIZE];
 	int size = 0;
 
-	size = recv(transport_client->fd, buffer, PLATFORM_RECEIVE_BUFFER_SIZE, 0);
+	size = recv(((transport_socket_client_t *)transport_client->client_state)->fd, buffer, PLATFORM_RECEIVE_BUFFER_SIZE, 0);
 	if (size == 0)
 		transport_client->state = TRANSPORT_DISCONNECTED;
-	else if (size > 0) {
+	else if (size > 0)
 		transport_handle_data(node, transport_client, buffer, size);
-	} else
+	else
 		log_error("Failed to read data");
 }
 
@@ -172,20 +172,18 @@ void platform_evt_wait(node_t *node, struct timeval *timeout)
 
 	FD_ZERO(&fds);
 
-	if (node->transport_client->state == TRANSPORT_PENDING || node->transport_client->state == TRANSPORT_ENABLED) {
-		FD_SET(node->transport_client->fd, &fds);
-		fd = node->transport_client->fd;
-	}
+	if (node->transport_client != NULL && (node->transport_client->state == TRANSPORT_PENDING || node->transport_client->state == TRANSPORT_ENABLED)) {
+		FD_SET(((transport_socket_client_t *)node->transport_client->client_state)->fd, &fds);
+		fd = ((transport_socket_client_t *)node->transport_client->client_state)->fd;
 
-	if (select(fd + 1, &fds, NULL, NULL, timeout) < 0) {
-		log_error("ERROR on select");
-		return;
-	}
+		select(fd + 1, &fds, NULL, NULL, timeout);
 
-	if (node->transport_client->state == TRANSPORT_PENDING || node->transport_client->state == TRANSPORT_ENABLED) {
-		if (FD_ISSET(node->transport_client->fd, &fds))
-			platform_x86_handle_data(node, node->transport_client);
-	}
+		if (node->transport_client != NULL && (node->transport_client->state == TRANSPORT_PENDING || node->transport_client->state == TRANSPORT_ENABLED)) {
+			if (FD_ISSET(((transport_socket_client_t *)node->transport_client->client_state)->fd, &fds))
+				platform_x86_handle_data(node, node->transport_client);
+		}
+	} else
+		select(0, NULL, NULL, NULL, timeout);
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)

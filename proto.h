@@ -25,7 +25,7 @@
 #include "actor.h"
 #include "tunnel.h"
 
-result_t proto_send_join_request(const node_t *node, const char *serializer);
+result_t proto_send_join_request(const node_t *node, transport_client_t *transport_client, const char *serializer);
 result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*, void*));
 result_t proto_send_route_request(node_t *node, char *dest_peer_id, uint32_t dest_peer_id_len, result_t (*handler)(node_t*, char*, void*));
 result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, void*));

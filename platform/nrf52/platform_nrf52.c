@@ -33,11 +33,14 @@
 #include "../../platform.h"
 #include "../../node.h"
 #include "../../transport.h"
+#include "../../transport_lwip.h"
 
 #define APP_TIMER_OP_QUEUE_SIZE							5
 #define LWIP_SYS_TIMER_INTERVAL							APP_TIMER_TICKS(100, APP_TIMER_PRESCALER)
+#define APP_CALVIN_CONNECT_DELAY						APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER) // Delay connect as connect fails directly after interface up
 
 APP_TIMER_DEF(m_lwip_timer_id);
+APP_TIMER_DEF(m_calvin_connect_timer_id);
 eui64_t                                     eui64_local_iid;
 static ipv6_medium_instance_t               m_ipv6_medium;
 static calvinsys_io_giohandler_t 						m_io_gpiohandler;
@@ -68,12 +71,13 @@ static void on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt)
 {
 	size_t len = 0;
 	transport_client_t *transport_client = transport_get_client();
+	transport_lwip_client_t *transport_state = (transport_lwip_client_t *)transport_client->client_state;
 
 	switch (p_ipv6_medium_evt->ipv6_medium_evt_id) {
 	case IPV6_MEDIUM_EVT_CONN_UP:
 	{
 		log("Physical layer connected mac '%s'", p_ipv6_medium_evt->mac);
-		strncpy(transport_client->uri, p_ipv6_medium_evt->mac, strlen(p_ipv6_medium_evt->mac));
+		strncpy(transport_state->mac, p_ipv6_medium_evt->mac, strlen(p_ipv6_medium_evt->mac));
 		break;
 	}
 	case IPV6_MEDIUM_EVT_CONN_DOWN:
@@ -133,6 +137,23 @@ static void lwip_timer_callback(void *p_ctx)
 	sys_check_timeouts();
 }
 
+static void start_calvin_connect_timer(void)
+{
+	uint32_t err_code;
+
+  err_code = app_timer_start(m_calvin_connect_timer_id, APP_CALVIN_CONNECT_DELAY, NULL);
+  APP_ERROR_CHECK(err_code);
+}
+
+static void calvin_connect_callback(void *p_context)
+{
+  UNUSED_VARIABLE(p_context);
+	transport_client_t *transport_client = transport_get_client();
+
+	transport_client->state = TRANSPORT_INTERFACE_UP;
+}
+
+
 static void timers_init(void)
 {
 	uint32_t err_code;
@@ -144,22 +165,26 @@ static void timers_init(void)
 	APP_ERROR_CHECK(err_code);
 	err_code = app_timer_start(m_lwip_timer_id, LWIP_SYS_TIMER_INTERVAL, NULL);
 	APP_ERROR_CHECK(err_code);
+
+	// Create calvin init timer used to start the node when a connection is made
+	err_code = app_timer_create(&m_calvin_connect_timer_id,
+		APP_TIMER_MODE_SINGLE_SHOT,
+		calvin_connect_callback);
+	APP_ERROR_CHECK(err_code);
 }
 
 void nrf_driver_interface_up(void)
 {
-	transport_client_t *transport_client = transport_get_client();
-
 	log("IP interface up");
-	transport_client->state = TRANSPORT_DISCONNECTED;
+	start_calvin_connect_timer();
 }
 
 void nrf_driver_interface_down(void)
 {
 	transport_client_t *transport_client = transport_get_client();
 
-	log("IP interface down");
 	transport_client->state = TRANSPORT_INTERFACE_DOWN;
+	log("IP interface down");
 }
 
 static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
@@ -347,7 +372,7 @@ result_t platform_create_calvinsys(node_t *node)
 	return SUCCESS;
 }
 
-void platform_init(void)
+void platform_init(node_t *node)
 {
 	uint32_t err_code;
 	uint8_t rnd_seed = 0;
@@ -365,6 +390,10 @@ void platform_init(void)
 		err_code = sd_rand_application_vector_get(&rnd_seed, 1);
 	} while (err_code == NRF_ERROR_SOC_RAND_NOT_ENOUGH_VALUES);
 	srand(rnd_seed);
+
+	platform_mem_alloc((void **)&node->proxy_uris[0], 5);
+	strncpy(node->proxy_uris[0], "lwip", 4);
+	node->proxy_uris[4] = '\0';
 
 	log("Platform initialized");
 }

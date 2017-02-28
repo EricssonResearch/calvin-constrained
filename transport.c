@@ -14,10 +14,16 @@
  * limitations under the License.
  */
 #include <string.h>
-#include "transport_common.h"
+#include "transport.h"
 #include "node.h"
 #include "platform.h"
 #include "proto.h"
+#ifdef TRANSPORT_SOCKET
+#include "transport_socket.h"
+#endif
+#ifdef TRANSPORT_LWIP
+#include "transport_lwip.h"
+#endif
 
 #define SERIALIZER "msgpack"
 
@@ -37,20 +43,21 @@ static result_t transport_handle_join_reply(node_t *node, transport_client_t *tr
 
 	if (sscanf(data, "{\"cmd\": \"JOIN_REPLY\", \"id\": \"%[^\"]\", \"serializer\": \"%[^\"]\", \"sid\": \"%[^\"]\"}",
 		id, serializer, sid) != 3) {
-		transport_client->state = TRANSPORT_DO_JOIN;
 		log_error("Failed to parse JOIN_REPLY");
+		transport_client->disconnect(transport_client);
 		return FAIL;
 	}
 
 	if (strcmp(serializer, SERIALIZER) != 0) {
-		transport_client->state = TRANSPORT_DO_JOIN;
 		log_error("Unsupported serializer");
+		transport_client->disconnect(transport_client);
 		return FAIL;
 	}
 
 	transport_client->state = TRANSPORT_ENABLED;
+	strncpy(transport_client->peer_id, id, strlen(id));
 
-	node_transport_joined(node, transport_client, id, strlen(id));
+	log_debug("Transport joined '%s'", transport_client->peer_id);
 
 	return SUCCESS;
 }
@@ -137,8 +144,25 @@ void transport_append_buffer_prefix(char *buffer, size_t size)
 
 void transport_join(node_t *node, transport_client_t *transport_client)
 {
-	if (proto_send_join_request(node, SERIALIZER) == SUCCESS)
+	if (proto_send_join_request(node, transport_client, SERIALIZER) == SUCCESS)
 		transport_client->state = TRANSPORT_PENDING;
 	else
-		transport_client->state = TRANSPORT_DO_JOIN;
+		transport_client->disconnect(transport_client);
+}
+
+transport_client_t *transport_create(node_t *node, char *uri)
+{
+#ifdef TRANSPORT_SOCKET
+	if (strncmp(uri, "calvinip://", 11) == 0 || strncmp(uri, "ssdp", 4) == 0)
+		return transport_socket_create(node, uri);
+#endif
+
+#ifdef TRANSPORT_LWIP
+	if (strncmp(uri, "lwip", 4) == 0)
+		return transport_lwip_create(node);
+#endif
+
+	log_error("No transport for '%s'", uri);
+
+	return NULL;
 }

@@ -14,7 +14,7 @@ class Sys(object):
     def use_requirement(self, actor, modulename):
         if self.require(modulename):
             raise self.modules[modulename]['error']
-        return self.modules[modulename]['module'].register()
+        return self.modules[modulename]['module'].register(actor)
 
     def require(self, modulename):
         if not self.modules.get(modulename, None):

@@ -26,37 +26,50 @@
 
 int main(int argc, char **argv)
 {
-	char *uri = NULL, *name = NULL;
+	char *name = NULL, *proxy_uris = NULL;
+	node_t node = {};
 #ifdef PARSE_ARGS
 	int c = 0;
 	static struct option long_options[] = {
 		{"name", required_argument, NULL, 'n'},
-		{"uri", required_argument, NULL, 'u'},
+		{"proxy_uris", required_argument, NULL, 'p'},
 		{NULL, 0, NULL, 0}
 	};
+#endif
 
-	while ((c = getopt_long(argc, argv, "n:u:", long_options, NULL)) != -1) {
+	platform_init(&node);
+
+#ifdef PARSE_ARGS
+	while ((c = getopt_long(argc, argv, "n:p:", long_options, NULL)) != -1) {
 		switch (c) {
 		case 'n':
 			name = optarg;
 			break;
-		case 'u':
-			uri = optarg;
+		case 'p':
+			proxy_uris = optarg;
 			break;
 		default:
 			break;
 		}
 	}
-#endif
 
-	platform_init();
+	if (name == NULL) {
+		log_error("Missing argument 'name'");
+		return EXIT_FAILURE;
+	}
+
+	if (proxy_uris == NULL) {
+		log_error("Missing argument 'proxy_uris'");
+		return EXIT_FAILURE;
+	}
+#endif
 
 #ifdef MICROPYTHON
 	if (!mpy_port_init(MICROPYTHON_HEAP_SIZE))
 		return EXIT_FAILURE;
 #endif
 
-	node_run(name, uri);
+	node_run(&node, name, proxy_uris);
 
 	return EXIT_SUCCESS;
 }

@@ -30,7 +30,7 @@ fi
 # build and start calvin-constrained
 make -f platform/x86/Makefile
 
-./calvin_c -n constrained -u calvinip://127.0.0.1:5000 2> cc_stderr.log &
+./calvin_c -n constrained -p "calvinip://127.0.0.1:5000" 2> cc_stderr.log &
 CONSTRAINED_RT_PID=$!
 
 # run test

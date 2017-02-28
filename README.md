@@ -36,13 +36,15 @@ Start a calvin-base runtime:
 
     csruntime -n 127.0.0.1 --name constrained_proxy
 
-Start calvin-constrained using service discovery to find a calvin-base runtime:
+Start calvin-constrained specifying a name and a proxy uri:
 
-    ./calvin_c -n calvin-klein
+    ./calvin_c -n constrained -p "calvinip://127.0.0.1:5000"
 
-Or start calvin-constrained specifying the uri to connect to:
+The uri can be a whitespace separated list of uris to be used when finding a calvin-base runtime to be used as a proxy. Passing "ssdp" as a uri or part of a list of uris will trigger a discovery using ssdp to find a calvin-base runtime. Example:
 
-    ./calvin_c -n constrained -u calvinip://127.0.0.1:5000
+    ./calvin_c -n constrained -p "calvinip://127.0.0.1:5000 ssdp"
+
+The discovery will be triggered if a connection can't be made to calvinip://127.0.0.1:5000".
 
 Verify that the connection is made by:
 

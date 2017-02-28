@@ -23,7 +23,8 @@
 #include "transport.h"
 #include "platform.h"
 #include "node.h"
-#include "transport_common.h"
+#include "transport.h"
+#include "transport_socket.h"
 
 #define BUFFER_SIZE					512
 #define LOCATION_SIZE       100
@@ -35,7 +36,7 @@
 #define SSDP_PORT           1900
 #define SERVICE_UUID        "1693326a-abb9-11e4-8dfb-9cb654a16426"
 
-static result_t transport_discover_location(const char *interface, char *location)
+static result_t transport_socket_discover_location(char *location)
 {
 	int sock;
 	size_t ret;
@@ -66,9 +67,9 @@ static result_t transport_discover_location(const char *interface, char *locatio
 	memset((char *)&sockname, 0, sizeof(struct sockaddr_in));
 	sockname.sin_family = AF_INET;
 	sockname.sin_port = htons(SSDP_PORT);
-	sockname.sin_addr.s_addr = inet_addr(interface);
+	sockname.sin_addr.s_addr = inet_addr(SSDP_MULTICAST);
 
-	log("Sending ssdp request, iface '%s' port '%d'", interface, SSDP_PORT);
+	log("Sending ssdp request");
 
 	ret = sendto(sock, buffer, strlen(buffer), 0, (struct sockaddr *) &sockname, sizeof(struct sockaddr_in));
 	if (ret != strlen(buffer)) {
@@ -119,7 +120,7 @@ static result_t transport_discover_location(const char *interface, char *locatio
 	return FAIL;
 }
 
-static result_t transport_get_ip_uri(const char *address, int port, const char *url, char *uri)
+static result_t transport_socket_get_ip_uri(const char *address, int port, const char *url, char *uri)
 {
 	struct sockaddr_in server;
 	int fd, len;
@@ -182,101 +183,30 @@ static result_t transport_get_ip_uri(const char *address, int port, const char *
 	return SUCCESS;
 }
 
-static result_t transport_discover_proxy(const char *iface, char *uri)
+static result_t transport_socket_discover_proxy(char *uri)
 {
 	int control_port;
 	char location[LOCATION_SIZE];
 	char address[ADDRESS_SIZE];
 	char url[URL_SIZE];
 
-	if (transport_discover_location(iface, location) == SUCCESS) {
+	if (transport_socket_discover_location(location) == SUCCESS) {
 		if (sscanf(location, "http://%99[^:]:%99d/%99[^\n]", address, &control_port, url) != 3) {
 			log_error("Failed to parse discovery response");
 			return FAIL;
 		}
 
-		return transport_get_ip_uri(address, control_port, url, uri);
+		return transport_socket_get_ip_uri(address, control_port, url, uri);
 	}
 
 	return FAIL;
 }
 
-transport_client_t *transport_create(node_t *node, char *uri)
-{
-	transport_client_t *transport_client = NULL;
-
-	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) != SUCCESS) {
-		log_error("Failed to allocate memory");
-		return NULL;
-	}
-
-	memset(transport_client, 0, sizeof(transport_client_t));
-
-	if (uri != NULL) {
-		strncpy(transport_client->uri, uri, strlen(uri));
-		transport_client->do_discover = false;
-	} else
-		transport_client->do_discover = true;
-	transport_client->fd = 0;
-	transport_client->has_pending_tx = false;
-	transport_client->state = TRANSPORT_DISCONNECTED;
-	transport_client->rx_buffer.buffer = NULL;
-	transport_client->rx_buffer.pos = 0;
-	transport_client->rx_buffer.size = 0;
-	transport_client->tx_buffer.buffer = NULL;
-	transport_client->tx_buffer.pos = 0;
-	transport_client->tx_buffer.size = 0;
-
-	return transport_client;
-}
-
-result_t transport_connect(transport_client_t *transport_client)
-{
-	struct sockaddr_in server;
-	char ip[40];
-	int port = 0;
-
-	if (transport_client->do_discover) {
-		if (transport_discover_proxy("0.0.0.0", transport_client->uri) != SUCCESS) {
-			log_error("Discovery failed");
-			return FAIL;
-		}
-	}
-
-	if (sscanf(transport_client->uri, "calvinip://%99[^:]:%99d", ip, &port) != 2) {
-		log_error("Failed to parse uri '%s'", transport_client->uri);
-		return FAIL;
-	}
-
-	transport_client->fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (transport_client->fd < 0) {
-		log_error("Failed to create socket");
-		return FAIL;
-	}
-
-	server.sin_addr.s_addr = inet_addr(ip);
-	server.sin_family = AF_INET;
-	server.sin_port = htons(port);
-
-	if (connect(transport_client->fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
-		log_error("Failed to connect socket");
-		return FAIL;
-	}
-
-	transport_client->state = TRANSPORT_DO_JOIN;
-
-	sprintf(transport_client->uri, "calvinip://%s:%d", ip, port);
-
-	log("Connected to '%s:%d'", ip, port);
-
-	return SUCCESS;
-}
-
-result_t transport_send(transport_client_t *transport_client, size_t size)
+static result_t transport_socket_send_tx_buffer(transport_client_t *transport_client, size_t size)
 {
 	transport_append_buffer_prefix(transport_client->tx_buffer.buffer, size);
 
-	if (send(transport_client->fd, transport_client->tx_buffer.buffer, size + 4, 0) < 0) {
+	if (send(((transport_socket_client_t *)transport_client->client_state)->fd, transport_client->tx_buffer.buffer, size + 4, 0) < 0) {
 		log_error("Failed to send data");
 		return FAIL;
 	}
@@ -286,8 +216,88 @@ result_t transport_send(transport_client_t *transport_client, size_t size)
 	return SUCCESS;
 }
 
-void transport_disconnect(transport_client_t *transport_client)
+static void transport_socket_disconnect(transport_client_t *transport_client)
 {
-	close(transport_client->fd);
-	transport_client->state = TRANSPORT_DISCONNECTED;
+	if (transport_client->state != TRANSPORT_DISCONNECTED) {
+		close(((transport_socket_client_t *)transport_client)->fd);
+		transport_client->state = TRANSPORT_DISCONNECTED;
+	}
+}
+
+static void transport_socket_free(transport_client_t *transport_client)
+{
+	if (transport_client->client_state != NULL)
+		platform_mem_free((void *)transport_client->client_state);
+	platform_mem_free((void *)transport_client);
+}
+
+static result_t transport_socket_connect(node_t *node, transport_client_t *transport_client)
+{
+	transport_socket_client_t *transport_socket = (transport_socket_client_t *)transport_client->client_state;
+	struct sockaddr_in server;
+
+	transport_socket->fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (transport_socket->fd < 0) {
+		log_error("Failed to create socket");
+		return FAIL;
+	}
+
+	server.sin_addr.s_addr = inet_addr(transport_socket->ip);
+	server.sin_port = htons(transport_socket->port);
+	server.sin_family = AF_INET;
+
+	if (connect(transport_socket->fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
+		log_error("Failed to connect socket");
+		return FAIL;
+	}
+
+	transport_join(node, transport_client);
+
+	return SUCCESS;
+}
+
+transport_client_t *transport_socket_create(node_t *node, char *uri)
+{
+	char discovery_result[100];
+	transport_client_t *transport_client = NULL;
+	transport_socket_client_t *transport_socket = NULL;
+
+	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) == SUCCESS) {
+		transport_client->state = TRANSPORT_INTERFACE_UP;
+		transport_client->rx_buffer.buffer = NULL;
+		transport_client->rx_buffer.pos = 0;
+		transport_client->rx_buffer.size = 0;
+		transport_client->tx_buffer.buffer = NULL;
+		transport_client->tx_buffer.pos = 0;
+		transport_client->tx_buffer.size = 0;
+		transport_client->connect = transport_socket_connect;
+		transport_client->send_tx_buffer = transport_socket_send_tx_buffer;
+		transport_client->disconnect = transport_socket_disconnect;
+		transport_client->free = transport_socket_free;
+
+		if (platform_mem_alloc((void **)&transport_socket, sizeof(transport_socket_client_t)) == SUCCESS) {
+			transport_client->client_state = transport_socket;
+			if (strncmp(uri, "ssdp", 4) == 0) {
+				if (transport_socket_discover_proxy(discovery_result) == SUCCESS) {
+					log("Discovery response '%s'", discovery_result);
+					if (sscanf(discovery_result, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2)
+						return transport_client;
+					else
+						log_error("Failed to parse uri '%s'", discovery_result);
+				} else
+					log_error("Discovery failed");
+			} else {
+				if (sscanf(uri, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2)
+					return transport_client;
+				else
+					log_error("Failed to parse uri '%s'", uri);
+			}
+			platform_mem_free((void *)transport_socket);
+		} else
+			log_error("Failed to allocate memory");
+		platform_mem_free((void *)transport_client);
+	} else
+		log_error("Failed to allocate memory");
+
+	return NULL;
 }

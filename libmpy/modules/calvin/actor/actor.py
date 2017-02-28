@@ -147,7 +147,7 @@ class Actor(object):
         raise KeyError(attr)
 
     def use(self, requirement, shorthand):
-        self._using[shorthand] = self._calvinsys.use_requirement(self, requirement)
+        self._using[shorthand] = self._calvinsys.use_requirement(self.actor_ref, requirement)
 
     def fire(self):
         """

@@ -21,7 +21,7 @@
 #include "proto.h"
 #include "msgpack_helper.h"
 #include "msgpuck/msgpuck.h"
-#include "transport_common.h"
+#include "transport.h"
 
 #ifdef USE_PERSISTENT_STORAGE
 #define NODE_STATE_BUFFER_SIZE			10000
@@ -51,6 +51,7 @@ static void node_reset(node_t *node, bool remove_actors)
 		tunnel_free(node, (tunnel_t *)tmp_list->data);
 	}
 	node->tunnels = NULL;
+	node->storage_tunnel = NULL;
 
 	while (node->links != NULL) {
 		tmp_list = node->links;
@@ -58,6 +59,7 @@ static void node_reset(node_t *node, bool remove_actors)
 		link_free(node, (link_t *)tmp_list->data);
 	}
 	node->links = NULL;
+	node->proxy_link = NULL;
 
 	for (i = 0; i < MAX_PENDING_MSGS; i++) {
 		node->pending_msgs[i].handler = NULL;
@@ -88,10 +90,6 @@ static bool node_get_state(node_t *node)
 		if (result == SUCCESS)
 			strncpy(node->name, value, value_len);
 
-		result = decode_string_from_map(buffer, "uri", &value, &value_len);
-		if (result == SUCCESS)
-			strncpy(node->transport_client->uri, value, value_len);
-
 		if (result == SUCCESS) {
 			if (get_value_from_map(buffer, "links", &array_value) == SUCCESS) {
 				array_size = get_size_of_array(array_value);
@@ -101,10 +99,9 @@ static bool node_get_state(node_t *node)
 						if (link == NULL) {
 							result = FAIL;
 							break;
-						} else {
-							if (link->is_proxy)
-								node->proxy_link = link;
 						}
+						if (link->is_proxy)
+							node->proxy_link = link;
 					}
 				}
 			}
@@ -162,7 +159,6 @@ static void node_set_state(node_t *node)
 		tmp = encode_uint(&tmp, "state", node->state);
 		tmp = encode_str(&tmp, "id", node->id, strlen(node->id));
 		tmp = encode_str(&tmp, "name", node->name, strlen(node->name));
-		tmp = encode_str(&tmp, "uri", node->transport_client->uri, strlen(node->transport_client->uri));
 
 		nbr_of_items = list_count(node->links);
 		tmp = encode_array(&tmp, "links", nbr_of_items);
@@ -275,7 +271,7 @@ static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_dat
 	if (get_value_from_map(data, "value", &value) == SUCCESS) {
 		if (decode_uint_from_map(value, "status", &status) == SUCCESS) {
 			if (status == 200) {
-				log("Node started");
+				log("Node started with proxy '%s'", node->transport_client->peer_id);
 				node->state = NODE_STARTED;
 				return SUCCESS;
 			}
@@ -315,25 +311,16 @@ void node_handle_message(node_t *node, char *buffer, size_t len)
 	if (proto_parse_message(node, buffer) == SUCCESS) {
 #ifdef USE_PERSISTENT_STORAGE
 		// message successfully handled == state changed -> serialize the node
-		node_set_state(node);
+		if (node->state == NODE_STARTED)
+			node_set_state(node);
 #endif
 	} else
 		log_error("Failed to parse message");
 }
 
-static result_t node_create(node_t *node, char *name, char *uri)
+static result_t node_create(node_t *node, char *name)
 {
 	bool created = false;
-
-	memset(node, 0, sizeof(node_t));
-	if (platform_create_calvinsys(node) != SUCCESS) {
-		log("Failed to create calvinsys");
-		return FAIL;
-	}
-
-	node->transport_client = transport_create(node, uri);
-	if (node->transport_client == NULL)
-		return FAIL;
 
 	#ifdef USE_PERSISTENT_STORAGE
 		created = node_get_state(node);
@@ -359,53 +346,28 @@ static result_t node_create(node_t *node, char *name, char *uri)
 
 static bool node_loop_once(node_t *node)
 {
-	bool did_fire = false;
+	bool fired = false;
 	list_t *tmp_list = NULL;
 	actor_t *actor = NULL;
 
-	if (node->state == NODE_STARTED) {
-		tmp_list = node->actors;
-		while (tmp_list != NULL) {
-			actor = (actor_t *)tmp_list->data;
-			if (actor->state == ACTOR_ENABLED) {
-				if (actor->fire(actor)) {
-					log("Fired '%s'", actor->name);
-					did_fire = true;
-				}
+	tmp_list = node->actors;
+	while (tmp_list != NULL) {
+		actor = (actor_t *)tmp_list->data;
+		if (actor->state == ACTOR_ENABLED) {
+			if (actor->fire(actor)) {
+				log("Fired '%s'", actor->name);
+				fired = true;
 			}
-			tmp_list = tmp_list->next;
 		}
+		tmp_list = tmp_list->next;
 	}
 
-	return did_fire;
-}
-
-void node_transport_joined(node_t *node, transport_client_t *transport_client, char *peer_id, uint32_t peer_id_len)
-{
-	log("node joined");
-	if (node->proxy_link != NULL && strncmp(node->proxy_link->peer_id, peer_id, peer_id_len) != 0)
-		node_reset(node, false); // new proxy, clear links, tunnels and disconnect ports
-
-	node->proxy_link = link_create(node, peer_id, peer_id_len, LINK_ENABLED, true);
-	if (node->proxy_link == NULL)
-		return;
-
-	node->storage_tunnel = tunnel_create(node, TUNNEL_TYPE_STORAGE, TUNNEL_DO_CONNECT, peer_id, peer_id_len, NULL, 0);
-	if (node->storage_tunnel == NULL)
-		return;
-
-	link_add_ref(node->proxy_link);
-	tunnel_add_ref(node->storage_tunnel);
-
-	node->state = NODE_DO_START;
+	return fired;
 }
 
 static void node_transmit(node_t *node)
 {
 	list_t *tmp_list = NULL;
-
-	if (node->transport_client->has_pending_tx)
-		return;
 
 	switch (node->state) {
 	case NODE_DO_START:
@@ -414,19 +376,19 @@ static void node_transmit(node_t *node)
 		break;
 	case NODE_STARTED:
 		tmp_list = node->links;
-		while (tmp_list != NULL && !node->transport_client->has_pending_tx) {
+		while (tmp_list != NULL) {
 			link_transmit(node, (link_t *)tmp_list->data);
 			tmp_list = tmp_list->next;
 		}
 
 		tmp_list = node->tunnels;
-		while (tmp_list != NULL && !node->transport_client->has_pending_tx) {
+		while (tmp_list != NULL) {
 			tunnel_transmit(node, (tunnel_t *)tmp_list->data);
 			tmp_list = tmp_list->next;
 		}
 
 		tmp_list = node->actors;
-		while (tmp_list != NULL && !node->transport_client->has_pending_tx) {
+		while (tmp_list != NULL) {
 			actor_transmit(node, (actor_t *)tmp_list->data);
 			tmp_list = tmp_list->next;
 		}
@@ -437,40 +399,106 @@ static void node_transmit(node_t *node)
 	}
 }
 
-void node_run(char *name, char *uri)
+static result_t node_connect_to_proxy(node_t *node, char *uri)
 {
-	node_t node;
-	struct timeval reconnect_timeout, *timeout = NULL;
+	char *peer_id = NULL;
+	size_t peer_id_len = 0;
 
-	reconnect_timeout.tv_sec = 20;
-	reconnect_timeout.tv_usec = 0;
+	node->transport_client = transport_create(node, uri);
+	if (node->transport_client == NULL)
+		return FAIL;
 
-	if (node_create(&node, name, uri) != SUCCESS) {
+	while (node->transport_client->state == TRANSPORT_INTERFACE_DOWN)
+		platform_evt_wait(node, NULL);
+
+	if (node->transport_client->connect(node, node->transport_client) != SUCCESS)
+		return FAIL;
+
+	while (node->transport_client->state == TRANSPORT_PENDING)
+		platform_evt_wait(node, NULL);
+
+	if (node->transport_client->state != TRANSPORT_ENABLED) {
+		log_error("Failed to enable transport '%s'", uri);
+		return FAIL;
+	}
+
+	peer_id = node->transport_client->peer_id;
+	peer_id_len = strlen(peer_id);
+
+	if (node->proxy_link != NULL && strncmp(node->proxy_link->peer_id, peer_id, peer_id_len) != 0)
+		node_reset(node, false);
+
+	if (node->proxy_link == NULL) {
+		node->proxy_link = link_create(node, peer_id, peer_id_len, LINK_ENABLED, true);
+		if (node->proxy_link == NULL) {
+			log_error("Failed to create proxy link");
+			return FAIL;
+		}
+	}
+
+	if (node->storage_tunnel == NULL) {
+		node->storage_tunnel = tunnel_create(node, TUNNEL_TYPE_STORAGE, TUNNEL_DO_CONNECT, peer_id, peer_id_len, NULL, 0);
+		if (node->storage_tunnel == NULL) {
+			log_error("Failed to create storage tunnel");
+			return FAIL;
+		}
+		tunnel_add_ref(node->storage_tunnel);
+	}
+
+	return SUCCESS;
+}
+
+void node_run(node_t *node, char *name, char *proxy_uris)
+{
+	int i = 0;
+	struct timeval reconnect_timeout;
+	char *uri = NULL;
+
+	if (platform_create_calvinsys(node) != SUCCESS) {
+		log_error("Failed to create calvinsys");
+		return;
+	}
+
+	if (node_create(node, name) != SUCCESS) {
 		log_error("Failed to create node");
 		return;
 	}
 
-	while (node.state != NODE_STOP) {
-		timeout = NULL;
-		switch (node.transport_client->state) {
-		case TRANSPORT_DISCONNECTED:
-			if (transport_connect(node.transport_client) == SUCCESS)
-				continue;
-			else
-				timeout = &reconnect_timeout;
-			break;
-		case TRANSPORT_DO_JOIN:
-			transport_join(&node, node.transport_client);
-			break;
-		case TRANSPORT_ENABLED:
-			node_loop_once(&node);
-			node_transmit(&node);
-			break;
-		default:
-			break;
+	if (proxy_uris != NULL) {
+		uri = strtok(proxy_uris, " ");
+		while (uri != NULL && i < MAX_URIS) {
+			node->proxy_uris[i] = uri;
+			uri = strtok(NULL, " ");
+			i++;
 		}
-		platform_evt_wait(&node, timeout);
 	}
 
-	transport_disconnect(node.transport_client);
+	while (true) {
+		for (i = 0; i < MAX_URIS; i++) {
+			if (node->proxy_uris[i] != NULL) {
+				log("Connecting to '%s'", node->proxy_uris[i]);
+				node->state = NODE_DO_START;
+				if (node_connect_to_proxy(node, node->proxy_uris[i]) == SUCCESS) {
+					log("Connected to '%s'", node->proxy_uris[i]);
+					while (node->transport_client->state == TRANSPORT_ENABLED) {
+						if (node->state == NODE_STARTED)
+							node_loop_once(node);
+						node_transmit(node);
+						platform_evt_wait(node, NULL);
+					}
+					log("Disconnected from '%s'", node->proxy_uris[i]);
+				}
+
+				if (node->transport_client != NULL) {
+					node->transport_client->disconnect(node->transport_client);
+					node->transport_client->free(node->transport_client);
+					node->transport_client = NULL;
+				}
+			}
+		}
+
+		reconnect_timeout.tv_sec = 5;
+		reconnect_timeout.tv_usec = 0;
+		platform_evt_wait(node, &reconnect_timeout);
+	}
 }

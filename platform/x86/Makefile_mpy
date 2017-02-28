@@ -14,6 +14,7 @@ ifneq ($(PLATFORM), Darwin)
 CFLAGS += -lrt
 endif
 CFLAGS += -lrt  -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -I.. -DMICROPYTHON -DMICROPYTHON_HEAP_SIZE=20*1024
+CFLAGS += -DUSE_PERSISTENT_STORAGE -DTRANSPORT_SOCKET
 EXT_SRC_C = $(addprefix libmpy/, calvin_mpy_port.c calvin_mpy_gpiohandler.c calvin_mpy_environmental.c)
 
 C_SOURCE_FILES += \
@@ -22,7 +23,7 @@ main.c \
 common.c \
 node.c \
 proto.c \
-transport_common.c \
+transport.c \
 transport_socket.c \
 tunnel.c \
 link.c \

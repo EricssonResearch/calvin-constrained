@@ -25,11 +25,12 @@
 #include "link.h"
 #include "platform.h"
 
+#define MAX_URIS 5
+
 typedef enum {
 	NODE_DO_START,
 	NODE_PENDING,
-	NODE_STARTED,
-	NODE_STOP
+	NODE_STARTED
 } node_state_t;
 
 typedef struct pending_msg_t {
@@ -50,6 +51,7 @@ typedef struct node_t {
 	list_t *actors;
 	transport_client_t *transport_client;
 	list_t *calvinsys;
+	char *proxy_uris[MAX_URIS];
 } node_t;
 
 result_t node_add_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_len, result_t (*handler)(node_t *node, char *data, void *msg_data), void *msg_data);
@@ -59,7 +61,6 @@ bool node_can_add_pending_msg(const node_t *node);
 result_t node_handle_token(port_t *port, const char *data, const size_t size, uint32_t sequencenbr);
 void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr);
 void node_handle_message(node_t *node, char *buffer, size_t len);
-void node_transport_joined(node_t *node, transport_client_t *transport_client, char *peer_id, uint32_t peer_id_len);
-void node_run(char *name, char *uri);
+void node_run(node_t *node, char *name, char *proxy_uris);
 
 #endif /* NODE_H */
