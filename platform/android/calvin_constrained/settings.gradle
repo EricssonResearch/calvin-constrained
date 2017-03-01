@@ -1,0 +1,3 @@
+include ':app'
+include ':calvin_constrained'
+project(':calvin_constrained').projectDir = new File(settingsDir, '../../../')

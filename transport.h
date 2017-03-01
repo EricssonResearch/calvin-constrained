@@ -21,6 +21,12 @@
 #include <stdbool.h>
 #include "common.h"
 
+#ifdef PLATFORM_ANDROID
+#define BUFFER_SIZE					4096
+#else
+#define BUFFER_SIZE					512
+#endif
+
 struct node_t;
 
 typedef enum {
@@ -38,6 +44,11 @@ typedef struct transport_buffer_t {
 } transport_buffer_t;
 
 typedef struct transport_client_t {
+#ifdef PLATFORM_ANDROID
+	int upstream_fd[2]; // read end [0], write end [1]
+	int downstream_fd[2];
+#endif
+    char uri[100];
 	char peer_id[UUID_BUFFER_SIZE];
 	transport_state_t state;
 	transport_buffer_t rx_buffer;
@@ -52,8 +63,11 @@ typedef struct transport_client_t {
 transport_client_t *transport_create(struct node_t *node, char *uri);
 void transport_handle_data(struct node_t *node, transport_client_t *transport_client, char *buffer, size_t size);
 result_t transport_create_tx_buffer(transport_client_t *transport_client, size_t size);
+result_t transport_create_rx_buffer(transport_client_t *transport_client, size_t size);
 void transport_free_tx_buffer(transport_client_t *transport_client);
+void transport_free_rx_buffer(transport_client_t *transport_client);
 void transport_append_buffer_prefix(char *buffer, size_t size);
 void transport_join(struct node_t *node, transport_client_t *transport_client);
+unsigned int get_message_len(const char *buffer);
 
 #endif /* TRANSPORT_H */

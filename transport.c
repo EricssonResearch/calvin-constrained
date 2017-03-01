@@ -24,10 +24,13 @@
 #ifdef TRANSPORT_LWIP
 #include "transport_lwip.h"
 #endif
+#ifdef PLATFORM_ANDROID
+#include "transport_fcm.h"
+#endif
 
 #define SERIALIZER "msgpack"
 
-static unsigned int get_message_len(const char *buffer)
+unsigned int get_message_len(const char *buffer)
 {
 	unsigned int value =
 		((buffer[3] & 0xFF) <<  0) |
@@ -126,12 +129,35 @@ result_t transport_create_tx_buffer(transport_client_t *transport_client, size_t
 	return SUCCESS;
 }
 
+result_t transport_create_rx_buffer(transport_client_t *transport_client, size_t size)
+{
+	if (transport_client->rx_buffer.buffer != NULL)
+		return PENDING;
+
+	if (platform_mem_alloc((void **)&transport_client->rx_buffer.buffer, size) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	transport_client->rx_buffer.pos = 0;
+	transport_client->rx_buffer.size = 0;
+	return SUCCESS;
+}
+
 void transport_free_tx_buffer(transport_client_t *transport_client)
 {
 	platform_mem_free((void *)transport_client->tx_buffer.buffer);
 	transport_client->tx_buffer.pos = 0;
 	transport_client->tx_buffer.size = 0;
 	transport_client->tx_buffer.buffer = NULL;
+}
+
+void transport_free_rx_buffer(transport_client_t *transport_client)
+{
+	platform_mem_free((void *)transport_client->rx_buffer.buffer);
+	transport_client->rx_buffer.pos = 0;
+	transport_client->rx_buffer.size = 0;
+	transport_client->rx_buffer.buffer = NULL;
 }
 
 void transport_append_buffer_prefix(char *buffer, size_t size)
@@ -160,6 +186,10 @@ transport_client_t *transport_create(node_t *node, char *uri)
 #ifdef TRANSPORT_LWIP
 	if (strncmp(uri, "lwip", 4) == 0)
 		return transport_lwip_create(node);
+#endif
+#ifdef PLATFORM_ANDROID
+	if (strncmp(uri, "calvinfcm://", 12) == 0)
+		return transport_fcm_create(node, uri);
 #endif
 
 	log_error("No transport for '%s'", uri);

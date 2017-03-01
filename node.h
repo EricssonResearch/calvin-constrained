@@ -30,7 +30,8 @@
 typedef enum {
 	NODE_DO_START,
 	NODE_PENDING,
-	NODE_STARTED
+	NODE_STARTED,
+	NODE_STOP
 } node_state_t;
 
 typedef struct pending_msg_t {
@@ -44,6 +45,7 @@ typedef struct node_t {
 	char id[UUID_BUFFER_SIZE];
 	char name[50];
 	pending_msg_t pending_msgs[MAX_PENDING_MSGS];
+	platform_t* platform;
 	link_t *proxy_link;
 	list_t *links;
 	tunnel_t *storage_tunnel;
@@ -62,5 +64,8 @@ result_t node_handle_token(port_t *port, const char *data, const size_t size, ui
 void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr);
 void node_handle_message(node_t *node, char *buffer, size_t len);
 void node_run(node_t *node, char *name, char *proxy_uris);
-
+result_t node_create(node_t *node, char *name);
+result_t node_init(node_t* node);
+node_t* get_node();
+void set_node(node_t* node);
 #endif /* NODE_H */

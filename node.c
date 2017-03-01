@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "node.h"
 #include "platform.h"
 #include "proto.h"
@@ -26,6 +27,8 @@
 #ifdef USE_PERSISTENT_STORAGE
 #define NODE_STATE_BUFFER_SIZE			10000
 #endif
+
+node_t* m_node;
 
 static void node_reset(node_t *node, bool remove_actors)
 {
@@ -308,6 +311,7 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 
 void node_handle_message(node_t *node, char *buffer, size_t len)
 {
+	log("node handle message");
 	if (proto_parse_message(node, buffer) == SUCCESS) {
 #ifdef USE_PERSISTENT_STORAGE
 		// message successfully handled == state changed -> serialize the node
@@ -318,7 +322,7 @@ void node_handle_message(node_t *node, char *buffer, size_t len)
 		log_error("Failed to parse message");
 }
 
-static result_t node_create(node_t *node, char *name)
+result_t node_create(node_t *node, char *name)
 {
 	bool created = false;
 
@@ -341,6 +345,7 @@ static result_t node_create(node_t *node, char *name)
 		log("Node created, id '%s' name '%s'", node->id, node->name);
 	}
 
+	m_node = node;
 	return SUCCESS;
 }
 
@@ -404,7 +409,11 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	char *peer_id = NULL;
 	size_t peer_id_len = 0;
 
-	node->transport_client = transport_create(node, uri);
+	if (node->transport_client == NULL)
+		node->transport_client = transport_create(node, uri);
+	else
+		log("TC was not null, using existing TC");
+
 	if (node->transport_client == NULL)
 		return FAIL;
 
@@ -448,21 +457,28 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	return SUCCESS;
 }
 
+node_t* get_node()
+{
+	return m_node;
+}
+
+void set_node(node_t* node) {
+	m_node = node;
+}
+
+result_t node_init(node_t* node)
+{
+	platform_create(node);
+
+	log("Node init");
+	return SUCCESS;
+}
+
 void node_run(node_t *node, char *name, char *proxy_uris)
 {
 	int i = 0;
 	struct timeval reconnect_timeout;
 	char *uri = NULL;
-
-	if (platform_create_calvinsys(node) != SUCCESS) {
-		log_error("Failed to create calvinsys");
-		return;
-	}
-
-	if (node_create(node, name) != SUCCESS) {
-		log_error("Failed to create node");
-		return;
-	}
 
 	if (proxy_uris != NULL) {
 		uri = strtok(proxy_uris, " ");
@@ -473,6 +489,7 @@ void node_run(node_t *node, char *name, char *proxy_uris)
 		}
 	}
 
+	// while (node->state != NODE_STOP) {
 	while (true) {
 		for (i = 0; i < MAX_URIS; i++) {
 			if (node->proxy_uris[i] != NULL) {
