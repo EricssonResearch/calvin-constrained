@@ -1,0 +1,9 @@
+ANDROID_CROSS_COMPILE = /tmp/my-android-toolchain/bin/
+ANDROID_AS = $(ANDROID_CROSS_COMPILE)llvm-as
+ANDROID_CC = $(ANDROID_CROSS_COMPILE)arm-linux-androideabi-gcc-4.9
+ANDROID_CXX = $(ANDROID_CROSS_COMPILE)clang++
+ANDROID_LD = $(ANDROID_CROSS_COMPILE)arm-linux-androideabi-ld
+ANDROID_OBJCOPY = $(ANDROID_CROSS_COMPILE)arm-linux-androideabi-objcopy
+ANDROID_SIZE = $(ANDROID_CROSS_COMPILE)arm-linux-androideabi-size
+ANDROID_STRIP = $(ANDROID_CROSS_COMPILE)arm-linux-androideabi-strip
+ANDROID_AR = $(ANDROID_CROSS_COMPILE)arm-linux-androideabi-ar

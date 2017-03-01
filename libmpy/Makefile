@@ -34,7 +34,7 @@ FROZEN_MPY_DIR = libmpy/modules
 EXT_SRC_C = calvin_mpy_port.c calvin_mpy_gpiohandler.c calvin_mpy_environmental.c
 
 # The -DMICROPYTHON enables the MICROPYTHON directive in the program
-CFLAGS = -std=c99 -I$(MPY_CONF_FOLDER) -I$(MP_TOP) -DMICROPYTHON -Os -DNDEBUG
+CFLAGS = -std=c99 -fpic -fPIC -fpie -I$(MPY_CONF_FOLDER) -I$(MP_TOP) -DMICROPYTHON -Os -DNDEBUG
 
 # Library location and library filename (to be passed on to the application)
 LDFLAGS = -L$(MPY_CONF_FOLDER) -lmicropython -lm
@@ -42,6 +42,10 @@ LDFLAGS = -L$(MPY_CONF_FOLDER) -lmicropython -lm
 lib:
 	@echo "Making micropython library for x86"
 	$(MAKE) -f Makefile.upylib MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
+
+android:
+	@echo "Making micropython library for android"
+	$(MAKE) -f Makefile.upylib.android MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
 
 libarm:
 	@echo "Making micropython library for ARM"

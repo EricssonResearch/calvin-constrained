@@ -1,0 +1,66 @@
+CC = gcc
+PROJECT_NAME = calvin_c_mpy
+
+#define the location where the micropython library is located (relative to here)
+MP_LIB_DIR = libmpy
+
+CFLAGS += -g -Wall
+#CFLAGS += -Werror
+CFLAGS += --std=gnu99
+#CFLAGS += -DDEBUG
+CFLAGS += -DPARSE_ARGS
+CFLAGS += -fPIE -pie -fPIC -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -I.. -DMICROPYTHON -DMICROPYTHON_HEAP_SIZE=20*1024
+EXT_SRC_C = $(addprefix libmpy/, calvin_mpy_port.c calvin_mpy_gpiohandler.c calvin_mpy_environmental.c)
+
+C_SOURCE_FILES += \
+platform/android/platform_android.c \
+main.c \
+common.c \
+node.c \
+proto.c \
+transport_socket.c \
+transport_fcm.c transport_fcm.c \
+transport.c \
+tunnel.c \
+link.c \
+actor.c \
+port.c \
+fifo.c \
+token.c \
+msgpack_helper.c \
+msgpuck/msgpuck.c \
+actors/actor_identity.c \
+actors/actor_gpioreader.c \
+actors/actor_gpiowriter.c \
+actors/actor_temperature.c \
+actors/actor_mpy.c \
+$(EXT_SRC_C)
+
+#include platform/android/android_compiler
+c_calvin : CROSS_COMPILE = $(ANDROID_CROSS_COMPILE)
+c_calvin : AS = $(ANDROID_AS)
+c_calvin : CC = $(ANDROID_CC)
+c_calvin : CXX = $(ANDROID_CXX)
+c_calvin : LD = $(ANDROID_LD)
+c_calvin : OBJCOPY = $(ANDROID_OBJCOPY)
+c_calvin : SIZE = $(ANDROID_SIZE)
+c_calvin : STRIP = $(ANDROID_STRIP)
+c_calvin : AR = $(ANDROID_AR)
+c_calvin : PLATFORM = $(ANDROID_PLATFORM)
+
+c_calvin: mpy-cross -lmicropython $(C_SOURCE_FILES)
+	#@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h
+	@echo "ok"
+	#@$(CC) -o "$(PROJECT_NAME)_$(PLATFORM)" $(C_SOURCE_FILES) $(CFLAGS)
+
+mpy-cross:
+	@echo "Building the MicroPython cross compiler"
+	$(MAKE) -C micropython/mpy-cross
+
+-lmicropython:
+	$(MAKE) android -C $(MP_LIB_DIR)
+
+clean:
+	$(MAKE) clean -C $(MP_LIB_DIR)
+	#$(MAKE) clean -C micropython/mpy-cross
+	rm -f $(PROJECT_NAME)
