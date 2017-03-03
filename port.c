@@ -44,14 +44,15 @@ static result_t port_remove_reply_handler(node_t *node, char *data, void *msg_da
 
 	if (get_value_from_map(data, "value", &value) == SUCCESS) {
 		if (decode_bool_from_map(value, "value", &status) == SUCCESS) {
-			if (status == true)
-				port->state = PORT_DELETED;
+			if (status == true) {
+				port_set_state(port, PORT_DELETED);
 				return SUCCESS;
+			}
 		}
 	}
 
 	log_error("Failed to delete port '%s' from registry", port->id);
-	port->state = PORT_DO_DELETE;
+	port_set_state(port, PORT_DO_DELETE);
 
 	return FAIL;
 }
@@ -131,14 +132,14 @@ static result_t port_connect_reply_handler(node_t *node, char *data, void *msg_d
 		if (decode_uint_from_map(value, "status", &status) == SUCCESS) {
 			if (status == 200) {
 				log("Port '%s' connected to remote port '%s'", port->id, port->peer_port_id);
-				port->state = PORT_DO_ENABLE;
+				port_set_state(port, PORT_DO_ENABLE);
 				return SUCCESS;
 			}
 		}
 	}
 
-	log_error("Failed to connect port '%s'", port->id);
-	port->state = PORT_DO_PEER_LOOKUP;
+	log_debug("Failed to connect port '%s'", port->id);
+	port_set_state(port, PORT_DO_PEER_LOOKUP);
 
 	return FAIL;
 }
@@ -155,26 +156,22 @@ static result_t port_store_reply_handler(node_t *node, char *data, void *msg_dat
 		return FAIL;
 	}
 
-	if (port->state != PORT_PENDING_ENABLE) {
-		log_error("Port '%s' in unexpected state %d", port->id, port->state);
-		return FAIL;
-	}
-
-	if (get_value_from_map(data, "value", &value) == SUCCESS) {
-		if (decode_bool_from_map(value, "value", &status) == SUCCESS) {
-			if (status == true) {
-				log("Port '%s' enabled", port->id);
-				port->state = PORT_ENABLED;
-				actor_port_enabled(port->actor);
-				return SUCCESS;
+	if (port->state == PORT_PENDING_ENABLE) {
+		if (get_value_from_map(data, "value", &value) == SUCCESS) {
+			if (decode_bool_from_map(value, "value", &status) == SUCCESS) {
+				if (status == true) {
+					log("Port '%s' enabled", port->id);
+					port_set_state(port, PORT_ENABLED);
+					actor_port_enabled(port->actor);
+					return SUCCESS;
+				}
 			}
 		}
+		log_error("Failed to store port '%s'", port->name);
+		port_set_state(port, PORT_DO_ENABLE);
 	}
 
-	log_error("Failed to store port '%s'", port->name);
-	port->state = PORT_DO_ENABLE;
-
-	return FAIL;
+	return SUCCESS;
 }
 
 static result_t port_disconnect_reply_handler(node_t *node, char *data, void *msg_data)
@@ -192,10 +189,16 @@ static result_t port_disconnect_reply_handler(node_t *node, char *data, void *ms
 		return FAIL;
 	}
 
-	port->state = PORT_DISCONNECTED;
+	port_set_state(port, PORT_DISCONNECTED);
 	log_debug("Port '%s' disconnected", port->name);
 
 	return SUCCESS;
+}
+
+void port_set_state(port_t *port, port_state_t state)
+{
+	log_debug("Port '%s' state '%d' -> '%d'", port->id, port->state, state);
+	port->state = state;
 }
 
 result_t add_pending_token_response(port_t *port, uint32_t sequencenbr, bool ack)
@@ -345,8 +348,6 @@ char *port_get_peer_id(const node_t *node, port_t *port)
 	if (port->tunnel != NULL)
 		return port->tunnel->link->peer_id;
 
-	log_error("Port '%s' has no peer", port->name);
-
 	return NULL;
 }
 
@@ -405,7 +406,7 @@ result_t port_handle_connect(node_t *node, const char *port_id, uint32_t port_id
 
 	if (port->tunnel != NULL) {
 		if (strncmp(port->tunnel->id, tunnel_id, tunnel_id_len) == 0) {
-			port->state = PORT_DO_ENABLE;
+			port_set_state(port, PORT_DO_ENABLE);
 			return SUCCESS;
 		}
 		tunnel_remove_ref(node, port->tunnel);
@@ -417,7 +418,7 @@ result_t port_handle_connect(node_t *node, const char *port_id, uint32_t port_id
 		return FAIL;
 	}
 
-	port->state = PORT_DO_ENABLE;
+	port_set_state(port, PORT_DO_ENABLE);
 	tunnel_add_ref(port->tunnel);
 
 	log("Port '%s' connected by remote port '%s'", port->name, port->peer_port_id);
@@ -435,7 +436,8 @@ result_t port_handle_disconnect(node_t *node, const char *port_id, uint32_t port
 		return FAIL;
 	}
 
-	port->state = PORT_DISCONNECTED;
+	port_set_state(port, PORT_DISCONNECTED);
+	actor_set_state(port->actor, ACTOR_PENDING);
 
 	if (port->tunnel != NULL) {
 		tunnel_remove_ref(node, port->tunnel);
@@ -468,10 +470,10 @@ result_t port_setup_connection(node_t *node, port_t *port, char *peer_id, uint32
 			peer_port->tunnel = NULL;
 		}
 		port->peer_port = peer_port;
-		port->state = PORT_DO_ENABLE;
+		port_set_state(port, PORT_DO_ENABLE);
 		port->tunnel = NULL;
 		peer_port->peer_port = port;
-		peer_port->state = PORT_DO_ENABLE;
+		port_set_state(peer_port, PORT_DO_ENABLE);
 		log("Port '%s' connected to local port '%s'", port->id, port->peer_port_id);
 		return SUCCESS;
 	}
@@ -486,12 +488,12 @@ result_t port_setup_connection(node_t *node, port_t *port, char *peer_id, uint32
 			}
 		}
 		tunnel_add_ref(port->tunnel);
-		port->state = PORT_DO_CONNECT;
+		port_set_state(port, PORT_DO_CONNECT);
 		return SUCCESS;
 	}
 
 	log("Port '%s' has no local peer and no peer_id, setting state 'PORT_DO_PEER_LOOKUP'", port->id);
-	port->state = PORT_DO_PEER_LOOKUP;
+	port_set_state(port, PORT_DO_PEER_LOOKUP);
 
 	return SUCCESS;
 }
@@ -506,16 +508,17 @@ void port_transmit(node_t *node, port_t *port)
 	case PORT_DO_CONNECT:
 		if (port->tunnel == NULL) {
 			log_error("Port '%s' in 'PORT_DO_CONNECT' without a tunnel", port->name);
-			port->state = PORT_DO_PEER_LOOKUP;
+			port_set_state(port, PORT_DO_PEER_LOOKUP);
 		} else {
 			if (port->tunnel->state == TUNNEL_ENABLED)
 				if (proto_send_port_connect(node, port, port_connect_reply_handler) == SUCCESS)
-					port->state = PORT_PENDING_CONNECT;
+					port_set_state(port, PORT_PENDING_CONNECT);
 		}
 		break;
 	case PORT_DO_ENABLE:
+		fifo_cancel(&port->fifo);
 		if (proto_send_set_port(node, port, port_store_reply_handler) == SUCCESS)
-			port->state = PORT_PENDING_ENABLE;
+			port_set_state(port, PORT_PENDING_ENABLE);
 		break;
 	case PORT_ENABLED:
 		if (port->actor->state == ACTOR_ENABLED) {
@@ -550,15 +553,15 @@ void port_transmit(node_t *node, port_t *port)
 		break;
 	case PORT_DO_DELETE:
 		if (proto_send_remove_port(node, port, port_remove_reply_handler) == SUCCESS)
-			port->state = PORT_PENDING_DELETE;
+			port_set_state(port, PORT_PENDING_DELETE);
 		break;
 	case PORT_DO_DISCONNECT:
 		if (proto_send_port_disconnect(node, port, port_disconnect_reply_handler) == SUCCESS)
-			port->state = PORT_PENDING_DISCONNECT;
+			port_set_state(port, PORT_PENDING_DISCONNECT);
 		break;
 	case PORT_DO_PEER_LOOKUP:
 		if (proto_send_get_port(node, port->peer_port_id, port_get_peer_port_reply_handler, port->id) == SUCCESS)
-			port->state = PORT_PENDING_PEER_LOOKUP;
+			port_set_state(port, PORT_PENDING_PEER_LOOKUP);
 		break;
 	default:
 		break;

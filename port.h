@@ -72,6 +72,7 @@ typedef struct port_t {
 	struct actor_t *actor;
 } port_t;
 
+void port_set_state(port_t *port, port_state_t state);
 port_t *port_create(struct node_t *node, struct actor_t *actor, char *obj_port, char *obj_prev_connections, port_direction_t direction);
 void port_free(struct node_t *node, port_t *port);
 result_t add_pending_token_response(port_t *port, uint32_t sequencenbr, bool ack);

@@ -39,7 +39,6 @@ static result_t proto_parse_app_destroy(node_t *node, char *data);
 static result_t proto_parse_port_disconnect(node_t *node, char *data);
 static result_t proto_parse_port_connect(node_t *node, char *data);
 static result_t proto_parse_tunnel_new(node_t *node, char *data);
-static result_t proto_parse_route_request(node_t *node, char *data);
 static result_t proto_parse_actor_migrate(node_t *node, char *root);
 
 struct command_handler_t command_handlers[NBR_OF_COMMANDS] = {
@@ -50,7 +49,6 @@ struct command_handler_t command_handlers[NBR_OF_COMMANDS] = {
 	{"PORT_DISCONNECT", proto_parse_port_disconnect},
 	{"PORT_CONNECT", proto_parse_port_connect},
 	{"TUNNEL_NEW", proto_parse_tunnel_new},
-	{"ROUTE_REQUEST", proto_parse_route_request},
 	{"ACTOR_MIGRATE", proto_parse_actor_migrate}
 };
 
@@ -397,6 +395,52 @@ result_t proto_send_port_connect_reply(const node_t *node, char *msg_uuid, uint3
 
 	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent REPLY reply for message '%.*s'", (int)msg_uuid_len, msg_uuid);
+		return SUCCESS;
+	}
+
+	return FAIL;
+}
+
+result_t proto_send_port_disconnect_reply(const node_t *node, char *msg_uuid, uint32_t msg_uuid_len, char *to_rt_uuid, uint32_t to_rt_uuid_len, uint32_t status)
+{
+	result_t result = SUCCESS;
+	char *w = NULL;
+
+	if (!node_can_add_pending_msg(node))
+		return PENDING;
+
+	result = transport_create_tx_buffer(node->transport_client, 600);
+	if (result != SUCCESS)
+		return result;
+
+	w = node->transport_client->tx_buffer.buffer + 4;
+	w = mp_encode_map(w, 5);
+	{
+		w = encode_str(&w, "msg_uuid", msg_uuid, msg_uuid_len);
+		w = encode_str(&w, "to_rt_uuid", to_rt_uuid, to_rt_uuid_len);
+		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
+		w = encode_str(&w, "cmd", "REPLY", strlen("REPLY"));
+		w = encode_map(&w, "value", 3);
+		{
+			w = encode_uint(&w, "status", status);
+			w = encode_array(&w, "success_list", 7);
+			w = mp_encode_uint(w, 200);
+			w = mp_encode_uint(w, 201);
+			w = mp_encode_uint(w, 202);
+			w = mp_encode_uint(w, 203);
+			w = mp_encode_uint(w, 204);
+			w = mp_encode_uint(w, 205);
+			w = mp_encode_uint(w, 206);
+			w = encode_map(&w, "data", 1);
+			{
+				// TODO: If any, include remaining tokens
+				w = encode_map(&w, "remaining_tokens", 0);
+			}
+		}
+	}
+
+	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+		log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
 		return SUCCESS;
 	}
 
@@ -1119,9 +1163,9 @@ static result_t proto_parse_port_disconnect(node_t *node, char *root)
 	result = port_handle_disconnect(node, peer_port_id, peer_port_id_len);
 
 	if (result == SUCCESS)
-		result = proto_send_reply(node, msg_uuid, msg_uuid_len, from_rt_uuid, from_rt_uuid_len, 200);
+		result = proto_send_port_disconnect_reply(node, msg_uuid, msg_uuid_len, from_rt_uuid, from_rt_uuid_len, 200);
 	else
-		result = proto_send_reply(node, msg_uuid, msg_uuid_len, from_rt_uuid, from_rt_uuid_len, 500);
+		result = proto_send_port_disconnect_reply(node, msg_uuid, msg_uuid_len, from_rt_uuid, from_rt_uuid_len, 500);
 
 	return result;
 }
@@ -1163,6 +1207,7 @@ static result_t proto_parse_tunnel_new(node_t *node, char *root)
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL;
 	char *type = NULL, *tunnel_id;
 	uint32_t from_rt_uuid_len = 0, msg_uuid_len = 0, type_len = 0, tunnel_id_len = 0;
+	link_t *link = NULL;
 
 	log_debug("proto_parse_tunnel_new");
 
@@ -1179,58 +1224,29 @@ static result_t proto_parse_tunnel_new(node_t *node, char *root)
 		return FAIL;
 
 	if (strncmp(type, "token", strlen("token")) != 0) {
-		log_error("Only token tunnels supported");
+		log_error("Unhandled tunnel type '%.*s'", type_len, type);
 		result = FAIL;
-	} else
+	} else {
+		link = link_get(node, from_rt_uuid, from_rt_uuid_len);
+		if (link == NULL) {
+			link = link_create(node, from_rt_uuid, from_rt_uuid_len, LINK_ENABLED, false);
+			if (link == NULL) {
+				log_error("Failed to create link for tunnel request from '%.*s'", from_rt_uuid_len, from_rt_uuid);
+				result = FAIL;
+			}
+		}
+	}
+
+	if (result == SUCCESS)
 		result = tunnel_handle_tunnel_new_request(node, from_rt_uuid, from_rt_uuid_len, tunnel_id, tunnel_id_len);
 
 	if (result == SUCCESS)
 		result = proto_send_tunnel_new_reply(node, msg_uuid, msg_uuid_len, from_rt_uuid, from_rt_uuid_len, 200, tunnel_id, tunnel_id_len);
-	else
-		result = proto_send_tunnel_new_reply(node, msg_uuid, msg_uuid_len, from_rt_uuid, from_rt_uuid_len, 500, tunnel_id, tunnel_id_len);
-
-	return result;
-}
-
-static result_t proto_parse_route_request(node_t *node, char *root)
-{
-	result_t result = SUCCESS;
-	char *r = root, *msg_uuid = NULL;
-	char *dest_peer_id = NULL, *org_peer_id = NULL;
-	link_t *link;
-	uint32_t msg_uuid_len = 0, dest_peer_id_len = 0, org_peer_id_len = 0;
-
-	log_debug("proto_parse_route_request");
-
-	if (decode_string_from_map(r, "msg_uuid", &msg_uuid, &msg_uuid_len) != SUCCESS)
-		return FAIL;
-
-	if (decode_string_from_map(r, "dest_peer_id", &dest_peer_id, &dest_peer_id_len) != SUCCESS)
-		return FAIL;
-
-	if (decode_string_from_map(r, "org_peer_id", &org_peer_id, &org_peer_id_len) != SUCCESS)
-		return FAIL;
-
-	if (strncmp(dest_peer_id, node->id, dest_peer_id_len) == 0) {
-		link = link_get(node, org_peer_id, org_peer_id_len);
+	else {
 		if (link != NULL)
-			log_debug("Link already exists");
-		else {
-			link = link_create(node, org_peer_id, org_peer_id_len, LINK_ENABLED, false);
-			if (link == NULL) {
-				log_error("Failed to create link");
-				result = FAIL;
-			}
-		}
-	} else {
-		log_error("Routing not supported");
-		result = FAIL;
+			link_remove_ref(node, link);
+		result = proto_send_tunnel_new_reply(node, msg_uuid, msg_uuid_len, from_rt_uuid, from_rt_uuid_len, 500, tunnel_id, tunnel_id_len);
 	}
-
-	if (result == SUCCESS)
-		result = proto_send_route_request_reply(node, msg_uuid, msg_uuid_len, org_peer_id, org_peer_id_len, 200, dest_peer_id, dest_peer_id_len);
-	else
-		result = proto_send_route_request_reply(node, msg_uuid, msg_uuid_len, org_peer_id, org_peer_id_len, 501, dest_peer_id, dest_peer_id_len);
 
 	return result;
 }

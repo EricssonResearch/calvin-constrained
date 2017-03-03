@@ -301,7 +301,7 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 		else if (reply_type == PORT_REPLY_TYPE_NACK)
 			fifo_com_cancel_read(&port->fifo, sequencenbr);
 		else if (reply_type == PORT_REPLY_TYPE_ABORT)
-			log_error("TODO: handle ABORT");
+			log_debug("TODO: handle ABORT");
 	} else
 		log_error("Token reply received for unknown port");
 }

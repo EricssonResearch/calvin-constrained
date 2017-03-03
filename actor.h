@@ -49,6 +49,7 @@ typedef struct actor_t {
 	list_t *calvinsys;
 } actor_t;
 
+void actor_set_state(actor_t *actor, actor_state_t state);
 result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len);
 actor_t *actor_create(struct node_t *node, char *root);
 void actor_free(struct node_t *node, actor_t *actor);

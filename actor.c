@@ -133,10 +133,10 @@ static result_t actor_set_reply_handler(node_t *node, char *data, void *msg_data
 		if (decode_bool_from_map(value, "value", &status) == SUCCESS) {
 			if (status == true) {
 				log("Actor '%s' enabled", actor->id);
-				actor->state = ACTOR_ENABLED;
+				actor_set_state(actor, ACTOR_ENABLED);
 			} else {
 				log_error("Failed to store actor '%s'", actor->id);
-				actor->state = ACTOR_DO_ENABLE;
+				actor_set_state(actor, ACTOR_DO_ENABLE);
 			}
 			return SUCCESS;
 		}
@@ -145,6 +145,12 @@ static result_t actor_set_reply_handler(node_t *node, char *data, void *msg_data
 	log_error("Failed to decode data");
 
 	return FAIL;
+}
+
+void actor_set_state(actor_t *actor, actor_state_t state)
+{
+	log_debug("Actor '%s' state '%d' -> '%d'", actor->id, actor->state, state);
+	actor->state = state;
 }
 
 result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
@@ -506,7 +512,7 @@ void actor_port_enabled(actor_t *actor)
 		list = list->next;
 	}
 
-	actor->state = ACTOR_DO_ENABLE;
+	actor_set_state(actor, ACTOR_DO_ENABLE);
 }
 
 void actor_disconnect(actor_t *actor)
@@ -517,7 +523,7 @@ void actor_disconnect(actor_t *actor)
 	list = actor->in_ports;
 	while (list != NULL) {
 		port = (port_t *)list->data;
-		port->state = PORT_DO_CONNECT;
+		port_set_state(port, PORT_DO_CONNECT);
 		port->tunnel = NULL;
 		list = list->next;
 	}
@@ -525,12 +531,12 @@ void actor_disconnect(actor_t *actor)
 	list = actor->out_ports;
 	while (list != NULL) {
 		port = (port_t *)list->data;
-		port->state = PORT_DO_CONNECT;
+		port_set_state(port, PORT_DO_CONNECT);
 		port->tunnel = NULL;
 		list = list->next;
 	}
 
-	actor->state = ACTOR_PENDING;
+	actor_set_state(actor, ACTOR_PENDING);
 }
 
 void actor_delete(actor_t *actor)
@@ -539,23 +545,23 @@ void actor_delete(actor_t *actor)
 
 	list = actor->in_ports;
 	while (list != NULL) {
-		((port_t *)list->data)->state = PORT_DO_DELETE;
+		port_set_state((port_t *)list->data, PORT_DO_DELETE);
 		list = list->next;
 	}
 
 	list = actor->out_ports;
 	while (list != NULL) {
-		((port_t *)list->data)->state = PORT_DO_DELETE;
+		port_set_state((port_t *)list->data, PORT_DO_DELETE);
 		list = list->next;
 	}
 
-	actor->state = ACTOR_DO_DELETE;
+	actor_set_state(actor, ACTOR_DO_DELETE);
 }
 
 result_t actor_migrate(actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len)
 {
 	strncpy(actor->migrate_to, to_rt_uuid, to_rt_uuid_len);
-	actor->state = ACTOR_DO_MIGRATE;
+	actor_set_state(actor, ACTOR_DO_MIGRATE);
 	return SUCCESS;
 }
 
@@ -773,7 +779,7 @@ void actor_transmit(node_t *node, actor_t *actor)
 	switch (actor->state) {
 	case ACTOR_DO_ENABLE:
 		if (proto_send_set_actor(node, actor, actor_set_reply_handler) == SUCCESS)
-			actor->state = ACTOR_PENDING;
+			actor_set_state(actor, ACTOR_PENDING);
 		break;
 	case ACTOR_DO_DELETE:
 		// check if all inports are deleted
@@ -797,7 +803,7 @@ void actor_transmit(node_t *node, actor_t *actor)
 		// remove actor if all ports are removed
 		if (ports_ready)
 			if (proto_send_remove_actor(node, actor, actor_remove_reply_handler) == SUCCESS)
-				actor->state = ACTOR_PENDING;
+				actor_set_state(actor, ACTOR_PENDING);
 		break;
 	case ACTOR_DO_MIGRATE:
 		// disconnect enabled inports
@@ -807,7 +813,7 @@ void actor_transmit(node_t *node, actor_t *actor)
 			if (port->state != PORT_DISCONNECTED) {
 				ports_ready = false;
 				if (port->state == PORT_ENABLED)
-					port->state = PORT_DO_DISCONNECT;
+					port_set_state(port, PORT_DO_DISCONNECT);
 			}
 			list = list->next;
 		}
@@ -819,7 +825,7 @@ void actor_transmit(node_t *node, actor_t *actor)
 			if (port->state != PORT_DISCONNECTED) {
 				ports_ready = false;
 				if (port->state == PORT_ENABLED)
-					port->state = PORT_DO_DISCONNECT;
+					port_set_state(port, PORT_DO_DISCONNECT);
 			}
 			list = list->next;
 		}
@@ -827,7 +833,7 @@ void actor_transmit(node_t *node, actor_t *actor)
 		// migrate actor if all ports are disconnected
 		if (ports_ready)
 			if (proto_send_actor_new(node, actor, actor_migrate_reply_handler) == SUCCESS)
-				actor->state = ACTOR_PENDING;
+				actor_set_state(actor, ACTOR_PENDING);
 		break;
 	case ACTOR_ENABLED:
 	case ACTOR_PENDING:

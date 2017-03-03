@@ -177,11 +177,21 @@ def testPortConnect():
     # verify placement
     assert verify_actor_placement(request_handler, rt1, identity_id, constrained_id)
 
+    # wait for tokens
+    wait_for_tokens(request_handler, rt1, resp['actor_map'][script_name + ':snk'], 5)
+    actual = request_handler.report(rt1, resp['actor_map'][script_name + ':snk'])
+
     # migrate snk to rt2
     request_handler.migrate(rt1, snk_id, rt2.id)
 
     # verify placement
     assert verify_actor_placement(request_handler, rt2, snk_id, rt2.id)
+
+    # verify tokens
+    expected = len(actual) + 5
+    wait_for_tokens(request_handler, rt2, resp['actor_map'][script_name + ':snk'], expected, 20)
+    actual = request_handler.report(rt2, resp['actor_map'][script_name + ':snk'])
+    assert len(actual) >= expected
 
     # delete app
     request_handler.delete_application(rt1, app_id)

@@ -25,8 +25,7 @@ result_t fifo_init(fifo_t *fifo, char *obj_fifo)
 	result_t result = SUCCESS;
 	char *reader = NULL, *tmp_reader = NULL, *obj_read_pos = NULL, *obj_tokens = NULL, *obj_readers = NULL;
 	char *obj_token = NULL, *obj_tentative_read_pos = NULL, *obj_data = NULL, *queuetype = NULL, *r = obj_fifo;
-	int i_token = 0;
-	uint32_t queuetype_len = 0, reader_len = 0, nbr_of_tokens = 0;
+	uint32_t i_token = 0, queuetype_len = 0, reader_len = 0, nbr_of_tokens = 0;
 
 	fifo->size = 0;
 	fifo->write_pos = 0;
@@ -118,6 +117,11 @@ void fifo_free(fifo_t *fifo)
 	memset(fifo->tokens, 0, MAX_TOKENS * sizeof(token_t));
 }
 
+void fifo_cancel(fifo_t *fifo)
+{
+	fifo->tentative_read_pos = fifo->read_pos;
+}
+
 token_t *fifo_peek(fifo_t *fifo)
 {
 	uint32_t read_pos = 0;
@@ -192,9 +196,9 @@ void fifo_com_commit_read(fifo_t *fifo, uint32_t sequence_nbr)
 		return;
 	}
 	if (fifo->read_pos < fifo->tentative_read_pos) {
-		if (sequence_nbr == fifo->read_pos)
+		if (sequence_nbr == fifo->read_pos) {
 			fifo->read_pos += 1;
-		else
+		} else
 			log_error("Invalid commit");
 	}
 }
