@@ -75,7 +75,7 @@ def testDataAndDestruction():
     script = """
     src : std.CountTimer(sleep=0.1)
     id : std.Identity()
-    snk : io.StandardOut(store_tokens=1, quiet=1)
+    snk : test.Sink(store_tokens=1, quiet=1)
     src.integer > id.token
     id.token > snk.token
     """
@@ -136,7 +136,7 @@ def testPortConnect():
     script = """
     src : std.CountTimer(sleep=0.1)
     id : std.Identity()
-    snk : io.StandardOut(store_tokens=1, quiet=1)
+    snk : test.Sink(store_tokens=1, quiet=1)
     src.integer > id.token
     id.token > snk.token
     """
@@ -207,7 +207,7 @@ def testMigration():
     script = """
     src : std.CountTimer(sleep=0.1)
     id : std.Identity()
-    snk : io.StandardOut(store_tokens=1, quiet=1)
+    snk : test.Sink(store_tokens=1, quiet=1)
     src.integer > id.token
     id.token > snk.token
     """
@@ -291,7 +291,7 @@ def testTemperatureActor():
     script = """
     src : std.CountTimer(sleep=0.1)
     temp : sensor.Temperature()
-    snk : io.StandardOut(store_tokens=1, quiet=1)
+    snk : test.Sink(store_tokens=1, quiet=1)
     src.integer > temp.measure
     temp.centigrade > snk.token
     """
@@ -350,7 +350,7 @@ def testGPIOReader():
     script_name = "testGPIOReader"
     script = """
     gpio : io.GPIOReader(gpio_pin=13, edge="b", pull="d")
-    snk : io.StandardOut(store_tokens=1, quiet=1)
+    snk : test.Sink(store_tokens=1, quiet=1)
     gpio.state > snk.token
     """
 
@@ -472,7 +472,7 @@ def testLocalConnections():
     src : std.CountTimer(sleep=0.1)
     id1 : std.Identity()
     id2 : std.Identity()
-    snk : io.StandardOut(store_tokens=1, quiet=1)
+    snk : test.Sink(store_tokens=1, quiet=1)
     src.integer > id1.token
     id1.token > id2.token
     id2.token > snk.token
