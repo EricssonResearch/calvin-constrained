@@ -58,7 +58,7 @@ static result_t transport_handle_join_reply(node_t *node, transport_client_t *tr
 	}
 
 	transport_client->state = TRANSPORT_ENABLED;
-	strncpy(transport_client->peer_id, id, strlen(id));
+	strncpy(transport_client->peer_id, id, strlen(id)+1);
 
 	log_debug("Transport joined '%s'", transport_client->peer_id);
 
