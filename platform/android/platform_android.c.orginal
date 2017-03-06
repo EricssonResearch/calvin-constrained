@@ -77,6 +77,8 @@ result_t platform_create(node_t* node)
 		log_error("Could not open pipes for transport");
 		return FAIL;
 	}
+	log_debug("UPSTREAM PIPE: %d (read), %d (write)", node->platform->upstream_platform_fd[0], node->platform->upstream_platform_fd[1]);
+	log_debug("DOWNSTREAM PIPE: %d (read), %d (write)", node->platform->upstream_platform_fd[0], node->platform->upstream_platform_fd[1]);
 #endif
 
 	log_debug("Platform created");

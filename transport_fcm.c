@@ -32,7 +32,6 @@
 
 result_t send_fcm_connect_request(struct node_t* node, char* iface)
 {
-	log("Send fcm connect request");
 	result_t result;
 	result = transport_create_tx_buffer(node->transport_client, BUFFER_SIZE);
 	char* buf;
@@ -50,8 +49,6 @@ static result_t transport_fcm_connect(node_t *node, transport_client_t *transpor
 
 static result_t transport_fcm_send_tx_buffer(transport_client_t *transport_client, size_t size)
 {
-//result_t transport_send(transport_client_t *transport_client, size_t size)
-	log("Sending, callvin api fun: %s", transport_client->tx_buffer.buffer+4);
 	return api_send_upstream_calvin_message(RUNTIME_CALVIN_MSG, transport_client, size);
 }
 
@@ -73,7 +70,6 @@ static void transport_fcm_free(transport_client_t *transport_client)
 
 transport_client_t *transport_fcm_create(struct node_t *node, char *uri)
 {
-	log("Creating transport client");
 	transport_client_t *transport_client = NULL;
 
 	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) != SUCCESS) {
@@ -115,7 +111,5 @@ transport_client_t *transport_fcm_create(struct node_t *node, char *uri)
 	transport_client->upstream_fd[0] = node->platform->upstream_platform_fd[0];
 	transport_client->upstream_fd[1] = node->platform->upstream_platform_fd[1];
 	transport_client->state = TRANSPORT_PENDING;
-
-	log("Transport connected to android system");
 	return transport_client;
 }
