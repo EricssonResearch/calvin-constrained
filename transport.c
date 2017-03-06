@@ -1,3 +1,8 @@
+#ifndef __DMCE_PROBE_FUNCTION__HEADER__
+#define __DMCE_PROBE_FUNCTION__HEADER__
+static void dmce_probe_body(unsigned int probenbr);
+#define DMCE_PROBE(a) (dmce_probe_body(a))
+#endif
 /*
  * Copyright (c) 2016 Ericsson AB
  *
@@ -24,10 +29,13 @@
 #ifdef TRANSPORT_LWIP
 #include "transport_lwip.h"
 #endif
+#ifdef PLATFORM_ANDROID
+#include "transport_fcm.h"
+#endif
 
 #define SERIALIZER "msgpack"
 
-static unsigned int get_message_len(const char *buffer)
+unsigned int get_message_len(const char *buffer)
 {
 	unsigned int value =
 		((buffer[3] & 0xFF) <<  0) |
@@ -53,9 +61,8 @@ static result_t transport_handle_join_reply(node_t *node, transport_client_t *tr
 		transport_client->disconnect(transport_client);
 		return FAIL;
 	}
-
 	transport_client->state = TRANSPORT_ENABLED;
-	strncpy(transport_client->peer_id, id, strlen(id));
+	strncpy(transport_client->peer_id, id, strlen(id)+1);
 
 	log_debug("Transport joined '%s'", transport_client->peer_id);
 
@@ -126,12 +133,35 @@ result_t transport_create_tx_buffer(transport_client_t *transport_client, size_t
 	return SUCCESS;
 }
 
+result_t transport_create_rx_buffer(transport_client_t *transport_client, size_t size)
+{
+	if (transport_client->rx_buffer.buffer != NULL)
+		return PENDING;
+
+	if ((DMCE_PROBE(21),platform_mem_alloc((void **)&transport_client->rx_buffer.buffer, size) != SUCCESS)) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	(DMCE_PROBE(22),transport_client->rx_buffer.pos = 0);
+	(DMCE_PROBE(23),transport_client->rx_buffer.size = 0);
+	return SUCCESS;
+}
+
 void transport_free_tx_buffer(transport_client_t *transport_client)
 {
 	platform_mem_free((void *)transport_client->tx_buffer.buffer);
 	transport_client->tx_buffer.pos = 0;
 	transport_client->tx_buffer.size = 0;
 	transport_client->tx_buffer.buffer = NULL;
+}
+
+void transport_free_rx_buffer(transport_client_t *transport_client)
+{
+	(DMCE_PROBE(24),platform_mem_free((void *)transport_client->rx_buffer.buffer));
+	(DMCE_PROBE(25),transport_client->rx_buffer.pos = 0);
+	(DMCE_PROBE(26),transport_client->rx_buffer.size = 0);
+	transport_client->rx_buffer.buffer = NULL;
 }
 
 void transport_append_buffer_prefix(char *buffer, size_t size)
@@ -161,8 +191,32 @@ transport_client_t *transport_create(node_t *node, char *uri)
 	if (strncmp(uri, "lwip", 4) == 0)
 		return transport_lwip_create(node);
 #endif
+#ifdef PLATFORM_ANDROID
+	if (strncmp(uri, "calvinfcm://", 12) == 0)
+		return transport_fcm_create(node, uri);
+#endif
 
 	log_error("No transport for '%s'", uri);
 
 	return NULL;
 }
+/* This is a simple template for a linux userspace probe using the printf on stderr  */
+#ifndef __DMCE_PROBE_FUNCTION_BODY__
+#define __DMCE_PROBE_FUNCTION_BODY__
+
+#include <stdio.h>
+
+#define MAX_NUMBER_OF_PROBES 100000
+
+static int dmce_probes[MAX_NUMBER_OF_PROBES] = {0};
+
+static void dmce_probe_body(unsigned int probenbr)
+{
+
+  if (dmce_probes[probenbr] != 1)
+  {
+    dmce_probes[probenbr] = 1;
+    fprintf(stderr, "\nDMCE_PROBE(%u)\n ",probenbr);
+  }
+}
+#endif //__DMCE_PROBE_FUNCTION_BODY__

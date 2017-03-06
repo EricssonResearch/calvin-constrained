@@ -23,10 +23,8 @@
 #include "transport.h"
 #include "platform.h"
 #include "node.h"
-#include "transport.h"
 #include "transport_socket.h"
 
-#define BUFFER_SIZE					512
 #define LOCATION_SIZE       100
 #define URL_SIZE            100
 #define URI_SIZE            100

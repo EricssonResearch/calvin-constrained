@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "773482069446",
+    "firebase_url": "https://calvin-e48d7.firebaseio.com",
+    "project_id": "calvin-e48d7",
+    "storage_bucket": "calvin-e48d7.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:773482069446:android:5b90b1a24f9a5fec",
+        "android_client_info": {
+          "package_name": "ericsson.com.calvin.calvin_constrained"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "773482069446-dilr5ungggbebk27274bksds57lhof0r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpjeGAPeHAnbZfSYAEqAigjotMh2QPL6c"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
