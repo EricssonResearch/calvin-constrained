@@ -12,3 +12,5 @@ libmpy/build
 *.mpy
 *.log
 calvinconstrained.config
+.cache
+

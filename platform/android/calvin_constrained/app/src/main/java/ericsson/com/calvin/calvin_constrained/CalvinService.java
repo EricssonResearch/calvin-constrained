@@ -22,10 +22,6 @@ public class CalvinService extends Service{
 
     private final String LOG_TAG = "CalvinService";
 
-    private void calvinStart() {
-
-    }
-
     @Override
     public void onCreate() {
         calvin = new Calvin();
@@ -35,20 +31,14 @@ public class CalvinService extends Service{
     }
 
     @Override
-    public void onStart(Intent intent, int startId){
-        calvinStart();
-    }
-
-    @Override
     public int onStartCommand(Intent intent, int flags, int startid){
-        calvinStart();
         return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
         Log.d(LOG_TAG, "Destorying Calvin service");
-        calvin.runtimeStop();
+        calvin.runtimeStop(calvin.node);
     }
 
     @Override
@@ -57,7 +47,7 @@ public class CalvinService extends Service{
     }
 }
 
-class CalvinRuntime implements Runnable{
+class CalvinRuntime implements Runnable {
     Calvin calvin;
     CalvinMessageHandler[] messageHandlers;
 
@@ -68,7 +58,9 @@ class CalvinRuntime implements Runnable{
 
     @Override
     public void run() {
-        calvin.runtimeStart();
+        String name = "Calvin Android";
+        String proxy_uris = "calvinfcm://123:asd";
+        calvin.runtimeStart(calvin.node, proxy_uris, name);
     }
 }
 
@@ -135,7 +127,8 @@ class CalvinDataListenThread implements Runnable{
     public CalvinDataListenThread(Calvin calvin){
         this.calvin = calvin;
         this.messageHandlers = this.initMessageHandlers();
-        calvin.runtimeInit();
+        //calvin.runtimeInit();
+        calvin.setupCalvinAndInit();
     }
 
     public static int get_message_length(byte[] data) {
@@ -158,7 +151,7 @@ class CalvinDataListenThread implements Runnable{
                 calvinThread.start();
                 rtStarted = true;
             }
-            byte[] raw_data = calvin.readUpstreamData();
+            byte[] raw_data = calvin.readUpstreamData(calvin.node);
             int size = get_message_length(raw_data);
 
             Log.d(LOG_TAG, "data size is: " + size);

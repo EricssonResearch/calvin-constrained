@@ -23,10 +23,6 @@
 #define FCM_CONNECT "FC"
 #define CONNECT_REPLY "FR"
 
-result_t api_runtime_stop();
-result_t* api_runtime_init();
-result_t api_runtime_start(char* name, char* capabilities, char* proxy_uris);
-result_t api_send_downstream_platform_message(char* cmd, transport_client_t* tc, char* data, size_t data_size);
-result_t api_send_upstream_calvin_message(char* cmd, transport_client_t* tc, size_t data_size);
-result_t api_read_upstream(node_t* node, char* buffer, size_t size);
-result_t api_write_downstream_calvin_payload(node_t* node, char* payload, size_t size);
+result_t api_runtime_stop(node_t* node);
+result_t* api_runtime_init(node_t** node);
+result_t api_runtime_start(char* name, char* proxy_uris, node_t* node);

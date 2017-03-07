@@ -200,7 +200,7 @@ static result_t transport_socket_discover_proxy(char *uri)
 	return FAIL;
 }
 
-static result_t transport_socket_send_tx_buffer(transport_client_t *transport_client, size_t size)
+static result_t transport_socket_send_tx_buffer(const node_t* node, transport_client_t *transport_client, size_t size)
 {
 	transport_append_buffer_prefix(transport_client->tx_buffer.buffer, size);
 
@@ -214,7 +214,7 @@ static result_t transport_socket_send_tx_buffer(transport_client_t *transport_cl
 	return SUCCESS;
 }
 
-static void transport_socket_disconnect(transport_client_t *transport_client)
+static void transport_socket_disconnect(node_t* node, transport_client_t *transport_client)
 {
 	if (transport_client->state != TRANSPORT_DISCONNECTED) {
 		close(((transport_socket_client_t *)transport_client)->fd);

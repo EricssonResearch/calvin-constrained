@@ -1,19 +1,28 @@
 package ericsson.com.calvin.calvin_constrained;
 
+import android.util.Log;
+
 /**
  * Created by alexander on 2017-01-30.
  */
 
 public class Calvin {
 
+    private final String LOG_TAG = "Native Calvin";
+    public long node = 0;
+
     static {
         System.loadLibrary("calvin_constrained");
     }
 
-    public native void runtimeStart();
-    public native String runtimeStop();
-    public native void runtimeInit();
-    public native byte[] readUpstreamData();
-    public native void runtimeCalvinPayload(byte[] payload);
-    public native void fcmTransportConnected();
+    public void setupCalvinAndInit() {
+        this.node = this.runtimeInit();
+    }
+
+    public native void runtimeStart(long node, String proxy_uris, String name);
+    public native String runtimeStop(long node);
+    public native long runtimeInit();
+    public native byte[] readUpstreamData(long node);
+    public native void runtimeCalvinPayload(byte[] payload, long node);
+    public native void fcmTransportConnected(long node);
 }

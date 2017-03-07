@@ -17,7 +17,7 @@ android {
                 cFlags "-I" + projectDir + "/../../../../micropython"
                 cFlags "-I" + projectDir + "/../../../../libmpy"
                 cFlags "-I"+ projectDir + "/../../../../"
-                cFlags "-fstack-protector"
+                cFlags "-Werror"
                 cFlags "-DMICROPYTHON"
                 cFlags "-DPLATFORM_PIPE"
                 cFlags "-DPARSE_ARGS"

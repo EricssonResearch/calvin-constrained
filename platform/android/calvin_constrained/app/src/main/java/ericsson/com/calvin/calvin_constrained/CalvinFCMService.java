@@ -20,7 +20,7 @@ public class CalvinFCMService extends FirebaseMessagingService {
 
     @Override
     public void onSendError(String msgid, Exception e) {
-        Log.d(LOG_TAG, "FCM Send error: " + e.toString());
+        Log.e(LOG_TAG, "FCM Send error: " + e.toString());
     }
 
     @Override
@@ -41,11 +41,11 @@ public class CalvinFCMService extends FirebaseMessagingService {
             case "payload":
                 byte[] bytes = message.getData().get("payload").getBytes();
                 bytes = CalvinCommon.base64Decode(bytes);
-                calvin.runtimeCalvinPayload(bytes);
+                calvin.runtimeCalvinPayload(bytes, calvin.node);
                 break;
             case "set_connect":
                 Log.d(LOG_TAG, "Got connected message");
-                calvin.fcmTransportConnected();
+                calvin.fcmTransportConnected(calvin.node);
                 break;
         }
     }

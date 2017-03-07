@@ -20,51 +20,78 @@
 #include "api.h"
 #include <android/log.h>
 #include <unistd.h>
+#include "platform_android.h"
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeInit(JNIEnv* env, jobject this)
+jlong get_jlong_from_pointer(void* ptr)
 {
-    api_runtime_init();
+	long long_ptr = (long)ptr;
+	return long_ptr;
 }
 
-JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_readUpstreamData(JNIEnv* env, jobject this)
+#pragma GCC diagnostic ignored "-Wint-to-pointer-cast"
+void* get_ptr_from_jlong(jlong ptr_value)
 {
-    char buffer[BUFFER_SIZE];
-    memset(&buffer, 0, BUFFER_SIZE);
-    api_read_upstream(get_node(), buffer, BUFFER_SIZE);
-    jbyteArray data;
-    size_t size = get_message_len(buffer);
-
-    data = (*env)->NewByteArray(env, size+4);
-    (*env)->SetByteArrayRegion(env, data, 0, size+4, buffer);
-    return data;
+	void* ptr = (void*) ptr_value;
+	return ptr;
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStart(JNIEnv* env, jobject this)
+JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeInit(JNIEnv* env, jobject this)
 {
-    //char* proxy_uris = "calvinip://192.168.0.108:5000";
-    char* proxy_uris = "calvinfcm://hej:san";
-    char* capabilities = "[1000, 1001, 1002]";
-    char* name = "Calvin Android";
-    api_runtime_start(name, capabilities, proxy_uris);
+	node_t* node;
+
+	api_runtime_init(&node);
+	return get_jlong_from_pointer(node);
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStop(JNIEnv* env, jobject this)
+JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_readUpstreamData(JNIEnv* env, jobject this, jlong jnode)
 {
-    api_runtime_stop();
+	char buffer[BUFFER_SIZE];
+
+	memset(&buffer, 0, BUFFER_SIZE);
+	node_t* node = (node_t*)get_ptr_from_jlong(jnode);
+	android_platform_t* platform = (android_platform_t*) node->platform;
+
+	platform->read_upstream(node, buffer, BUFFER_SIZE);
+	jbyteArray data;
+	size_t size = get_message_len(buffer);
+
+	data = (*env)->NewByteArray(env, size+4);
+	(*env)->SetByteArrayRegion(env, data, 0, size+4, buffer);
+	return data;
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeCalvinPayload(JNIEnv* env, jobject this, jbyteArray data)
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStart(JNIEnv* env, jobject this, jlong node, jstring j_proxy_uris, jstring j_name)
 {
-    int len = (*env)->GetArrayLength(env, data);
-    char payload_data[len];
-    // transport_append_buffer_prefix(payload_data, len);
-    memset(payload_data, 0, len);
-    (*env)->GetByteArrayRegion(env, data, 0, len, payload_data);
-    api_write_downstream_calvin_payload(get_node(), payload_data, len);
+	char* proxy_uris = (char*) (*env)->GetStringUTFChars(env, j_proxy_uris, 0);
+	char* name = (char*) (*env)->GetStringUTFChars(env, j_name, 0);
+
+	api_runtime_start(name, proxy_uris, (node_t*)get_ptr_from_jlong(node));
+	(*env)->ReleaseStringUTFChars(env, j_proxy_uris, proxy_uris);
+	(*env)->ReleaseStringUTFChars(env, j_name, name);
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_fcmTransportConnected(JNIEnv* env, jobject this) {
-    node_t* node = get_node();
-    char d[4] = {0, 0, 0, 0};
-    api_send_downstream_platform_message(CONNECT_REPLY, node->transport_client, d, 0);
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStop(JNIEnv* env, jobject this, jlong node)
+{
+	api_runtime_stop((node_t*)get_ptr_from_jlong(node));
+}
+
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeCalvinPayload(JNIEnv* env, jobject this, jbyteArray data, jlong jnode)
+{
+	int len = (*env)->GetArrayLength(env, data);
+	char payload_data[len];
+
+	memset(payload_data, 0, len);
+	(*env)->GetByteArrayRegion(env, data, 0, len, payload_data);
+	node_t* node = (node_t*)get_ptr_from_jlong(jnode);
+	android_platform_t* platform = (android_platform_t*) node->platform;
+
+	platform->send_downstream_platform_message(node, RUNTIME_CALVIN_MSG, node->transport_client, payload_data, len);
+}
+
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_fcmTransportConnected(JNIEnv* env, jobject this, jlong node_p)
+{
+	node_t* node = (node_t*)get_ptr_from_jlong(node_p);
+	char d[4] = {0, 0, 0, 0};
+
+	((android_platform_t*) node->platform)->send_downstream_platform_message(node, CONNECT_REPLY, node->transport_client, d, 0);
 }

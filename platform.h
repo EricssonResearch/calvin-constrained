@@ -25,9 +25,6 @@
 #else
 #include <stdio.h>
 #endif
-#ifdef PLATFORM_ANDROID
-#include <android/log.h>
-#endif
 #define MAX_INGPIOS 5
 
 struct node_t;
@@ -67,21 +64,6 @@ typedef struct calvinsys_io_giohandler_t {
 typedef struct calvinsys_sensors_environmental_t {
   result_t (*get_temperature)(double *temp);
 } calvinsys_sensors_environmental_t;
-
-typedef struct platform_t {
-#ifdef PLATFORM_ANDROID
-	int upstream_platform_fd[2]; // read end [0], write end [1]
-	int downstream_platform_fd[2];
-#endif
-} platform_t;
-
-#ifdef PLATFORM_ANDROID
-struct platform_command_handler_t {
-	char command[50];
-	result_t (*handler)(struct node_t* node, char *data, size_t size);
-};
-result_t platform_android_handle_data(struct node_t* node, struct transport_client_t *transport_client);
-#endif
 
 void platform_init(struct node_t *node, char* name);
 result_t platform_create_calvinsys(struct node_t *node);

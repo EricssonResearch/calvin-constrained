@@ -28,8 +28,6 @@
 #define NODE_STATE_BUFFER_SIZE			10000
 #endif
 
-node_t* m_node;
-
 static void node_reset(node_t *node, bool remove_actors)
 {
 	int i = 0;
@@ -311,7 +309,6 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 
 void node_handle_message(node_t *node, char *buffer, size_t len)
 {
-	log("node handle message");
 	if (proto_parse_message(node, buffer) == SUCCESS) {
 #ifdef USE_PERSISTENT_STORAGE
 		// message successfully handled == state changed -> serialize the node
@@ -334,18 +331,15 @@ result_t node_create(node_t *node, char *name)
 
 	if (!created) {
 		gen_uuid(node->id, NULL);
-
 		if (name != NULL)
-			strncpy(node->name, name, strlen(name));
+			strncpy(node->name, name, strlen(name)+1);
 		else
-			strncpy(node->name, "constrained", 11);
+			strncpy(node->name, "constrained", 12);
 
 		node->state = NODE_DO_START;
 
 		log("Node created, id '%s' name '%s'", node->id, node->name);
 	}
-
-	m_node = node;
 	return SUCCESS;
 }
 
@@ -457,15 +451,6 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	return SUCCESS;
 }
 
-node_t* get_node()
-{
-	return m_node;
-}
-
-void set_node(node_t* node) {
-	m_node = node;
-}
-
 result_t node_init(node_t* node)
 {
 	platform_create(node);
@@ -480,6 +465,16 @@ void node_run(node_t *node, char *name, char *proxy_uris)
 	struct timeval reconnect_timeout;
 	char *uri = NULL;
 
+	if (platform_create_calvinsys(node) != SUCCESS) {
+		log_error("Failed to create calvinsys");
+		return;
+	}
+
+	if (node_create(node, name) != SUCCESS) {
+		log_error("Failed to create node");
+		return;
+	}
+
 	if (proxy_uris != NULL) {
 		uri = strtok(proxy_uris, " ");
 		while (uri != NULL && i < MAX_URIS) {
@@ -489,8 +484,7 @@ void node_run(node_t *node, char *name, char *proxy_uris)
 		}
 	}
 
-	// while (node->state != NODE_STOP) {
-	while (true) {
+	while (node->state != NODE_STOP) {
 		for (i = 0; i < MAX_URIS; i++) {
 			if (node->proxy_uris[i] != NULL) {
 				log("Connecting to '%s'", node->proxy_uris[i]);
@@ -507,7 +501,7 @@ void node_run(node_t *node, char *name, char *proxy_uris)
 				}
 
 				if (node->transport_client != NULL) {
-					node->transport_client->disconnect(node->transport_client);
+					node->transport_client->disconnect(node, node->transport_client);
 					node->transport_client->free(node->transport_client);
 					node->transport_client = NULL;
 				}

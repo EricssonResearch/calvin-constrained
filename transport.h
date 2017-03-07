@@ -44,10 +44,6 @@ typedef struct transport_buffer_t {
 } transport_buffer_t;
 
 typedef struct transport_client_t {
-#ifdef PLATFORM_ANDROID
-	int upstream_fd[2]; // read end [0], write end [1]
-	int downstream_fd[2];
-#endif
     char uri[100];
 	char peer_id[UUID_BUFFER_SIZE];
 	transport_state_t state;
@@ -55,17 +51,15 @@ typedef struct transport_client_t {
 	transport_buffer_t tx_buffer;
 	void *client_state;
 	result_t (*connect)(struct node_t *node, struct transport_client_t *transport_client);
-	result_t (*send_tx_buffer)(struct transport_client_t *transport_client, size_t size);
-	void (*disconnect)(struct transport_client_t *transport_client);
+	result_t (*send_tx_buffer)(const struct node_t *node, struct transport_client_t *transport_client, size_t size);
+	void (*disconnect)(struct node_t* node, struct transport_client_t *transport_client);
 	void (*free)(struct transport_client_t *transport_client);
 } transport_client_t;
 
 transport_client_t *transport_create(struct node_t *node, char *uri);
 void transport_handle_data(struct node_t *node, transport_client_t *transport_client, char *buffer, size_t size);
 result_t transport_create_tx_buffer(transport_client_t *transport_client, size_t size);
-result_t transport_create_rx_buffer(transport_client_t *transport_client, size_t size);
 void transport_free_tx_buffer(transport_client_t *transport_client);
-void transport_free_rx_buffer(transport_client_t *transport_client);
 void transport_append_buffer_prefix(char *buffer, size_t size);
 void transport_join(struct node_t *node, transport_client_t *transport_client);
 unsigned int get_message_len(const char *buffer);

@@ -1,3 +1,5 @@
+#include <jni.h>
+
 /*
  * Copyright (c) 2016 Ericsson AB
  *
@@ -14,8 +16,9 @@
  * limitations under the License.
  */
 
-JNIEXPORT jstring JNICALL Java_ericsson_com_calvin_calvin_1constrained_CCActivity_stringFromJNI(JNIEnv*, jobject);
-
-JNIEXPORT jstring JNICALL Java_ericsson_com_calvin_calvin_1constrained_CCActivity_platformStart(JNIEnv*, jobject);
-JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_readUpstreamData(JNIEnv* env, jobject this);
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeCalvinPayload(JNIEnv* env, jobject this, jstring data);
+JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeInit(JNIEnv* env, jobject this);
+JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_readUpstreamData(JNIEnv* env, jobject this, jlong node);
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStart(JNIEnv* env, jobject this, jstring j_proxy_uris, jstring j_name, jlong node);
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStop(JNIEnv* env, jobject this);
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeCalvinPayload(JNIEnv* env, jobject this, jbyteArray data, jlong node);
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_fcmTransportConnected(JNIEnv* env, jobject this, jlong node);
