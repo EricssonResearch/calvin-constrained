@@ -148,7 +148,6 @@ result_t platform_create_calvinsys(node_t *node)
 
 void platform_init(node_t *node, char* name)
 {
-	log("Platform inti");
 	if (platform_create_calvinsys(node) != SUCCESS) {
 		log_error("Failed to create calvinsys");
 		return;
