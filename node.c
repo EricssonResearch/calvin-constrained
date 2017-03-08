@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "node.h"
 #include "platform.h"
 #include "proto.h"
@@ -318,7 +319,7 @@ void node_handle_message(node_t *node, char *buffer, size_t len)
 		log_error("Failed to parse message");
 }
 
-static result_t node_create(node_t *node, char *name)
+result_t node_create(node_t *node, char *name)
 {
 	bool created = false;
 
@@ -330,17 +331,15 @@ static result_t node_create(node_t *node, char *name)
 
 	if (!created) {
 		gen_uuid(node->id, NULL);
-
 		if (name != NULL)
-			strncpy(node->name, name, strlen(name));
+			strncpy(node->name, name, strlen(name)+1);
 		else
-			strncpy(node->name, "constrained", 11);
+			strncpy(node->name, "constrained", 12);
 
 		node->state = NODE_DO_START;
 
 		log("Node created, id '%s' name '%s'", node->id, node->name);
 	}
-
 	return SUCCESS;
 }
 
@@ -404,7 +403,11 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	char *peer_id = NULL;
 	size_t peer_id_len = 0;
 
-	node->transport_client = transport_create(node, uri);
+	if (node->transport_client == NULL)
+		node->transport_client = transport_create(node, uri);
+	else
+		log("TC was not null, using existing TC");
+
 	if (node->transport_client == NULL)
 		return FAIL;
 
@@ -448,6 +451,14 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	return SUCCESS;
 }
 
+result_t node_init(node_t* node)
+{
+	platform_create(node);
+
+	log("Node init");
+	return SUCCESS;
+}
+
 void node_run(node_t *node, char *name, char *proxy_uris)
 {
 	int i = 0;
@@ -473,7 +484,7 @@ void node_run(node_t *node, char *name, char *proxy_uris)
 		}
 	}
 
-	while (true) {
+	while (node->state != NODE_STOP) {
 		for (i = 0; i < MAX_URIS; i++) {
 			if (node->proxy_uris[i] != NULL) {
 				log("Connecting to '%s'", node->proxy_uris[i]);
@@ -490,7 +501,7 @@ void node_run(node_t *node, char *name, char *proxy_uris)
 				}
 
 				if (node->transport_client != NULL) {
-					node->transport_client->disconnect(node->transport_client);
+					node->transport_client->disconnect(node, node->transport_client);
 					node->transport_client->free(node->transport_client);
 					node->transport_client = NULL;
 				}

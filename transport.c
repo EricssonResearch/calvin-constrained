@@ -24,10 +24,13 @@
 #ifdef TRANSPORT_LWIP
 #include "transport_lwip.h"
 #endif
+#ifdef PLATFORM_ANDROID
+#include "transport_fcm.h"
+#endif
 
 #define SERIALIZER "msgpack"
 
-static unsigned int get_message_len(const char *buffer)
+unsigned int get_message_len(const char *buffer)
 {
 	unsigned int value =
 		((buffer[3] & 0xFF) <<  0) |
@@ -44,18 +47,18 @@ static result_t transport_handle_join_reply(node_t *node, transport_client_t *tr
 	if (sscanf(data, "{\"cmd\": \"JOIN_REPLY\", \"id\": \"%[^\"]\", \"serializer\": \"%[^\"]\", \"sid\": \"%[^\"]\"}",
 		id, serializer, sid) != 3) {
 		log_error("Failed to parse JOIN_REPLY");
-		transport_client->disconnect(transport_client);
+		transport_client->disconnect(node, transport_client);
 		return FAIL;
 	}
 
 	if (strcmp(serializer, SERIALIZER) != 0) {
 		log_error("Unsupported serializer");
-		transport_client->disconnect(transport_client);
+		transport_client->disconnect(node, transport_client);
 		return FAIL;
 	}
 
 	transport_client->state = TRANSPORT_ENABLED;
-	strncpy(transport_client->peer_id, id, strlen(id));
+	strncpy(transport_client->peer_id, id, strlen(id)+1);
 
 	log_debug("Transport joined '%s'", transport_client->peer_id);
 
@@ -147,7 +150,7 @@ void transport_join(node_t *node, transport_client_t *transport_client)
 	if (proto_send_join_request(node, transport_client, SERIALIZER) == SUCCESS)
 		transport_client->state = TRANSPORT_PENDING;
 	else
-		transport_client->disconnect(transport_client);
+		transport_client->disconnect(node, transport_client);
 }
 
 transport_client_t *transport_create(node_t *node, char *uri)
@@ -160,6 +163,10 @@ transport_client_t *transport_create(node_t *node, char *uri)
 #ifdef TRANSPORT_LWIP
 	if (strncmp(uri, "lwip", 4) == 0)
 		return transport_lwip_create(node);
+#endif
+#ifdef PLATFORM_ANDROID
+	if (strncmp(uri, "calvinfcm://", 12) == 0)
+		return transport_fcm_create(node, uri);
 #endif
 
 	log_error("No transport for '%s'", uri);

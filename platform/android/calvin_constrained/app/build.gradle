@@ -1,0 +1,77 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 25
+    buildToolsVersion "25.0.2"
+    defaultConfig {
+        applicationId "ericsson.com.calvin.calvin_constrained"
+        minSdkVersion 15
+        targetSdkVersion 25
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_TOOLCHAIN=gcc"
+                cFlags "-I" + projectDir + "/../../../../libmpy/build"
+                cFlags "-I" + projectDir + "/../../../../micropython"
+                cFlags "-I" + projectDir + "/../../../../libmpy"
+                cFlags "-I"+ projectDir + "/../../../../"
+                cFlags "-Werror"
+                cFlags "-DMICROPYTHON"
+                cFlags "-DPLATFORM_PIPE"
+                cFlags "-DPARSE_ARGS"
+                cFlags "-DPLATFORM_ANDROID"
+                cFlags "-DDEBUG"
+                cFlags "-DMICROPYTHON_HEAP_SIZE=20*1024"
+                cFlags "--std=gnu99"
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        externalNativeBuild {
+            cmake {
+                path "CMakeLists.txt"
+            }
+        }
+    }
+    productFlavors {
+        arm {
+            ndk {
+                abiFilter "armeabi"
+            }
+            externalNativeBuild {
+                cmake {
+                    //cFlags "-L/home/alexander/repos/calvin/calvin-constrained/platform/android/build/arm"
+                    cFlags "-L" + projectDir + "/../../../../platform/android/build/arm"
+                }
+            }
+        }
+        /*x86 {
+            ndk {
+                abiFilter "x86"
+                ldLibs "--no-warn-shared-textrel" // TODO: This flag is not added, a warning causes x86 builds to fail
+            }
+            externalNativeBuild {
+                cmake {
+                    cFlags "-L/home/alexander/repos/calvin/calvin-constrained/platform/android/build/x86"
+                }
+            }
+        }*/
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+    compile 'com.android.support:appcompat-v7:25.1.0'
+    compile 'com.google.firebase:firebase-messaging:10.0.1'
+    testCompile 'junit:junit:4.12'
+}
+apply plugin: 'com.google.gms.google-services'

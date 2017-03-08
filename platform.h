@@ -25,10 +25,10 @@
 #else
 #include <stdio.h>
 #endif
-
 #define MAX_INGPIOS 5
 
 struct node_t;
+struct transport_client_t;
 
 void platform_print(const char *fmt, ...);
 
@@ -65,11 +65,13 @@ typedef struct calvinsys_sensors_environmental_t {
   result_t (*get_temperature)(double *temp);
 } calvinsys_sensors_environmental_t;
 
-void platform_init(struct node_t *node);
+void platform_init(struct node_t *node, char* name);
 result_t platform_create_calvinsys(struct node_t *node);
 void platform_evt_wait(struct node_t *node, struct timeval *timeout);
 result_t platform_mem_alloc(void **buffer, uint32_t size);
 void platform_mem_free(void *buffer);
+result_t platform_create(struct node_t* node);
+
 #ifdef USE_PERSISTENT_STORAGE
 void platform_write_node_state(char *buffer, size_t size);
 result_t platform_read_node_state(char buffer[], size_t size);

@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 	};
 #endif
 
-	platform_init(&node);
+	platform_init(&node, name);
 
 #ifdef PARSE_ARGS
 	while ((c = getopt_long(argc, argv, "n:p:", long_options, NULL)) != -1) {

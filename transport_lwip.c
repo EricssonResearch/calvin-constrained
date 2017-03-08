@@ -136,7 +136,7 @@ static err_t transport_connection_callback(void *p_arg, struct tcp_pcb *p_pcb, e
 }
 
 // TODO: transport_send should block/sleep until tx has finished
-static result_t transport_lwip_send_tx_buffer(transport_client_t *transport_client, size_t size)
+static result_t transport_lwip_send_tx_buffer(node_t* node, transport_client_t *transport_client, size_t size)
 {
 	err_t res = ERR_BUF;
 	uint32_t tcp_buffer_size = 0;
@@ -205,7 +205,7 @@ static result_t transport_lwip_connect(node_t *node, transport_client_t *transpo
 	return SUCCESS;
 }
 
-static void transport_lwip_disconnect(transport_client_t *transport_client)
+static void transport_lwip_disconnect(node_t* node, transport_client_t *transport_client)
 {
 	transport_lwip_client_t *transport_lwip = (transport_lwip_client_t *)transport_client->client_state;
 

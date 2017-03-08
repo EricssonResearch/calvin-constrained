@@ -146,7 +146,7 @@ result_t platform_create_calvinsys(node_t *node)
 	return SUCCESS;
 }
 
-void platform_init(node_t *node)
+void platform_init(node_t *node, char* name)
 {
 	srand(time(NULL));
 }
@@ -163,6 +163,11 @@ static void platform_x86_handle_data(node_t *node, transport_client_t *transport
 		transport_handle_data(node, transport_client, buffer, size);
 	else
 		log_error("Failed to read data");
+}
+
+result_t platform_create(node_t* node)
+{
+	return SUCCESS;
 }
 
 void platform_evt_wait(node_t *node, struct timeval *timeout)

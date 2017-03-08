@@ -71,7 +71,7 @@ result_t proto_send_join_request(const node_t *node, transport_client_t *transpo
 		msg_uuid,
 		serializer);
 
-	if (transport_client->send_tx_buffer(transport_client, size) == SUCCESS) {
+	if (transport_client->send_tx_buffer(node, transport_client, size) == SUCCESS) {
 		log_debug("Sent JOIN_REQUEST");
 		return SUCCESS;
 	}
@@ -122,7 +122,7 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 		w = encode_str(&w, "port_property_capability", "runtime.constrained.1", strlen("runtime.constrained.1"));
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent PROXY_CONFIG");
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
 		return SUCCESS;
@@ -156,7 +156,7 @@ result_t proto_send_route_request(node_t *node, char *dest_peer_id, uint32_t des
 		w = encode_str(&w, "org_peer_id", node->id, strlen(node->id));
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent ROUTE_REQUEST to '%.*s'", (int)dest_peer_id_len, dest_peer_id);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
 		return SUCCESS;
@@ -191,7 +191,7 @@ result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*ha
 		w = encode_map(&w, "policy", 0);
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
 		log_debug("Sent TUNNEL_NEW with id '%s' to '%s'", tunnel->id, tunnel->link->peer_id);
 		return SUCCESS;
@@ -224,7 +224,7 @@ result_t proto_send_tunnel_destroy(node_t *node, tunnel_t *tunnel, result_t (*ha
 		w = encode_str(&w, "tunnel_id", tunnel->id, strlen(tunnel->id));
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, tunnel->id);
 		log_debug("Sent TUNNEL_DESTROY for tunnel '%s'", tunnel->id);
 		return SUCCESS;
@@ -267,7 +267,7 @@ result_t proto_send_reply(const node_t *node, char *msg_uuid, uint32_t msg_uuid_
 		}
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
 		return SUCCESS;
 	}
@@ -308,7 +308,7 @@ result_t proto_send_tunnel_new_reply(const node_t *node, char *msg_uuid, uint32_
 			}
 		}
 
-		if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+		if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 			log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
 			return SUCCESS;
 		}
@@ -351,7 +351,7 @@ result_t proto_send_route_request_reply(const node_t *node, char *msg_uuid, uint
 		}
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
 		return SUCCESS;
 	}
@@ -393,7 +393,7 @@ result_t proto_send_port_connect_reply(const node_t *node, char *msg_uuid, uint3
 		}
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent REPLY reply for message '%.*s'", (int)msg_uuid_len, msg_uuid);
 		return SUCCESS;
 	}
@@ -439,7 +439,7 @@ result_t proto_send_port_disconnect_reply(const node_t *node, char *msg_uuid, ui
 		}
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
 		return SUCCESS;
 	}
@@ -477,7 +477,7 @@ result_t proto_send_token(const node_t *node, port_t *port, token_t token, uint3
 		}
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent TOKEN with sequencenbr '%ld'", (unsigned long)sequencenbr);
 		return SUCCESS;
 	}
@@ -515,7 +515,7 @@ result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t seque
 		}
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent TOKEN_REPLY for sequencenbr '%ld'", (unsigned long)sequencenbr);
 		return SUCCESS;
 	}
@@ -560,7 +560,7 @@ result_t proto_send_port_connect(node_t *node, port_t *port, result_t (*handler)
 		w = encode_uint(&w, "nbr_peers", 1);
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent PORT_CONNECT for port '%s'", port->id);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, port->id);
 		return SUCCESS;
@@ -602,7 +602,7 @@ result_t proto_send_port_disconnect(node_t *node, port_t *port, result_t (*handl
 		w = encode_nil(&w, "peer_port_dir");
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, port->id);
 		log_debug("Sent PORT_DISCONNECT for port '%s'", port->id);
 		return SUCCESS;
@@ -686,7 +686,7 @@ result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*han
 		}
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent SET '%s'", key);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, (void *)actor->id);
 		return SUCCESS;
@@ -727,7 +727,7 @@ result_t proto_send_remove_actor(node_t *node, actor_t *actor, result_t (*handle
 		}
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, actor->id);
 		log_debug("Sent SET '%s' with nil", key);
 		return SUCCESS;
@@ -780,7 +780,7 @@ result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(nod
 		}
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent SET '%s'", key);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, (void *)port->id);
 		return SUCCESS;
@@ -820,7 +820,7 @@ result_t proto_send_get_port(node_t *node, char *port_id, result_t (*handler)(no
 		}
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent GET '%s'", key);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, msg_data);
 		return SUCCESS;
@@ -861,7 +861,7 @@ result_t proto_send_remove_port(node_t *node, port_t *port, result_t (*handler)(
 		}
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent SET '%s' with nil", key);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, port->id);
 		return SUCCESS;
@@ -894,7 +894,7 @@ result_t proto_send_actor_new(node_t *node, actor_t *actor, result_t (*handler)(
 		w = actor_serialize(node, actor, &w, false);
 	}
 
-	if (node->transport_client->send_tx_buffer(node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
+	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
 		log_debug("Sent ACTOR_NEW to '%s'", actor->migrate_to);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, actor->id);
 		return SUCCESS;

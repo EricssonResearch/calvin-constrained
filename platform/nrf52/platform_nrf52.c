@@ -209,6 +209,11 @@ void platform_print(const char *fmt, ...)
 	va_end(args);
 }
 
+result_t platform_create(node_t* node)
+{
+	return SUCCESS;
+}
+
 static calvin_ingpio_t *platform_init_in_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, char pull, char edge)
 {
 	nrf_drv_gpiote_in_config_t config;
