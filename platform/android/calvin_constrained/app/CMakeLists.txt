@@ -45,3 +45,5 @@ target_link_libraries(
              micropython
              ${log-lib}
 )
+
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -landroid")
