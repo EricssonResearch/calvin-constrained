@@ -17,7 +17,7 @@ rm calvin.conf
 # build and start calvin-constrained
 make -f platform/x86/Makefile_mpy
 exit_code+=$?
-./calvin_c_mpy -n constrained -p "calvinip://127.0.0.1:5000" &
+./calvin_c_mpy -n constrained -p "calvinip://127.0.0.1:5000" 2> cc__mpy_stderr.log &
 CONSTRAINED_RT_PID=$!
 
 # run test

@@ -14,9 +14,6 @@ PYTHONPATH=calvin-base python test/verify_runtime.py http://127.0.0.1:5003
 exit_code+=$?
 rm calvin.conf
 
-# Run dmce
-../dmce/dmce-launcher -n 2
-
 # build and start calvin-constrained
 make -f platform/x86/Makefile
 exit_code+=$?
@@ -27,7 +24,6 @@ CONSTRAINED_RT_PID=$!
 PYTHONPATH=calvin-base py.test -sv test/test.py
 exit_code+=$?
 
-../dmce/dmce-summary cc_stderr.log
 # clean up
 kill -9 $CONSTRAINED_RT_PID
 kill -9 $RT1_PID
