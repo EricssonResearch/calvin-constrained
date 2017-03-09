@@ -41,6 +41,9 @@ struct actor_type_t {
 	void (*free_state)(actor_t *actor);
 	bool (*fire_actor)(actor_t *actor);
 	result_t (*get_managed_attributes)(actor_t *actor, list_t **attributes);
+	void (*will_migrate)(actor_t *actor);
+	void (*will_end)(actor_t *actor);
+	void (*did_migrate)(actor_t *actor);
 };
 
 const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
@@ -50,7 +53,10 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		actor_identity_set_state,
 		actor_identity_free,
 		actor_identity_fire,
-		actor_identity_get_managed_attributes
+		actor_identity_get_managed_attributes,
+		NULL,
+		NULL,
+		NULL
 	},
 	{
 		"io.GPIOReader",
@@ -58,7 +64,10 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		actor_gpioreader_set_state,
 		actor_gpioreader_free,
 		actor_gpioreader_fire,
-		actor_gpioreader_get_managed_attributes
+		actor_gpioreader_get_managed_attributes,
+		NULL,
+		NULL,
+		NULL
 	},
 	{
 		"io.GPIOWriter",
@@ -66,7 +75,10 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		actor_gpiowriter_set_state,
 		actor_gpiowriter_free,
 		actor_gpiowriter_fire,
-		actor_gpiowriter_get_managed_attributes
+		actor_gpiowriter_get_managed_attributes,
+		NULL,
+		NULL,
+		NULL
 	},
 	{
 		"sensor.Temperature",
@@ -74,6 +86,9 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		actor_temperature_set_state,
 		actor_temperature_free,
 		actor_temperature_fire,
+		NULL,
+		NULL,
+		NULL,
 		NULL
 	}
 };
@@ -111,6 +126,9 @@ static result_t actor_migrate_reply_handler(node_t *node, char *data, void *msg_
 		log_error("No actor with id '%s'", (char *)msg_data);
 		return FAIL;
 	}
+
+	if (actor->did_migrate != NULL)
+		actor->did_migrate(actor);
 
 	actor_free(node, actor);
 
@@ -802,8 +820,11 @@ void actor_transmit(node_t *node, actor_t *actor)
 
 		// remove actor if all ports are removed
 		if (ports_ready)
-			if (proto_send_remove_actor(node, actor, actor_remove_reply_handler) == SUCCESS)
+			if (proto_send_remove_actor(node, actor, actor_remove_reply_handler) == SUCCESS) {
+				if (actor->will_end != NULL)
+					actor->will_end(actor);
 				actor_set_state(actor, ACTOR_PENDING);
+			}
 		break;
 	case ACTOR_DO_MIGRATE:
 		// disconnect enabled inports
@@ -832,8 +853,11 @@ void actor_transmit(node_t *node, actor_t *actor)
 
 		// migrate actor if all ports are disconnected
 		if (ports_ready)
-			if (proto_send_actor_new(node, actor, actor_migrate_reply_handler) == SUCCESS)
+			if (proto_send_actor_new(node, actor, actor_migrate_reply_handler) == SUCCESS) {
+				if (actor->will_migrate != NULL)
+					actor->will_migrate(actor);
 				actor_set_state(actor, ACTOR_PENDING);
+			}
 		break;
 	case ACTOR_ENABLED:
 	case ACTOR_PENDING:

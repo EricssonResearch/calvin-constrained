@@ -173,7 +173,7 @@ result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t input)
 	return FAIL;
 }
 
-result_t actor_mpy_init(actor_t **actor, list_t *attributes)
+static result_t actor_mpy_init(actor_t **actor, list_t *attributes)
 {
 	uint32_t j = 0, nbr_of_attributes = list_count(attributes);
 	list_t *list = attributes;
@@ -207,7 +207,7 @@ result_t actor_mpy_init(actor_t **actor, list_t *attributes)
 	return SUCCESS;
 }
 
-result_t actor_mpy_set_state(actor_t **actor, list_t *attributes)
+static result_t actor_mpy_set_state(actor_t **actor, list_t *attributes)
 {
 	uint32_t nbr_of_attributes = list_count(attributes);
 	ccmp_state_actor_t *state = (ccmp_state_actor_t *)(*actor)->instance_state;
@@ -218,7 +218,6 @@ result_t actor_mpy_set_state(actor_t **actor, list_t *attributes)
 	mp_obj_t py_managed_list = MP_OBJ_NULL;
 	qstr q_attr;
 	mp_obj_t attr = MP_OBJ_NULL;
-	mp_obj_t mpy_did_migrate[2];
 
 	// Copy to python world
 	py_managed_list = mp_obj_new_list(nbr_of_attributes, NULL);
@@ -237,22 +236,16 @@ result_t actor_mpy_set_state(actor_t **actor, list_t *attributes)
 		list = list->next;
 	}
 
-	mp_load_method_maybe(state->actor_class_instance, QSTR_FROM_STR_STATIC("did_migrate"), mpy_did_migrate);
-	if (mpy_did_migrate[0] != MP_OBJ_NULL && mpy_did_migrate[1] != MP_OBJ_NULL)
-		mp_call_method_n_kw(0, 0, mpy_did_migrate);
-
 	value = MP_OBJ_NULL;
 	py_managed_list = MP_OBJ_NULL;
 	attr = MP_OBJ_NULL;
-	mpy_did_migrate[0] = MP_OBJ_NULL;
-	mpy_did_migrate[1] = MP_OBJ_NULL;
 
 	log_debug("Done storing managed attributes\n");
 
 	return result;
 }
 
-result_t actor_mpy_get_managed_attributes(actor_t *actor, list_t **attributes)
+static result_t actor_mpy_get_managed_attributes(actor_t *actor, list_t **attributes)
 {
 	ccmp_state_actor_t *state = (ccmp_state_actor_t *)actor->instance_state;
 	qstr q_attr;
@@ -261,14 +254,6 @@ result_t actor_mpy_get_managed_attributes(actor_t *actor, list_t **attributes)
 	uint32_t i = 0;
 	size_t size = 0;
 	char *packed_value = NULL;
-	mp_obj_t mpy_will_migrate[2];
-
-	mp_load_method_maybe(state->actor_class_instance, QSTR_FROM_STR_STATIC("will_migrate"), mpy_will_migrate);
-	if (mpy_will_migrate[0] != MP_OBJ_NULL && mpy_will_migrate[1] != MP_OBJ_NULL)
-		mp_call_method_n_kw(0, 0, mpy_will_migrate);
-
-	mpy_will_migrate[0] = MP_OBJ_NULL;
-	mpy_will_migrate[1] = MP_OBJ_NULL;
 
 	mp_load_method(state->actor_class_instance, QSTR_FROM_STR_STATIC("_managed"), mpy_attr);
 	if (mpy_attr[0] == MP_OBJ_NULL && mpy_attr[1] == MP_OBJ_NULL) {
@@ -299,7 +284,7 @@ result_t actor_mpy_get_managed_attributes(actor_t *actor, list_t **attributes)
 	return SUCCESS;
 }
 
-bool actor_mpy_fire(actor_t *actor)
+static bool actor_mpy_fire(actor_t *actor)
 {
 	mp_obj_t res;
 	ccmp_state_actor_t *state = (ccmp_state_actor_t *)actor->instance_state;
@@ -318,19 +303,13 @@ bool actor_mpy_fire(actor_t *actor)
 	return did_fire;
 }
 
-void actor_mpy_free_state(actor_t *actor)
+static void actor_mpy_free_state(actor_t *actor)
 {
 	ccmp_state_actor_t *state = (ccmp_state_actor_t *)actor->instance_state;
-	mp_obj_t mpy_will_end[2];
 
 	if (state != NULL) {
-		mp_load_method_maybe(state->actor_class_instance, QSTR_FROM_STR_STATIC("will_end"), mpy_will_end);
-		if (mpy_will_end[0] != MP_OBJ_NULL && mpy_will_end[1] != MP_OBJ_NULL)
-			mp_call_method_n_kw(0, 0, mpy_will_end);
-
 		// TODO: gc_collect does not free objects, fix it.
 		state->actor_class_instance = MP_OBJ_NULL;
-
 		platform_mem_free((void *)state);
 		actor->instance_state = NULL;
 	}
@@ -339,6 +318,45 @@ void actor_mpy_free_state(actor_t *actor)
 #ifdef DEBUG_MEM
 	gc_dump_info();
 #endif
+}
+
+static void actor_mpy_will_migrate(actor_t *actor)
+{
+	ccmp_state_actor_t *state = (ccmp_state_actor_t *)actor->instance_state;
+	mp_obj_t mpy_will_migrate[2];
+
+	mp_load_method_maybe(state->actor_class_instance, QSTR_FROM_STR_STATIC("will_migrate"), mpy_will_migrate);
+	if (mpy_will_migrate[0] != MP_OBJ_NULL && mpy_will_migrate[1] != MP_OBJ_NULL)
+		mp_call_method_n_kw(0, 0, mpy_will_migrate);
+
+	mpy_will_migrate[0] = MP_OBJ_NULL;
+	mpy_will_migrate[1] = MP_OBJ_NULL;
+}
+
+static void actor_mpy_will_end(actor_t *actor)
+{
+	ccmp_state_actor_t *state = (ccmp_state_actor_t *)actor->instance_state;
+	mp_obj_t mpy_will_end[2];
+
+	mp_load_method_maybe(state->actor_class_instance, QSTR_FROM_STR_STATIC("will_end"), mpy_will_end);
+	if (mpy_will_end[0] != MP_OBJ_NULL && mpy_will_end[1] != MP_OBJ_NULL)
+		mp_call_method_n_kw(0, 0, mpy_will_end);
+
+	mpy_will_end[0] = MP_OBJ_NULL;
+	mpy_will_end[1] = MP_OBJ_NULL;
+}
+
+static void actor_mpy_did_migrate(actor_t *actor)
+{
+	ccmp_state_actor_t *state = (ccmp_state_actor_t *)actor->instance_state;
+	mp_obj_t mpy_did_migrate[2];
+
+	mp_load_method_maybe(state->actor_class_instance, QSTR_FROM_STR_STATIC("did_migrate"), mpy_did_migrate);
+	if (mpy_did_migrate[0] != MP_OBJ_NULL && mpy_did_migrate[1] != MP_OBJ_NULL)
+		mp_call_method_n_kw(0, 0, mpy_did_migrate);
+
+	mpy_did_migrate[0] = MP_OBJ_NULL;
+	mpy_did_migrate[1] = MP_OBJ_NULL;
 }
 
 result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len)
@@ -393,6 +411,9 @@ result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	actor->set_state = actor_mpy_set_state;
 	actor->get_managed_attributes = actor_mpy_get_managed_attributes;
 	actor->free_state = actor_mpy_free_state;
+	actor->will_migrate = actor_mpy_will_migrate;
+	actor->will_end = actor_mpy_will_end;
+	actor->did_migrate = actor_mpy_did_migrate;
 
 	return SUCCESS;
 }

@@ -46,6 +46,9 @@ typedef struct actor_t {
 	bool (*fire)(struct actor_t *actor);
 	void (*free_state)(struct actor_t *actor);
 	result_t (*get_managed_attributes)(struct actor_t *actor, list_t **attributes);
+	void (*will_migrate)(struct actor_t *actor);
+	void (*will_end)(struct actor_t *actor);
+	void (*did_migrate)(struct actor_t *actor);
 	list_t *calvinsys;
 } actor_t;
 

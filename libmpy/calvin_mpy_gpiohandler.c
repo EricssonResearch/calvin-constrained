@@ -56,8 +56,6 @@ static mp_obj_t gpiopin_edge_value(mp_obj_t self_in)
 {
 	cc_mp_gpiopin_t *gpio = self_in;
 
-	log("Getting gpio value");
-
 	return mp_obj_new_int(gpio->gpio->value);
 }
 
