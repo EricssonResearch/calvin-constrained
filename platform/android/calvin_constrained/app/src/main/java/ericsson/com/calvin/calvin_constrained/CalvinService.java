@@ -58,9 +58,7 @@ class CalvinRuntime implements Runnable {
 
     @Override
     public void run() {
-        String name = "Calvin Android";
-        String proxy_uris = "calvinfcm://123:asd";
-        calvin.runtimeStart(calvin.node, proxy_uris, name);
+        calvin.runtimeStart(calvin.node);
     }
 }
 
@@ -127,7 +125,8 @@ class CalvinDataListenThread implements Runnable{
     public CalvinDataListenThread(Calvin calvin){
         this.calvin = calvin;
         this.messageHandlers = this.initMessageHandlers();
-        //calvin.runtimeInit();
+        String name = "Calvin Android";
+        String proxy_uris = "calvinfcm://123:asd";
         calvin.setupCalvinAndInit();
     }
 

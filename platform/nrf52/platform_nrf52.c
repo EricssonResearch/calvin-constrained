@@ -48,7 +48,7 @@ static calvinsys_io_giohandler_t 						m_io_gpiohandler;
 void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
 {
 	log_error("Error 0x%08lX, Line %ld, File %s", error_code, line_num, p_file_name);
-	NVIC_SystemReset();
+//	NVIC_SystemReset();
 	for (;;) {
 	}
 }
@@ -211,6 +211,17 @@ void platform_print(const char *fmt, ...)
 
 result_t platform_create(node_t* node)
 {
+	char *uri = NULL;
+
+	if (platform_mem_alloc((void **)&uri, 5) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+
+	strncpy(uri, "lwip", 4);
+	uri[4] = '\0';
+	node->proxy_uris[0] = uri;
+
 	return SUCCESS;
 }
 
@@ -377,11 +388,10 @@ result_t platform_create_calvinsys(node_t *node)
 	return SUCCESS;
 }
 
-void platform_init(node_t *node)
+void platform_init(void)
 {
 	uint32_t err_code;
 	uint8_t rnd_seed = 0;
-	int i = 0;
 
 	app_trace_init();
 	ip_stack_init();
@@ -395,10 +405,6 @@ void platform_init(node_t *node)
 		err_code = sd_rand_application_vector_get(&rnd_seed, 1);
 	} while (err_code == NRF_ERROR_SOC_RAND_NOT_ENOUGH_VALUES);
 	srand(rnd_seed);
-
-	platform_mem_alloc((void **)&node->proxy_uris[0], 5);
-	strncpy(node->proxy_uris[0], "lwip", 4);
-	node->proxy_uris[4] = '\0';
 
 	log("Platform initialized");
 }

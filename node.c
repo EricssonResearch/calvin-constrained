@@ -319,14 +319,14 @@ void node_handle_message(node_t *node, char *buffer, size_t len)
 		log_error("Failed to parse message");
 }
 
-result_t node_create(node_t *node, char *name)
+static result_t node_setup(node_t *node, char *name)
 {
 	bool created = false;
 
 	#ifdef USE_PERSISTENT_STORAGE
 		created = node_get_state(node);
 		if (created)
-			log("Created node from state, id '%s' name '%s'", node->id, node->name);
+			log("Node setup from serialized state, id '%s' name '%s'", node->id, node->name);
 	#endif
 
 	if (!created) {
@@ -338,7 +338,7 @@ result_t node_create(node_t *node, char *name)
 
 		node->state = NODE_DO_START;
 
-		log("Node created, id '%s' name '%s'", node->id, node->name);
+		log("Node setup, id '%s' name '%s'", node->id, node->name);
 	}
 	return SUCCESS;
 }
@@ -451,28 +451,24 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	return SUCCESS;
 }
 
-result_t node_init(node_t* node)
-{
-	platform_create(node);
-
-	log("Node init");
-	return SUCCESS;
-}
-
-void node_run(node_t *node, char *name, char *proxy_uris)
+result_t node_init(node_t *node, char *name, char *proxy_uris)
 {
 	int i = 0;
-	struct timeval reconnect_timeout;
 	char *uri = NULL;
 
-	if (platform_create_calvinsys(node) != SUCCESS) {
-		log_error("Failed to create calvinsys");
-		return;
+	if (platform_create(node) != SUCCESS) {
+		log_error("Failed to create platform object");
+		return FAIL;
 	}
 
-	if (node_create(node, name) != SUCCESS) {
-		log_error("Failed to create node");
-		return;
+	if (platform_create_calvinsys(node) != SUCCESS) {
+		log_error("Failed to create calvinsys object");
+		return FAIL;
+	}
+
+	if (node_setup(node, name) != SUCCESS) {
+		log_error("Failed to setup node");
+		return FAIL;
 	}
 
 	if (proxy_uris != NULL) {
@@ -483,6 +479,14 @@ void node_run(node_t *node, char *name, char *proxy_uris)
 			i++;
 		}
 	}
+
+	return SUCCESS;
+}
+
+result_t node_run(node_t *node)
+{
+	int i = 0;
+	struct timeval reconnect_timeout;
 
 	while (node->state != NODE_STOP) {
 		for (i = 0; i < MAX_URIS; i++) {
@@ -512,4 +516,6 @@ void node_run(node_t *node, char *name, char *proxy_uris)
 		reconnect_timeout.tv_usec = 0;
 		platform_evt_wait(node, &reconnect_timeout);
 	}
+
+	return SUCCESS;
 }

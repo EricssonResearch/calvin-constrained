@@ -19,9 +19,9 @@ public class Calvin {
         this.node = this.runtimeInit();
     }
 
-    public native void runtimeStart(long node, String proxy_uris, String name);
+    public native void runtimeStart(long node);
     public native String runtimeStop(long node);
-    public native long runtimeInit();
+    public native long runtimeInit(String name, String proxy_uris);
     public native byte[] readUpstreamData(long node);
     public native void runtimeCalvinPayload(byte[] payload, long node);
     public native void fcmTransportConnected(long node);

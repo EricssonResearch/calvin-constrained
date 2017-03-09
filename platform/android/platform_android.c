@@ -177,7 +177,7 @@ result_t platform_create_calvinsys(struct node_t *node)
 	return SUCCESS;
 }
 
-void platform_init(node_t* node, char* name)
+void platform_init(void)
 {
 	srand(time(NULL));
 }

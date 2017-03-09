@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
+#ifndef API_H
+#define API_H
+
 #include "common.h"
 #include "node.h"
 
-#define RUNTIME_STOP "RS"
-#define RUNTIME_CALVIN_MSG "CM"
-#define RUNTIME_STARTED "RR"
-#define FCM_CONNECT "FC"
-#define CONNECT_REPLY "FR"
-
+result_t api_runtime_init(node_t** node, char* name, char* proxy_uris);
+result_t api_runtime_start(node_t* node);
 result_t api_runtime_stop(node_t* node);
-result_t* api_runtime_init(node_t** node);
-result_t api_runtime_start(char* name, char* proxy_uris, node_t* node);
+
+#endif /* API_H */

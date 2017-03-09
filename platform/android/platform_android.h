@@ -17,6 +17,12 @@
 #ifndef PLATFORM_ANDROID_H
 #define PLATFORM_ANDROID_H
 
+#define RUNTIME_STOP "RS"
+#define RUNTIME_CALVIN_MSG "CM"
+#define RUNTIME_STARTED "RR"
+#define FCM_CONNECT "FC"
+#define CONNECT_REPLY "FR"
+
 #define NBR_OF_COMMANDS 3
 typedef struct android_platform_t {
 	int upstream_platform_fd[2]; // read end [0], write end [1]

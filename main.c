@@ -15,19 +15,15 @@
  */
 #include <stdlib.h>
 #include <string.h>
-#include "platform.h"
-#include "node.h"
+#include "api.h"
 #ifdef PARSE_ARGS
 #include <getopt.h>
-#endif
-#ifdef MICROPYTHON
-#include "libmpy/calvin_mpy_port.h"
 #endif
 
 int main(int argc, char **argv)
 {
 	char *name = NULL, *proxy_uris = NULL;
-	node_t node = {};
+	node_t *node = NULL;
 #ifdef PARSE_ARGS
 	int c = 0;
 	static struct option long_options[] = {
@@ -35,11 +31,7 @@ int main(int argc, char **argv)
 		{"proxy_uris", required_argument, NULL, 'p'},
 		{NULL, 0, NULL, 0}
 	};
-#endif
 
-	platform_init(&node, name);
-
-#ifdef PARSE_ARGS
 	while ((c = getopt_long(argc, argv, "n:p:", long_options, NULL)) != -1) {
 		switch (c) {
 		case 'n':
@@ -54,22 +46,21 @@ int main(int argc, char **argv)
 	}
 
 	if (name == NULL) {
-		log_error("Missing argument 'name'");
+		printf("Missing argument 'name'");
 		return EXIT_FAILURE;
 	}
 
 	if (proxy_uris == NULL) {
-		log_error("Missing argument 'proxy_uris'");
+		printf("Missing argument 'proxy_uris'");
 		return EXIT_FAILURE;
 	}
 #endif
 
-#ifdef MICROPYTHON
-	if (!mpy_port_init(MICROPYTHON_HEAP_SIZE))
+	if (api_runtime_init(&node, name, proxy_uris) != SUCCESS)
 		return EXIT_FAILURE;
-#endif
 
-	node_run(&node, name, proxy_uris);
+	if (api_runtime_start(node) != SUCCESS)
+		return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;
 }

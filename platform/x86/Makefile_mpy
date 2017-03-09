@@ -19,6 +19,7 @@ EXT_SRC_C = $(addprefix libmpy/, calvin_mpy_port.c calvin_mpy_gpiohandler.c calv
 
 C_SOURCE_FILES += \
 platform/x86/platform_x86.c \
+api.c \
 main.c \
 common.c \
 node.c \

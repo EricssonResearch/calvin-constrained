@@ -16,50 +16,55 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include "platform.h"
 #include "node.h"
 #include "transport_fcm.h"
 #include "api.h"
 
-#ifdef PLATFORM_ANDROID
 #include <sys/socket.h>
 #include "platform/android/platform_android.h"
-#endif
+
 /*
  * This transport file is only used for pure calvin data messages,
  * platform commands are handled elsewhere.
  */
 
-result_t send_fcm_connect_request(struct node_t* node, char* iface)
+result_t send_fcm_connect_request(struct node_t *node, char *iface)
 {
-	result_t result = transport_create_tx_buffer(node->transport_client, BUFFER_SIZE);
-	char* buf = node->transport_client->tx_buffer.buffer + 4;
+	char *buf = NULL;
 
-	memcpy(buf, iface, strlen(iface)+1);
-	android_platform_t* platform = ((android_platform_t*) node->platform);
-	return platform->send_upstream_platform_message(node, FCM_CONNECT, node->transport_client, strlen(iface)+1);
+	if (transport_create_tx_buffer(node->transport_client, BUFFER_SIZE) == SUCCESS) {
+		buf = node->transport_client->tx_buffer.buffer + 4;
+		memcpy(buf, iface, strlen(iface) + 1);
+		return ((android_platform_t *)node->platform)->send_upstream_platform_message(node, FCM_CONNECT, node->transport_client, strlen(iface) + 1);
+	}
+
+	return FAIL;
 }
 
 static result_t transport_fcm_connect(node_t *node, transport_client_t *transport_client)
 {
-	send_fcm_connect_request(node, node->transport_client->uri);
-	node->transport_client->state = TRANSPORT_PENDING;
-	return SUCCESS;
+	if (send_fcm_connect_request(node, node->transport_client->uri) == SUCCESS) {
+		node->transport_client->state = TRANSPORT_PENDING;
+		return SUCCESS;
+	}
+
+	return FAIL;
 }
 
-static result_t transport_fcm_send_tx_buffer(const node_t* node, transport_client_t *transport_client, size_t size)
+static result_t transport_fcm_send_tx_buffer(const node_t *node, transport_client_t *transport_client, size_t size)
 {
-	android_platform_t* platform = (android_platform_t*) node->platform;
-	return platform->send_upstream_platform_message(node, RUNTIME_CALVIN_MSG, transport_client, size);
+	return ((android_platform_t *)node->platform)->send_upstream_platform_message(node, RUNTIME_CALVIN_MSG, transport_client, size);
 }
 
-static void transport_fcm_disconnect(node_t* node, transport_client_t *transport_client)
+static void transport_fcm_disconnect(node_t *node, transport_client_t *transport_client)
 {
 	// TODO: Send disconnect message to calvin base
-	close(((android_platform_t*) node->platform)->downstream_platform_fd[0]);
-	close(((android_platform_t*) node->platform)->downstream_platform_fd[1]);
-	close(((android_platform_t*) node->platform)->upstream_platform_fd[0]);
-	close(((android_platform_t*) node->platform)->downstream_platform_fd[1]);
+	close(((android_platform_t *) node->platform)->downstream_platform_fd[0]);
+	close(((android_platform_t *) node->platform)->downstream_platform_fd[1]);
+	close(((android_platform_t *) node->platform)->upstream_platform_fd[0]);
+	close(((android_platform_t *) node->platform)->downstream_platform_fd[1]);
 }
 
 static void transport_fcm_free(transport_client_t *transport_client)

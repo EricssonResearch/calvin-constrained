@@ -14,33 +14,41 @@
  * limitations under the License.
  */
 
+#include <string.h>
 #include "api.h"
 #include "platform.h"
 #include "node.h"
 #ifdef MICROPYTHON
 #include "libmpy/calvin_mpy_port.h"
-#include <unistd.h>
 #endif
 
-result_t api_runtime_start(char* name, char* proxy_uris, node_t* node)
+
+result_t api_runtime_init(node_t **node, char *name, char *proxy_uris)
 {
-	platform_init(node, name);
+	platform_init();
+
 #ifdef MICROPYTHON
-	mpy_port_init(MICROPYTHON_HEAP_SIZE);
+	if (!mpy_port_init(MICROPYTHON_HEAP_SIZE)) {
+		log_error("Failed to initialize micropython lib");
+		return FAIL;
+	}
 #endif
-	node_run(node, name, proxy_uris);
-	return SUCCESS;
+
+	if (platform_mem_alloc((void **)node, sizeof(node_t)) != SUCCESS) {
+		log_error("Failed to allocate memory");
+		return FAIL;
+	}
+	memset(*node, 0, sizeof(node_t));
+
+	return node_init(*node, name, proxy_uris);
 }
 
-result_t* api_runtime_init(node_t** node)
+result_t api_runtime_start(node_t *node)
 {
-	if (platform_mem_alloc((void*)node, sizeof(node_t)) != SUCCESS)
-		log_error("Could not allocate memory for node");
-	node_init(*node);
-	return SUCCESS;
+	return node_run(node);
 }
 
-result_t api_runtime_stop(node_t* node)
+result_t api_runtime_stop(node_t *node)
 {
 	node->state = NODE_STOP;
 	return SUCCESS;

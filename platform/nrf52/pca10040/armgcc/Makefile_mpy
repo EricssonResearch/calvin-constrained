@@ -85,6 +85,7 @@ $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/common/nrf_drv_common.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/gpiote/nrf_drv_gpiote.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/uart/nrf_drv_uart.c) \
 $(abspath main.c) \
+$(abspath api.c) \
 $(MPY_SRC_C) \
 $(abspath platform/nrf52/platform_nrf52.c) \
 $(abspath common.c) \

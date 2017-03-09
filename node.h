@@ -63,7 +63,6 @@ bool node_can_add_pending_msg(const node_t *node);
 result_t node_handle_token(port_t *port, const char *data, const size_t size, uint32_t sequencenbr);
 void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr);
 void node_handle_message(node_t *node, char *buffer, size_t len);
-void node_run(node_t *node, char *name, char *proxy_uris);
-result_t node_create(node_t *node, char *name);
-result_t node_init(node_t* node);
+result_t node_init(node_t* node, char *name, char *proxy_uris);
+result_t node_run(node_t *node);
 #endif /* NODE_H */

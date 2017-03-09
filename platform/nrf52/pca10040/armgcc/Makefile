@@ -79,6 +79,7 @@ $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/common/nrf_drv_common.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/gpiote/nrf_drv_gpiote.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/uart/nrf_drv_uart.c) \
 $(abspath main.c) \
+$(abspath api.c) \
 $(abspath platform/nrf52/platform_nrf52.c) \
 $(abspath common.c) \
 $(abspath node.c) \
@@ -191,7 +192,7 @@ LDFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # let linker to dump unused sections
 LDFLAGS += -Wl,--gc-sections
 # use newlib in nano version
-LDFLAGS += --specs=nano.specs -lc -lnosys
+LDFLAGS += -lc -lnosys
 
 # Assembler flags
 ASMFLAGS += -x assembler-with-cpp

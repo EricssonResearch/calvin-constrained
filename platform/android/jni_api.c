@@ -35,11 +35,18 @@ void* get_ptr_from_jlong(jlong ptr_value)
 	return ptr;
 }
 
-JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeInit(JNIEnv* env, jobject this)
+JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeInit(JNIEnv* env, jobject this, jstring j_proxy_uris, jstring j_name)
 {
 	node_t* node;
 
-	api_runtime_init(&node);
+	char* proxy_uris = (char*) (*env)->GetStringUTFChars(env, j_proxy_uris, 0);
+	char* name = (char*) (*env)->GetStringUTFChars(env, j_name, 0);
+
+	api_runtime_init(&node, name, proxy_uris);
+
+	(*env)->ReleaseStringUTFChars(env, j_proxy_uris, proxy_uris);
+	(*env)->ReleaseStringUTFChars(env, j_name, name);
+
 	return get_jlong_from_pointer(node);
 }
 
@@ -60,14 +67,9 @@ JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin
 	return data;
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStart(JNIEnv* env, jobject this, jlong node, jstring j_proxy_uris, jstring j_name)
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStart(JNIEnv* env, jobject this, jlong node)
 {
-	char* proxy_uris = (char*) (*env)->GetStringUTFChars(env, j_proxy_uris, 0);
-	char* name = (char*) (*env)->GetStringUTFChars(env, j_name, 0);
-
-	api_runtime_start(name, proxy_uris, (node_t*)get_ptr_from_jlong(node));
-	(*env)->ReleaseStringUTFChars(env, j_proxy_uris, proxy_uris);
-	(*env)->ReleaseStringUTFChars(env, j_name, name);
+	api_runtime_start((node_t *)get_ptr_from_jlong(node));
 }
 
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStop(JNIEnv* env, jobject this, jlong node)

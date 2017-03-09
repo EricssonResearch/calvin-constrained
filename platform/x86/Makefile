@@ -13,6 +13,7 @@ CFLAGS += -DUSE_PERSISTENT_STORAGE -DTRANSPORT_SOCKET
 
 C_SOURCE_FILES += \
 platform/x86/platform_x86.c \
+api.c \
 main.c \
 common.c \
 node.c \

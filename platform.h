@@ -65,7 +65,7 @@ typedef struct calvinsys_sensors_environmental_t {
   result_t (*get_temperature)(double *temp);
 } calvinsys_sensors_environmental_t;
 
-void platform_init(struct node_t *node, char* name);
+void platform_init(void);
 result_t platform_create_calvinsys(struct node_t *node);
 void platform_evt_wait(struct node_t *node, struct timeval *timeout);
 result_t platform_mem_alloc(void **buffer, uint32_t size);
