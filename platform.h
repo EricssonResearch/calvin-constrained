@@ -68,6 +68,18 @@ typedef struct calvinsys_sensors_environmental_t {
 	result_t (*get_pressure)(double* pressure);
 } calvinsys_sensors_environmental_t;
 
+typedef struct calvinsys_sensors_accelerometer_t {
+	result_t (*activate)(struct node_t* node, long event_rate);
+	result_t (*deactivate)(void);
+	result_t (*get_acceleration)(int* acceleration);
+} calvinsys_sensors_accelerometer_t;
+
+typedef struct calvinsys_sensors_gyroscope_t {
+	result_t (*activate)(struct node_t* node, long event_rate);
+	result_t (*deactivate)(void);
+	result_t (*get_orientation)(int* orientation);
+} calvinsys_sensors_gyroscope_t;
+
 void platform_init(void);
 result_t platform_create_calvinsys(struct node_t *node);
 void platform_evt_wait(struct node_t *node, struct timeval *timeout);
