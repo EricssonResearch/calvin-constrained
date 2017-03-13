@@ -10,6 +10,7 @@ add_library(
              ../../../../main.c
              ../../../../platform/android/platform_android.c
              ../../../../platform/android/jni_api.c
+             ../../../../platform/android/calvinsys_android.c
              ../../../../main.c
              ../../../../api.c
              ../../../../common.c

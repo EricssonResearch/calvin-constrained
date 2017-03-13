@@ -62,7 +62,10 @@ typedef struct calvinsys_io_giohandler_t {
 } calvinsys_io_giohandler_t;
 
 typedef struct calvinsys_sensors_environmental_t {
-  result_t (*get_temperature)(double *temp);
+	result_t (*init_enviromental)(void);
+    result_t (*get_temperature)(double *temp);
+	result_t (*get_humidity)(double* humidity);
+	result_t (*get_pressure)(double* pressure);
 } calvinsys_sensors_environmental_t;
 
 void platform_init(void);
