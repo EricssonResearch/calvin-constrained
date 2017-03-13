@@ -127,8 +127,6 @@ result_t platform_create(node_t* node)
 	platform->send_downstream_platform_message = send_downstream_platform_message;
 	platform->send_upstream_platform_message = send_upstream_platform_message;
 	platform->read_upstream = read_upstream;
-	// Create looper instance
-	//platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
 
 	node->platform = platform;
 	if (pipe(((android_platform_t*) node->platform)->upstream_platform_fd) < 0 || pipe(((android_platform_t*) node->platform)->downstream_platform_fd) < 0) {
@@ -179,8 +177,12 @@ static result_t platform_android_handle_data(node_t* node, transport_client_t *t
 }
 
 result_t platform_create_calvinsys(struct node_t *node)
-{
-	get_available_sensors();
+{   android_platform_t* platform;
+
+	platform = (android_platform_t*) node->platform;
+	platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
+	log("Create calvinsys");
+
 	create_calvinsys(node);
 	return SUCCESS;
 }
@@ -190,10 +192,19 @@ void platform_init(void)
 	srand(time(NULL));
 }
 
+static int transport_fd_handler(int fd, int events, void *data)
+{
+	node_t* node = (node_t*) data;
+	log("Transport fd triggered");
+	if (platform_android_handle_data(node, node->transport_client) != SUCCESS) {
+		log_error("Error when handling data");
+	}
+}
+
 void platform_evt_wait(node_t *node, struct timeval *timeout)
 {
-	//log("evt wait");
 	android_platform_t* platform;
+
 	int timeout_trigger = 5000;
 	int transport_trigger_id = 2;
 
@@ -202,17 +213,12 @@ void platform_evt_wait(node_t *node, struct timeval *timeout)
 		log_error("tp was null.");
 		return;
 	}
-	if (ALooper_addFd(platform->looper, ((android_platform_t*) node->platform)->downstream_platform_fd[0], transport_trigger_id, ALOOPER_EVENT_INPUT, NULL, 0) != 1){
-		log_error("Could not add fd to looper");
+	if (ALooper_addFd(platform->looper, ((android_platform_t*) node->platform)->downstream_platform_fd[0], transport_trigger_id, ALOOPER_EVENT_INPUT, &transport_fd_handler, node) != 1) {
+		log_error("Could not add fd to looper, looper: %p", platform->looper);
+		sleep(5);
 	}
 
 	int status = ALooper_pollOnce(timeout_trigger, NULL, NULL, NULL);
-	if (status == transport_trigger_id) {
-		log("Transport fd triggered");
-		if (platform_android_handle_data(node, node->transport_client) != SUCCESS) {
-			log_error("Error when handling data");
-		}
-	}
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)

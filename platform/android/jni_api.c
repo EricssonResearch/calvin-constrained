@@ -41,12 +41,7 @@ JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runt
 
 	char* proxy_uris = (char*) (*env)->GetStringUTFChars(env, j_proxy_uris, 0);
 	char* name = (char*) (*env)->GetStringUTFChars(env, j_name, 0);
-
 	api_runtime_init(&node, name, proxy_uris);
-
-	(*env)->ReleaseStringUTFChars(env, j_proxy_uris, proxy_uris);
-	(*env)->ReleaseStringUTFChars(env, j_name, name);
-
 	return get_jlong_from_pointer(node);
 }
 

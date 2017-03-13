@@ -28,21 +28,6 @@
 android_sensor_data_t* data_acc;
 android_sensor_data_t* data_gyro;
 
-void get_available_sensors()
-{
-	ASensorManager* a = ASensorManager_getInstance();
-	ASensorList list;
-	int sensor_count = ASensorManager_getSensorList(a, &list);
-	int i;
-	for (i = 0; i < sensor_count; i++) {
-		log("Sensor: %s", ASensor_getName(list[i]));
-	}
-	const ASensor* acc = ASensorManager_getDefaultSensor(a, ASENSOR_TYPE_ACCELEROMETER);
-	if (acc != NULL) {
-
-	}
-}
-
 static result_t init_enviromental()
 {
 
@@ -100,14 +85,10 @@ static int set_event(int fd, int events, void *data)
 result_t create_calvinsys(node_t* node)
 {
 	android_platform_t* platform;
+	ASensorManager* mg;
 
 	platform = (android_platform_t*) node->platform;
-	platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
-
-	log("Create calvinsys");
 	platform_create_sensors_environmental(node);
-
-	ASensorManager* mg;
 
 	mg = ASensorManager_getInstance();
 

@@ -127,7 +127,7 @@ class CalvinDataListenThread implements Runnable{
         this.messageHandlers = this.initMessageHandlers();
         String name = "Calvin Android";
         String proxy_uris = "calvinfcm://123:asd";
-        calvin.setupCalvinAndInit();
+        calvin.setupCalvinAndInit(proxy_uris, name);
     }
 
     public static int get_message_length(byte[] data) {

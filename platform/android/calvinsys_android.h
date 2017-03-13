@@ -19,8 +19,6 @@
 
 #include <node.h>
 #include <android/sensor.h>
-
-void get_available_sensors();
 result_t create_calvinsys(node_t* node);
 
 typedef struct android_sensor_data_t {
