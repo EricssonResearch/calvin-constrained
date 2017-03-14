@@ -56,9 +56,8 @@ JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin
 	platform->read_upstream(node, buffer, BUFFER_SIZE);
 	jbyteArray data;
 	size_t size = get_message_len(buffer);
-
-	data = (*env)->NewByteArray(env, size+4);
-	(*env)->SetByteArrayRegion(env, data, 0, size+4, buffer);
+	data = (*env)->NewByteArray(env, size+7);
+	(*env)->SetByteArrayRegion(env, data, 0, size+7, buffer);
 	return data;
 }
 

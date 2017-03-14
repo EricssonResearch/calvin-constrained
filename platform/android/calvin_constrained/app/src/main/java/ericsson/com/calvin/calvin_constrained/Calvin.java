@@ -10,6 +10,7 @@ public class Calvin {
 
     private final String LOG_TAG = "Native Calvin";
     public long node = 0;
+    private long msg_counter = 1;
 
     static {
         System.loadLibrary("calvin_constrained");
@@ -17,6 +18,11 @@ public class Calvin {
 
     public void setupCalvinAndInit(String name, String proxy_uris) {
         this.node = this.runtimeInit(name, proxy_uris);
+    }
+
+    public synchronized String getMsgId() {
+        this.msg_counter ++;
+        return this.msg_counter + "_" + System.currentTimeMillis();
     }
 
     public native void runtimeStart(long node);

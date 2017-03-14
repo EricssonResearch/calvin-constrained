@@ -29,9 +29,9 @@
 static result_t send_upstream_platform_message(const node_t* node, char* cmd, transport_client_t* tc, size_t data_size)
 {
 	// TODO: Avoid double buffering
-	transport_append_buffer_prefix(tc->tx_buffer.buffer, data_size+3);
+	transport_append_buffer_prefix(tc->tx_buffer.buffer, data_size+2);
 	char buffer[BUFFER_SIZE];
-
+	log("write upstream message with payload size: %zu", data_size);
 	memset(&buffer, 0, BUFFER_SIZE);
 	memcpy(buffer, tc->tx_buffer.buffer, 4); // Copy total size to output
 	memcpy(buffer+4, cmd, 2); // Copy 2 byte command
@@ -39,7 +39,9 @@ static result_t send_upstream_platform_message(const node_t* node, char* cmd, tr
 	// Write
 	if (write(((android_platform_t*) node->platform)->upstream_platform_fd[1], buffer, data_size+6) < 0)
 		log_error("Could not write to pipe");
+	log("wrote upstream message of size: %d",  get_message_len(buffer));
 	transport_free_tx_buffer(tc);
+	log("Done writing");
 	return SUCCESS;
 }
 
@@ -67,8 +69,14 @@ static result_t read_upstream(const node_t* node, char* buffer, size_t size)
 	int status = select(fd+1, &set, NULL, NULL, NULL);
 
 	if (status > 0) {
-		int bytes_read = read(fd, buffer, size);
-
+		int bytes_read = read(fd, buffer, 4);
+		unsigned int datasize = get_message_len(buffer);
+		log("Read upstream message of size: %d", datasize);
+		if (datasize > size-4) {
+			log_error("Error when reading upstream data. Buffer is to small.");
+		}
+		bytes_read = read(fd, buffer+4, datasize);
+		log("Bytes read: %d", bytes_read);
 		if (bytes_read < 0) {
 			log_error("Error when reading from pipe");
 			return SUCCESS;
