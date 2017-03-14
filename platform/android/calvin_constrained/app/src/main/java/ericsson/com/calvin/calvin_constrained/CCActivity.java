@@ -11,8 +11,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.google.firebase.iid.FirebaseInstanceId;
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.messaging.RemoteMessage;
 
 import java.io.BufferedReader;
 import java.io.IOException;

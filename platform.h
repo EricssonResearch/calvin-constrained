@@ -136,7 +136,7 @@ void platform_evt_wait(struct node_t *node, struct timeval *timeout);
  * @buffer the serialized data to write
  * @size the size of the serialized data
  */
-void platform_write_node_state(char *buffer, size_t size);
+void platform_write_node_state(struct node_t* node, char *buffer, size_t size);
 
 /**
  * platform_read_node_state() - Read serialized node state from persistent media.
@@ -145,7 +145,7 @@ void platform_write_node_state(char *buffer, size_t size);
  *
  * Return: SUCCESS/FAILURE
  */
-result_t platform_read_node_state(char buffer[], size_t size);
+result_t platform_read_node_state(struct node_t* node, char buffer[], size_t size);
 #endif
 
 #ifdef DEBUG

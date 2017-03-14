@@ -208,7 +208,7 @@ void platform_mem_free(void *buffer)
 }
 
 #ifdef USE_PERSISTENT_STORAGE
-void platform_write_node_state(char *buffer, size_t size)
+void platform_write_node_state(node_t* node, char *buffer, size_t size)
 {
 	FILE *fp = NULL;
 
@@ -221,7 +221,7 @@ void platform_write_node_state(char *buffer, size_t size)
 		log("Failed to open calvinconstrained.config for writing");
 }
 
-result_t platform_read_node_state(char buffer[], size_t size)
+result_t platform_read_node_state(node_t* node, char buffer[], size_t size)
 {
 	FILE *fp = NULL;
 

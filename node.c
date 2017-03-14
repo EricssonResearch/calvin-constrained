@@ -71,6 +71,7 @@ static void node_reset(node_t *node, bool remove_actors)
 #ifdef USE_PERSISTENT_STORAGE
 static bool node_get_state(node_t *node)
 {
+	log("node get state");
 	result_t result = FAIL;
 	char buffer[NODE_STATE_BUFFER_SIZE], *value = NULL, *array_value = NULL;
 	uint32_t i = 0, value_len = 0, array_size = 0, state = 0;
@@ -78,7 +79,7 @@ static bool node_get_state(node_t *node)
 	tunnel_t *tunnel = NULL;
 	actor_t *actor = NULL;
 
-	if (platform_read_node_state(buffer, NODE_STATE_BUFFER_SIZE) == SUCCESS) {
+	if (platform_read_node_state(node, buffer, NODE_STATE_BUFFER_SIZE) == SUCCESS) {
 		result = decode_uint_from_map(buffer, "state", &state);
 		if (result == SUCCESS)
 			node->state = (node_state_t)state;
@@ -148,7 +149,7 @@ static bool node_get_state(node_t *node)
 	return result == SUCCESS ? true : false;
 }
 
-static void node_set_state(node_t *node)
+void node_set_state(node_t *node)
 {
 	char buffer[NODE_STATE_BUFFER_SIZE];
 	char *tmp = buffer;
@@ -193,7 +194,7 @@ static void node_set_state(node_t *node)
 		}
 	}
 
-	platform_write_node_state(buffer, tmp - buffer);
+	platform_write_node_state(node, buffer, tmp - buffer);
 }
 #endif
 
@@ -311,9 +312,11 @@ void node_handle_message(node_t *node, char *buffer, size_t len)
 {
 	if (proto_parse_message(node, buffer) == SUCCESS) {
 #ifdef USE_PERSISTENT_STORAGE
+#ifdef PERSISTENT_STORAGE_CHECKPOINTING
 		// message successfully handled == state changed -> serialize the node
 		if (node->state == NODE_STARTED)
 			node_set_state(node);
+#endif
 #endif
 	} else
 		log_error("Failed to parse message");
@@ -411,16 +414,16 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	if (node->transport_client == NULL)
 		return FAIL;
 
-	while (node->transport_client->state == TRANSPORT_INTERFACE_DOWN)
+	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_INTERFACE_DOWN)
 		platform_evt_wait(node, NULL);
 
-	if (node->transport_client->connect(node, node->transport_client) != SUCCESS)
+	if (node->state == NODE_STOP || node->transport_client->connect(node, node->transport_client) != SUCCESS)
 		return FAIL;
 
-	while (node->transport_client->state == TRANSPORT_PENDING)
+	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_PENDING)
 		platform_evt_wait(node, NULL);
 
-	if (node->transport_client->state != TRANSPORT_ENABLED) {
+	if (node->state == NODE_STOP || node->transport_client->state != TRANSPORT_ENABLED) {
 		log_error("Failed to enable transport '%s'", uri);
 		return FAIL;
 	}
@@ -474,7 +477,6 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 			i++;
 		}
 	}
-
 	return SUCCESS;
 }
 
@@ -496,7 +498,7 @@ result_t node_run(node_t *node)
 				node->state = NODE_DO_START;
 				if (node_connect_to_proxy(node, node->proxy_uris[i]) == SUCCESS) {
 					log("Connected to '%s'", node->proxy_uris[i]);
-					while (node->transport_client->state == TRANSPORT_ENABLED) {
+					while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_ENABLED) {
 						if (node->state == NODE_STARTED)
 							node_loop_once(node);
 						node_transmit(node);
@@ -513,10 +515,13 @@ result_t node_run(node_t *node)
 			}
 		}
 
-		reconnect_timeout.tv_sec = 5;
-		reconnect_timeout.tv_usec = 0;
-		platform_evt_wait(node, &reconnect_timeout);
+		if (node->state != NODE_STOP) {
+			reconnect_timeout.tv_sec = 5;
+			reconnect_timeout.tv_usec = 0;
+			platform_evt_wait(node, &reconnect_timeout);
+		}
 	}
 
+	log("Node stopped");
 	return SUCCESS;
 }

@@ -16,14 +16,13 @@
 
 #include <string.h>
 #include "api.h"
-#include "platform.h"
 #include "node.h"
 #ifdef MICROPYTHON
 #include "libmpy/calvin_mpy_port.h"
 #endif
 
 
-result_t api_runtime_init(node_t **node, char *name, char *proxy_uris)
+result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char* storage_dir)
 {
 	platform_init();
 
@@ -39,6 +38,7 @@ result_t api_runtime_init(node_t **node, char *name, char *proxy_uris)
 		return FAIL;
 	}
 	memset(*node, 0, sizeof(node_t));
+	(*node)->storage_dir = storage_dir;
 
 	return node_init(*node, name, proxy_uris);
 }
@@ -50,6 +50,21 @@ result_t api_runtime_start(node_t *node)
 
 result_t api_runtime_stop(node_t *node)
 {
+	log("node will stop");
+	node->state = NODE_STOP;
+	return SUCCESS;
+}
+
+result_t api_runtime_serialize_and_stop(node_t* node)
+{
+#ifdef USE_PERSISTENT_STORAGE
+	if (node->state == NODE_STARTED) {
+		log("Will serialize node");
+		node_set_state(node);
+	} else {
+		log("Nothing to serialize, will stop");
+	}
+#endif
 	node->state = NODE_STOP;
 	return SUCCESS;
 }

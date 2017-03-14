@@ -24,21 +24,29 @@ public class CalvinService extends Service{
 
     @Override
     public void onCreate() {
-        calvin = new Calvin();
+        // TODO: Move these config params to someplace else
+        String name = "Calvin Android";
+        String proxy_uris = "calvinfcm://123:asd";
+        String storageDir = getFilesDir().getAbsolutePath();
+        calvin = new Calvin(name, proxy_uris, storageDir);
+        calvin.runtimeSerialize = true;
         cdlt = new CalvinDataListenThread(calvin);
         calvinThread = new Thread(cdlt);
         calvinThread.start();
     }
 
     @Override
-    public int onStartCommand(Intent intent, int flags, int startid){
+    public int onStartCommand(Intent intent, int flags, int startid) {
         return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
         Log.d(LOG_TAG, "Destorying Calvin service");
-        calvin.runtimeStop(calvin.node);
+        if (calvin.runtimeSerialize)
+            calvin.runtimeSerializeAndStop(calvin.node);
+        else
+            calvin.runtimeStop(calvin.node);
     }
 
     @Override
@@ -128,9 +136,7 @@ class CalvinDataListenThread implements Runnable{
     public CalvinDataListenThread(Calvin calvin){
         this.calvin = calvin;
         this.messageHandlers = this.initMessageHandlers();
-        String name = "Calvin Android";
-        String proxy_uris = "calvinfcm://123:asd";
-        calvin.setupCalvinAndInit(proxy_uris, name);
+        calvin.setupCalvinAndInit(calvin.proxyUris, calvin.name, calvin.storageDir);
     }
 
     public static int get_message_length(byte[] data) {

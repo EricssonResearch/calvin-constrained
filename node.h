@@ -44,6 +44,7 @@ typedef struct node_t {
 	node_state_t state;
 	char id[UUID_BUFFER_SIZE];
 	char name[50];
+	char* storage_dir;
 	pending_msg_t pending_msgs[MAX_PENDING_MSGS];
 	void* platform;
 	link_t *proxy_link;
@@ -65,4 +66,7 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 void node_handle_message(node_t *node, char *buffer, size_t len);
 result_t node_init(node_t* node, char *name, char *proxy_uris);
 result_t node_run(node_t *node);
+#ifdef USE_PERSISTENT_STORAGE
+void node_set_state(node_t *node);
+#endif
 #endif /* NODE_H */

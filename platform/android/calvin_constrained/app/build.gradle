@@ -20,6 +20,7 @@ android {
                 cFlags "-Werror"
                 cFlags "-g"
                 // cFlags "-DMICROPYTHON"
+                cFlags "-DUSE_PERSISTENT_STORAGE"
                 cFlags "-DPLATFORM_PIPE"
                 cFlags "-DPARSE_ARGS"
                 cFlags "-DPLATFORM_ANDROID"

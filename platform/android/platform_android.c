@@ -16,15 +16,13 @@
 #include <stdlib.h>
 #include <time.h>
 #include "../../platform.h"
-#include "platform.h"
 #include "calvinsys_android.h"
-#include "../../node.h"
-#include "../../api.h"
 #include <unistd.h>
 #include <stdarg.h>
 #include <android/log.h>
-#include <android/sensor.h>
 #include "platform_android.h"
+#include <errno.h>
+#include <api.h>
 
 static result_t send_upstream_platform_message(const node_t* node, char* cmd, transport_client_t* tc, size_t data_size)
 {
@@ -108,8 +106,7 @@ static result_t command_calvin_msg(node_t* node, char* payload_data, size_t size
 
 static result_t command_rt_stop(node_t* node, char* payload_data, size_t size)
 {
-	node->state = NODE_STOP;
-	return SUCCESS;
+	return api_runtime_stop(node);
 }
 
 static result_t platform_transport_connected(node_t* node, char* data, size_t size)
@@ -118,10 +115,16 @@ static result_t platform_transport_connected(node_t* node, char* data, size_t si
 	return SUCCESS;
 }
 
+static result_t platform_serialize_and_stop(node_t* node, char* data, size_t size)
+{
+	return api_runtime_serialize_and_stop(node);
+}
+
 struct platform_command_handler_t platform_command_handlers[NBR_OF_COMMANDS] = {
 		{CONNECT_REPLY, platform_transport_connected},
 		{RUNTIME_STOP, command_rt_stop},
-		{RUNTIME_CALVIN_MSG, command_calvin_msg}
+		{RUNTIME_CALVIN_MSG, command_calvin_msg},
+		{RUNTIME_SERIALIZE_AND_STOP, platform_serialize_and_stop}
 };
 
 result_t platform_create(node_t* node)
@@ -166,7 +169,7 @@ result_t handle_platform_call(node_t* node, int fd)
 	int i;
 	for (i = 0; i < NBR_OF_COMMANDS; i++) {
 		if (strcmp(platform_command_handlers[i].command, cmd) == 0) {
-			log("will handle that command");
+			log("will handle command %s", cmd);
 			platform_command_handlers[i].handler(node, data_buffer+2, size+4);
 			return SUCCESS;
 		}
@@ -245,3 +248,48 @@ void platform_mem_free(void *buffer)
 {
 	free(buffer);
 }
+
+#ifdef USE_PERSISTENT_STORAGE
+void platform_write_node_state(node_t* node, char *buffer, size_t size)
+{
+	FILE *fp = NULL;
+	char* filename = "calvinconstrained.config";
+	char abs_filepath[strlen(filename) + strlen(node->storage_dir) + 1];
+
+	strcpy(abs_filepath, node->storage_dir);
+	if (node->storage_dir[strlen(node->storage_dir)-1] != '/')
+		strcat(abs_filepath, "/");
+	strcat(abs_filepath, filename);
+
+	fp = fopen(abs_filepath, "w+");
+	if (fp != NULL) {
+		if (fwrite(buffer, 1, size, fp) != size)
+			log_error("Failed to write node config");
+		fclose(fp);
+		log("Wrote node state to disk");
+	} else {
+		log_error("Failed to open calvinconstrained.config for writing");
+		log_error("Errno: %d, error: %s", errno, strerror(errno));
+	}
+}
+
+result_t platform_read_node_state(node_t* node, char buffer[], size_t size)
+{
+	FILE *fp = NULL;
+	char* filename = "calvinconstrained.config";
+	char abs_filepath[strlen(filename) + strlen(node->storage_dir) + 1];
+
+	strcpy(abs_filepath, node->storage_dir);
+	if (node->storage_dir[strlen(node->storage_dir)-1] != '/')
+		strcat(abs_filepath, "/");
+	strcat(abs_filepath, filename);
+
+	fp = fopen(abs_filepath, "r+");
+	if (fp != NULL) {
+		fread(buffer, 1, size, fp);
+		fclose(fp);
+		return SUCCESS;
+	}
+	return FAIL;
+}
+#endif
