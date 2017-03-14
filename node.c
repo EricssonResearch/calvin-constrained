@@ -461,11 +461,6 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 		return FAIL;
 	}
 
-	if (platform_create_calvinsys(node) != SUCCESS) {
-		log_error("Failed to create calvinsys object");
-		return FAIL;
-	}
-
 	if (node_setup(node, name) != SUCCESS) {
 		log_error("Failed to setup node");
 		return FAIL;
@@ -487,6 +482,12 @@ result_t node_run(node_t *node)
 {
 	int i = 0;
 	struct timeval reconnect_timeout;
+
+
+	if (platform_create_calvinsys(node) != SUCCESS) {
+		log_error("Failed to create calvinsys object");
+		return FAIL;
+	}
 
 	while (node->state != NODE_STOP) {
 		for (i = 0; i < MAX_URIS; i++) {

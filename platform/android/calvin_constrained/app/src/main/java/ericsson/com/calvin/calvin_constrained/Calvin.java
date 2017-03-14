@@ -10,18 +10,24 @@ public class Calvin {
 
     private final String LOG_TAG = "Native Calvin";
     public long node = 0;
+    private long msg_counter = 1;
 
     static {
         System.loadLibrary("calvin_constrained");
     }
 
-    public void setupCalvinAndInit() {
-        this.node = this.runtimeInit();
+    public void setupCalvinAndInit(String name, String proxy_uris) {
+        this.node = this.runtimeInit(name, proxy_uris);
+    }
+
+    public synchronized String getMsgId() {
+        this.msg_counter ++;
+        return this.msg_counter + "_" + System.currentTimeMillis();
     }
 
     public native void runtimeStart(long node);
     public native String runtimeStop(long node);
-    public native long runtimeInit(String name, String proxy_uris);
+    public native long runtimeInit(String proxy_uris, String name);
     public native byte[] readUpstreamData(long node);
     public native void runtimeCalvinPayload(byte[] payload, long node);
     public native void fcmTransportConnected(long node);

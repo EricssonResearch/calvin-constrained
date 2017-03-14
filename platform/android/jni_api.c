@@ -41,12 +41,7 @@ JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runt
 
 	char* proxy_uris = (char*) (*env)->GetStringUTFChars(env, j_proxy_uris, 0);
 	char* name = (char*) (*env)->GetStringUTFChars(env, j_name, 0);
-
 	api_runtime_init(&node, name, proxy_uris);
-
-	(*env)->ReleaseStringUTFChars(env, j_proxy_uris, proxy_uris);
-	(*env)->ReleaseStringUTFChars(env, j_name, name);
-
 	return get_jlong_from_pointer(node);
 }
 
@@ -61,9 +56,8 @@ JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin
 	platform->read_upstream(node, buffer, BUFFER_SIZE);
 	jbyteArray data;
 	size_t size = get_message_len(buffer);
-
-	data = (*env)->NewByteArray(env, size+4);
-	(*env)->SetByteArrayRegion(env, data, 0, size+4, buffer);
+	data = (*env)->NewByteArray(env, size+7);
+	(*env)->SetByteArrayRegion(env, data, 0, size+7, buffer);
 	return data;
 }
 

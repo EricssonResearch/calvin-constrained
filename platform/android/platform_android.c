@@ -17,19 +17,21 @@
 #include <time.h>
 #include "../../platform.h"
 #include "platform.h"
+#include "calvinsys_android.h"
 #include "../../node.h"
 #include "../../api.h"
 #include <unistd.h>
 #include <stdarg.h>
 #include <android/log.h>
+#include <android/sensor.h>
 #include "platform_android.h"
 
 static result_t send_upstream_platform_message(const node_t* node, char* cmd, transport_client_t* tc, size_t data_size)
 {
 	// TODO: Avoid double buffering
-	transport_append_buffer_prefix(tc->tx_buffer.buffer, data_size+3);
+	transport_append_buffer_prefix(tc->tx_buffer.buffer, data_size+2);
 	char buffer[BUFFER_SIZE];
-
+	log("write upstream message with payload size: %zu", data_size);
 	memset(&buffer, 0, BUFFER_SIZE);
 	memcpy(buffer, tc->tx_buffer.buffer, 4); // Copy total size to output
 	memcpy(buffer+4, cmd, 2); // Copy 2 byte command
@@ -37,7 +39,9 @@ static result_t send_upstream_platform_message(const node_t* node, char* cmd, tr
 	// Write
 	if (write(((android_platform_t*) node->platform)->upstream_platform_fd[1], buffer, data_size+6) < 0)
 		log_error("Could not write to pipe");
+	log("wrote upstream message of size: %d",  get_message_len(buffer));
 	transport_free_tx_buffer(tc);
+	log("Done writing");
 	return SUCCESS;
 }
 
@@ -65,8 +69,14 @@ static result_t read_upstream(const node_t* node, char* buffer, size_t size)
 	int status = select(fd+1, &set, NULL, NULL, NULL);
 
 	if (status > 0) {
-		int bytes_read = read(fd, buffer, size);
-
+		int bytes_read = read(fd, buffer, 4);
+		unsigned int datasize = get_message_len(buffer);
+		log("Read upstream message of size: %d", datasize);
+		if (datasize > size-4) {
+			log_error("Error when reading upstream data. Buffer is to small.");
+		}
+		bytes_read = read(fd, buffer+4, datasize);
+		log("Bytes read: %d", bytes_read);
 		if (bytes_read < 0) {
 			log_error("Error when reading from pipe");
 			return SUCCESS;
@@ -105,6 +115,7 @@ static result_t command_rt_stop(node_t* node, char* payload_data, size_t size)
 static result_t platform_transport_connected(node_t* node, char* data, size_t size)
 {
 	transport_join(node, node->transport_client);
+	return SUCCESS;
 }
 
 struct platform_command_handler_t platform_command_handlers[NBR_OF_COMMANDS] = {
@@ -124,6 +135,7 @@ result_t platform_create(node_t* node)
 	platform->send_downstream_platform_message = send_downstream_platform_message;
 	platform->send_upstream_platform_message = send_upstream_platform_message;
 	platform->read_upstream = read_upstream;
+
 	node->platform = platform;
 	if (pipe(((android_platform_t*) node->platform)->upstream_platform_fd) < 0 || pipe(((android_platform_t*) node->platform)->downstream_platform_fd) < 0) {
 		log_error("Could not open pipes for transport");
@@ -173,7 +185,13 @@ static result_t platform_android_handle_data(node_t* node, transport_client_t *t
 }
 
 result_t platform_create_calvinsys(struct node_t *node)
-{
+{   android_platform_t* platform;
+
+	platform = (android_platform_t*) node->platform;
+	platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
+	log("Create calvinsys");
+
+	create_calvinsys(node);
 	return SUCCESS;
 }
 
@@ -182,31 +200,33 @@ void platform_init(void)
 	srand(time(NULL));
 }
 
+static int transport_fd_handler(int fd, int events, void *data)
+{
+	node_t* node = (node_t*) data;
+	log("Transport fd triggered");
+	if (platform_android_handle_data(node, node->transport_client) != SUCCESS) {
+		log_error("Error when handling data");
+	}
+}
+
 void platform_evt_wait(node_t *node, struct timeval *timeout)
 {
-	fd_set set;
-	struct timeval reconnect_timeout = {10, 0};
+	android_platform_t* platform;
 
+	int timeout_trigger = 5000;
+	int transport_trigger_id = 2;
+
+	platform = (android_platform_t*) node->platform;
 	if (node->transport_client == NULL) {
 		log_error("tp was null.");
 		return;
 	}
-
-	FD_ZERO(&set);
-
-	FD_SET(((android_platform_t*) node->platform)->downstream_platform_fd[0], &set);
-	int max_fd = 1;
-	int status = select(((android_platform_t*) node->platform)->downstream_platform_fd[0] + max_fd, &set, NULL, NULL, NULL);
-	if (status > 0) {
-		if (platform_android_handle_data(node, node->transport_client) != SUCCESS) {
-			log_error("Error when handling data");
-		}
+	if (ALooper_addFd(platform->looper, ((android_platform_t*) node->platform)->downstream_platform_fd[0], transport_trigger_id, ALOOPER_EVENT_INPUT, &transport_fd_handler, node) != 1) {
+		log_error("Could not add fd to looper, looper: %p", platform->looper);
+		sleep(5);
 	}
-	else if (status == 0) {
-		log_debug("Select timeout.");
-	} else {
-		log_error("ERROR on select");
-	}
+
+	int status = ALooper_pollOnce(timeout_trigger, NULL, NULL, NULL);
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)

@@ -37,7 +37,7 @@ result_t send_fcm_connect_request(struct node_t *node, char *iface)
 	if (transport_create_tx_buffer(node->transport_client, BUFFER_SIZE) == SUCCESS) {
 		buf = node->transport_client->tx_buffer.buffer + 4;
 		memcpy(buf, iface, strlen(iface) + 1);
-		return ((android_platform_t *)node->platform)->send_upstream_platform_message(node, FCM_CONNECT, node->transport_client, strlen(iface) + 1);
+		return ((android_platform_t *)node->platform)->send_upstream_platform_message(node, FCM_CONNECT, node->transport_client, 0);
 	}
 
 	return FAIL;

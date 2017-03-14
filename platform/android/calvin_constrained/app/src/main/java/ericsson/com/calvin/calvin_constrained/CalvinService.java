@@ -88,8 +88,10 @@ class CalvinDataListenThread implements Runnable{
                 } else {
                     Log.d(LOG_TAG, "Payload is: " + new String(data));
                     FirebaseMessaging fm = FirebaseMessaging.getInstance();
+                    String id = calvin.getMsgId();
                     RemoteMessage msg = new RemoteMessage.Builder("773482069446@gcm.googleapis.com") // TODO: Load this id from somewhere
-                            .setMessageId("id" + System.currentTimeMillis()) // TODO: Set proper id
+                            // .setMessageId("id" + System.currentTimeMillis()) // TODO: Set proper id
+                            .setMessageId(id)
                             .addData("msg_type", "payload")
                             .addData("payload", new String(CalvinCommon.base64Encode(data)))
                             .build();
@@ -108,11 +110,12 @@ class CalvinDataListenThread implements Runnable{
             public void handleData(byte[] data) {
                 Log.d(LOG_TAG, "Send fcm connect message");
                 FirebaseMessaging fm = FirebaseMessaging.getInstance();
+                String id = calvin.getMsgId();
                 RemoteMessage msg = new RemoteMessage.Builder("773482069446@gcm.googleapis.com") // TODO: Load this id from somewhere
-                        .setMessageId("id" + System.currentTimeMillis()) // TODO: Set proper id
+                        .setMessageId(id)
                         .addData("msg_type", "set_connect")
                         .addData("connect", "1")
-                        .addData("uri", new String(data))
+                        .addData("uri", "")
                         .build();
                 fm.send(msg);
                 Log.d(LOG_TAG, "Sent fcm message!");
@@ -127,7 +130,7 @@ class CalvinDataListenThread implements Runnable{
         this.messageHandlers = this.initMessageHandlers();
         String name = "Calvin Android";
         String proxy_uris = "calvinfcm://123:asd";
-        calvin.setupCalvinAndInit();
+        calvin.setupCalvinAndInit(proxy_uris, name);
     }
 
     public static int get_message_length(byte[] data) {
@@ -153,15 +156,14 @@ class CalvinDataListenThread implements Runnable{
             byte[] raw_data = calvin.readUpstreamData(calvin.node);
             int size = get_message_length(raw_data);
 
-            Log.d(LOG_TAG, "data size is: " + size);
             byte[] cmd = Arrays.copyOfRange(raw_data, 4, 6);
             String cmd_string = new String(cmd);
             byte[] payload = null;
-            if(size > 2)
-                payload = Arrays.copyOfRange(raw_data, 6, size+3);
+            if(size > 2) {
+                payload = Arrays.copyOfRange(raw_data, 6, raw_data.length - 3);
+            }
             for(CalvinMessageHandler cmh : this.messageHandlers)
                 if (cmh.getCommand().equals(cmd_string)) {
-                    Log.d(LOG_TAG, "Calling command handler for: " + cmh.getCommand());
                     if (payload == null) {
                         cmh.handleData(null);
                     } else {
