@@ -15,8 +15,10 @@
  */
 
 #include <string.h>
+#include <unistd.h>
 #include "api.h"
 #include "node.h"
+#include "errno.h"
 #ifdef MICROPYTHON
 #include "libmpy/calvin_mpy_port.h"
 #endif
@@ -45,7 +47,9 @@ result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char* sto
 
 result_t api_runtime_start(node_t *node)
 {
-	return node_run(node);
+	node_run(node);
+	platform_stop(node);
+	return SUCCESS;
 }
 
 result_t api_runtime_stop(node_t *node)
@@ -68,3 +72,22 @@ result_t api_runtime_serialize_and_stop(node_t* node)
 	node->state = NODE_STOP;
 	return SUCCESS;
 }
+
+#ifdef USE_PERSISTENT_STORAGE
+result_t api_clear_serialization_file(char* filedir)
+{
+	char* filename = "calvinconstrained.config";
+	char abs_filepath[strlen(filename) + strlen(filedir) + 1];
+
+	strcpy(abs_filepath, filedir);
+	if (filedir[strlen(filedir)-1] != '/')
+		strcat(abs_filepath, "/");
+	strcat(abs_filepath, filename);
+	if (unlink(abs_filepath) < 0) {
+		log_error("Could not remove serialization file: %s", strerror(errno));
+		return FAIL;
+	}
+	log("Cleared serialization file");
+	return SUCCESS;
+}
+#endif

@@ -10,6 +10,8 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 
+import java.util.Queue;
+
 /**
  * Created by alexander on 2017-02-07.
  */
@@ -37,11 +39,18 @@ public class CalvinFCMService extends FirebaseMessagingService {
             return;
         }
         String msgType = message.getData().get("msg_type");
-        switch(msgType){
+        switch(msgType) {
             case "payload":
                 byte[] bytes = message.getData().get("payload").getBytes();
                 bytes = CalvinCommon.base64Decode(bytes);
-                calvin.runtimeCalvinPayload(bytes, calvin.node);
+                //calvin.runtimeCalvinPayload(bytes, calvin.node);
+                calvin.downstreamQueue.add(bytes);
+                if (!calvin.writeDownstreamQueue()) {
+                    // Calvin RT was not running, start the service
+                    Log.d(LOG_TAG, "Node was stoped, starting node");
+                    Intent startServiceIntent = new Intent(this, CalvinService.class);
+                    startService(startServiceIntent);
+                }
                 break;
             case "set_connect":
                 Log.d(LOG_TAG, "Got connected message");

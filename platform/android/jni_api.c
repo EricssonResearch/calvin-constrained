@@ -99,3 +99,26 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runti
 
 	platform->send_downstream_platform_message(node, RUNTIME_SERIALIZE_AND_STOP, node->transport_client, NULL, 0);
 }
+
+JNIEXPORT jint JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_getNodeState(JNIEnv* env, jobject this, jlong node_p) {
+	node_t *node = (node_t *) get_ptr_from_jlong(node_p);
+
+	if (node == NULL)
+		return (jint) 3;
+	switch (node->state) {
+		case NODE_DO_START:
+			return (jint) 0;
+		case NODE_PENDING:
+			return (jint) 1;
+		case NODE_STARTED:
+			return (jint) 2;
+		case NODE_STOP:
+			return (jint) 3;
+	}
+}
+
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_clearSerialization(JNIEnv* env, jobject this, jstring j_filedir)
+{
+	char* filedir = (char*) (*env)->GetStringUTFChars(env, j_filedir, 0);
+	api_clear_serialization_file(filedir);
+}

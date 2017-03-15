@@ -29,6 +29,9 @@ public class CCActivity extends Activity {
         setContentView(R.layout.cc_layout);
         this.activity = this;
         Intent startServiceIntent = new Intent(this, CalvinService.class);
+        Bundle intentData = new Bundle();
+        intentData.putBoolean(CalvinService.CLEAR_SERIALIZATION_FILE, true);
+        startServiceIntent.putExtras(intentData);
         startService(startServiceIntent);
         setupUI();
         // showLogs();

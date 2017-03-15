@@ -1,7 +1,9 @@
 package ericsson.com.calvin.calvin_constrained;
 
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -16,37 +18,46 @@ import java.util.Arrays;
  */
 
 public class CalvinService extends Service{
+    public static final String CLEAR_SERIALIZATION_FILE = "csf";
     public static Calvin calvin;
     Thread calvinThread;
     CalvinDataListenThread cdlt;
+    public boolean runtimeHasStopped;
 
     private final String LOG_TAG = "CalvinService";
 
     @Override
     public void onCreate() {
-        // TODO: Move these config params to someplace else
-        String name = "Calvin Android";
-        String proxy_uris = "calvinfcm://123:asd";
-        String storageDir = getFilesDir().getAbsolutePath();
-        calvin = new Calvin(name, proxy_uris, storageDir);
-        calvin.runtimeSerialize = true;
-        cdlt = new CalvinDataListenThread(calvin);
-        calvinThread = new Thread(cdlt);
-        calvinThread.start();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startid) {
+        // TODO: Move these config params to someplace else
+        Bundle intentData = intent.getExtras();
+        this.runtimeHasStopped = false;
+        String name = "Calvin Android";
+        String proxy_uris = "calvinfcm://123:asd";
+        String storageDir = getFilesDir().getAbsolutePath();
+        calvin = new Calvin(name, proxy_uris, storageDir);
+        if (intentData != null && intentData.getBoolean(CLEAR_SERIALIZATION_FILE, false)) {
+            calvin.clearSerialization(storageDir);
+        }
+        calvin.runtimeSerialize = true;
+        cdlt = new CalvinDataListenThread(calvin, this);
+        calvinThread = new Thread(cdlt);
+        calvinThread.start();
         return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
         Log.d(LOG_TAG, "Destorying Calvin service");
-        if (calvin.runtimeSerialize)
-            calvin.runtimeSerializeAndStop(calvin.node);
-        else
-            calvin.runtimeStop(calvin.node);
+        if (calvin.nodeState != Calvin.STATE.NODE_STOP) {
+            if (calvin.runtimeSerialize)
+                calvin.runtimeSerializeAndStop(calvin.node);
+            else
+                calvin.runtimeStop(calvin.node);
+        }
     }
 
     @Override
@@ -56,6 +67,7 @@ public class CalvinService extends Service{
 }
 
 class CalvinRuntime implements Runnable {
+    private final String LOG_TAG = "Calvin runtime thread";
     Calvin calvin;
     CalvinMessageHandler[] messageHandlers;
 
@@ -67,6 +79,7 @@ class CalvinRuntime implements Runnable {
     @Override
     public void run() {
         calvin.runtimeStart(calvin.node);
+        Log.d(LOG_TAG, "Calvin runtime thread finshed");
     }
 }
 
@@ -74,14 +87,14 @@ class CalvinDataListenThread implements Runnable{
     private Calvin calvin;
     private CalvinMessageHandler[] messageHandlers;
     private final String LOG_TAG = "Android pipelisten";
-    private final int BUFFER_SIZE = 512;
     private boolean rtStarted = false;
     private CalvinRuntime rt;
     private Thread calvinThread;
+    private Context context;
 
     CalvinMessageHandler[] initMessageHandlers() {
         // Create all message handlers here
-        CalvinMessageHandler[] handlers = new CalvinMessageHandler[2];
+        CalvinMessageHandler[] handlers = new CalvinMessageHandler[4];
         handlers[0] = new CalvinMessageHandler() {
             @Override
             public String getCommand() {
@@ -129,12 +142,35 @@ class CalvinDataListenThread implements Runnable{
                 Log.d(LOG_TAG, "Sent fcm message!");
             }
         };
+        handlers[2] = new CalvinMessageHandler() {
+            @Override
+            public String getCommand() {
+                return CalvinMessageHandler.RUNTIME_STARTED;
+            }
 
+            @Override
+            public void handleData(byte[] data) {
+                Log.d(LOG_TAG, "Android: Runtime started!");
+                calvin.writeDownstreamQueue();
+            }
+        };
+        handlers[3] = new CalvinMessageHandler() {
+            @Override
+            public String getCommand() {
+                return CalvinMessageHandler.RUNTIME_STOP;
+            }
+
+            @Override
+            public void handleData(byte[] data) {
+                calvin.nodeState = Calvin.STATE.NODE_STOP;
+            }
+        };
         return handlers;
     }
 
-    public CalvinDataListenThread(Calvin calvin){
+    public CalvinDataListenThread(Calvin calvin, Context context){
         this.calvin = calvin;
+        this.context = context;
         this.messageHandlers = this.initMessageHandlers();
         calvin.setupCalvinAndInit(calvin.proxyUris, calvin.name, calvin.storageDir);
     }
@@ -159,6 +195,7 @@ class CalvinDataListenThread implements Runnable{
                 calvinThread.start();
                 rtStarted = true;
             }
+
             byte[] raw_data = calvin.readUpstreamData(calvin.node);
             int size = get_message_length(raw_data);
 
@@ -176,6 +213,13 @@ class CalvinDataListenThread implements Runnable{
                         cmh.handleData(payload);
                     }
                 }
+            if (calvin.nodeState == Calvin.STATE.NODE_STOP) {
+                // TODO: Close pipes here instead of from calvin constrained
+                break;
+            }
         }
+        Log.d(LOG_TAG, "Calvin data listen thread stoped");
+        Intent stopServiceIntent = new Intent(context, CalvinService.class);
+        context.stopService(stopServiceIntent);
     }
 }

@@ -275,6 +275,7 @@ static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_dat
 			if (status == 200) {
 				log("Node started with proxy '%s'", node->transport_client->peer_id);
 				node->state = NODE_STARTED;
+				platform_node_started(node);
 				return SUCCESS;
 			}
 			log_error("Failed to setup node, status '%d'", (int)status);

@@ -26,6 +26,8 @@
 #define RUNTIME_SERIALIZE_AND_STOP "RA"
 
 #define NBR_OF_COMMANDS 4
+#define PLATFORM_UNACTIVITY_TIMEOUT 25
+
 typedef struct android_platform_t {
 	int upstream_platform_fd[2]; // read end [0], write end [1]
 	int downstream_platform_fd[2];

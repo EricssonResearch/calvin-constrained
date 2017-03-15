@@ -24,6 +24,11 @@
 #include <errno.h>
 #include <api.h>
 
+#ifdef SLEEP_AT_UNACTIVITY
+#include "time.h"
+time_t last_activity;
+#endif
+
 static result_t send_upstream_platform_message(const node_t* node, char* cmd, transport_client_t* tc, size_t data_size)
 {
 	// TODO: Avoid double buffering
@@ -187,6 +192,21 @@ static result_t platform_android_handle_data(node_t* node, transport_client_t *t
 	return result;
 }
 
+result_t platform_node_started(struct node_t* node)
+{
+	// Send RT started, tc is not created here, so just write on the pipe
+	char buffer[6];
+	memset(buffer, 0, 6);
+	memset(buffer+3, 2 & 0xFF, 1);
+	memcpy(buffer+4, RUNTIME_STARTED, 2);
+	if (write(((android_platform_t*) node->platform)->upstream_platform_fd[1], buffer, 6) < 0) {
+		log_error("Failed to write rt started command");
+		return FAIL;
+	}
+	log("Send node started to Android");
+	return SUCCESS;
+}
+
 result_t platform_create_calvinsys(struct node_t *node)
 {   android_platform_t* platform;
 
@@ -200,6 +220,9 @@ result_t platform_create_calvinsys(struct node_t *node)
 
 void platform_init(void)
 {
+#ifdef SLEEP_AT_UNACTIVITY
+	last_activity = time(NULL);
+#endif
 	srand(time(NULL));
 }
 
@@ -214,6 +237,9 @@ static int transport_fd_handler(int fd, int events, void *data)
 
 void platform_evt_wait(node_t *node, struct timeval *timeout)
 {
+#ifdef SLEEP_AT_UNACTIVITY
+	time_t current_time;
+#endif
 	android_platform_t* platform;
 
 	int timeout_trigger = 5000;
@@ -230,6 +256,33 @@ void platform_evt_wait(node_t *node, struct timeval *timeout)
 	}
 
 	int status = ALooper_pollOnce(timeout_trigger, NULL, NULL, NULL);
+
+#ifdef SLEEP_AT_UNACTIVITY
+	current_time = time(NULL);
+	if (status == ALOOPER_POLL_TIMEOUT) {
+		if (difftime(current_time, last_activity) >= ((double) PLATFORM_UNACTIVITY_TIMEOUT)) {
+			log("platform timeout triggered");
+			api_runtime_serialize_and_stop(node);
+		}
+	} else {
+		last_activity = current_time;
+	}
+#endif
+}
+
+result_t platform_stop(node_t* node)
+{
+	// Write node stop on pipe, tc will not exist here
+	char buffer[6];
+	memset(buffer, 0, 6);
+	memset(buffer+3, 2 & 0xFF, 1);
+	memcpy(buffer+4, RUNTIME_STOP, 2);
+	if (write(((android_platform_t*) node->platform)->upstream_platform_fd[1], buffer, 6) < 0) {
+		log_error("Failed to write rt started command");
+		return FAIL;
+	}
+	// TODO: Cleanup
+	return SUCCESS;
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)
