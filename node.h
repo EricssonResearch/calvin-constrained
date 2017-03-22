@@ -40,6 +40,12 @@ typedef struct pending_msg_t {
 	void *msg_data;
 } pending_msg_t;
 
+typedef struct node_attributes_t {
+    list_t* indexed_public_owner;
+    list_t* indexed_public_address;
+    list_t* indexed_public_node_name;
+} node_attributes_t;
+
 typedef struct node_t {
 	node_state_t state;
 	char id[UUID_BUFFER_SIZE];
@@ -47,6 +53,7 @@ typedef struct node_t {
 	char* storage_dir;
 	pending_msg_t pending_msgs[MAX_PENDING_MSGS];
 	void* platform;
+    node_attributes_t* attributes;
 	link_t *proxy_link;
 	list_t *links;
 	tunnel_t *storage_tunnel;

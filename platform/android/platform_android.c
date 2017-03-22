@@ -149,6 +149,16 @@ result_t platform_create(node_t* node)
 		log_error("Could not open pipes for transport");
 		return FAIL;
 	}
+    
+    node_attributes_t* attr;
+    if (platform_mem_alloc((void **) &attr, sizeof(node_attributes_t)) != SUCCESS) {
+        log_error("Could not allocate memory for attributes");
+    }
+    attr->indexed_public_owner = NULL;
+    attr->indexed_public_node_name = NULL;
+    attr->indexed_public_address = NULL;
+    node->attributes = attr;
+	
 	return SUCCESS;
 }
 
@@ -346,3 +356,4 @@ result_t platform_read_node_state(node_t* node, char buffer[], size_t size)
 	return FAIL;
 }
 #endif
+

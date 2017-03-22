@@ -71,7 +71,6 @@ static void node_reset(node_t *node, bool remove_actors)
 #ifdef USE_PERSISTENT_STORAGE
 static bool node_get_state(node_t *node)
 {
-	log("node get state");
 	result_t result = FAIL;
 	char buffer[NODE_STATE_BUFFER_SIZE], *value = NULL, *array_value = NULL;
 	uint32_t i = 0, value_len = 0, array_size = 0, state = 0;
