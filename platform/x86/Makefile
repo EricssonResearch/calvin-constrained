@@ -19,7 +19,7 @@ common.c \
 node.c \
 proto.c \
 transport.c \
-transport_socket.c \
+transport/socket/transport_socket.c \
 tunnel.c \
 link.c \
 actor.c \

@@ -17,13 +17,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include "platform.h"
-#include "node.h"
+#include "../../platform.h"
+#include "../../node.h"
 #include "transport_fcm.h"
-#include "api.h"
+#include "../../api.h"
 
 #include <sys/socket.h>
-#include "platform/android/platform_android.h"
+#include "../../platform/android/platform_android.h"
 
 /*
  * This transport file is only used for pure calvin data messages,

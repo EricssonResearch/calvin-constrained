@@ -18,7 +18,7 @@ add_library(
              ../../../../node.c
              ../../../../proto.c
              ../../../../transport.c
-             ../../../../transport_fcm.c
+             ../../../../transport/fcm/transport_fcm.c
              ../../../../tunnel.c
              ../../../../link.c
              ../../../../actor.c
@@ -49,4 +49,3 @@ target_link_libraries(
 )
 
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -landroid")
-

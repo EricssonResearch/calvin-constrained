@@ -93,7 +93,7 @@ $(abspath node.c) \
 $(abspath link.c) \
 $(abspath proto.c) \
 $(abspath transport.c) \
-$(abspath transport_lwip.c) \
+$(abspath transport/lwip/transport_lwip.c) \
 $(abspath tunnel.c) \
 $(abspath actor.c) \
 $(abspath port.c) \

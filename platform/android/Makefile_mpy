@@ -18,8 +18,8 @@ main.c \
 common.c \
 node.c \
 proto.c \
-transport_socket.c \
-transport_fcm.c transport_fcm.c \
+transport/socket/transport_socket.c \
+transport/fcm/transport_fcm.c \
 transport.c \
 tunnel.c \
 link.c \

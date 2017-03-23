@@ -85,7 +85,7 @@ $(abspath common.c) \
 $(abspath node.c) \
 $(abspath link.c) \
 $(abspath proto.c) \
-$(abspath transport_lwip.c) \
+$(abspath transport/lwip/transport_lwip.c) \
 $(abspath transport.c) \
 $(abspath tunnel.c) \
 $(abspath actor.c) \

@@ -33,7 +33,7 @@
 #include "../../platform.h"
 #include "../../node.h"
 #include "../../transport.h"
-#include "../../transport_lwip.h"
+#include "../../transport/lwip/transport_lwip.h"
 
 #define APP_TIMER_OP_QUEUE_SIZE							5
 #define LWIP_SYS_TIMER_INTERVAL							APP_TIMER_TICKS(100, APP_TIMER_PRESCALER)

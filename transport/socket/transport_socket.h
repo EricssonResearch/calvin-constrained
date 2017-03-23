@@ -16,7 +16,7 @@
 #ifndef TRANSPORT_SOCKET_H
 #define TRANSPORT_SOCKET_H
 
-#include "transport.h"
+#include "../../transport.h"
 
 struct node_t;
 

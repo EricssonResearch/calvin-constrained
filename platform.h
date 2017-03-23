@@ -20,25 +20,11 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include "common.h"
-#ifdef NRF52
-#include "app_trace.h"
-#else
-#include <stdio.h>
-#endif
+
 #define MAX_INGPIOS 5
 
 struct node_t;
 struct transport_client_t;
-
-void platform_print(const char *fmt, ...);
-
-#ifdef DEBUG
-#define log_debug(a, args...) platform_print("DEBUG: %s(%s:%d) "a"",  __func__, __FILE__, __LINE__, ##args)
-#else
-#define log_debug(a, args...) do {} while (0)
-#endif
-#define log_error(a, args...) platform_print("ERROR: %s(%s:%d) "a"",  __func__, __FILE__, __LINE__, ##args)
-#define log(a, args...) platform_print(a, ##args)
 
 typedef enum {
 	GPIO_IN,
@@ -80,16 +66,94 @@ typedef struct calvinsys_sensors_gyroscope_t {
 	result_t (*get_orientation)(int* orientation);
 } calvinsys_sensors_gyroscope_t;
 
+/**
+ * platform_init() - Initialize the platform.
+ *
+ * Called before the node is created to initialize the platform.
+ */
 void platform_init(void);
-result_t platform_create_calvinsys(struct node_t *node);
-void platform_evt_wait(struct node_t *node, struct timeval *timeout);
-result_t platform_mem_alloc(void **buffer, uint32_t size);
-void platform_mem_free(void *buffer);
+
+/**
+ * platform_print() - Print a printf string.
+ * @fmt Printf format string
+ * ... Additional arguments replacing format specifiers in fmt.
+ */
+void platform_print(const char *fmt, ...);
+
+/**
+ * platform_create() - Create a platform object.
+ * @node the node object
+ *
+ * Called when the node has been created to create a platform object
+ * on node->platform.
+ *
+ * Return: SUCCESS/FAILURE
+ */
 result_t platform_create(struct node_t* node);
 
+/**
+ * platform_create_calvinsys() - Create calvinsys objects.
+ * @node the node object
+ *
+ * Called when node is starting to create calvinsys objects, the
+ * calvinsys objects should be added to node->calvinsys.
+ *
+ * Return: SUCCESS/FAILURE
+ */
+result_t platform_create_calvinsys(struct node_t *node);
+
+/**
+ * platform_mem_alloc() - Allocate requested memory.
+ * @buffer buffer to allocate
+ * @size size of the memory block to allocate
+ *
+ * Return: SUCCESS/FAILURE
+ */
+result_t platform_mem_alloc(void **buffer, uint32_t size);
+
+/**
+ * platform_mem_free() - Deallocates memory previously allocated by a call to platform_mem_alloc.
+ * @buffer buffer to deallocate
+ */
+void platform_mem_free(void *buffer);
+
+/**
+ * platform_evt_wait() - Wait for an event
+ * @node the node
+ * @timeout time to block waiting for an event
+ *
+ * The call should block waiting for:
+ * - Data is available on a transport interface, received data from a transport interface is
+ *   handled by calling transport_handle_data defined in transport.h.
+ * - A event from a platform function has triggered (such as a timer expiring or a digitial input toggling).
+ * - The timeout expires.
+ */
+void platform_evt_wait(struct node_t *node, struct timeval *timeout);
+
 #ifdef USE_PERSISTENT_STORAGE
+/**
+ * platform_write_node_state() - Write serialized node state to persistent media.
+ * @buffer the serialized data to write
+ * @size the size of the serialized data
+ */
 void platform_write_node_state(char *buffer, size_t size);
+
+/**
+ * platform_read_node_state() - Read serialized node state from persistent media.
+ * @buffer the read serialized data
+ * @size the size of the serialized data
+ *
+ * Return: SUCCESS/FAILURE
+ */
 result_t platform_read_node_state(char buffer[], size_t size);
 #endif
+
+#ifdef DEBUG
+#define log_debug(a, args...) platform_print("DEBUG: %s(%s:%d) "a"",  __func__, __FILE__, __LINE__, ##args)
+#else
+#define log_debug(a, args...) do {} while (0)
+#endif
+#define log_error(a, args...) platform_print("ERROR: %s(%s:%d) "a"",  __func__, __FILE__, __LINE__, ##args)
+#define log(a, args...) platform_print(a, ##args)
 
 #endif /* PLATFORM_H */

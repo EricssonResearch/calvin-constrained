@@ -18,10 +18,10 @@
 #include "lwip/ip6.h"
 #include "lwip/ip6_addr.h"
 #include "lwip/netif.h"
-#include "transport.h"
+#include "../../transport.h"
 #include "transport_lwip.h"
-#include "platform.h"
-#include "node.h"
+#include "../../platform.h"
+#include "../../node.h"
 
 static transport_client_t m_transport_client;
 

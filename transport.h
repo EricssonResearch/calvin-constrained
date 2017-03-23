@@ -43,8 +43,21 @@ typedef struct transport_buffer_t {
 	unsigned int size;
 } transport_buffer_t;
 
+/**
+ * struct transport_client_t - A transport client handing RT to RT communication
+ * @uri: URI to connect to
+ * @peer_id: ID of peer runtime
+ * @state: current state
+ * @rx_buffer: receive buffer
+ * @tx_buffer: send buffer
+ * @client_state: implementation specific state
+ * @connect: function to connect to peer
+ * @send_tx_buffer: function to send tx buffer
+ * @disconnect: function to disconnect from peer
+ * @free: function to free transport_client_t
+ */
 typedef struct transport_client_t {
-    char uri[100];
+  char uri[100];
 	char peer_id[UUID_BUFFER_SIZE];
 	transport_state_t state;
 	transport_buffer_t rx_buffer;

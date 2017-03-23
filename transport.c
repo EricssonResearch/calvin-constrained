@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 #include <string.h>
+#include <stdio.h>
 #include "transport.h"
 #include "node.h"
 #include "platform.h"
 #include "proto.h"
 #ifdef TRANSPORT_SOCKET
-#include "transport_socket.h"
+#include "transport/socket/transport_socket.h"
 #endif
 #ifdef TRANSPORT_LWIP
-#include "transport_lwip.h"
+#include "transport/lwip/transport_lwip.h"
 #endif
 #ifdef PLATFORM_ANDROID
-#include "transport_fcm.h"
+#include "transport/fcm/transport_fcm.h"
 #endif
 
 #define SERIALIZER "msgpack"

@@ -20,9 +20,9 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
-#include "transport.h"
-#include "platform.h"
-#include "node.h"
+#include "../../transport.h"
+#include "../../platform.h"
+#include "../../node.h"
 #include "transport_socket.h"
 
 #define LOCATION_SIZE       100

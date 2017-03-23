@@ -20,7 +20,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include "../../platform.h"
-#include "../../transport_socket.h"
+#include "../../transport/socket/transport_socket.h"
 #include "../../transport.h"
 #include "../../node.h"
 
