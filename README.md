@@ -12,17 +12,17 @@ The state of the implementation is experimental and it goes without saying that 
 
     git clone --recursive https://github.com/EricssonResearch/calvin-constrained.git
 
-## Porting calvin-constrained to new environments
+## Runtime ports
 
-Calvin-constrained is designed to be portable across different architectures and can execute on anything from bare metal to on top of an operating system. Read [platform/README.md](platform/README.md) for instructions on how to port it to a new environment.
+Calvin-constrained is designed to be portable across different architectures and can execute on anything from bare metal to on top of an operating system. The platform specific parts, such as initializing the platform and accessing hardware resources, are isolated from the core functionality. Implementations and instructions are located in [platform](platform).
 
-## Creating new transport clients
+## Transport clients
 
-A transport client handles the runtime to runtime communication with the calvin-base runtime acting as a proxy, see [transport/README.md](transport/README.md) for instruction on how to create new transport clients.
+A transport client handles the runtime to runtime communication with the calvin-base runtime acting as a proxy. Implementations and instructions on how to create new transport clients are located in [transport](transport).
 
 ## Actors
 
-The calvin-constrained runtime supports both actors written in C and Python, see [actors/README.md](actors/README.md) for instructions on how to add new actors.
+The calvin-constrained runtime supports actors written in C and Python, instructions and implementations are located in [actors](actors) and [libmpy](libmpy).
 
 ## Build configurations
 
