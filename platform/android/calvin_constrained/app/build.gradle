@@ -23,6 +23,8 @@ android {
                 cFlags "-DSLEEP_AT_UNACTIVITY"
                 cFlags "-DUSE_PERSISTENT_STORAGE"
                 cFlags "-DPLATFORM_PIPE"
+                cFlags "-DTRANSPORT_SOCKET"
+                cFlags "-DTRANSPORT_FCM"
                 cFlags "-DPARSE_ARGS"
                 cFlags "-DPLATFORM_ANDROID"
                 cFlags "-DDEBUG"

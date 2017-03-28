@@ -88,6 +88,7 @@ transport_client_t *transport_fcm_create(struct node_t *node, char *uri)
 
 	memset(transport_client, 0, sizeof(transport_client_t));
 
+	transport_client->transport_type = TRANSPORT_FCM_TYPE;
 	transport_client->state = TRANSPORT_INTERFACE_DOWN;
 	transport_client->rx_buffer.buffer = NULL;
 	transport_client->rx_buffer.pos = 0;

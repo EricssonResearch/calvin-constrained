@@ -1,10 +1,14 @@
 package ericsson.com.calvin.calvin_constrained;
 
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
@@ -12,16 +16,19 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.RemoteMessage;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
 
 /**
  * Created by alexander on 2017-01-31.
  */
 
-public class CalvinService extends Service{
+public class CalvinService extends Service {
     public static final String CLEAR_SERIALIZATION_FILE = "csf";
     public static Calvin calvin;
     Thread calvinThread;
     CalvinDataListenThread cdlt;
+    CalvinBroadcastReceiver br;
     public boolean runtimeHasStopped;
 
     private final String LOG_TAG = "CalvinService";
@@ -32,13 +39,21 @@ public class CalvinService extends Service{
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startid) {
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+
         // TODO: Move these config params to someplace else
         Bundle intentData = intent.getExtras();
         this.runtimeHasStopped = false;
         String name = "Calvin Android";
-        String proxy_uris = "calvinfcm://123:asd";
+        String proxy_uris = "calvinip://192.168.0.108:5000, calvinfcm://773482069446:*";
         String storageDir = getFilesDir().getAbsolutePath();
         calvin = new Calvin(name, proxy_uris, storageDir);
+
+        // Register intent filter for the br
+        br = new CalvinBroadcastReceiver(calvin);
+        this.registerReceiver(br, intentFilter);
+
         if (intentData != null && intentData.getBoolean(CLEAR_SERIALIZATION_FILE, false)) {
             calvin.clearSerialization(storageDir);
         }
@@ -52,6 +67,7 @@ public class CalvinService extends Service{
     @Override
     public void onDestroy() {
         Log.d(LOG_TAG, "Destorying Calvin service");
+        this.unregisterReceiver(br);
         if (calvin.nodeState != Calvin.STATE.NODE_STOP) {
             if (calvin.runtimeSerialize)
                 calvin.runtimeSerializeAndStop(calvin.node);
@@ -116,8 +132,8 @@ class CalvinDataListenThread implements Runnable{
                             .addData("msg_type", "payload")
                             .addData("payload", new String(CalvinCommon.base64Encode(data)))
                             .build();
-                    fm.send(msg);
-                    Log.d(LOG_TAG, "Sent fcm message!");
+                    calvin.upsreamFCMQueue.add(msg);
+                    calvin.sendUpstreamFCMMessages(context);
                 }
             }
         };
@@ -138,8 +154,8 @@ class CalvinDataListenThread implements Runnable{
                         .addData("connect", "1")
                         .addData("uri", "")
                         .build();
-                fm.send(msg);
-                Log.d(LOG_TAG, "Sent fcm message!");
+                calvin.upsreamFCMQueue.add(msg);
+                calvin.sendUpstreamFCMMessages(context);
             }
         };
         handlers[2] = new CalvinMessageHandler() {

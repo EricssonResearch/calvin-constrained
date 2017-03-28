@@ -21,13 +21,17 @@
 #include <stdarg.h>
 #include <android/log.h>
 #include "platform_android.h"
-#include <errno.h>
 #include <api.h>
+#include <sys/socket.h>
+#include <transport/socket/transport_socket.h>
+#include <stdio.h>
 
 #ifdef SLEEP_AT_UNACTIVITY
 #include "time.h"
 time_t last_activity;
 #endif
+
+#define PLATFORM_RECEIVE_BUFFER_SIZE 512
 
 static result_t send_upstream_platform_message(const node_t* node, char* cmd, transport_client_t* tc, size_t data_size)
 {
@@ -125,11 +129,17 @@ static result_t platform_serialize_and_stop(node_t* node, char* data, size_t siz
 	return api_runtime_serialize_and_stop(node);
 }
 
+static result_t platform_trigger_reconnect(node_t* node, char* data, size_t size)
+{
+	return api_reconnect(node);
+}
+
 struct platform_command_handler_t platform_command_handlers[NBR_OF_COMMANDS] = {
 		{CONNECT_REPLY, platform_transport_connected},
 		{RUNTIME_STOP, command_rt_stop},
 		{RUNTIME_CALVIN_MSG, command_calvin_msg},
-		{RUNTIME_SERIALIZE_AND_STOP, platform_serialize_and_stop}
+		{RUNTIME_SERIALIZE_AND_STOP, platform_serialize_and_stop},
+		{RUNTIME_TRIGGER_RECONNECT, platform_trigger_reconnect}
 };
 
 result_t platform_create(node_t* node)
@@ -149,6 +159,8 @@ result_t platform_create(node_t* node)
 		log_error("Could not open pipes for transport");
 		return FAIL;
 	}
+
+	log("platform fd up; %d %d, down: %d %d", ((android_platform_t*) node->platform)->upstream_platform_fd[0], ((android_platform_t*) node->platform)->upstream_platform_fd[1], ((android_platform_t*) node->platform)->downstream_platform_fd[0], ((android_platform_t*) node->platform)->downstream_platform_fd[1]);
     
     node_attributes_t* attr;
     if (platform_mem_alloc((void **) &attr, sizeof(node_attributes_t)) != SUCCESS) {
@@ -202,6 +214,21 @@ static result_t platform_android_handle_data(node_t* node, transport_client_t *t
 	return result;
 }
 
+static result_t platform_android_handle_socket_data(node_t *node, transport_client_t *transport_client)
+{
+	char buffer[PLATFORM_RECEIVE_BUFFER_SIZE];
+	int size = 0;
+
+	size = recv(((transport_socket_client_t *)transport_client->client_state)->fd, buffer, PLATFORM_RECEIVE_BUFFER_SIZE, 0);
+	if (size == 0)
+		transport_client->state = TRANSPORT_DISCONNECTED;
+	else if (size > 0)
+		transport_handle_data(node, transport_client, buffer, size);
+	else
+		log_error("Failed to read data");
+	return SUCCESS;
+}
+
 result_t platform_node_started(struct node_t* node)
 {
 	// Send RT started, tc is not created here, so just write on the pipe
@@ -245,6 +272,15 @@ static int transport_fd_handler(int fd, int events, void *data)
 	}
 }
 
+static int transport_socket_fd_handler(int fd, int events, void *data)
+{
+	node_t* node = (node_t*) data;
+	log("Transport socket triggered");
+	if (platform_android_handle_socket_data(node, node->transport_client) != SUCCESS) {
+		log_error("Error when handling socket data");
+	}
+}
+
 void platform_evt_wait(node_t *node, struct timeval *timeout)
 {
 #ifdef SLEEP_AT_UNACTIVITY
@@ -253,16 +289,26 @@ void platform_evt_wait(node_t *node, struct timeval *timeout)
 	android_platform_t* platform;
 
 	int timeout_trigger = 5000;
-	int transport_trigger_id = 2;
+	int platform_trigger_id = 2, socket_transport_trigger_id = 3;
+
 
 	platform = (android_platform_t*) node->platform;
 	if (node->transport_client == NULL) {
 		log_error("tp was null.");
 		return;
 	}
-	if (ALooper_addFd(platform->looper, ((android_platform_t*) node->platform)->downstream_platform_fd[0], transport_trigger_id, ALOOPER_EVENT_INPUT, &transport_fd_handler, node) != 1) {
+	// Add FD for FCM and platform communications
+	if (ALooper_addFd(platform->looper, ((android_platform_t*) node->platform)->downstream_platform_fd[0], platform_trigger_id, ALOOPER_EVENT_INPUT, &transport_fd_handler, node) != 1) {
 		log_error("Could not add fd to looper, looper: %p", platform->looper);
 		sleep(5);
+	}
+
+	// Only att transport FD if a socket is used it not the same as
+	if (node->transport_client->transport_type == TRANSPORT_SOCKET_TYPE) {
+		if (ALooper_addFd(platform->looper, ((transport_socket_client_t *)node->transport_client->client_state)->fd, socket_transport_trigger_id, ALOOPER_EVENT_INPUT, &transport_socket_fd_handler, node) != 1) {
+			log_error("Could not add socket fd");
+			sleep(5);
+		}
 	}
 
 	int status = ALooper_pollOnce(timeout_trigger, NULL, NULL, NULL);

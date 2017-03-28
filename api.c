@@ -91,3 +91,10 @@ result_t api_clear_serialization_file(char* filedir)
 	return SUCCESS;
 }
 #endif
+
+result_t api_reconnect(node_t* node)
+{
+	if (node->transport_client->state == TRANSPORT_ENABLED)
+		node->transport_client->state = TRANSPORT_INTERFACE_DOWN;
+	return SUCCESS;
+}

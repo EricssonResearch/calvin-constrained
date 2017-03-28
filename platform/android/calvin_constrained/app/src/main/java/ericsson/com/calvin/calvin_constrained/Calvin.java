@@ -1,7 +1,13 @@
 package ericsson.com.calvin.calvin_constrained;
 
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.util.Log;
+
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.RemoteMessage;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -18,6 +24,7 @@ public class Calvin {
     public boolean runtimeSerialize = false;
     public String name, proxyUris, storageDir;
     public Queue<byte[]> downstreamQueue;
+    public Queue<RemoteMessage> upsreamFCMQueue;
     public STATE nodeState;
 
     static {
@@ -38,6 +45,7 @@ public class Calvin {
         this.storageDir = storageDir;
         this.runtimeSerialize = false;
         downstreamQueue = new ConcurrentLinkedDeque<byte[]>();
+        upsreamFCMQueue = new ConcurrentLinkedDeque<RemoteMessage>();
     }
 
     public synchronized boolean writeDownstreamQueue() {
@@ -51,6 +59,22 @@ public class Calvin {
             return false;
         }
         return true;
+    }
+
+    public synchronized boolean sendUpstreamFCMMessages(Context context) {
+        ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo ni = cm.getActiveNetworkInfo();
+        if (ni != null && ni.isConnected()) {
+            FirebaseMessaging fm = FirebaseMessaging.getInstance();
+            while(!upsreamFCMQueue.isEmpty()) {
+                Log.d(LOG_TAG, "Sending fcm message");
+                fm.send(upsreamFCMQueue.poll());
+            }
+            return true;
+        } else {
+            Log.d(LOG_TAG, "Had no internet, could not send fcm messages");
+        }
+        return false;
     }
 
     public void setupCalvinAndInit(String name, String proxyUris, String storageDir) {
@@ -90,5 +114,6 @@ public class Calvin {
     public native void fcmTransportConnected(long node);
     public native void runtimeSerializeAndStop(long node);
     public native void clearSerialization(String filedir);
+    public native void triggerConnectivityChange(long node);
     private native int getNodeState(long node);
 }

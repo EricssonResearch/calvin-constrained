@@ -492,7 +492,7 @@ result_t node_run(node_t *node)
 	}
 
 	while (node->state != NODE_STOP) {
-		for (i = 0; i < MAX_URIS; i++) {
+		for (i = 0; i < MAX_URIS && node->state != NODE_STOP; i++) {
 			if (node->proxy_uris[i] != NULL) {
 				log("Connecting to '%s'", node->proxy_uris[i]);
 				node->state = NODE_DO_START;

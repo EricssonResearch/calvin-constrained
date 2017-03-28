@@ -122,3 +122,11 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_clear
 	char* filedir = (char*) (*env)->GetStringUTFChars(env, j_filedir, 0);
 	api_clear_serialization_file(filedir);
 }
+
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_triggerConnectivityChange(JNIEnv* env, jobject this, jlong node_p)
+{
+	log("send downstream connectivity changed msg");
+	node_t* node = (node_t*)get_ptr_from_jlong(node_p);
+	android_platform_t* platform = (android_platform_t*) node->platform;
+	platform->send_downstream_platform_message(node, RUNTIME_TRIGGER_RECONNECT, node->transport_client, NULL, 0);
+}

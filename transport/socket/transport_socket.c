@@ -25,6 +25,10 @@
 #include "../../node.h"
 #include "transport_socket.h"
 
+#ifdef PLATFORM_ANDROID
+# include <sys/socket.h>
+#endif
+
 #define LOCATION_SIZE       100
 #define URL_SIZE            100
 #define URI_SIZE            100
@@ -261,6 +265,7 @@ transport_client_t *transport_socket_create(node_t *node, char *uri)
 	transport_socket_client_t *transport_socket = NULL;
 
 	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) == SUCCESS) {
+		transport_client->transport_type = TRANSPORT_SOCKET_TYPE;
 		transport_client->state = TRANSPORT_INTERFACE_UP;
 		transport_client->rx_buffer.buffer = NULL;
 		transport_client->rx_buffer.pos = 0;

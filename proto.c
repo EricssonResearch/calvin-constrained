@@ -124,7 +124,7 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 		w = encode_str(&w, "port_property_capability", "runtime.constrained.1", strlen("runtime.constrained.1"));
 		w = encode_bool(&w, "redeploy", 0);
 
-		if (list_get(node->attributes->indexed_public_owner, "name") == NULL) {
+		if (list_get(node->attributes->indexed_public_node_name, "name") == NULL) {
 			list_add(&(node->attributes)->indexed_public_node_name, "name", node->name, strlen(node->name));
 		}
 		if (node->attributes->indexed_public_owner != NULL)
