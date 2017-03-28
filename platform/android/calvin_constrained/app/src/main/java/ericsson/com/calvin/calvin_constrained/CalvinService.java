@@ -23,6 +23,9 @@ import java.util.Iterator;
  * Created by alexander on 2017-01-31.
  */
 
+/**
+ * The main service that runs and handles the Calvin runtime.
+ */
 public class CalvinService extends Service {
     public static final String CLEAR_SERIALIZATION_FILE = "csf";
     public static Calvin calvin;
@@ -82,6 +85,9 @@ public class CalvinService extends Service {
     }
 }
 
+/**
+ * The thread that runs the Calvin runtime.
+ */
 class CalvinRuntime implements Runnable {
     private final String LOG_TAG = "Calvin runtime thread";
     Calvin calvin;
@@ -99,6 +105,9 @@ class CalvinRuntime implements Runnable {
     }
 }
 
+/**
+ * A thread that listens for upstream messages from the Calvin runtime.
+ */
 class CalvinDataListenThread implements Runnable{
     private Calvin calvin;
     private CalvinMessageHandler[] messageHandlers;

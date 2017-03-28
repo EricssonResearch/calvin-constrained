@@ -54,7 +54,6 @@ result_t api_runtime_start(node_t *node)
 
 result_t api_runtime_stop(node_t *node)
 {
-	log("node will stop");
 	node->state = NODE_STOP;
 	return SUCCESS;
 }
@@ -63,10 +62,7 @@ result_t api_runtime_serialize_and_stop(node_t* node)
 {
 #ifdef USE_PERSISTENT_STORAGE
 	if (node->state == NODE_STARTED) {
-		log("Will serialize node");
 		node_set_state(node);
-	} else {
-		log("Nothing to serialize, will stop");
 	}
 #endif
 	node->state = NODE_STOP;
@@ -84,10 +80,8 @@ result_t api_clear_serialization_file(char* filedir)
 		strcat(abs_filepath, "/");
 	strcat(abs_filepath, filename);
 	if (unlink(abs_filepath) < 0) {
-		log_error("Could not remove serialization file: %s", strerror(errno));
 		return FAIL;
 	}
-	log("Cleared serialization file");
 	return SUCCESS;
 }
 #endif

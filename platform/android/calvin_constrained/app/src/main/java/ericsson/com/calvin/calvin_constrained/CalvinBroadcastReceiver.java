@@ -13,6 +13,9 @@ import android.util.Log;
  * Created by alexander on 2017-03-24.
  */
 
+/**
+ * A broadcast receiver that listens for events from the Android platform.
+ */
 public class CalvinBroadcastReceiver extends BroadcastReceiver {
 	private final String LOG_TAG = "CalvinBR";
 	Calvin calvin;

@@ -17,6 +17,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+/**
+ * Dummy activity used for debugging.
+ */
 public class CCActivity extends Activity {
 
     private final String LOG_TAG = "CCActivity log";

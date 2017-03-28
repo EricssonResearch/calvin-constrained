@@ -6,6 +6,9 @@ import android.util.Base64;
  * Created by alexander on 2017-02-16.
  */
 
+/**
+ * Common static methods used in Calvin.
+ */
 public class CalvinCommon {
 
     public static byte[] base64Encode(byte[] input) {

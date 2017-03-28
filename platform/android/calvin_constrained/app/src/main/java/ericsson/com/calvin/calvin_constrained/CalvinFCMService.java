@@ -16,6 +16,9 @@ import java.util.Queue;
  * Created by alexander on 2017-02-07.
  */
 
+/**
+ * Service that handles the FCM connection.
+ */
 public class CalvinFCMService extends FirebaseMessagingService {
 
     private final String LOG_TAG = "Calvin FCM Service";

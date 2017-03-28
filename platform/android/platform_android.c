@@ -189,14 +189,12 @@ result_t handle_platform_call(node_t* node, int fd)
 	memset(cmd, 0, 3);
 
 	memcpy(cmd, data_buffer, 2);
-	if (size == 0)
-		log("No payload data for command");
 
 	// Handle command
 	int i;
 	for (i = 0; i < NBR_OF_COMMANDS; i++) {
 		if (strcmp(platform_command_handlers[i].command, cmd) == 0) {
-			log("will handle command %s", cmd);
+			log_debug("will handle command %s", cmd);
 			platform_command_handlers[i].handler(node, data_buffer+2, size+4);
 			return SUCCESS;
 		}
@@ -207,7 +205,6 @@ result_t handle_platform_call(node_t* node, int fd)
 
 static result_t platform_android_handle_data(node_t* node, transport_client_t *transport_client)
 {
-	log("platform handle data");
 	result_t result = handle_platform_call(node, ((android_platform_t*) node->platform)->downstream_platform_fd[0]);
 	if (result != SUCCESS)
 		log_error("fcm_handle platform call failed");
@@ -240,7 +237,6 @@ result_t platform_node_started(struct node_t* node)
 		log_error("Failed to write rt started command");
 		return FAIL;
 	}
-	log("Send node started to Android");
 	return SUCCESS;
 }
 
@@ -249,7 +245,6 @@ result_t platform_create_calvinsys(struct node_t *node)
 
 	platform = (android_platform_t*) node->platform;
 	platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
-	log("Create calvinsys");
 
 	create_calvinsys(node);
 	return SUCCESS;
@@ -266,7 +261,6 @@ void platform_init(void)
 static int transport_fd_handler(int fd, int events, void *data)
 {
 	node_t* node = (node_t*) data;
-	log("Transport fd triggered");
 	if (platform_android_handle_data(node, node->transport_client) != SUCCESS) {
 		log_error("Error when handling data");
 	}
@@ -275,7 +269,6 @@ static int transport_fd_handler(int fd, int events, void *data)
 static int transport_socket_fd_handler(int fd, int events, void *data)
 {
 	node_t* node = (node_t*) data;
-	log("Transport socket triggered");
 	if (platform_android_handle_socket_data(node, node->transport_client) != SUCCESS) {
 		log_error("Error when handling socket data");
 	}

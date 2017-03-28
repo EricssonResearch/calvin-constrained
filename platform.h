@@ -130,6 +130,18 @@ void platform_mem_free(void *buffer);
  */
 void platform_evt_wait(struct node_t *node, struct timeval *timeout);
 
+/**
+ * platform_stop() - Called when the platform stops
+ * @node the node
+ */
+result_t platform_stop(struct node_t* node);
+
+/**
+ * platform_node_started() - Called when the node has started
+ * @node the node
+ */
+result_t platform_node_started(struct node_t* node);
+
 #ifdef USE_PERSISTENT_STORAGE
 /**
  * platform_write_node_state() - Write serialized node state to persistent media.
