@@ -165,7 +165,7 @@ transport_client_t *transport_create(node_t *node, char *uri)
 	if (strncmp(uri, "lwip", 4) == 0)
 		return transport_lwip_create(node);
 #endif
-#ifdef PLATFORM_ANDROID
+#ifdef TRANSPORT_FCM
 	if (strncmp(uri, "calvinfcm://", 12) == 0)
 		return transport_fcm_create(node, uri);
 #endif

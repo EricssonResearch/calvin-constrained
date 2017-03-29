@@ -5,7 +5,7 @@ android {
     buildToolsVersion "25.0.2"
     defaultConfig {
         applicationId "ericsson.com.calvin.calvin_constrained"
-        minSdkVersion 15
+        minSdkVersion 21
         targetSdkVersion 25
         versionCode 1
         versionName "1.0"
@@ -20,7 +20,11 @@ android {
                 cFlags "-Werror"
                 cFlags "-g"
                 // cFlags "-DMICROPYTHON"
+                cFlags "-DSLEEP_AT_UNACTIVITY"
+                cFlags "-DUSE_PERSISTENT_STORAGE"
                 cFlags "-DPLATFORM_PIPE"
+                cFlags "-DTRANSPORT_SOCKET"
+                cFlags "-DTRANSPORT_FCM"
                 cFlags "-DPARSE_ARGS"
                 cFlags "-DPLATFORM_ANDROID"
                 cFlags "-DDEBUG"

@@ -2,6 +2,7 @@ package ericsson.com.calvin.calvin_constrained;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.net.ConnectivityManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
@@ -11,13 +12,14 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.google.firebase.iid.FirebaseInstanceId;
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.messaging.RemoteMessage;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+/**
+ * Dummy activity used for debugging.
+ */
 public class CCActivity extends Activity {
 
     private final String LOG_TAG = "CCActivity log";
@@ -31,6 +33,9 @@ public class CCActivity extends Activity {
         setContentView(R.layout.cc_layout);
         this.activity = this;
         Intent startServiceIntent = new Intent(this, CalvinService.class);
+        Bundle intentData = new Bundle();
+        intentData.putBoolean(CalvinService.CLEAR_SERIALIZATION_FILE, true);
+        startServiceIntent.putExtras(intentData);
         startService(startServiceIntent);
         setupUI();
         // showLogs();

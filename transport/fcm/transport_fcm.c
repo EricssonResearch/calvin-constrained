@@ -61,10 +61,13 @@ static result_t transport_fcm_send_tx_buffer(const node_t *node, transport_clien
 static void transport_fcm_disconnect(node_t *node, transport_client_t *transport_client)
 {
 	// TODO: Send disconnect message to calvin base
+	// TODO: Close these pipes somewhere (from java)
+	/*
 	close(((android_platform_t *) node->platform)->downstream_platform_fd[0]);
 	close(((android_platform_t *) node->platform)->downstream_platform_fd[1]);
 	close(((android_platform_t *) node->platform)->upstream_platform_fd[0]);
 	close(((android_platform_t *) node->platform)->downstream_platform_fd[1]);
+	 */
 }
 
 static void transport_fcm_free(transport_client_t *transport_client)
@@ -85,6 +88,7 @@ transport_client_t *transport_fcm_create(struct node_t *node, char *uri)
 
 	memset(transport_client, 0, sizeof(transport_client_t));
 
+	transport_client->transport_type = TRANSPORT_FCM_TYPE;
 	transport_client->state = TRANSPORT_INTERFACE_DOWN;
 	transport_client->rx_buffer.buffer = NULL;
 	transport_client->rx_buffer.pos = 0;

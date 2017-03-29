@@ -15,15 +15,16 @@
  */
 
 #include <string.h>
+#include <unistd.h>
 #include "api.h"
-#include "platform.h"
 #include "node.h"
+#include "errno.h"
 #ifdef MICROPYTHON
 #include "libmpy/calvin_mpy_port.h"
 #endif
 
 
-result_t api_runtime_init(node_t **node, char *name, char *proxy_uris)
+result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char* storage_dir)
 {
 	platform_init();
 
@@ -39,17 +40,55 @@ result_t api_runtime_init(node_t **node, char *name, char *proxy_uris)
 		return FAIL;
 	}
 	memset(*node, 0, sizeof(node_t));
+	(*node)->storage_dir = storage_dir;
 
 	return node_init(*node, name, proxy_uris);
 }
 
 result_t api_runtime_start(node_t *node)
 {
-	return node_run(node);
+	node_run(node);
+	platform_stop(node);
+	return SUCCESS;
 }
 
 result_t api_runtime_stop(node_t *node)
 {
 	node->state = NODE_STOP;
+	return SUCCESS;
+}
+
+result_t api_runtime_serialize_and_stop(node_t* node)
+{
+#ifdef USE_PERSISTENT_STORAGE
+	if (node->state == NODE_STARTED) {
+		node_set_state(node);
+	}
+#endif
+	node->state = NODE_STOP;
+	return SUCCESS;
+}
+
+#ifdef USE_PERSISTENT_STORAGE
+result_t api_clear_serialization_file(char* filedir)
+{
+	char* filename = "calvinconstrained.config";
+	char abs_filepath[strlen(filename) + strlen(filedir) + 1];
+
+	strcpy(abs_filepath, filedir);
+	if (filedir[strlen(filedir)-1] != '/')
+		strcat(abs_filepath, "/");
+	strcat(abs_filepath, filename);
+	if (unlink(abs_filepath) < 0) {
+		return FAIL;
+	}
+	return SUCCESS;
+}
+#endif
+
+result_t api_reconnect(node_t* node)
+{
+	if (node->transport_client->state == TRANSPORT_ENABLED)
+		node->transport_client->state = TRANSPORT_INTERFACE_DOWN;
 	return SUCCESS;
 }

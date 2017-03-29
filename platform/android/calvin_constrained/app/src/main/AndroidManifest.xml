@@ -2,11 +2,10 @@
     package="ericsson.com.calvin.calvin_constrained">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-
-    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
-    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-feature android:name="android.hardware.sensor.accelerometer"/>
+    <uses-feature android:name="android.hardware.sensor.gyroscope" />
 
     <application
         android:allowBackup="true"
@@ -33,6 +32,7 @@
                 <action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
             </intent-filter>
         </service>
+        <receiver android:name=".CalvinBroadcastReceiver" />
     </application>
 
 </manifest>

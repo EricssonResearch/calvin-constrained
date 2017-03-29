@@ -19,6 +19,7 @@ add_library(
              ../../../../proto.c
              ../../../../transport.c
              ../../../../transport/fcm/transport_fcm.c
+             ../../../../transport/socket/transport_socket.c
              ../../../../tunnel.c
              ../../../../link.c
              ../../../../actor.c

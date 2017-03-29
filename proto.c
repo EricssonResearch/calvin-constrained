@@ -87,6 +87,8 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 	char *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 	list_t *calvinsys = node->calvinsys;
 	uint32_t nbr_of_capabilities = 0;
+    int map_count = 0;
+    list_t* list;
 
 	if (!node_can_add_pending_msg(node))
 		return PENDING;
@@ -103,7 +105,7 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 	}
 
 	w = node->transport_client->tx_buffer.buffer + 4;
-	w = mp_encode_map(w, 7);
+	w = mp_encode_map(w, node->attributes == NULL ? 8 : 9);
 	{
 		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
 		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
@@ -120,6 +122,47 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 			}
 		}
 		w = encode_str(&w, "port_property_capability", "runtime.constrained.1", strlen("runtime.constrained.1"));
+		w = encode_bool(&w, "redeploy", 0);
+
+		if (list_get(node->attributes->indexed_public_node_name, "name") == NULL) {
+			list_add(&(node->attributes)->indexed_public_node_name, "name", node->name, strlen(node->name));
+		}
+		if (node->attributes->indexed_public_owner != NULL)
+			map_count++;
+		if (node->attributes->indexed_public_address != NULL)
+			map_count++;
+		if (node->attributes->indexed_public_node_name != NULL)
+			map_count++;
+		w = encode_map(&w, "attributes", 1);
+		w = encode_map(&w, "indexed_public", map_count);
+
+		if (node->attributes->indexed_public_owner != NULL) {
+			map_count = list_count(node->attributes->indexed_public_owner);
+			w = encode_map(&w, "public_owner", map_count);
+			list = node->attributes->indexed_public_owner;
+			while (list != NULL) {
+			    w = encode_str(&w, list->id, list->data, list->data_len);
+			    list = list->next;
+			}
+		}
+		if (node->attributes->indexed_public_address != NULL) {
+			map_count = list_count(node->attributes->indexed_public_address);
+			w = encode_map(&w, "address", map_count);
+			list = node->attributes->indexed_public_address;
+			while (list != NULL) {
+			w = encode_str(&w, list->id, list->data, list->data_len);
+				list = list->next;
+			}
+		}
+		if (node->attributes->indexed_public_node_name != NULL) {
+			map_count = list_count(node->attributes->indexed_public_node_name);
+			w = encode_map(&w, "node_name", map_count);
+			list = node->attributes->indexed_public_node_name;
+			while (list != NULL) {
+			    w = encode_str(&w, list->id, list->data, list->data_len);
+			    list = list->next;
+			}
+		}
 	}
 
 	if (node->transport_client->send_tx_buffer(node, node->transport_client, w - node->transport_client->tx_buffer.buffer - 4) == SUCCESS) {
@@ -652,13 +695,13 @@ result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*han
 		if (list->next != NULL)
 			outports_len += sprintf(outports + outports_len,
 						   "{\"id\": \"%s\", \"name\": \"%s\"}, ",
-						    port->id,
-						    port->name);
+							port->id,
+							port->name);
 		else
 			outports_len += sprintf(outports + outports_len,
 						   "{\"id\": \"%s\", \"name\": \"%s\"}",
-						    port->id,
-						    port->name);
+							port->id,
+							port->name);
 		list = list->next;
 	}
 

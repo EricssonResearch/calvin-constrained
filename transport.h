@@ -37,6 +37,12 @@ typedef enum {
 	TRANSPORT_ENABLED
 } transport_state_t;
 
+typedef enum {
+	TRANSPORT_SOCKET_TYPE,
+	TRANSPORT_BT_TYPE,
+	TRANSPORT_FCM_TYPE
+} transport_type_t;
+
 typedef struct transport_buffer_t {
 	char *buffer;
 	unsigned int pos;
@@ -57,7 +63,8 @@ typedef struct transport_buffer_t {
  * @free: function to free transport_client_t
  */
 typedef struct transport_client_t {
-  char uri[100];
+	transport_type_t transport_type;
+    	char uri[100];
 	char peer_id[UUID_BUFFER_SIZE];
 	transport_state_t state;
 	transport_buffer_t rx_buffer;

@@ -20,8 +20,12 @@
 #include "common.h"
 #include "node.h"
 
-result_t api_runtime_init(node_t** node, char* name, char* proxy_uris);
+result_t api_runtime_init(node_t** node, char* name, char* proxy_uris, char* storage_dir);
 result_t api_runtime_start(node_t* node);
 result_t api_runtime_stop(node_t* node);
-
+result_t api_runtime_serialize_and_stop(node_t* node);
+result_t api_reconnect(node_t* node);
+#ifdef USE_PERSISTENT_STORAGE
+result_t api_clear_serialization_file(char* filedir);
+#endif
 #endif /* API_H */
