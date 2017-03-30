@@ -37,6 +37,7 @@
 #define SSDP_MULTICAST      "239.255.255.250"
 #define SSDP_PORT           1900
 #define SERVICE_UUID        "1693326a-abb9-11e4-8dfb-9cb654a16426"
+#define RECV_BUF_SIZE				512
 
 static result_t transport_socket_discover_location(char *location)
 {
@@ -46,7 +47,7 @@ static result_t transport_socket_discover_location(char *location)
 	int len;
 	struct sockaddr_in sockname;
 	struct sockaddr clientsock;
-	char buffer[BUFFER_SIZE];
+	char buffer[RECV_BUF_SIZE];
 	fd_set fds;
 	char *location_start = NULL;
 	char *location_end = NULL;
@@ -89,7 +90,7 @@ static result_t transport_socket_discover_location(char *location)
 
 	if (FD_ISSET(sock, &fds)) {
 		socklen = sizeof(clientsock);
-		len = recvfrom(sock, buffer, BUFFER_SIZE, MSG_PEEK, &clientsock, &socklen);
+		len = recvfrom(sock, buffer, RECV_BUF_SIZE, MSG_PEEK, &clientsock, &socklen);
 		if (len == -1) {
 			log_error("Failed to receive ssdp response");
 			return FAIL;
@@ -126,7 +127,7 @@ static result_t transport_socket_get_ip_uri(const char *address, int port, const
 {
 	struct sockaddr_in server;
 	int fd, len;
-	char buffer[BUFFER_SIZE];
+	char buffer[RECV_BUF_SIZE];
 	char *uri_start = NULL, *uri_end = NULL;
 
 	sprintf(buffer, "GET /%s HTTP/1.0\r\n\r\n", url);
@@ -151,8 +152,8 @@ static result_t transport_socket_get_ip_uri(const char *address, int port, const
 		return FAIL;
 	}
 
-	memset(&buffer, 0, BUFFER_SIZE);
-	len = recv(fd, buffer, BUFFER_SIZE, 0);
+	memset(&buffer, 0, RECV_BUF_SIZE);
+	len = recv(fd, buffer, RECV_BUF_SIZE, 0);
 	close(fd);
 
 	if (len < 0) {
@@ -204,18 +205,14 @@ static result_t transport_socket_discover_proxy(char *uri)
 	return FAIL;
 }
 
-static result_t transport_socket_send_tx_buffer(const node_t *node, transport_client_t *transport_client, size_t size)
+static int transport_socket_send(transport_client_t *transport_client, char *data, size_t size)
 {
-	transport_append_buffer_prefix(transport_client->tx_buffer.buffer, size);
+	return write(((transport_socket_client_t *)transport_client->client_state)->fd, data, size);
+}
 
-	if (send(((transport_socket_client_t *)transport_client->client_state)->fd, transport_client->tx_buffer.buffer, size + 4, 0) < 0) {
-		log_error("Failed to send data");
-		return FAIL;
-	}
-
-	transport_free_tx_buffer(transport_client);
-
-	return SUCCESS;
+static int transport_socket_recv(transport_client_t *transport_client, char *buffer, size_t size)
+{
+	return read(((transport_socket_client_t *)transport_client->client_state)->fd, buffer, size);
 }
 
 static void transport_socket_disconnect(node_t *node, transport_client_t *transport_client)
@@ -253,8 +250,6 @@ static result_t transport_socket_connect(node_t *node, transport_client_t *trans
 		return FAIL;
 	}
 
-	transport_join(node, transport_client);
-
 	return SUCCESS;
 }
 
@@ -270,13 +265,12 @@ transport_client_t *transport_socket_create(node_t *node, char *uri)
 		transport_client->rx_buffer.buffer = NULL;
 		transport_client->rx_buffer.pos = 0;
 		transport_client->rx_buffer.size = 0;
-		transport_client->tx_buffer.buffer = NULL;
-		transport_client->tx_buffer.pos = 0;
-		transport_client->tx_buffer.size = 0;
 		transport_client->connect = transport_socket_connect;
-		transport_client->send_tx_buffer = transport_socket_send_tx_buffer;
+		transport_client->send = transport_socket_send;
+		transport_client->recv = transport_socket_recv;
 		transport_client->disconnect = transport_socket_disconnect;
 		transport_client->free = transport_socket_free;
+		transport_client->prefix_len = 4;
 
 		if (platform_mem_alloc((void **)&transport_socket, sizeof(transport_socket_client_t)) == SUCCESS) {
 			transport_client->client_state = transport_socket;

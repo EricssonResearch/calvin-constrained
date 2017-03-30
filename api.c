@@ -24,7 +24,7 @@
 #endif
 
 
-result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char* storage_dir)
+result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char *storage_dir)
 {
 	platform_init();
 
@@ -41,6 +41,7 @@ result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char* sto
 	}
 	memset(*node, 0, sizeof(node_t));
 	(*node)->storage_dir = storage_dir;
+	(*node)->attributes = NULL;
 
 	return node_init(*node, name, proxy_uris);
 }
@@ -58,7 +59,7 @@ result_t api_runtime_stop(node_t *node)
 	return SUCCESS;
 }
 
-result_t api_runtime_serialize_and_stop(node_t* node)
+result_t api_runtime_serialize_and_stop(node_t *node)
 {
 #ifdef USE_PERSISTENT_STORAGE
 	if (node->state == NODE_STARTED)
@@ -69,9 +70,9 @@ result_t api_runtime_serialize_and_stop(node_t* node)
 }
 
 #ifdef USE_PERSISTENT_STORAGE
-result_t api_clear_serialization_file(char* filedir)
+result_t api_clear_serialization_file(char *filedir)
 {
-	char* filename = "calvinconstrained.config";
+	char *filename = "calvinconstrained.config";
 	char abs_filepath[strlen(filename) + strlen(filedir) + 1];
 
 	strcpy(abs_filepath, filedir);
@@ -84,7 +85,7 @@ result_t api_clear_serialization_file(char* filedir)
 }
 #endif
 
-result_t api_reconnect(node_t* node)
+result_t api_reconnect(node_t *node)
 {
 	if (node->transport_client->state == TRANSPORT_ENABLED)
 		node->transport_client->state = TRANSPORT_INTERFACE_DOWN;

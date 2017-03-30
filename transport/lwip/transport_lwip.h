@@ -17,16 +17,23 @@
 #define TRANSPORT_LWIP_H
 
 #include "lwip/tcp.h"
+#include "../../transport.h"
 
 struct node_t;
 
+typedef struct transport_lwip_rx_buffer_t {
+  char buffer[TRANSPORT_RX_BUFFER_SIZE];
+  size_t size;
+} transport_lwip_rx_buffer_t;
+
 typedef struct transport_lwip_client_t {
   char mac[40];
-  bool has_pending_tx;
 	struct tcp_pcb *tcp_port;
 	struct node_t *node;
+  transport_lwip_rx_buffer_t rx_buffer;
 } transport_lwip_client_t;
 
 transport_client_t *transport_lwip_get_client(void);
+bool transport_lwip_has_data(transport_client_t *transport_client);
 
 #endif /* TRANSPORT_LWIP_H */

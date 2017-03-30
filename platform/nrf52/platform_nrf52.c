@@ -30,6 +30,9 @@
 #include "iot_timer.h"
 #include "ipv6_medium.h"
 #include "nrf_drv_gpiote.h"
+#ifdef USE_TLS
+#include "nrf_drv_rng.h"
+#endif
 #include "../../platform.h"
 #include "../../node.h"
 #include "../../transport.h"
@@ -45,7 +48,7 @@ eui64_t                                     eui64_local_iid;
 static ipv6_medium_instance_t               m_ipv6_medium;
 static calvinsys_io_giohandler_t 						m_io_gpiohandler;
 
-void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
+void platform_nrf_app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
 {
 	log_error("Error 0x%08lX, Line %ld, File %s", error_code, line_num, p_file_name);
 //	NVIC_SystemReset();
@@ -55,10 +58,10 @@ void app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_
 
 void assert_nrf_callback(uint16_t line_num, const uint8_t *p_file_name)
 {
-	app_error_handler(0xDEADBEEF, line_num, p_file_name);
+	platform_nrf_app_error_handler(0xDEADBEEF, line_num, p_file_name);
 }
 
-static void connectable_mode_enter(void)
+static void platform_nrf_connectable_mode_enter(void)
 {
 	uint32_t err_code = ipv6_medium_connectable_mode_enter(m_ipv6_medium.ipv6_medium_instance_id);
 
@@ -67,10 +70,10 @@ static void connectable_mode_enter(void)
 	log_debug("Physical layer in connectable mode");
 }
 
-static void on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt)
+static void platform_nrf_on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt)
 {
 	size_t len = 0;
-	transport_client_t *transport_client = transport_get_client();
+	transport_client_t *transport_client = transport_lwip_get_client();
 	transport_lwip_client_t *transport_state = (transport_lwip_client_t *)transport_client->client_state;
 
 	switch (p_ipv6_medium_evt->ipv6_medium_evt_id) {
@@ -83,7 +86,7 @@ static void on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt)
 	case IPV6_MEDIUM_EVT_CONN_DOWN:
 	{
 		log("Physical layer disconnected");
-		connectable_mode_enter();
+		platform_nrf_connectable_mode_enter();
 		transport_client->state = TRANSPORT_INTERFACE_DOWN;
 		break;
 	}
@@ -94,12 +97,12 @@ static void on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt)
 	}
 }
 
-static void on_ipv6_medium_error(ipv6_medium_error_t *p_ipv6_medium_error)
+static void platform_nrf_on_ipv6_medium_error(ipv6_medium_error_t *p_ipv6_medium_error)
 {
 	log_error("Physical layer error");
 }
 
-static void ip_stack_init(void)
+static void platform_nrf_ip_stack_init(void)
 {
 	uint32_t err_code;
 	static ipv6_medium_init_params_t ipv6_medium_init_params;
@@ -108,8 +111,8 @@ static void ip_stack_init(void)
 	APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, NULL);
 
 	memset(&ipv6_medium_init_params, 0x00, sizeof(ipv6_medium_init_params));
-	ipv6_medium_init_params.ipv6_medium_evt_handler    = on_ipv6_medium_evt;
-	ipv6_medium_init_params.ipv6_medium_error_handler  = on_ipv6_medium_error;
+	ipv6_medium_init_params.ipv6_medium_evt_handler    = platform_nrf_on_ipv6_medium_evt;
+	ipv6_medium_init_params.ipv6_medium_error_handler  = platform_nrf_on_ipv6_medium_error;
 	ipv6_medium_init_params.use_scheduler              = false;
 
 	err_code = ipv6_medium_init(&ipv6_medium_init_params, IPV6_MEDIUM_ID_BLE, &m_ipv6_medium);
@@ -131,13 +134,13 @@ static void ip_stack_init(void)
 	lwip_init();
 }
 
-static void lwip_timer_callback(void *p_ctx)
+static void platform_nrf_lwip_timer_callback(void *p_ctx)
 {
 	(void) p_ctx;
 	sys_check_timeouts();
 }
 
-static void start_calvin_connect_timer(void)
+static void platform_nrf_start_calvin_connect_timer(void)
 {
 	uint32_t err_code;
 
@@ -145,23 +148,23 @@ static void start_calvin_connect_timer(void)
   APP_ERROR_CHECK(err_code);
 }
 
-static void calvin_connect_callback(void *p_context)
+static void platform_nrf_calvin_connect_callback(void *p_context)
 {
   UNUSED_VARIABLE(p_context);
-	transport_client_t *transport_client = transport_get_client();
+	transport_client_t *transport_client = transport_lwip_get_client();
 
 	transport_client->state = TRANSPORT_INTERFACE_UP;
 }
 
 
-static void timers_init(void)
+static void platform_nrf_timers_init(void)
 {
 	uint32_t err_code;
 
 	// Create and start lwip timer
 	err_code = app_timer_create(&m_lwip_timer_id,
 															APP_TIMER_MODE_REPEATED,
-															lwip_timer_callback);
+															platform_nrf_lwip_timer_callback);
 	APP_ERROR_CHECK(err_code);
 	err_code = app_timer_start(m_lwip_timer_id, LWIP_SYS_TIMER_INTERVAL, NULL);
 	APP_ERROR_CHECK(err_code);
@@ -169,25 +172,25 @@ static void timers_init(void)
 	// Create calvin init timer used to start the node when a connection is made
 	err_code = app_timer_create(&m_calvin_connect_timer_id,
 		APP_TIMER_MODE_SINGLE_SHOT,
-		calvin_connect_callback);
+		platform_nrf_calvin_connect_callback);
 	APP_ERROR_CHECK(err_code);
 }
 
 void nrf_driver_interface_up(void)
 {
 	log("IP interface up");
-	start_calvin_connect_timer();
+	platform_nrf_start_calvin_connect_timer();
 }
 
 void nrf_driver_interface_down(void)
 {
-	transport_client_t *transport_client = transport_get_client();
+	transport_client_t *transport_client = transport_lwip_get_client();
 
 	transport_client->state = TRANSPORT_INTERFACE_DOWN;
 	log("IP interface down");
 }
 
-static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+static void platform_nrf_in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
 	int i = 0;
 
@@ -200,6 +203,16 @@ static void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t actio
 	}
 }
 
+result_t platform_stop(node_t *node)
+{
+    return SUCCESS;
+}
+
+result_t platform_node_started(struct node_t *node)
+{
+	return SUCCESS;
+}
+
 void platform_print(const char *fmt, ...)
 {
 	va_list args;
@@ -209,7 +222,7 @@ void platform_print(const char *fmt, ...)
 	va_end(args);
 }
 
-result_t platform_create(node_t* node)
+result_t platform_create(node_t *node)
 {
 	char *uri = NULL;
 
@@ -263,7 +276,7 @@ static calvin_ingpio_t *platform_init_in_gpio(calvinsys_io_giohandler_t *gpiohan
 			else
 				config.pull = NRF_GPIO_PIN_PULLUP;
 
-			if (nrf_drv_gpiote_in_init(pin, &config, in_pin_handler) != NRF_SUCCESS) {
+			if (nrf_drv_gpiote_in_init(pin, &config, platform_nrf_in_pin_handler) != NRF_SUCCESS) {
 				log_error("Failed to initialize gpio");
 				return NULL;
 			}
@@ -358,7 +371,7 @@ static result_t platform_create_sensors_environmental(node_t *node)
 
 	sensors_env->get_temperature = platform_get_temperature;
 
- 	return list_add_n(&node->calvinsys, name, strlen(name), sensors_env, sizeof(calvinsys_sensors_environmental_t));
+	return list_add_n(&node->calvinsys, name, strlen(name), sensors_env, sizeof(calvinsys_sensors_environmental_t));
 }
 
 static result_t platform_create_io_gpiohandler(node_t *node)
@@ -394,12 +407,12 @@ void platform_init(void)
 	uint8_t rnd_seed = 0;
 
 	app_trace_init();
-	ip_stack_init();
+	platform_nrf_ip_stack_init();
 	err_code = nrf_driver_init();
 	APP_ERROR_CHECK(err_code);
-	timers_init();
+	platform_nrf_timers_init();
 
-	connectable_mode_enter();
+	platform_nrf_connectable_mode_enter();
 
 	do {
 		err_code = sd_rand_application_vector_get(&rnd_seed, 1);
@@ -412,12 +425,21 @@ void platform_init(void)
 void platform_evt_wait(node_t *node, struct timeval *timeout)
 {
 	if (sd_app_evt_wait() != ERR_OK)
-		log_error("sd_app_evt_wait failed");
+		log_error("Failed to wait for event");
+
+	if (node != NULL && node->transport_client != NULL && node->transport_client->state == TRANSPORT_ENABLED) {
+		if (transport_lwip_has_data(node->transport_client)) {
+			if (transport_handle_data(node, node->transport_client, node_handle_message) != SUCCESS) {
+				log_error("Failed to read data from transport");
+				node->transport_client->state = TRANSPORT_DISCONNECTED;
+				return;
+			}
+		}
+	}
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)
 {
-	// TODO: If fragmentation is a problem create a pool used for allocations
 	*buffer = malloc(size);
 	if (*buffer == NULL) {
 		log_error("Failed to allocate '%ld'", (unsigned long)size);
@@ -431,3 +453,23 @@ void platform_mem_free(void *buffer)
 {
 	free(buffer);
 }
+
+#ifdef USE_TLS
+int platform_random_vector_generate(void *ctx, unsigned char *buffer, size_t size)
+{
+	uint8_t available;
+	uint32_t err_code;
+	uint16_t length;
+
+	err_code = nrf_drv_rng_bytes_available(&available);
+
+	log("Requested random numbers 0x%08lx, available 0x%08x",	size,	available);
+
+	if (err_code == NRF_SUCCESS) {
+		length = MIN(size, available);
+		err_code = nrf_drv_rng_rand(buffer, length);
+	}
+
+	return 0;
+}
+#endif

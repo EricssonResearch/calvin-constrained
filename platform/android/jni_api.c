@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include "platform.h"
 #include "api.h"
+#include "transport.h"
 #include <android/log.h>
 #include <unistd.h>
 #include "platform_android.h"
@@ -49,20 +50,22 @@ JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runt
 
 JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_readUpstreamData(JNIEnv* env, jobject this, jlong jnode)
 {
-	char buffer[BUFFER_SIZE];
-	node_t* node;
+	char buffer[TRANSPORT_RX_BUFFER_SIZE];
+	node_t *node;
 	jbyteArray data;
-	android_platform_t* platform;
+	android_platform_t *platform;
 	size_t size;
-	memset(&buffer, 0, BUFFER_SIZE);
+
+    memset(&buffer, 0, TRANSPORT_RX_BUFFER_SIZE);
 
 	node = (node_t*)get_ptr_from_jlong(jnode);
 	platform = (android_platform_t*) node->platform;
-	platform->read_upstream(node, buffer, BUFFER_SIZE);
-	size = get_message_len(buffer);
-	data = (*env)->NewByteArray(env, size+7);
-	(*env)->SetByteArrayRegion(env, data, 0, size+7, buffer);
-	return data;
+	platform->read_upstream(node, buffer, TRANSPORT_RX_BUFFER_SIZE);
+	size = transport_get_message_len(buffer);
+	data = (*env)->NewByteArray(env, size + 7);
+	(*env)->SetByteArrayRegion(env, data, 0, size + 7, buffer);
+
+    return data;
 }
 
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStart(JNIEnv* env, jobject this, jlong jnode)
@@ -85,14 +88,14 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runti
 	node_t* node = (node_t*)get_ptr_from_jlong(jnode);
 	android_platform_t* platform = (android_platform_t*) node->platform;
 
-	platform->send_downstream_platform_message(node, RUNTIME_CALVIN_MSG, node->transport_client, payload_data, len);
+	platform->send_downstream_platform_message(node, RUNTIME_CALVIN_MSG, payload_data, len);
 }
 
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_fcmTransportConnected(JNIEnv* env, jobject this, jlong node_p)
 {
 	node_t* node = (node_t*)get_ptr_from_jlong(node_p);
 	char d[4] = {0, 0, 0, 0};
-	((android_platform_t*) node->platform)->send_downstream_platform_message(node, CONNECT_REPLY, node->transport_client, d, 0);
+	((android_platform_t*) node->platform)->send_downstream_platform_message(node, CONNECT_REPLY, d, 0);
 }
 
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeSerializeAndStop(JNIEnv* env, jobject this, jlong node_p)
@@ -100,7 +103,7 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runti
 	node_t* node = (node_t*)get_ptr_from_jlong(node_p);
 	android_platform_t* platform = (android_platform_t*) node->platform;
 
-	platform->send_downstream_platform_message(node, RUNTIME_SERIALIZE_AND_STOP, node->transport_client, NULL, 0);
+	platform->send_downstream_platform_message(node, RUNTIME_SERIALIZE_AND_STOP, NULL, 0);
 }
 
 JNIEXPORT jint JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_getNodeState(JNIEnv* env, jobject this, jlong node_p)
@@ -133,7 +136,7 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_trigg
 	node_t* node = (node_t*)get_ptr_from_jlong(node_p);
 	android_platform_t* platform = (android_platform_t*) node->platform;
 
-	platform->send_downstream_platform_message(node, RUNTIME_TRIGGER_RECONNECT, node->transport_client, NULL, 0);
+	platform->send_downstream_platform_message(node, RUNTIME_TRIGGER_RECONNECT, NULL, 0);
 }
 
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_registerExternalCalvinsys(JNIEnv* env, jobject this, jlong node_p, jstring j_name)
@@ -142,7 +145,7 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_regis
 	android_platform_t* platform = (android_platform_t*) node->platform;
 	char* name = (char*) (*env)->GetStringUTFChars(env, j_name, 0);
 
-	platform->send_downstream_platform_message(node, REGISTER_EXTERNAL_CALVINSYS, node->transport_client, name, strlen(name)+1);
+	platform->send_downstream_platform_message(node, REGISTER_EXTERNAL_CALVINSYS, name, strlen(name)+1);
 }
 
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_writeCalvinsysPayload(JNIEnv* env, jobject this, jbyteArray data, jlong jnode)
@@ -156,5 +159,5 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_write
 	(*env)->GetByteArrayRegion(env, data, 0, len, payload_data);
 	node = (node_t*)get_ptr_from_jlong(jnode);
 	platform = (android_platform_t*) node->platform;
-	platform->send_downstream_platform_message(node, EXTERNAL_CALVINSYS_PAYLOAD, node->transport_client, payload_data, len);
+	platform->send_downstream_platform_message(node, EXTERNAL_CALVINSYS_PAYLOAD, payload_data, len);
 }

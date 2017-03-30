@@ -18,21 +18,21 @@
 #include "node.h"
 #include "calvinsys.h"
 
-result_t register_calvinsys(node_t* node, calvinsys_t* calvinsys)
+result_t register_calvinsys(node_t *node, calvinsys_t *calvinsys)
 {
 	if (list_get(node->calvinsys, calvinsys->name) != NULL) {
 		log_error("Calvinsys %s already registered", calvinsys->name);
 		return FAIL;
 	}
-	return list_add(&node->calvinsys, calvinsys->name, calvinsys, sizeof(calvinsys_t*));
+	return list_add(&node->calvinsys, calvinsys->name, calvinsys, sizeof(calvinsys_t *));
 }
 
-void unregister_calvinsys(node_t* node, calvinsys_t* calvinsys)
+void unregister_calvinsys(node_t *node, calvinsys_t *calvinsys)
 {
 	list_remove(&node->calvinsys, calvinsys->name);
 }
 
-void release_calvinsys(calvinsys_t** calvinsys)
+void release_calvinsys(calvinsys_t **calvinsys)
 {
 	if ((*calvinsys)->data != NULL)
 		platform_mem_free((*calvinsys)->data);

@@ -28,4 +28,4 @@ The calvin-constrained runtime supports actors written in C and Python, instruct
 
 Serialization to persistent storage of the runtime state and recreation of the state is enabled with:
 
-    -DUSE_PERSISTENT_STORAGE
+    -DUSE_PERSISTENT_STORAGE -DPERSISTENT_STORAGE_CHECKPOINTING

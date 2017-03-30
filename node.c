@@ -23,6 +23,9 @@
 #include "msgpack_helper.h"
 #include "msgpuck/msgpuck.h"
 #include "transport.h"
+#ifdef USE_TLS
+#include "crypto/crypto.h"
+#endif
 
 #ifdef USE_PERSISTENT_STORAGE
 #define NODE_STATE_BUFFER_SIZE			10000
@@ -308,7 +311,7 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 		log_error("Token reply received for unknown port");
 }
 
-void node_handle_message(node_t *node, char *buffer, size_t len)
+result_t node_handle_message(node_t *node, char *buffer, size_t len)
 {
 	if (proto_parse_message(node, buffer) == SUCCESS) {
 #ifdef USE_PERSISTENT_STORAGE
@@ -318,31 +321,46 @@ void node_handle_message(node_t *node, char *buffer, size_t len)
 			node_set_state(node);
 #endif
 #endif
-	} else
-		log_error("Failed to parse message");
+		return SUCCESS;
+	}
+
+	log_error("Failed to parse message");
+	return FAIL;
 }
 
 static result_t node_setup(node_t *node, char *name)
 {
-	bool created = false;
-
-	#ifdef USE_PERSISTENT_STORAGE
-		created = node_get_state(node);
-		if (created)
-			log("Node setup from serialized state, id '%s' name '%s'", node->id, node->name);
-	#endif
-
-	if (!created) {
-		gen_uuid(node->id, NULL);
-		if (name != NULL)
-			strncpy(node->name, name, strlen(name)+1);
-		else
-			strncpy(node->name, "constrained", 12);
-
-		node->state = NODE_DO_START;
-
-		log("Node setup, id '%s' name '%s'", node->id, node->name);
+#ifdef USE_PERSISTENT_STORAGE
+	if (node_get_state(node)) {
+		log("Node created from previous state, id '%s' name '%s'",
+				node->id,
+				node->name);
+		return SUCCESS;
 	}
+#endif
+
+	node->state = NODE_DO_START;
+
+#ifdef USE_TLS
+	char domain[50];
+
+	if (crypto_get_node_info(domain, node->name, node->id) == SUCCESS) {
+		log("Node created from certificate, domain: '%s' id '%s' name '%s'",
+				domain,
+				node->id,
+				node->name);
+		return SUCCESS;
+	}
+#endif
+
+	gen_uuid(node->id, NULL);
+	if (name != NULL)
+		strncpy(node->name, name, strlen(name) + 1);
+	else
+		strncpy(node->name, "constrained", 12);
+
+	log("Node created, id '%s' name '%s'", node->id, node->name);
+
 	return SUCCESS;
 }
 
@@ -406,13 +424,11 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	char *peer_id = NULL;
 	size_t peer_id_len = 0;
 
-	if (node->transport_client == NULL)
+	if (node->transport_client == NULL) {
 		node->transport_client = transport_create(node, uri);
-	else
-		log("TC was not null, using existing TC");
-
-	if (node->transport_client == NULL)
-		return FAIL;
+		if (node->transport_client == NULL)
+			return FAIL;
+	}
 
 	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_INTERFACE_DOWN)
 		platform_evt_wait(node, NULL);
@@ -420,8 +436,8 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	if (node->state == NODE_STOP || node->transport_client->connect(node, node->transport_client) != SUCCESS)
 		return FAIL;
 
-	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_PENDING)
-		platform_evt_wait(node, NULL);
+	if (transport_join(node, node->transport_client) != SUCCESS)
+		return FAIL;
 
 	if (node->state == NODE_STOP || node->transport_client->state != TRANSPORT_ENABLED) {
 		log_error("Failed to enable transport '%s'", uri);
@@ -484,7 +500,6 @@ result_t node_run(node_t *node)
 {
 	int i = 0;
 	struct timeval reconnect_timeout;
-
 
 	if (platform_create_calvinsys(node) != SUCCESS) {
 		log_error("Failed to create calvinsys object");

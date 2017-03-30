@@ -25,8 +25,6 @@
 #include "../../node.h"
 #include "../../common.h"
 
-#define PLATFORM_RECEIVE_BUFFER_SIZE 512
-
 void platform_print(const char *fmt, ...)
 {
 	va_list args;
@@ -36,12 +34,12 @@ void platform_print(const char *fmt, ...)
 	va_end(args);
 }
 
-result_t platform_stop(node_t* node)
+result_t platform_stop(node_t *node)
 {
     return SUCCESS;
 }
 
-result_t platform_node_started(struct node_t* node)
+result_t platform_node_started(struct node_t *node)
 {
 	return SUCCESS;
 }
@@ -120,7 +118,7 @@ static result_t platform_create_sensors_environmental(node_t *node)
 
 	sensors_env->get_temperature = platform_get_temperature;
 
- 	return list_add_n(&node->calvinsys, name, strlen(name), sensors_env, sizeof(calvinsys_sensors_environmental_t));
+	return list_add_n(&node->calvinsys, name, strlen(name), sensors_env, sizeof(calvinsys_sensors_environmental_t));
 }
 
 static result_t platform_create_io_gpiohandler(node_t *node)
@@ -162,31 +160,19 @@ void platform_init(void)
 	srand(time(NULL));
 }
 
-static void platform_x86_handle_data(node_t *node, transport_client_t *transport_client)
+result_t platform_create(node_t *node)
 {
-	char buffer[PLATFORM_RECEIVE_BUFFER_SIZE];
-	int size = 0;
+  node_attributes_t *attr;
 
-	size = recv(((transport_socket_client_t *)transport_client->client_state)->fd, buffer, PLATFORM_RECEIVE_BUFFER_SIZE, 0);
-	if (size == 0)
-		transport_client->state = TRANSPORT_DISCONNECTED;
-	else if (size > 0)
-		transport_handle_data(node, transport_client, buffer, size);
-	else
-		log_error("Failed to read data");
-}
+	if (platform_mem_alloc((void **)&attr, sizeof(node_attributes_t)) != SUCCESS)
+    log_error("Could not allocate memory for attributes");
 
-result_t platform_create(node_t* node)
-{
-    node_attributes_t* attr;
-    if (platform_mem_alloc((void **) &attr, sizeof(node_attributes_t)) != SUCCESS) {
-        log_error("Could not allocate memory for attributes");
-    }
-    attr->indexed_public_owner = NULL;
-    attr->indexed_public_node_name = NULL;
-    attr->indexed_public_address = NULL;
-    node->attributes = attr;
-    return SUCCESS;
+	attr->indexed_public_owner = NULL;
+  attr->indexed_public_node_name = NULL;
+  attr->indexed_public_address = NULL;
+  node->attributes = attr;
+
+	return SUCCESS;
 }
 
 void platform_evt_wait(node_t *node, struct timeval *timeout)
@@ -202,9 +188,12 @@ void platform_evt_wait(node_t *node, struct timeval *timeout)
 
 		select(fd + 1, &fds, NULL, NULL, timeout);
 
-		if (node->transport_client != NULL && (node->transport_client->state == TRANSPORT_PENDING || node->transport_client->state == TRANSPORT_ENABLED)) {
-			if (FD_ISSET(((transport_socket_client_t *)node->transport_client->client_state)->fd, &fds))
-				platform_x86_handle_data(node, node->transport_client);
+		if (FD_ISSET(fd, &fds)) {
+			if (transport_handle_data(node, node->transport_client, node_handle_message) != SUCCESS) {
+				log_error("Failed to read data from transport");
+				node->transport_client->state = TRANSPORT_DISCONNECTED;
+				return;
+			}
 		}
 	} else
 		select(0, NULL, NULL, NULL, timeout);
@@ -221,13 +210,23 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 	return SUCCESS;
 }
 
+void *platform_mem_calloc(size_t nitems, size_t size)
+{
+  void *ptr = NULL;
+  if (platform_mem_alloc(&ptr, nitems * size) != SUCCESS)
+    return NULL;
+
+  memset(ptr, 0, nitems * size);
+  return ptr;
+}
+
 void platform_mem_free(void *buffer)
 {
 	free(buffer);
 }
 
 #ifdef USE_PERSISTENT_STORAGE
-void platform_write_node_state(node_t* node, char *buffer, size_t size)
+void platform_write_node_state(node_t *node, char *buffer, size_t size)
 {
 	FILE *fp = NULL;
 
@@ -240,7 +239,7 @@ void platform_write_node_state(node_t* node, char *buffer, size_t size)
 		log("Failed to open calvinconstrained.config for writing");
 }
 
-result_t platform_read_node_state(node_t* node, char buffer[], size_t size)
+result_t platform_read_node_state(node_t *node, char buffer[], size_t size)
 {
 	FILE *fp = NULL;
 

@@ -94,10 +94,12 @@ $(abspath fifo.c) \
 $(abspath token.c) \
 $(abspath msgpack_helper.c) \
 $(abspath msgpuck/msgpuck.c) \
+$(abspath calvinsys.c) \
 $(abspath actors/actor_identity.c) \
 $(abspath actors/actor_gpioreader.c) \
 $(abspath actors/actor_gpiowriter.c) \
 $(abspath actors/actor_temperature.c) \
+$(abspath actors/actor_button.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/ble/common/ble_advdata.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/ble/common/ble_conn_params.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/ble/common/ble_srv_common.c) \
@@ -108,6 +110,7 @@ $(abspath $(NORDIC_SDK_PATH)/components/iot/common/ipv6_parse.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/toolchain/system_nrf52.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/iot/medium/ble_ncfgs/ble_ncfgs.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/softdevice/common/softdevice_handler/softdevice_handler.c) \
+$(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/rng/nrf_drv_rng.c)
 
 #assembly files common to all targets
 ASM_SOURCE_FILES  = $(abspath $(NORDIC_SDK_PATH)/components/toolchain/gcc/gcc_startup_nrf52.s)
@@ -116,7 +119,7 @@ ASM_SOURCE_FILES  = $(abspath $(NORDIC_SDK_PATH)/components/toolchain/gcc/gcc_st
 LIBS  = $(abspath $(NORDIC_SDK_PATH)/components/iot/ble_6lowpan/lib/ble_6lowpan.a)
 
 #includes common to all targets
-INC_PATHS  = -I$(abspath platform/nrf52/config)
+INC_PATHS += -I$(abspath platform/nrf52/config)
 INC_PATHS += -I$(abspath platform/nrf52/pca10040/armgcc)
 INC_PATHS += -I$(abspath msgpuck)
 INC_PATHS += -I$(abspath actors)
@@ -157,6 +160,7 @@ INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/libraries/util)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/examples/bsp)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/toolchain)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/iot/medium/include)
+INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/rng)
 
 OBJECT_DIRECTORY = _build
 LISTING_DIRECTORY = $(OBJECT_DIRECTORY)
@@ -166,7 +170,7 @@ OUTPUT_BINARY_DIRECTORY = $(OBJECT_DIRECTORY)
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY) $(LISTING_DIRECTORY) )
 
 #flags common to all targets
-CFLAGS  = -DTRANSPORT_LWIP
+CFLAGS += -DTRANSPORT_LWIP
 #CFLAGS += -DDEBUG
 CFLAGS += -D__HEAP_SIZE=6144
 CFLAGS += -DSWI_DISABLE0

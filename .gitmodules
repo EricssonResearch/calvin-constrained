@@ -5,3 +5,6 @@
 	path = msgpuck
 	url = https://github.com/rtsisyk/msgpuck
     ignore = dirty
+[submodule "mbedtls"]
+	path = mbedtls
+	url = https://github.com/ARMmbed/mbedtls.git

@@ -16,7 +16,14 @@
 #ifndef TRANSPORT_FCM_H
 #define TRANSPORT_FCM_H
 
-result_t send_fcm_connect_request(struct node_t* node, char* iface);
+#include "../../transport.h"
+
+struct node_t;
+
+typedef struct transport_fcm_client_t {
+	struct node_t *node;
+} transport_fcm_client_t;
+
 transport_client_t *transport_fcm_create(struct node_t *node, char *uri);
 
 #endif /* TRANSPORT_FCM_H */

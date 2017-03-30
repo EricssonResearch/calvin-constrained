@@ -37,7 +37,7 @@ actors/actor_button.c
 
 c_calvin: $(C_SOURCE_FILES)
 	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h
-	$(CC) -o $(PROJECT_NAME) $(C_SOURCE_FILES) $(CFLAGS)
+	$(CC) -o $(PROJECT_NAME) $(C_SOURCE_FILES) $(CFLAGS) $(INC_PATHS)
 
 clean:
 	rm -f $(PROJECT_NAME)

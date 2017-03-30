@@ -22,10 +22,13 @@
 #include "transport_lwip.h"
 #include "../../platform.h"
 #include "../../node.h"
+#include "../../common.h"
+
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 static transport_client_t m_transport_client;
 
-result_t transport_convert_mac_to_link_local(const char *mac, char *ip)
+static result_t transport_lwip_convert_mac_to_link_local(const char *mac, char *ip)
 {
 	long col1, col2, col3, col4, col5, col6;
 
@@ -44,135 +47,125 @@ result_t transport_convert_mac_to_link_local(const char *mac, char *ip)
 	return SUCCESS;
 }
 
-err_t transport_recv_data_handler(void *p_arg, struct tcp_pcb *p_pcb, struct pbuf *p_buffer, err_t err)
+static void transport_lwip_error_handler(void *arg, err_t err)
 {
-	int read_pos = 0, msg_size = 0;
-
-	if (err == ERR_OK) {
-		tcp_recved(p_pcb, p_buffer->tot_len);
-		transport_handle_data(((transport_lwip_client_t *)m_transport_client.client_state)->node, &m_transport_client, p_buffer->payload, p_buffer->tot_len);
-	} else
-		log_error("Error on receive, reason 0x%08x", err);
-
-	if (p_buffer != NULL)
-		UNUSED_VARIABLE(pbuf_free(p_buffer));
-
-	return ERR_OK;
-}
-
-static void transport_error_handler(void *p_arg, err_t err)
-{
-	LWIP_UNUSED_ARG(p_arg);
+	LWIP_UNUSED_ARG(arg);
 	LWIP_UNUSED_ARG(err);
 
 	log_error("Error on TCP port, reason 0x%08x", err);
 }
 
-static err_t transport_connection_poll(void *p_arg, struct tcp_pcb *p_pcb)
+static err_t transport_lwip_connection_poll(void *arg, struct tcp_pcb *pcb)
 {
-	LWIP_UNUSED_ARG(p_arg);
-	LWIP_UNUSED_ARG(p_pcb);
+	LWIP_UNUSED_ARG(arg);
+	LWIP_UNUSED_ARG(pcb);
 
 	return ERR_OK;
 }
 
-static err_t transport_write_complete(void *p_arg, struct tcp_pcb *p_pcb, u16_t len)
+static void transport_lwip_wait_for_state(transport_client_t *client, transport_state_t state)
 {
-	UNUSED_PARAMETER(p_arg);
-	err_t err = ERR_OK;
-	uint32_t tcp_buffer_size = 0;
-	transport_lwip_client_t *transport_lwip = (transport_lwip_client_t *)m_transport_client.client_state;
-
-	// Complete message sent?
-	if (m_transport_client.tx_buffer.pos == m_transport_client.tx_buffer.size) {
-		transport_lwip->has_pending_tx = false;
-		transport_free_tx_buffer(&m_transport_client);
-		return ERR_OK;
-	}
-
-	// Continue sending
-	tcp_buffer_size = tcp_sndbuf(p_pcb);
-	if (tcp_buffer_size >= m_transport_client.tx_buffer.size - m_transport_client.tx_buffer.pos) {
-		err = tcp_write(p_pcb, m_transport_client.tx_buffer.buffer + m_transport_client.tx_buffer.pos, m_transport_client.tx_buffer.size - m_transport_client.tx_buffer.pos, 1);
-		if (err == ERR_OK)
-			m_transport_client.tx_buffer.pos = m_transport_client.tx_buffer.size;
-		else
-			log_error("TODO: Handle tx failures");
-	} else if (tcp_buffer_size > 0) {
-		err = tcp_write(p_pcb, m_transport_client.tx_buffer.buffer + m_transport_client.tx_buffer.pos, tcp_buffer_size, 1);
-		if (err == ERR_OK)
-			m_transport_client.tx_buffer.pos += tcp_buffer_size;
-		else
-			log_error("TODO: Handle tx failures");
-	} else {
-		log_error("No space in send buffer");
-		err = ERR_MEM;
-	}
-
-	return err;
+	while (client->state != state)
+		platform_evt_wait(NULL, NULL);
 }
 
-static err_t transport_connection_callback(void *p_arg, struct tcp_pcb *p_pcb, err_t err)
+static err_t transport_lwip_write_complete(void *arg, struct tcp_pcb *pcb, u16_t len)
 {
-	transport_lwip_client_t *transport_state = (transport_lwip_client_t *)m_transport_client.client_state;
+	UNUSED_PARAMETER(pcb);
+	transport_client_t *transport_client = (transport_client_t *)arg;
 
-	if (err != ERR_OK) {
-		log_error("Failed to create TCP connection");
-		return err;
-	}
-
-	log("TCP client connected");
-
-	tcp_setprio(p_pcb, TCP_PRIO_MIN);
-	tcp_arg(p_pcb, NULL);
-	tcp_recv(p_pcb, transport_recv_data_handler);
-	tcp_err(p_pcb, transport_error_handler);
-	tcp_poll(p_pcb, transport_connection_poll, 0);
-	tcp_sent(p_pcb, transport_write_complete);
-
-	transport_join(transport_state->node, &m_transport_client);
+	transport_client->state = TRANSPORT_ENABLED;
 
 	return ERR_OK;
 }
 
-// TODO: transport_send should block/sleep until tx has finished
-static result_t transport_lwip_send_tx_buffer(node_t *node, transport_client_t *transport_client, size_t size)
+static int transport_lwip_send(transport_client_t *transport_client, char *buffer, size_t size)
 {
 	err_t res = ERR_BUF;
 	uint32_t tcp_buffer_size = 0;
 	transport_lwip_client_t *transport_lwip = (transport_lwip_client_t *)transport_client->client_state;
 	struct tcp_pcb *pcb = transport_lwip->tcp_port;
+	int written = 0, to_write = 0;
 
-	if (!transport_lwip->has_pending_tx) {
-		transport_append_buffer_prefix(transport_client->tx_buffer.buffer, size);
-
-		tcp_buffer_size = tcp_sndbuf(pcb);
-		if (tcp_buffer_size >= size + 4) {
-			tcp_sent(pcb, transport_write_complete);
-			res = tcp_write(pcb, transport_client->tx_buffer.buffer, size + 4, 1);
-			if (res == ERR_OK) {
-				transport_lwip->has_pending_tx = true;
-				transport_client->tx_buffer.pos = size + 4;
-				transport_client->tx_buffer.size = transport_client->tx_buffer.pos;
-			}
-		} else if (tcp_buffer_size > 0) {
-			tcp_sent(pcb, transport_write_complete);
-			res = tcp_write(pcb, transport_client->tx_buffer.buffer, tcp_buffer_size, 1);
-			if (res == ERR_OK) {
-				transport_lwip->has_pending_tx = true;
-				transport_client->tx_buffer.size = size + 4;
-				transport_client->tx_buffer.pos = tcp_buffer_size;
-			}
-		} else
-			log_error("No space in send buffer");
+	while (written < size) {
+		to_write = MIN(tcp_sndbuf(pcb), size - written);
+		tcp_sent(pcb, transport_lwip_write_complete);
+		transport_client->state = TRANSPORT_PENDING;
+		res = tcp_write(pcb, buffer + written, to_write, 1);
+		if (res != ERR_OK) {
+			transport_client->state = TRANSPORT_ENABLED;
+			log_error("Failed to write data");
+			return -1;
+		}
+		transport_lwip_wait_for_state(transport_client, TRANSPORT_ENABLED);
+		written += to_write;
 	}
 
-	if (res != ERR_OK) {
-		transport_free_tx_buffer(transport_client);
-		return FAIL;
+	return written;
+}
+
+static err_t transport_lwip_data_handler(void *arg, struct tcp_pcb *pcb, struct pbuf *buffer, err_t err)
+{
+	transport_client_t *transport_client = (transport_client_t *)arg;
+	transport_lwip_client_t *state = (transport_lwip_client_t *)transport_client->client_state;
+
+	if (err == ERR_OK) {
+		if (buffer->tot_len > TRANSPORT_RX_BUFFER_SIZE - state->rx_buffer.size) {
+			log_error("TODO: Increase rx buffer or link rx buffers (read: %d rx_buffer: %d rx_buffer pos: %d)",
+				buffer->tot_len,
+				TRANSPORT_RX_BUFFER_SIZE,
+				state->rx_buffer.size);
+		} else {
+			memcpy(state->rx_buffer.buffer + state->rx_buffer.size, buffer->payload, buffer->tot_len);
+			state->rx_buffer.size += buffer->tot_len;
+		}
+
+		tcp_recved(pcb, buffer->tot_len);
+		UNUSED_VARIABLE(pbuf_free(buffer));
 	}
 
-	return SUCCESS;
+	return err;
+}
+
+static void transport_lwip_wait_for_data(transport_client_t *transport_client)
+{
+	while (!transport_lwip_has_data(transport_client))
+		platform_evt_wait(NULL, NULL);
+}
+
+static int transport_lwip_recv(transport_client_t *transport_client, char *buffer, size_t size)
+{
+	int ret = 0;
+	transport_lwip_client_t *state = (transport_lwip_client_t *)transport_client->client_state;
+
+	transport_lwip_wait_for_data(transport_client);
+
+	if (size < state->rx_buffer.size) {
+		log_error("Read buffer '%d' < read data '%d'", size, state->rx_buffer.size);
+		return -1;
+	}
+
+	memcpy(buffer, state->rx_buffer.buffer, state->rx_buffer.size);
+	ret = state->rx_buffer.size;
+	state->rx_buffer.size = 0;
+
+	return ret;
+}
+
+static err_t transport_lwip_connection_callback(void *arg, struct tcp_pcb *pcb, err_t err)
+{
+	UNUSED_PARAMETER(pcb);
+	transport_client_t *transport_client = (transport_client_t *)arg;
+
+	if (err != ERR_OK) {
+		log_error("Failed to create TCP connection");
+		transport_client->state = TRANSPORT_INTERFACE_DOWN;
+		return err;
+	}
+
+	transport_client->state = TRANSPORT_CONNECTED;
+
+	return ERR_OK;
 }
 
 static result_t transport_lwip_connect(node_t *node, transport_client_t *transport_client)
@@ -182,7 +175,7 @@ static result_t transport_lwip_connect(node_t *node, transport_client_t *transpo
 	err_t err;
 	char ip[40];
 
-	if (transport_convert_mac_to_link_local(transport_lwip->mac, ip) != SUCCESS) {
+	if (transport_lwip_convert_mac_to_link_local(transport_lwip->mac, ip) != SUCCESS) {
 		log_error("Failed to convert MAC address '%s'", transport_lwip->mac);
 		return FAIL;
 	}
@@ -192,15 +185,16 @@ static result_t transport_lwip_connect(node_t *node, transport_client_t *transpo
 		return FAIL;
 	}
 
-	err = tcp_connect_ip6(transport_lwip->tcp_port, &ipv6_addr, 5000, transport_connection_callback);
+	err = tcp_connect_ip6(transport_lwip->tcp_port, &ipv6_addr, 5000, transport_lwip_connection_callback);
 	if (err != ERR_OK) {
 		log_error("Failed to connect socket");
 		return FAIL;
 	}
 
-	transport_client->state = TRANSPORT_PENDING;
-
 	log("TCP connection requested to %s:%d.", ip, 5000);
+	transport_client->state = TRANSPORT_PENDING;
+	transport_lwip_wait_for_state(transport_client, TRANSPORT_CONNECTED);
+	log("TCP connected to %s:%d.", ip, 5000);
 
 	return SUCCESS;
 }
@@ -231,24 +225,35 @@ transport_client_t *transport_lwip_create(node_t *node, char *uri)
 	memset(transport_lwip, 0, sizeof(transport_lwip_client_t));
 	transport_lwip->node = node;
 	transport_lwip->tcp_port = tcp_new_ip6();
-	transport_lwip->has_pending_tx = false;
+	transport_lwip->rx_buffer.size = 0;
+	tcp_setprio(transport_lwip->tcp_port, TCP_PRIO_MIN);
+	tcp_arg(transport_lwip->tcp_port, &m_transport_client);
+	tcp_recv(transport_lwip->tcp_port, transport_lwip_data_handler);
+	tcp_err(transport_lwip->tcp_port, transport_lwip_error_handler);
+	tcp_poll(transport_lwip->tcp_port, transport_lwip_connection_poll, 0);
 	m_transport_client.client_state = transport_lwip;
 	m_transport_client.state = TRANSPORT_INTERFACE_DOWN;
 	m_transport_client.rx_buffer.buffer = NULL;
 	m_transport_client.rx_buffer.pos = 0;
 	m_transport_client.rx_buffer.size = 0;
-	m_transport_client.tx_buffer.buffer = NULL;
-	m_transport_client.tx_buffer.pos = 0;
-	m_transport_client.tx_buffer.size = 0;
+	m_transport_client.prefix_len = 4;
 	m_transport_client.connect = transport_lwip_connect;
-	m_transport_client.send_tx_buffer = transport_lwip_send_tx_buffer;
+	m_transport_client.send = transport_lwip_send;
+	m_transport_client.recv = transport_lwip_recv;
 	m_transport_client.disconnect = transport_lwip_disconnect;
 	m_transport_client.free = transport_lwip_free;
 
 	return &m_transport_client;
 }
 
-transport_client_t *transport_get_client(void)
+transport_client_t *transport_lwip_get_client(void)
 {
 	return &m_transport_client;
+}
+
+bool transport_lwip_has_data(transport_client_t *transport_client)
+{
+	transport_lwip_client_t *state = (transport_lwip_client_t *)transport_client->client_state;
+
+	return state->rx_buffer.size > 0;
 }

@@ -112,7 +112,16 @@ result_t platform_create_calvinsys(struct node_t *node);
 result_t platform_mem_alloc(void **buffer, uint32_t size);
 
 /**
- * platform_mem_free() - Deallocates memory previously allocated by a call to platform_mem_alloc.
+ * platform_mem_calloc() - Allocate requested memory.
+ * @nitems The number of elements to be allocated
+ * @size The size he size of elements
+ *
+ * Return: Pointer to the allocated memory or NULL if failure
+ */
+void *platform_mem_calloc(size_t nitems, size_t size);
+
+/**
+ * platform_mem_free() - Deallocates memory previously allocated by a call to platform_mem_alloc/platoform_mem_calloc.
  * @buffer buffer to deallocate
  */
 void platform_mem_free(void *buffer);
@@ -158,6 +167,18 @@ void platform_write_node_state(struct node_t* node, char *buffer, size_t size);
  * Return: SUCCESS/FAILURE
  */
 result_t platform_read_node_state(struct node_t* node, char buffer[], size_t size);
+#endif
+
+#ifdef MBEDTLS_NO_PLATFORM_ENTROPY
+/**
+ * platform_random_vector_generate() - Random number generator
+ * @ctx Context registered with the library on creation of the TLS instance
+ * @buffer Buffer where generated random vector is to be fetched
+ * @size Requested size of the random vector
+ *
+ * Return: 0 if success
+ */
+int platform_random_vector_generate(void *ctx, unsigned char *buffer, size_t size);
 #endif
 
 #ifdef DEBUG
