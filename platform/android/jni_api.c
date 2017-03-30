@@ -42,6 +42,7 @@ JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runt
 	char* storage_dir = (char*) (*env)->GetStringUTFChars(env, j_storage_dir, 0);
 	char* proxy_uris = (char*) (*env)->GetStringUTFChars(env, j_proxy_uris, 0);
 	char* name = (char*) (*env)->GetStringUTFChars(env, j_name, 0);
+
 	api_runtime_init(&node, name, proxy_uris, storage_dir);
 	return get_jlong_from_pointer(node);
 }
@@ -49,14 +50,16 @@ JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runt
 JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_readUpstreamData(JNIEnv* env, jobject this, jlong jnode)
 {
 	char buffer[BUFFER_SIZE];
-
-	memset(&buffer, 0, BUFFER_SIZE);
-	node_t* node = (node_t*)get_ptr_from_jlong(jnode);
-	android_platform_t* platform = (android_platform_t*) node->platform;
-
-	platform->read_upstream(node, buffer, BUFFER_SIZE);
+	node_t* node;
 	jbyteArray data;
-	size_t size = get_message_len(buffer);
+	android_platform_t* platform;
+	size_t size;
+	memset(&buffer, 0, BUFFER_SIZE);
+
+	node = (node_t*)get_ptr_from_jlong(jnode);
+	platform = (android_platform_t*) node->platform;
+	platform->read_upstream(node, buffer, BUFFER_SIZE);
+	size = get_message_len(buffer);
 	data = (*env)->NewByteArray(env, size+7);
 	(*env)->SetByteArrayRegion(env, data, 0, size+7, buffer);
 	return data;
@@ -100,33 +103,58 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runti
 	platform->send_downstream_platform_message(node, RUNTIME_SERIALIZE_AND_STOP, node->transport_client, NULL, 0);
 }
 
-JNIEXPORT jint JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_getNodeState(JNIEnv* env, jobject this, jlong node_p) {
+JNIEXPORT jint JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_getNodeState(JNIEnv* env, jobject this, jlong node_p)
+{
 	node_t *node = (node_t *) get_ptr_from_jlong(node_p);
 
 	if (node == NULL)
 		return (jint) 3;
 	switch (node->state) {
-		case NODE_DO_START:
-			return (jint) 0;
-		case NODE_PENDING:
-			return (jint) 1;
-		case NODE_STARTED:
-			return (jint) 2;
-		case NODE_STOP:
-			return (jint) 3;
+	case NODE_DO_START:
+		return (jint) 0;
+	case NODE_PENDING:
+		return (jint) 1;
+	case NODE_STARTED:
+		return (jint) 2;
+	case NODE_STOP:
+		return (jint) 3;
 	}
 }
 
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_clearSerialization(JNIEnv* env, jobject this, jstring j_filedir)
 {
 	char* filedir = (char*) (*env)->GetStringUTFChars(env, j_filedir, 0);
+
 	api_clear_serialization_file(filedir);
 }
 
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_triggerConnectivityChange(JNIEnv* env, jobject this, jlong node_p)
 {
-	log("send downstream connectivity changed msg");
 	node_t* node = (node_t*)get_ptr_from_jlong(node_p);
 	android_platform_t* platform = (android_platform_t*) node->platform;
+
 	platform->send_downstream_platform_message(node, RUNTIME_TRIGGER_RECONNECT, node->transport_client, NULL, 0);
+}
+
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_registerExternalCalvinsys(JNIEnv* env, jobject this, jlong node_p, jstring j_name)
+{
+	node_t* node = (node_t*)get_ptr_from_jlong(node_p);
+	android_platform_t* platform = (android_platform_t*) node->platform;
+	char* name = (char*) (*env)->GetStringUTFChars(env, j_name, 0);
+
+	platform->send_downstream_platform_message(node, REGISTER_EXTERNAL_CALVINSYS, node->transport_client, name, strlen(name)+1);
+}
+
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_writeCalvinsysPayload(JNIEnv* env, jobject this, jbyteArray data, jlong jnode)
+{
+	android_platform_t* platform;
+	node_t* node;
+	int len = (*env)->GetArrayLength(env, data);
+	char payload_data[len];
+
+	memset(payload_data, 0, len);
+	(*env)->GetByteArrayRegion(env, data, 0, len, payload_data);
+	node = (node_t*)get_ptr_from_jlong(jnode);
+	platform = (android_platform_t*) node->platform;
+	platform->send_downstream_platform_message(node, EXTERNAL_CALVINSYS_PAYLOAD, node->transport_client, payload_data, len);
 }

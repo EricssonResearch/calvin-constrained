@@ -61,9 +61,8 @@ result_t api_runtime_stop(node_t *node)
 result_t api_runtime_serialize_and_stop(node_t* node)
 {
 #ifdef USE_PERSISTENT_STORAGE
-	if (node->state == NODE_STARTED) {
+	if (node->state == NODE_STARTED)
 		node_set_state(node);
-	}
 #endif
 	node->state = NODE_STOP;
 	return SUCCESS;
@@ -79,9 +78,8 @@ result_t api_clear_serialization_file(char* filedir)
 	if (filedir[strlen(filedir)-1] != '/')
 		strcat(abs_filepath, "/");
 	strcat(abs_filepath, filename);
-	if (unlink(abs_filepath) < 0) {
+	if (unlink(abs_filepath) < 0)
 		return FAIL;
-	}
 	return SUCCESS;
 }
 #endif

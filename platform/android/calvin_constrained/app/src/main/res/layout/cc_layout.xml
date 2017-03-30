@@ -24,14 +24,10 @@
         android:layout_height="wrap_content"
         android:id="@+id/start_rt"
         android:text="Start rt" />
-
-    <ScrollView
+    <Button
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:id="@+id/logcat_scroll">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/logcat"/>
-    </ScrollView>
+        android:layout_height="wrap_content"
+        android:id="@+id/bind"
+        android:text="Bind" />
+
 </LinearLayout>

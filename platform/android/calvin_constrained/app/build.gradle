@@ -70,6 +70,10 @@ android {
     }
 }
 
+repositories {
+    mavenCentral()
+}
+
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
@@ -77,6 +81,7 @@ dependencies {
     })
     compile 'com.android.support:appcompat-v7:25.1.0'
     compile 'com.google.firebase:firebase-messaging:10.0.1'
+    compile 'org.msgpack:msgpack-core:0.8.12'
     testCompile 'junit:junit:4.12'
 }
 apply plugin: 'com.google.gms.google-services'

@@ -11,8 +11,9 @@ add_library(
              ../../../../main.c
              ../../../../platform/android/platform_android.c
              ../../../../platform/android/jni_api.c
-             ../../../../platform/android/calvinsys_android.c
+             ../../../../platform/android/calvinsys/accelerometer.c
              ../../../../main.c
+             ../../../../calvinsys.c
              ../../../../api.c
              ../../../../common.c
              ../../../../node.c
@@ -32,6 +33,7 @@ add_library(
              ../../../../actors/actor_gpioreader.c
              ../../../../actors/actor_gpiowriter.c
              ../../../../actors/actor_temperature.c
+             ../../../../actors/actor_button.c
              ../../../../actors/actor_mpy.c
              # ../../../../libmpy/calvin_mpy_port.c
              # ../../../../libmpy/calvin_mpy_gpiohandler.c

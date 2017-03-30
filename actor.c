@@ -23,6 +23,7 @@
 #include "actors/actor_gpioreader.h"
 #include "actors/actor_gpiowriter.h"
 #include "actors/actor_temperature.h"
+#include "actors/actor_button.h"
 #include "platform.h"
 #include "msgpack_helper.h"
 #include "msgpuck/msgpuck.h"
@@ -32,7 +33,7 @@
 #endif
 
 #ifndef MICROPYTHON
-#define NBR_OF_ACTOR_TYPES 4
+#define NBR_OF_ACTOR_TYPES 5
 
 struct actor_type_t {
 	char type[50];
@@ -90,6 +91,17 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		NULL,
 		NULL,
 		NULL
+	},
+	{
+		"io.Button",
+		actor_button_init,
+	    NULL,
+	    actor_button_free,
+	    actor_button_fire,
+	    NULL,
+	    NULL,
+	    actor_button_will_end,
+	    NULL,
 	}
 };
 #endif

@@ -13,18 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef ACTOR_BUTTON_H
+#define ACTOR_BUTTON_H
 
-#ifndef CALVINSYS_ANDROID_H
-#define CALVINSYS_ANDROID_H
+#include "../actor.h"
+#include "../calvinsys.h"
 
-#include <node.h>
-#include <android/sensor.h>
-result_t create_calvinsys(node_t* node);
+typedef struct state_button_t {
+	calvinsys_t* button;
+} state_button_t;
 
-typedef struct android_sensor_data_t {
-	ASensorEventQueue* queue;
-	ASensor* sensor;
-	ASensorEvent* event;
-} android_sensor_data_t;
+result_t actor_button_init(actor_t **actor, list_t *attributes);
+bool actor_button_fire(actor_t *actor);
+void actor_button_free(actor_t *actor);
+void actor_button_will_end(actor_t* actor);
 
-#endif
+#endif /* ACTOR_BUTTON_H */
