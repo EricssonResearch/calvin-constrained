@@ -224,8 +224,8 @@ public class CalvinService extends Service {
         if (intent != null)
             intentData = intent.getExtras();
         this.runtimeHasStopped = false;
-        String name = "Calvin Android";
-        String proxy_uris = "calvinip://10.211.120.132:5000"; //calvinfcm://773482069446:*";
+        String name = intentData.getString("rt_name", "Calvin Android");
+        String proxy_uris = intentData.getString("rt_uris", "ssdp");
         String storageDir = getFilesDir().getAbsolutePath();
         calvin = new Calvin(name, proxy_uris, storageDir);
 

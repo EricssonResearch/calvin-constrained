@@ -1,0 +1,10 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+    <item
+        android:id="@+id/action_webpage"
+        android:title="Calvin GitHub"
+        android:showAsAction="never" />
+    <item
+        android:id="@+id/action_favorite"
+        android:title="About"
+        android:showAsAction="never"/>
+</menu>
