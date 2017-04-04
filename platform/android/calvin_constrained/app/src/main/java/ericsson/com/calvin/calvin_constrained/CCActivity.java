@@ -27,8 +27,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-import ericsson.com.calvin.capabilities.CalvinCamera;
-
 /**
  * Dummy activity used for debugging.
  */
@@ -38,7 +36,6 @@ public class CCActivity extends Activity {
 
     Button stopButton, startButton, bindButton;
     Activity activity;
-    CalvinCamera cc;
     Context context;
     String buttonSysName = "calvinsys.io.button";
     int colors[] = {Color.BLUE, Color.RED, Color.GREEN, Color.GRAY};
@@ -178,8 +175,5 @@ public class CCActivity extends Activity {
                 bindService(intent, connection, Context.BIND_AUTO_CREATE);
             }
         });
-        /* cc = new CalvinCamera();
-        cc.onCreate(this);
-        root.addView(cc.getView(this, getLayoutInflater()), 3); */
     }
 }

@@ -1,7 +1,3 @@
-#include "common.h"
-#include "node.h"
-#include "calvinsys.h"
-
 /*
  * Copyright (c) 2016 Ericsson AB
  *
@@ -18,14 +14,17 @@
  * limitations under the License.
  */
 
+#include "common.h"
+#include "node.h"
+#include "calvinsys.h"
+
 result_t register_calvinsys(node_t* node, calvinsys_t* calvinsys)
 {
 	if (list_get(node->calvinsys, calvinsys->name) != NULL) {
 		log_error("Calvinsys %s already registered", calvinsys->name);
 		return FAIL;
 	}
-	list_add(&node->calvinsys, calvinsys->name, calvinsys, sizeof(calvinsys_t*));
-	return SUCCESS;
+	return list_add(&node->calvinsys, calvinsys->name, calvinsys, sizeof(calvinsys_t*));
 }
 
 void unregister_calvinsys(node_t* node, calvinsys_t* calvinsys)
@@ -33,7 +32,7 @@ void unregister_calvinsys(node_t* node, calvinsys_t* calvinsys)
 	list_remove(&node->calvinsys, calvinsys->name);
 }
 
-result_t release_calvinsys(calvinsys_t** calvinsys)
+void release_calvinsys(calvinsys_t** calvinsys)
 {
 	if ((*calvinsys)->data != NULL)
 		platform_mem_free((*calvinsys)->data);
@@ -42,5 +41,4 @@ result_t release_calvinsys(calvinsys_t** calvinsys)
 	platform_mem_free((*calvinsys)->name);
 	platform_mem_free(*calvinsys);
 	*calvinsys = NULL;
-	return SUCCESS;
 }

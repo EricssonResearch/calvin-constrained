@@ -80,7 +80,6 @@ public class CalvinService extends Service {
                     sys.uid = message.sendingUid;
                     clients.put(sys.name, sys);
 
-                    //TODO: Call CC to actually register the sys
                     calvin.registerExternalCalvinsys(calvin.node, name);
 
                     // Send reply message
@@ -171,25 +170,20 @@ public class CalvinService extends Service {
             if(unpacker.hasNext()) {
                 Value v = unpacker.unpackValue();
 				if(v.getValueType() == ValueType.MAP) {
-                        Log.d(LOG_TAG, "unpacker map value");
                         MapValue map = v.asMapValue();
                         Set<Map.Entry<Value, Value>> mapSet = map.entrySet();
                         for(Map.Entry<Value, Value> e : mapSet) {
-                            Log.d(LOG_TAG, "map key-value pair");
                             if (e.getKey().getValueType() == ValueType.STRING) {
                                 ValueType a = e.getValue().getValueType();
                                 String key = e.getKey().asStringValue().asString();
                                 if(a == ValueType.STRING && key.startsWith("command")) {
                                     String value = e.getValue().asStringValue().asString();
-                                    Log.d(LOG_TAG, "Added string, key: " + key + " value: "+ value);
                                     bundle.putString(key, value.substring(0, value.length()-1));
                                 }else if(a == ValueType.STRING && key.startsWith("calvinsys")) {
                                     String value = e.getValue().asStringValue().asString();
-                                    Log.d(LOG_TAG, "Added string, key: " + key + " value: "+ value);
                                     bundle.putString(key, value.substring(0, value.length()-1));
                                 } else if(a == ValueType.BINARY && key.startsWith("payload")) {
                                     byte[] value = e.getValue().asBinaryValue().asByteArray();
-                                    Log.d(LOG_TAG, "Added bin of size " + value.length + ", key: " + key + ", value: " + new String(value));
                                     bundle.putByteArray(key, value);
                                 }
                             } else {
@@ -202,12 +196,10 @@ public class CalvinService extends Service {
 			} else {
                 Log.e(LOG_TAG, "Did not find any data in msgpack...");
             }
-            Log.d(LOG_TAG, "Done parsing msgpack, sending bundle: " + bundle.toString());
 
             Message msg = Message.obtain(null, 3, 0, 0);
             msg.setData(bundle);
             ExternalCalvinSys sys = clients.get(bundle.getString("calvinsys"));
-            Log.d(LOG_TAG, "sending message!");
             sys.outgoing.send(msg);
         } catch (IOException e) {
             e.printStackTrace();

@@ -22,15 +22,16 @@ typedef struct calvinsys_t {
 	char* name;
 	char* data;
 	char* command;
-	int new_data;
+	bool new_data;
 	size_t data_size;
 	result_t (*init)(struct calvinsys_t* calvinsys);
 	result_t (*release)(struct calvinsys_t* calvinsys);
 	result_t (*write)(struct calvinsys_t* calvinsys, char* command, char* data, size_t data_size);
 	struct node_t* node;
+	void* state;
 } calvinsys_t;
 
 result_t register_calvinsys(struct node_t* node, struct calvinsys_t* calvinsys);
 void unregister_calvinsys(struct node_t* node, calvinsys_t* calvinsys);
-result_t release_calvinsys(struct calvinsys_t** calvinsys);
+void release_calvinsys(calvinsys_t** calvinsys);
 #endif

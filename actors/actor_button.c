@@ -58,9 +58,14 @@ bool actor_button_fire(struct actor_t *actor)
 				}
 			}
 			button->new_data = 0;
+			return true;
 		}
 	}
 	return false;
+}
+result_t actor_button_set_state(actor_t **actor, list_t *attributes)
+{
+	return actor_button_init(actor, attributes);
 }
 
 void actor_button_will_end(actor_t* actor)
@@ -78,5 +83,6 @@ void actor_button_free(actor_t *actor)
 	if(actor->instance_state != NULL) {
 		calvinsys_t *button = ((state_button_t *) actor->instance_state)->button;
 		release_calvinsys(&button);
+		platform_mem_free(actor->instance_state);
 	}
 }

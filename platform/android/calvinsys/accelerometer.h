@@ -1,6 +1,3 @@
-#include "../../calvinsys.h"
-#include <common.h>
-
 /*
  * Copyright (c) 2016 Ericsson AB
  *
@@ -16,6 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "../../calvinsys.h"
+#include <common.h>
+
 #define COMMAND_ACCELEROMETER_DATA "accelerometer_data"
 
 result_t create_accelerometer(struct node_t* node, calvinsys_t** calvinsys);

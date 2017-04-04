@@ -15,6 +15,7 @@
  */
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "node.h"
 #include "actor.h"
 #include "fifo.h"
@@ -95,13 +96,13 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 	{
 		"io.Button",
 		actor_button_init,
-	    NULL,
-	    actor_button_free,
-	    actor_button_fire,
-	    NULL,
-	    NULL,
-	    actor_button_will_end,
-	    NULL,
+		actor_button_set_state,
+		actor_button_free,
+		actor_button_fire,
+		NULL,
+		NULL,
+		actor_button_will_end,
+		NULL,
 	}
 };
 #endif
@@ -109,7 +110,6 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 static result_t actor_remove_reply_handler(node_t *node, char *data, void *msg_data)
 {
 	actor_t *actor = NULL;
-
 	actor = actor_get(node, (char *)msg_data, strlen((char *)msg_data));
 	if (actor != NULL) {
 		actor_free(node, actor);

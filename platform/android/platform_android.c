@@ -196,6 +196,7 @@ static result_t platform_register_external_calvinsys(node_t* node, char* data, s
 
 	if (platform_mem_alloc((void**) &calvinsys->name, name_len+1) != SUCCESS) {
 		log_error("Could not allocate memory for name");
+		platform_mem_free(calvinsys);
 		return FAIL;
 	}
 	memset(calvinsys->name, 0, name_len+1);
@@ -205,11 +206,15 @@ static result_t platform_register_external_calvinsys(node_t* node, char* data, s
 	calvinsys->release = external_calvinsys_release;
 	calvinsys->write = external_calvinsys_input;
 	calvinsys->node = node;
-	register_calvinsys(node, calvinsys);
+	if (register_calvinsys(node, calvinsys) != SUCCESS) {
+		log_error("Could not register calvinsys");
+		platform_mem_free(calvinsys->name);
+		platform_mem_free(calvinsys);
+		return FAIL;
+	}
 
 	// Send new proxy config if successful
-	proto_send_node_setup(node, node_setup_reply_handler);
-	return SUCCESS;
+	return proto_send_node_setup(node, node_setup_reply_handler);
 }
 
 static result_t platform_handle_external_calvinsys_data(node_t* node, char* data, size_t size)
@@ -219,9 +224,18 @@ static result_t platform_handle_external_calvinsys_data(node_t* node, char* data
 	char* command;
 	int name_len, payload_len, command_len;
 
-	decode_string_from_map(data, "command", &command, &command_len);
-	decode_string_from_map(data, "calvinsys", &calvinsys_name, &name_len);
-	decode_bin_from_map(data, "payload", &payload, &payload_len);
+	if (decode_string_from_map(data, "command", &command, &command_len) != SUCCESS) {
+		log_error("Could not parse command key");
+		return FAIL;
+	}
+	if (decode_string_from_map(data, "calvinsys", &calvinsys_name, &name_len) != SUCCESS) {
+		log_error("Could not parse calvinsys key.");
+		return FAIL;
+	}
+	if (decode_bin_from_map(data, "payload", &payload, &payload_len) != SUCCESS) {
+		log_error("Could not parse paylaod key");
+		return FAIL;
+	}
 
 	calvinsys_t* sys = (calvinsys_t*) list_get(node->calvinsys, calvinsys_name);
 
@@ -264,6 +278,7 @@ result_t platform_create(node_t* node)
 	if (pipe(((android_platform_t*) node->platform)->upstream_platform_fd) < 0 ||
 			pipe(((android_platform_t*) node->platform)->downstream_platform_fd) < 0) {
 		log_error("Could not open pipes for transport");
+		platform_mem_free(platform);
 		return FAIL;
 	}
 
@@ -274,8 +289,11 @@ result_t platform_create(node_t* node)
 
 	node_attributes_t* attr;
 
-	if (platform_mem_alloc((void **) &attr, sizeof(node_attributes_t)) != SUCCESS)
+	if (platform_mem_alloc((void **) &attr, sizeof(node_attributes_t)) != SUCCESS) {
 		log_error("Could not allocate memory for attributes");
+		platform_mem_free(platform);
+		return FAIL;
+	}
 	attr->indexed_public_owner = NULL;
 	attr->indexed_public_node_name = NULL;
 	attr->indexed_public_address = NULL;
@@ -373,6 +391,7 @@ static int transport_fd_handler(int fd, int events, void *data)
 
 	if (platform_android_handle_data(node, node->transport_client) != SUCCESS)
 		log_error("Error when handling data");
+	return 1; // Always return 1, since 0  will unregister the FD in the looper
 }
 
 static int transport_socket_fd_handler(int fd, int events, void *data)
@@ -381,6 +400,7 @@ static int transport_socket_fd_handler(int fd, int events, void *data)
 
 	if (platform_android_handle_socket_data(node, node->transport_client) != SUCCESS)
 		log_error("Error when handling socket data");
+	return 1; // Always return 1, since 0  will unregister the FD in the looper
 }
 
 void platform_evt_wait(node_t *node, struct timeval *timeout)

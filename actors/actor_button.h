@@ -27,5 +27,6 @@ result_t actor_button_init(actor_t **actor, list_t *attributes);
 bool actor_button_fire(actor_t *actor);
 void actor_button_free(actor_t *actor);
 void actor_button_will_end(actor_t* actor);
+result_t actor_button_set_state(actor_t **actor, list_t *attributes);
 
 #endif /* ACTOR_BUTTON_H */
