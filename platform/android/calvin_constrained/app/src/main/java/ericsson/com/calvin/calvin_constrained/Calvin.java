@@ -189,6 +189,10 @@ public class Calvin {
      */
     public native void clearSerialization(String filedir);
 
+	public native void registerExternalCalvinsys(long node, String name);
+
+	public native void writeCalvinsysPayload(byte[] payload, long node);
+
 	/**
 	 * Native method to trigger Calvin to do a reconnect since there was a change in connectivity.
      * @param node The node.

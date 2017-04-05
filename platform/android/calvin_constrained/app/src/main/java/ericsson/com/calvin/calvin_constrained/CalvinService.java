@@ -1,23 +1,33 @@
 package ericsson.com.calvin.calvin_constrained;
 
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import android.os.Message;
+import android.os.Messenger;
+import android.os.RemoteException;
 import android.util.Log;
 
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.RemoteMessage;
 
+import org.msgpack.core.MessageBufferPacker;
+import org.msgpack.core.MessagePack;
+import org.msgpack.core.MessageUnpacker;
+import org.msgpack.value.MapValue;
+import org.msgpack.value.Value;
+import org.msgpack.value.ValueType;
+
+import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by alexander on 2017-01-31.
@@ -27,17 +37,181 @@ import java.util.Iterator;
  * The main service that runs and handles the Calvin runtime.
  */
 public class CalvinService extends Service {
+    public final int REGISTER_CALVINSYS = 1, DESTORY_CALVINSYS = 2, CALVINSYS_DATA = 3, CALVINSYS_ACK = 4;
+    public final int INIT_CALVINSYS = 5;
+
     public static final String CLEAR_SERIALIZATION_FILE = "csf";
     public static Calvin calvin;
     Thread calvinThread;
     CalvinDataListenThread cdlt;
     CalvinBroadcastReceiver br;
     public boolean runtimeHasStopped;
-
+    Messenger msg = new Messenger(new CalvinMessengerHandler());
     private final String LOG_TAG = "CalvinService";
+    Map<String, ExternalCalvinSys> clients;
+
+    enum ExternalClientState {
+        ENABLED,
+        PENDING,
+        DISABLED
+    };
+
+    class ExternalCalvinSys {
+        ExternalClientState state;
+        String name;
+        Messenger outgoing;
+        int uid;
+    }
+
+    class CalvinMessengerHandler extends Handler {
+        @Override
+        public void handleMessage(Message message) {
+            Log.d(LOG_TAG, "Received message");
+            Bundle data;
+            switch(message.what) {
+                case REGISTER_CALVINSYS:
+                    data = message.getData();
+                    String name = data.getString("name", null);
+
+                    ExternalCalvinSys sys = new ExternalCalvinSys();
+                    sys.state = ExternalClientState.ENABLED;
+                    sys.name = name;
+                    sys.outgoing = message.replyTo;
+                    sys.uid = message.sendingUid;
+                    clients.put(sys.name, sys);
+
+                    calvin.registerExternalCalvinsys(calvin.node, name);
+
+                    // Send reply message
+                    Message pack = Message.obtain(null, CALVINSYS_ACK, 0, 0);
+                    try {
+                        sys.outgoing.send(pack);
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
+                    break;
+                case CALVINSYS_DATA:
+                    sendDownstreamCalvinSysMessage(message);
+                    break;
+            }
+        }
+    }
+
+    private void sendDownstreamCalvinSysMessage(Message message) {
+        Bundle data = message.getData();
+        String sysName = data.getString("calvinsys");
+        String command = data.getString("command");
+        byte[] payload = data.getByteArray("payload");
+        if (sysName == null || command == null) {
+            Log.e(LOG_TAG, "Error when sending data to sys handler. The calvinsys must contain the name of the registered sys.");
+            return;
+        }
+        MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        try {
+            // TODO: Future work, instead of getting a msgpack coded data object, parse it to/from a Bundle
+            packer.packMapHeader(3);
+
+            packer.packString("calvinsys");
+            packer.packString(sysName+"\0");
+
+            packer.packString("command");
+            packer.packString(command+"\0");
+
+            packer.packString("payload");
+            packer.packBinaryHeader(payload.length);
+            packer.writePayload(payload);
+
+            packer.close();
+            calvin.writeCalvinsysPayload(packer.toByteArray(), calvin.node);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    synchronized public boolean sendInitExternalCalvinsys(String name) {
+        Log.d(LOG_TAG, "Send init to external calvinsys: " + name);
+        ExternalCalvinSys sys = clients.get(name);
+        if (sys == null) {
+            Log.d(LOG_TAG, "calvinsys not found");
+            return false;
+        }
+        Message pack = Message.obtain(null, INIT_CALVINSYS);
+        try {
+            sys.outgoing.send(pack);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
+    synchronized public boolean sendDestroyExternalCalvinsys(String name) {
+        Log.d(LOG_TAG, "Send init to external calvinsys: " + name);
+        ExternalCalvinSys sys = clients.get(name);
+        if (sys == null) {
+            Log.d(LOG_TAG, "calvinsys not found");
+            return false;
+        }
+        Message pack = Message.obtain(null, DESTORY_CALVINSYS);
+        try {
+            sys.outgoing.send(pack);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
+    synchronized void sendPayloadExternalCalvinsys(byte[] data) {
+        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(data);
+        try {
+            Bundle bundle = new Bundle();
+            if(unpacker.hasNext()) {
+                Value v = unpacker.unpackValue();
+				if(v.getValueType() == ValueType.MAP) {
+                        MapValue map = v.asMapValue();
+                        Set<Map.Entry<Value, Value>> mapSet = map.entrySet();
+                        for(Map.Entry<Value, Value> e : mapSet) {
+                            if (e.getKey().getValueType() == ValueType.STRING) {
+                                ValueType a = e.getValue().getValueType();
+                                String key = e.getKey().asStringValue().asString();
+                                if(a == ValueType.STRING && key.startsWith("command")) {
+                                    String value = e.getValue().asStringValue().asString();
+                                    bundle.putString(key, value.substring(0, value.length()-1));
+                                }else if(a == ValueType.STRING && key.startsWith("calvinsys")) {
+                                    String value = e.getValue().asStringValue().asString();
+                                    bundle.putString(key, value.substring(0, value.length()-1));
+                                } else if(a == ValueType.BINARY && key.startsWith("payload")) {
+                                    byte[] value = e.getValue().asBinaryValue().asByteArray();
+                                    bundle.putByteArray(key, value);
+                                }
+                            } else {
+                                Log.e(LOG_TAG, "Found non string key in map, ignoring");
+                            }
+                        }
+                } else {
+                    Log.e(LOG_TAG, "Was not map");
+                }
+			} else {
+                Log.e(LOG_TAG, "Did not find any data in msgpack...");
+            }
+
+            Message msg = Message.obtain(null, 3, 0, 0);
+            msg.setData(bundle);
+            ExternalCalvinSys sys = clients.get(bundle.getString("calvinsys"));
+            sys.outgoing.send(msg);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
 
     @Override
     public void onCreate() {
+        if (clients == null)
+            clients = new HashMap<String, ExternalCalvinSys>();
     }
 
     @Override
@@ -46,10 +220,12 @@ public class CalvinService extends Service {
         intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
 
         // TODO: Move these config params to someplace else
-        Bundle intentData = intent.getExtras();
+        Bundle intentData = null;
+        if (intent != null)
+            intentData = intent.getExtras();
         this.runtimeHasStopped = false;
-        String name = "Calvin Android";
-        String proxy_uris = "calvinip://192.168.0.108:5000, calvinfcm://773482069446:*";
+        String name = intentData.getString("rt_name", "Calvin Android");
+        String proxy_uris = intentData.getString("rt_uris", "ssdp");
         String storageDir = getFilesDir().getAbsolutePath();
         calvin = new Calvin(name, proxy_uris, storageDir);
 
@@ -81,7 +257,8 @@ public class CalvinService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        return null;
+        Log.d(LOG_TAG, "onbind");
+        return msg.getBinder();
     }
 }
 
@@ -114,12 +291,12 @@ class CalvinDataListenThread implements Runnable{
     private final String LOG_TAG = "Android pipelisten";
     private boolean rtStarted = false;
     private CalvinRuntime rt;
+    private CalvinService calvinService;
     private Thread calvinThread;
-    private Context context;
 
     CalvinMessageHandler[] initMessageHandlers() {
         // Create all message handlers here
-        CalvinMessageHandler[] handlers = new CalvinMessageHandler[4];
+        CalvinMessageHandler[] handlers = new CalvinMessageHandler[7];
         handlers[0] = new CalvinMessageHandler() {
             @Override
             public String getCommand() {
@@ -142,7 +319,7 @@ class CalvinDataListenThread implements Runnable{
                             .addData("payload", new String(CalvinCommon.base64Encode(data)))
                             .build();
                     calvin.upsreamFCMQueue.add(msg);
-                    calvin.sendUpstreamFCMMessages(context);
+                    calvin.sendUpstreamFCMMessages(calvinService);
                 }
             }
         };
@@ -164,7 +341,7 @@ class CalvinDataListenThread implements Runnable{
                         .addData("uri", "")
                         .build();
                 calvin.upsreamFCMQueue.add(msg);
-                calvin.sendUpstreamFCMMessages(context);
+                calvin.sendUpstreamFCMMessages(calvinService);
             }
         };
         handlers[2] = new CalvinMessageHandler() {
@@ -190,13 +367,53 @@ class CalvinDataListenThread implements Runnable{
                 calvin.nodeState = Calvin.STATE.NODE_STOP;
             }
         };
+        handlers[4] = new CalvinMessageHandler() {
+
+            @Override
+            public String getCommand() {
+                return CalvinMessageHandler.INIT_EXTERNAL_CALVINSYS;
+            }
+
+            @Override
+            public void handleData(byte[] data) {
+                String name = new String(data);
+                if(!calvinService.sendInitExternalCalvinsys(name)) {
+                    Log.e(LOG_TAG, "Could not sent init to external calvinsys");
+                }
+            }
+        };
+        handlers[5] = new CalvinMessageHandler() {
+            @Override
+            public String getCommand() {
+                return CalvinMessageHandler.PAYLOAD_EXTERNAL_CALVINSYS;
+            }
+
+            @Override
+            public void handleData(byte[] data) {
+                calvinService.sendPayloadExternalCalvinsys(data);
+            }
+        };
+        handlers[6] = new CalvinMessageHandler() {
+            @Override
+            public String getCommand() {
+                return CalvinMessageHandler.DESTROY_EXTERNAL_CALVINSYS;
+            }
+
+            @Override
+            public void handleData(byte[] data) {
+                String name = new String(data);
+                if(!calvinService.sendDestroyExternalCalvinsys(name)) {
+                    Log.e(LOG_TAG, "Could not destory external calvinsys " + new String(name));
+                }
+            }
+        };
         return handlers;
     }
 
-    public CalvinDataListenThread(Calvin calvin, Context context){
+    public CalvinDataListenThread(Calvin calvin, CalvinService service){
         this.calvin = calvin;
-        this.context = context;
         this.messageHandlers = this.initMessageHandlers();
+        this.calvinService = service;
         calvin.setupCalvinAndInit(calvin.proxyUris, calvin.name, calvin.storageDir);
     }
 
@@ -244,7 +461,7 @@ class CalvinDataListenThread implements Runnable{
             }
         }
         Log.d(LOG_TAG, "Calvin data listen thread stoped");
-        Intent stopServiceIntent = new Intent(context, CalvinService.class);
-        context.stopService(stopServiceIntent);
+        Intent stopServiceIntent = new Intent(calvinService, CalvinService.class);
+        calvinService.stopService(stopServiceIntent);
     }
 }

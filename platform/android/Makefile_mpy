@@ -34,6 +34,7 @@ actors/actor_gpioreader.c \
 actors/actor_gpiowriter.c \
 actors/actor_temperature.c \
 actors/actor_mpy.c \
+actors/actor_button.c \
 $(EXT_SRC_C)
 
 #include platform/android/android_compiler

@@ -24,6 +24,13 @@ char *encode_str(char **buffer, const char *key, const char *value, uint32_t val
 	return *buffer;
 }
 
+char *encode_bin(char **buffer, const char *key, const char *value, uint32_t value_len)
+{
+	*buffer = mp_encode_str(*buffer, key, strlen(key));
+	*buffer = mp_encode_bin(*buffer, value, value_len);
+	return *buffer;
+}
+
 char *encode_uint(char **buffer, const char *key, uint32_t value)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));
@@ -42,6 +49,13 @@ char *encode_double(char **buffer, const char *key, double value)
 {
 	*buffer = mp_encode_str(*buffer, key, strlen(key));
 	*buffer = mp_encode_double(*buffer, value);
+	return *buffer;
+}
+
+char *encode_float(char **buffer, const char *key, float value)
+{
+	*buffer = mp_encode_str(*buffer, key, strlen(key));
+	*buffer = mp_encode_float(*buffer, value);
 	return *buffer;
 }
 
@@ -174,6 +188,20 @@ result_t decode_str(char *buffer, char **value, uint32_t *len)
 	return SUCCESS;
 }
 
+result_t decode_bin(char *buffer, char **value, uint32_t *len)
+{
+	char *r = buffer;
+
+	if (mp_typeof(*r) != MP_BIN) {
+		log_error("Failed to decode value, not binary data");
+		return FAIL;
+	}
+
+	*value = (char *)mp_decode_bin((const char **)&r, len);
+
+	return SUCCESS;
+}
+
 result_t decode_bool(char *buffer, bool *value)
 {
 	char *r = buffer;
@@ -256,6 +284,31 @@ result_t decode_string_from_map(char *buffer, const char *key, char **value, uin
 				mp_next((const char **)&r);
 				if (strncmp(tmp, key, str_len) == 0)
 					return decode_str(r, value, len);
+			}
+			mp_next((const char **)&r);
+		}
+	} else {
+		log_error("Buffer is not a map");
+		return FAIL;
+	}
+
+	log_error("Parse error for '%s'", key);
+
+	return FAIL;
+}
+
+result_t decode_bin_from_map(char *buffer, const char *key, char **value, uint32_t *len)
+{
+	char *r = buffer, *tmp = NULL;
+	uint32_t i = 0, map_size = 0, str_len = 0;
+
+	if (mp_typeof(*r) == MP_MAP) {
+		map_size = mp_decode_map((const char **)&r);
+		for (i = 0; i < map_size; i++) {
+			if (decode_str(r, &tmp, &str_len) == SUCCESS) {
+				mp_next((const char **)&r);
+				if (strncmp(tmp, key, str_len) == 0)
+					return decode_bin(r, value, len);
 			}
 			mp_next((const char **)&r);
 		}
@@ -362,6 +415,32 @@ result_t decode_double_from_map(char *buffer, const char *key, double *value)
 
 	log_error("Parse error for '%s'", key);
 
+	return FAIL;
+}
+
+result_t decode_float_from_map(char *buffer, const char *key, float *value)
+{
+	char *r = buffer;
+	uint32_t i = 0, map_size = 0, key_len = 0;
+	char *tmp = NULL;
+
+	if (mp_typeof(*r) == MP_MAP) {
+		map_size = mp_decode_map((const char **)&r);
+		for (i = 0; i < map_size; i++) {
+			if (decode_str(r, &tmp, &key_len) == SUCCESS) {
+				mp_next((const char **)&r);
+				if (strncmp(tmp, key, key_len) == 0) {
+					*value = mp_decode_float((const char **)&r);
+					return SUCCESS;
+				}
+				mp_next((const char **)&r);
+			}
+		}
+
+	} else
+		log_error("Buffer is not a map");
+
+	log_error("Parse error for '%s'", key);
 	return FAIL;
 }
 

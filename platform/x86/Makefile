@@ -28,10 +28,12 @@ fifo.c \
 token.c \
 msgpack_helper.c \
 msgpuck/msgpuck.c \
+calvinsys.c \
 actors/actor_identity.c \
 actors/actor_gpioreader.c \
 actors/actor_gpiowriter.c \
-actors/actor_temperature.c
+actors/actor_temperature.c \
+actors/actor_button.c
 
 c_calvin: $(C_SOURCE_FILES)
 	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h

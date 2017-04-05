@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory
+        android:title="Runtime control"
+        android:key="rt_control">
+        <Preference
+            android:title="Start"
+            android:summary="Start and initiate the Calvin runtime."
+            android:key="rt_start"/>
+        <Preference
+            android:key="rt_stop"
+            android:title="Stop"
+            android:summary="Stop the Calvin runtime." />
+    </PreferenceCategory>
+    <PreferenceCategory
+        android:title="Runtime settings"
+        android:key="pref_cat_settings">
+    <EditTextPreference
+        android:key="rt_name"
+        android:title="Runtime Name"
+        android:defaultValue="Calvin Android" />
+    <EditTextPreference
+        android:key="rt_uris"
+        android:title="Proxy runtime URIs"
+        android:defaultValue="calvinip://" />
+    <CheckBoxPreference
+        android:key="autostart"
+        android:title="Autostart"
+        android:summary="Start the Calvin runtime when the app launches."
+        android:defaultValue="false" />
+    <CheckBoxPreference
+        android:key="clean_serialization"
+        android:title="Clean start"
+        android:summary="Remove any serialization of the runtime before starting."
+        android:defaultValue="true" />
+    </PreferenceCategory>
+</PreferenceScreen>

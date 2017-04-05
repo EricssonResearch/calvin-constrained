@@ -1,94 +1,70 @@
 package ericsson.com.calvin.calvin_constrained;
 
-import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
-import android.net.ConnectivityManager;
-import android.os.AsyncTask;
+import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
+import android.preference.PreferenceActivity;
+import android.preference.PreferenceManager;
 import android.util.Log;
-import android.view.View;
-import android.widget.Button;
-import android.widget.ScrollView;
-import android.widget.TextView;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 
 import com.google.firebase.iid.FirebaseInstanceId;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-
-/**
- * Dummy activity used for debugging.
- */
-public class CCActivity extends Activity {
+public class CCActivity extends PreferenceActivity {
 
     private final String LOG_TAG = "CCActivity log";
-
-    Button stopButton, startButton;
-    Activity activity;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.cc_layout);
-        this.activity = this;
-        Intent startServiceIntent = new Intent(this, CalvinService.class);
-        Bundle intentData = new Bundle();
-        intentData.putBoolean(CalvinService.CLEAR_SERIALIZATION_FILE, true);
-        startServiceIntent.putExtras(intentData);
-        startService(startServiceIntent);
-        setupUI();
-        // showLogs();
+        getFragmentManager().beginTransaction().replace(android.R.id.content, new CalvinPreferenceFragment()).commit();
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
+
+        if(sp.getBoolean("autostart", false)) {
+            CalvinCommon.startService(sp, this);
+        }
+
         Log.d(LOG_TAG, "FCM token: " + FirebaseInstanceId.getInstance().getToken());
     }
 
-    public void setupUI() {
-        stopButton = (Button) findViewById(R.id.stop_rt);
-        startButton = (Button) findViewById(R.id.start_rt);
-
-        stopButton.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View v) {
-                Intent stopServiceIntent = new Intent(activity, CalvinService.class);
-                stopService(stopServiceIntent);
-            }
-        });
-        startButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent startServiceIntent = new Intent(activity, CalvinService.class);
-                startService(startServiceIntent);
-            }
-        });
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu, menu);
+        return true;
     }
 
-    public void showLogs(){
-        new PrintLogs().execute();
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_webpage:
+                Uri uri = Uri.parse("https://github.com/EricssonResearch/calvin-base");
+                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                startActivity(intent);
+                return true;
+            case R.id.action_favorite:
+                showDialog();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
-    private class PrintLogs extends AsyncTask<String, String, String> {
-        @Override
-        protected String doInBackground(String... params) {
-            try{
-                Process logcat = Runtime.getRuntime().exec("logcat");
-                BufferedReader br = new BufferedReader(new InputStreamReader(logcat.getInputStream()));
-                String line;
-                while((line = br.readLine()) != null) {
-                    publishProgress(line);
-                }
-
-            } catch (IOException e) {
-                e.printStackTrace();
+    private void showDialog() {
+        AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+        dialogBuilder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
             }
-            return null;
-        }
-
-        @Override
-        protected void onProgressUpdate(String... values){
-            TextView logView = (TextView) findViewById(R.id.logcat);
-            ScrollView scroll = (ScrollView) findViewById(R.id.logcat_scroll);
-            logView.setText(logView.getText().toString() + "\n" + values[0]);
-            scroll.fullScroll(View.FOCUS_DOWN);
-        }
+        });
+        dialogBuilder.setTitle("About Calvin");
+        dialogBuilder.setMessage(getString(R.string.about));
+        dialogBuilder.create().show();
     }
 }

@@ -32,6 +32,7 @@ actor.c \
 port.c \
 fifo.c \
 token.c \
+calvinsys.c \
 msgpack_helper.c \
 msgpuck/msgpuck.c \
 actors/actor_mpy.c \
