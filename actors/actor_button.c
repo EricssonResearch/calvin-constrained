@@ -54,11 +54,12 @@ bool actor_button_fire(struct actor_t *actor)
 					token_set_uint(&out_token, 1);
 					if (fifo_write(&outport->fifo, out_token.value, out_token.size) != SUCCESS) {
 						log_error("sent button pressed token failed");
+					} else {
+						button->new_data = 0;
+						return true;
 					}
 				}
 			}
-			button->new_data = 0;
-			return true;
 		}
 	}
 	return false;
