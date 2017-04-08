@@ -45,7 +45,7 @@ cFlags "cFlags "-DTRANSPORT_FCM"
 * Create a project and name it something unique.
 * Click Add Firebase to your Android app.
 * Enter ```ericsson.com.calvin.calvin_constrained``` as the package name.
-* In the next step, download the google-services.json configuration file copy it to the Android project as described. If the file already exists, replace it with the one you have downloaded. 
+* In the next step, download the google-services.json configuration file copy it to the Android project as described. If the file already exists, replace it with the one you have downloaded.
 
 #### Runtime configuration
 1. Open the file CalvinService.java.
@@ -74,7 +74,7 @@ Supported platforms are.
 * To build the project choose Build -> Make Project.
 
 ### Run on Physical device
-1. Start a Calvin Base runtime and specify the interface to listen on.
+1. Start a Calvin Base runtime with calvinfcm enabled as a transport plugin and specify the interface to listen on.
 2. To listen for FCM connections, run.
 ```
 csruntime --host [your ip] --port 5000 --controlport 5001 --uri calvinfcm://[sender id]:*
@@ -83,7 +83,5 @@ and replace [sender id] with your Firebase project number.
 3. Make sure your phone is in develop mode. If it is not, open settings->about and tap multiple times on the build-number until you are a developer.
 4. Make sure your phone has the developer options turned on in settings->developer options.
 3. Connect your device to the computer.
-4. Run ```adb devices``` and make sure your device is visible and active (you may get a prompt on your phone to accept the computer). 
+4. Run ```adb devices``` and make sure your device is visible and active (you may get a prompt on your phone to accept the computer).
 5. Build, install and run the app from Android Studio by choosing Run -> Run 'App'.
-
-
