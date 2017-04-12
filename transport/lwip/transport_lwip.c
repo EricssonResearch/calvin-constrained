@@ -236,7 +236,7 @@ transport_client_t *transport_lwip_create(node_t *node, char *uri)
 	m_transport_client.rx_buffer.buffer = NULL;
 	m_transport_client.rx_buffer.pos = 0;
 	m_transport_client.rx_buffer.size = 0;
-	m_transport_client.prefix_len = 4;
+	m_transport_client.prefix_len = TRANSPORT_LEN_PREFIX_SIZE;
 	m_transport_client.connect = transport_lwip_connect;
 	m_transport_client.send = transport_lwip_send;
 	m_transport_client.recv = transport_lwip_recv;

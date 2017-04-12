@@ -29,8 +29,6 @@
 #include "transport/fcm/transport_fcm.h"
 #endif
 
-#define SERIALIZER "msgpack"
-
 unsigned int transport_get_message_len(const char *buffer)
 {
 	unsigned int value =
@@ -93,7 +91,7 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 			}
 		} else {
 			msg_size = transport_get_message_len(rx_data + read_pos);
-			read_pos += 4;
+			read_pos += TRANSPORT_LEN_PREFIX_SIZE;
 			if (msg_size == (read - read_pos)) {
 				return handler(node, rx_data + read_pos, msg_size);
 			} else if (msg_size > (read - read_pos)) {
@@ -109,7 +107,7 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 				read = 0;
 			} else {
 				if (handler(node, rx_data + read_pos, msg_size) != SUCCESS)
-					return FAIL;
+						return FAIL;
 				read_pos += msg_size;
 			}
 		}
@@ -120,52 +118,29 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 
 void transport_set_length_prefix(char *buffer, size_t size)
 {
-	buffer[0] = (size - 4) >> 24 & 0xFF;
-	buffer[1] = (size - 4) >> 16 & 0xFF;
-	buffer[2] = (size - 4) >> 8 & 0xFF;
-	buffer[3] = (size - 4) & 0xFF;
+	buffer[0] = size >> 24 & 0xFF;
+	buffer[1] = size >> 16 & 0xFF;
+	buffer[2] = size >> 8 & 0xFF;
+	buffer[3] = size & 0xFF;
 }
 
 result_t transport_send(transport_client_t *transport_client, char *buffer, int size)
 {
-	result_t result = FAIL;
-
-	transport_set_length_prefix(buffer, size);
+	transport_set_length_prefix(buffer, size - TRANSPORT_LEN_PREFIX_SIZE);
 
 #ifdef USE_TLS
 	if (crypto_tls_send(transport_client, buffer, size) == size)
-		result = SUCCESS;
+		return SUCCESS;
 	else
 		log_error("Failed to send TLS data");
 #else
 	if (transport_client->send(transport_client, buffer, size) == size)
-		result = SUCCESS;
+		return SUCCESS;
 	else
 		log_error("Failed to send data");
 #endif
 
-	return result;
-}
-
-static result_t transport_handle_join_reply(node_t *node, char *buffer, size_t size)
-{
-	char id[50] = "", serializer[20] = "", sid[50] = "";
-
-	if (sscanf(buffer, "{\"cmd\": \"JOIN_REPLY\", \"id\": \"%[^\"]\", \"serializer\": \"%[^\"]\", \"sid\": \"%[^\"]\"}",
-		id, serializer, sid) != 3) {
-		log_error("Failed to parse JOIN_REPLY");
-		return FAIL;
-	}
-
-	if (strcmp(serializer, SERIALIZER) != 0) {
-		log_error("Unsupported serializer");
-		return FAIL;
-	}
-
-	node->transport_client->state = TRANSPORT_ENABLED;
-	strncpy(node->transport_client->peer_id, id, strlen(id) + 1);
-
-	return SUCCESS;
+	return FAIL;
 }
 
 result_t transport_join(node_t *node, transport_client_t *transport_client)
@@ -178,10 +153,14 @@ result_t transport_join(node_t *node, transport_client_t *transport_client)
 	}
 #endif
 
-	if (proto_send_join_request(node, transport_client, SERIALIZER) != SUCCESS)
+	if (proto_send_join_request(node, transport_client, SERIALIZER) != SUCCESS) {
+		log_error("Failed to send join request");
 		return FAIL;
+	}
 
-	return transport_handle_data(node, transport_client, transport_handle_join_reply);
+	transport_client->state = TRANSPORT_PENDING;
+
+	return SUCCESS;
 }
 
 transport_client_t *transport_create(node_t *node, char *uri)

@@ -250,6 +250,8 @@ static result_t transport_socket_connect(node_t *node, transport_client_t *trans
 		return FAIL;
 	}
 
+	transport_client->state = TRANSPORT_CONNECTED;
+
 	return SUCCESS;
 }
 
@@ -270,7 +272,7 @@ transport_client_t *transport_socket_create(node_t *node, char *uri)
 		transport_client->recv = transport_socket_recv;
 		transport_client->disconnect = transport_socket_disconnect;
 		transport_client->free = transport_socket_free;
-		transport_client->prefix_len = 4;
+		transport_client->prefix_len = TRANSPORT_LEN_PREFIX_SIZE;
 
 		if (platform_mem_alloc((void **)&transport_socket, sizeof(transport_socket_client_t)) == SUCCESS) {
 			transport_client->client_state = transport_socket;

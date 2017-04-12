@@ -24,7 +24,8 @@
 #include "crypto/crypto.h"
 #endif
 
-#define TRANSPORT_RX_BUFFER_SIZE 1024
+#define TRANSPORT_LEN_PREFIX_SIZE	4
+#define TRANSPORT_RX_BUFFER_SIZE	1024
 
 struct node_t;
 
@@ -97,8 +98,15 @@ transport_client_t *transport_create(struct node_t *node, char *uri);
  * @buffer the buffer to write to
  * @size the size of the data
  */
-
 void transport_set_length_prefix(char *buffer, size_t size);
+
+/**
+ * transport_get_message_len() - Get message size from buffer
+ * @buffer the data
+ *
+ * @Return: the size
+ */
+unsigned int transport_get_message_len(const char *buffer);
 
 /**
  * transport_send() - Send data on transport client
@@ -127,13 +135,5 @@ result_t transport_handle_data(struct node_t *node, transport_client_t *transpor
  * @Return: SUCCESS/FAIL
  */
 result_t transport_join(struct node_t *node, transport_client_t *transport_client);
-
-/**
- * transport_get_message_len() - Get message size from buffer
- * @buffer the data
- *
- * @Return: the size
- */
-unsigned int transport_get_message_len(const char *buffer);
 
 #endif /* TRANSPORT_H */

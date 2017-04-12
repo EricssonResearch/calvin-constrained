@@ -18,39 +18,39 @@
 #ifndef PLATFORM_ANDROID_H
 #define PLATFORM_ANDROID_H
 
-#define CONNECT_REPLY "FR"
-#define RUNTIME_STOP "RS"
-#define RUNTIME_CALVIN_MSG "CM"
-#define RUNTIME_STARTED "RR"
-#define FCM_CONNECT "FC"
-#define RUNTIME_SERIALIZE_AND_STOP "RA"
-#define RUNTIME_TRIGGER_RECONNECT "RC"
-#define REGISTER_EXTERNAL_CALVINSYS "CS"
-#define DESTROY_EXTERNAL_CALVINSYS "CD"
-#define INIT_EXTERNAL_CALVINSYS "CI"
-#define EXTERNAL_CALVINSYS_PAYLOAD "CP"
-
-#define NBR_OF_COMMANDS 6
-#define PLATFORM_UNACTIVITY_TIMEOUT 300
+#define PLATFORM_ANDROID_COMMAND_SIZE 								2
+#define PLATFORM_ANDROID_CONNECT_REPLY								"FR"
+#define PLATFORM_ANDROID_RUNTIME_STOP									"RS"
+#define PLATFORM_ANDROID_RUNTIME_CALVIN_MSG						"CM"
+#define PLATFORM_ANDROID_RUNTIME_STARTED							"RR"
+#define PLATFORM_ANDROID_FCM_CONNECT									"FC"
+#define PLATFORM_ANDROID_RUNTIME_SERIALIZE_AND_STOP		"RA"
+#define PLATFORM_ANDROID_RUNTIME_TRIGGER_RECONNECT		"RC"
+#define PLATFORM_ANDROID_REGISTER_EXTERNAL_CALVINSYS	"CS"
+#define PLATFORM_ANDROID_DESTROY_EXTERNAL_CALVINSYS		"CD"
+#define PLATFORM_ANDROID_INIT_EXTERNAL_CALVINSYS			"CI"
+#define PLATFORM_ANDROID_EXTERNAL_CALVINSYS_PAYLOAD		"CP"
+#define PLATFORM_ANDROID_NBR_OF_COMMANDS							7
+#define PLATFORM_ANDROID_UNACTIVITY_TIMEOUT						300
 
 typedef struct android_platform_t {
 	int upstream_platform_fd[2]; // read end [0], write end [1]
 	int downstream_platform_fd[2];
-	ALooper* looper;
-	result_t (*send_upstream_platform_message)(const struct transport_client_t *transport_client, char *cmd, char *data, size_t data_size);
-	result_t (*send_downstream_platform_message)(const struct node_t *node, char *cmd, char *data, size_t data_size);
+	ALooper *looper;
+	int (*send_upstream_platform_message)(const struct transport_client_t *transport_client, char *cmd, char *data, size_t data_size);
+	result_t (*send_downstream_platform_message)(const struct node_t *node, char *data, size_t data_size);
 	result_t (*read_upstream)(const struct node_t *node, char *buffer, size_t size);
 } android_platform_t;
 
 struct platform_command_handler_t {
-	char command[50];
-	result_t (*handler)(struct node_t* node, char *data, size_t size);
+	char command[PLATFORM_ANDROID_COMMAND_SIZE];
+	result_t (*handler)(struct node_t *node, char *data, size_t size);
 };
 
 typedef struct android_sensor_data_t {
-	ASensorEventQueue* queue;
-	ASensor* sensor;
-	ASensorEvent* event;
+	ASensorEventQueue *queue;
+	ASensor *sensor;
+	ASensorEvent *event;
 } android_sensor_data_t;
 
 #endif

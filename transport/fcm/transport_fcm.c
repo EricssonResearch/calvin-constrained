@@ -30,50 +30,43 @@
  * platform commands are handled elsewhere.
  */
 
-static result_t transport_fcm_handle_connect_reply(node_t *node, char *buffer, size_t len)
+static result_t transport_fcm_connect(node_t *node, transport_client_t *transport_client)
 {
-	char cmd[3];
+	char buffer[TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE];
 
-	// get command
-	memset(cmd, 0, 3);
-	memcpy(cmd, buffer + 4, 2);
-
-	if (strcmp(cmd, CONNECT_REPLY) == 0) {
-		// TODO: Always success? Include and parse result in payload
-		log("FCM transport connected");
+	if (((android_platform_t *)node->platform)->send_upstream_platform_message(
+			transport_client,
+			PLATFORM_ANDROID_FCM_CONNECT,
+			buffer,
+			TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE) > 0) {
+		transport_client->state = TRANSPORT_PENDING;
 		return SUCCESS;
 	}
+
+	log_error("Failed to send connect request");
+	transport_client->state = TRANSPORT_INTERFACE_DOWN;
 
 	return FAIL;
 }
 
-static result_t transport_fcm_connect(node_t *node, transport_client_t *transport_client)
-{
-	char buffer[TRANSPORT_RX_BUFFER_SIZE];
-	int len = strlen(transport_client->uri);
-
-	transport_set_length_prefix(buffer, len + 2);
-	memcpy(buffer + 6, transport_client->uri, strlen(transport_client->uri));
-
-	if (((android_platform_t *)node->platform)->send_upstream_platform_message(transport_client, RUNTIME_CALVIN_MSG, buffer, len + 6) != SUCCESS) {
-		log_error("Failed to send connect request");
-		return FAIL;
-	}
-
-	return transport_handle_data(node, transport_client, transport_fcm_handle_connect_reply);
-}
-
 static int transport_fcm_send(transport_client_t *transport_client, char *data, size_t size)
 {
-    transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
+  transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
 
-	return ((android_platform_t *)fcm_client->node->platform)->send_upstream_platform_message(transport_client, RUNTIME_CALVIN_MSG, data, size);
+	log("transport_fcm_send");
+
+	return ((android_platform_t *)fcm_client->node->platform)->send_upstream_platform_message(
+		transport_client,
+		PLATFORM_ANDROID_RUNTIME_CALVIN_MSG,
+		data,
+		size);
 }
 
 static int transport_fcm_recv(transport_client_t *transport_client, char *buffer, size_t size)
 {
-    transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
+  transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
 
+	log("transport_fcm_recv");
 	return read(((android_platform_t*)fcm_client->node->platform)->downstream_platform_fd[0], buffer, size);
 }
 
@@ -120,16 +113,17 @@ transport_client_t *transport_fcm_create(struct node_t *node, char *uri)
 	transport_client->rx_buffer.buffer = NULL;
 	transport_client->rx_buffer.pos = 0;
 	transport_client->rx_buffer.size = 0;
-	transport_client->prefix_len = 6;
+	transport_client->prefix_len = TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE;
 
 	transport_client->connect = transport_fcm_connect;
 	transport_client->send = transport_fcm_send;
 	transport_client->recv = transport_fcm_recv;
 	transport_client->disconnect = transport_fcm_disconnect;
 	transport_client->free = transport_fcm_free;
+	transport_client->state = TRANSPORT_INTERFACE_UP;
+	strncpy(transport_client->uri, uri, strlen(uri) + 1);
 
 	// Dependency for Android, must be run on an Android phone as of now.
-	transport_client->state = TRANSPORT_PENDING;
 
 	return transport_client;
 }

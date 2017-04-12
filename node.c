@@ -436,11 +436,17 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	if (node->state == NODE_STOP || node->transport_client->connect(node, node->transport_client) != SUCCESS)
 		return FAIL;
 
+	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_PENDING)
+		platform_evt_wait(node, NULL);
+
 	if (transport_join(node, node->transport_client) != SUCCESS)
 		return FAIL;
 
+	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_PENDING)
+		platform_evt_wait(node, NULL);
+
 	if (node->state == NODE_STOP || node->transport_client->state != TRANSPORT_ENABLED) {
-		log_error("Failed to enable transport '%s'", uri);
+		log_error("Failed to join transport '%s'", uri);
 		return FAIL;
 	}
 

@@ -31,84 +31,91 @@ jlong get_jlong_from_pointer(void* ptr)
 }
 
 #pragma GCC diagnostic ignored "-Wint-to-pointer-cast"
-void* get_ptr_from_jlong(jlong ptr_value)
+void *get_ptr_from_jlong(jlong ptr_value)
 {
-	void* ptr = (void*) ptr_value;
+	void *ptr = (void *)ptr_value;
 	return ptr;
 }
 
-JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeInit(JNIEnv* env, jobject this, jstring j_proxy_uris, jstring j_name, jstring j_storage_dir)
+JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeInit(JNIEnv *env, jobject this, jstring j_proxy_uris, jstring j_name, jstring j_storage_dir)
 {
-	node_t* node;
-	char* storage_dir = (char*) (*env)->GetStringUTFChars(env, j_storage_dir, 0);
-	char* proxy_uris = (char*) (*env)->GetStringUTFChars(env, j_proxy_uris, 0);
-	char* name = (char*) (*env)->GetStringUTFChars(env, j_name, 0);
+	node_t *node = NULL;
+	char *storage_dir = (char *)(*env)->GetStringUTFChars(env, j_storage_dir, 0);
+	char *proxy_uris = (char *)(*env)->GetStringUTFChars(env, j_proxy_uris, 0);
+	char *name = (char *)(*env)->GetStringUTFChars(env, j_name, 0);
 
 	api_runtime_init(&node, name, proxy_uris, storage_dir);
+
 	return get_jlong_from_pointer(node);
 }
 
-JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_readUpstreamData(JNIEnv* env, jobject this, jlong jnode)
+JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_readUpstreamData(JNIEnv *env, jobject this, jlong jnode)
 {
 	char buffer[TRANSPORT_RX_BUFFER_SIZE];
-	node_t *node;
-	jbyteArray data;
-	android_platform_t *platform;
+	jbyteArray data = NULL;
+	node_t *node = (node_t *)get_ptr_from_jlong(jnode);
+	android_platform_t *platform = (android_platform_t *)node->platform;
 	size_t size;
 
-    memset(&buffer, 0, TRANSPORT_RX_BUFFER_SIZE);
+  memset(&buffer, 0, TRANSPORT_RX_BUFFER_SIZE);
+	if (platform->read_upstream(node, buffer, TRANSPORT_RX_BUFFER_SIZE) == SUCCESS) {
+		size = transport_get_message_len(buffer);
+		data = (*env)->NewByteArray(env, size + 7);
+		(*env)->SetByteArrayRegion(env, data, 0, size + 7, buffer);
+	}
 
-	node = (node_t*)get_ptr_from_jlong(jnode);
-	platform = (android_platform_t*) node->platform;
-	platform->read_upstream(node, buffer, TRANSPORT_RX_BUFFER_SIZE);
-	size = transport_get_message_len(buffer);
-	data = (*env)->NewByteArray(env, size + 7);
-	(*env)->SetByteArrayRegion(env, data, 0, size + 7, buffer);
-
-    return data;
+  return data;
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStart(JNIEnv* env, jobject this, jlong jnode)
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStart(JNIEnv *env, jobject this, jlong jnode)
 {
 	api_runtime_start((node_t *)get_ptr_from_jlong(jnode));
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStop(JNIEnv* env, jobject this, jlong node)
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeStop(JNIEnv *env, jobject this, jlong node)
 {
-	api_runtime_stop((node_t*)get_ptr_from_jlong(node));
+	api_runtime_stop((node_t *)get_ptr_from_jlong(node));
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeCalvinPayload(JNIEnv* env, jobject this, jbyteArray data, jlong jnode)
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeCalvinPayload(JNIEnv *env, jobject this, jbyteArray data, jlong jnode)
 {
+	// assumes data contains a complete calvin message
 	int len = (*env)->GetArrayLength(env, data);
-	char payload_data[len];
+	char payload_data[TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE + len];
+	node_t *node = (node_t *)get_ptr_from_jlong(jnode);
+	android_platform_t *platform = (android_platform_t *)node->platform;
 
-	memset(payload_data, 0, len);
-	(*env)->GetByteArrayRegion(env, data, 0, len, payload_data);
-	node_t* node = (node_t*)get_ptr_from_jlong(jnode);
-	android_platform_t* platform = (android_platform_t*) node->platform;
+	transport_set_length_prefix(payload_data, PLATFORM_ANDROID_COMMAND_SIZE + len);
+	memcpy(payload_data + TRANSPORT_LEN_PREFIX_SIZE, PLATFORM_ANDROID_RUNTIME_CALVIN_MSG, PLATFORM_ANDROID_COMMAND_SIZE);
+	(*env)->GetByteArrayRegion(env, data, 0, len, payload_data + TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE);
 
-	platform->send_downstream_platform_message(node, RUNTIME_CALVIN_MSG, payload_data, len);
+	platform->send_downstream_platform_message(node, payload_data, len + TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE);
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_fcmTransportConnected(JNIEnv* env, jobject this, jlong node_p)
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_fcmTransportConnected(JNIEnv *env, jobject this, jlong node_p)
 {
-	node_t* node = (node_t*)get_ptr_from_jlong(node_p);
-	char d[4] = {0, 0, 0, 0};
-	((android_platform_t*) node->platform)->send_downstream_platform_message(node, CONNECT_REPLY, d, 0);
+	node_t *node = (node_t*)get_ptr_from_jlong(node_p);
+	char payload_data[TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE];
+
+	transport_set_length_prefix(payload_data, PLATFORM_ANDROID_COMMAND_SIZE);
+	memcpy(payload_data + TRANSPORT_LEN_PREFIX_SIZE, PLATFORM_ANDROID_CONNECT_REPLY, PLATFORM_ANDROID_COMMAND_SIZE);
+	((android_platform_t *)node->platform)->send_downstream_platform_message(node, payload_data, TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE);
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeSerializeAndStop(JNIEnv* env, jobject this, jlong node_p)
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeSerializeAndStop(JNIEnv *env, jobject this, jlong node_p)
 {
-	node_t* node = (node_t*)get_ptr_from_jlong(node_p);
-	android_platform_t* platform = (android_platform_t*) node->platform;
+	node_t *node = (node_t *)get_ptr_from_jlong(node_p);
+	android_platform_t *platform = (android_platform_t *)node->platform;
+	char payload_data[TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE];
 
-	platform->send_downstream_platform_message(node, RUNTIME_SERIALIZE_AND_STOP, NULL, 0);
+	transport_set_length_prefix(payload_data, PLATFORM_ANDROID_COMMAND_SIZE);
+	memcpy(payload_data + TRANSPORT_LEN_PREFIX_SIZE, PLATFORM_ANDROID_RUNTIME_SERIALIZE_AND_STOP, PLATFORM_ANDROID_COMMAND_SIZE);
+	platform->send_downstream_platform_message(node, payload_data, TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE);
 }
 
-JNIEXPORT jint JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_getNodeState(JNIEnv* env, jobject this, jlong node_p)
+JNIEXPORT jint JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_getNodeState(JNIEnv *env, jobject this, jlong node_p)
 {
-	node_t *node = (node_t *) get_ptr_from_jlong(node_p);
+	node_t *node = (node_t *)get_ptr_from_jlong(node_p);
 
 	if (node == NULL)
 		return (jint) 3;
@@ -124,40 +131,47 @@ JNIEXPORT jint JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_getNo
 	}
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_clearSerialization(JNIEnv* env, jobject this, jstring j_filedir)
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_clearSerialization(JNIEnv *env, jobject this, jstring j_filedir)
 {
-	char* filedir = (char*) (*env)->GetStringUTFChars(env, j_filedir, 0);
+	char *filedir = (char *)(*env)->GetStringUTFChars(env, j_filedir, 0);
 
 	api_clear_serialization_file(filedir);
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_triggerConnectivityChange(JNIEnv* env, jobject this, jlong node_p)
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_triggerConnectivityChange(JNIEnv *env, jobject this, jlong node_p)
 {
-	node_t* node = (node_t*)get_ptr_from_jlong(node_p);
-	android_platform_t* platform = (android_platform_t*) node->platform;
+	node_t *node = (node_t *)get_ptr_from_jlong(node_p);
+	android_platform_t *platform = (android_platform_t *)node->platform;
+	char payload_data[TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE];
 
-	platform->send_downstream_platform_message(node, RUNTIME_TRIGGER_RECONNECT, NULL, 0);
+	transport_set_length_prefix(payload_data, PLATFORM_ANDROID_COMMAND_SIZE);
+	memcpy(payload_data + TRANSPORT_LEN_PREFIX_SIZE, PLATFORM_ANDROID_RUNTIME_TRIGGER_RECONNECT, PLATFORM_ANDROID_COMMAND_SIZE);
+	platform->send_downstream_platform_message(node, payload_data, TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE);
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_registerExternalCalvinsys(JNIEnv* env, jobject this, jlong node_p, jstring j_name)
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_registerExternalCalvinsys(JNIEnv *env, jobject this, jlong node_p, jstring j_name)
 {
-	node_t* node = (node_t*)get_ptr_from_jlong(node_p);
-	android_platform_t* platform = (android_platform_t*) node->platform;
-	char* name = (char*) (*env)->GetStringUTFChars(env, j_name, 0);
+	node_t *node = (node_t *)get_ptr_from_jlong(node_p);
+	android_platform_t *platform = (android_platform_t *)node->platform;
+	char *name = (char *)(*env)->GetStringUTFChars(env, j_name, 0);
+	int len = strlen(name);
+	char payload_data[TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE + len];
 
-	platform->send_downstream_platform_message(node, REGISTER_EXTERNAL_CALVINSYS, name, strlen(name)+1);
+	transport_set_length_prefix(payload_data, PLATFORM_ANDROID_COMMAND_SIZE + len);
+	memcpy(payload_data + TRANSPORT_LEN_PREFIX_SIZE, PLATFORM_ANDROID_REGISTER_EXTERNAL_CALVINSYS, PLATFORM_ANDROID_COMMAND_SIZE);
+	memcpy(payload_data + TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE, name, len);
+	platform->send_downstream_platform_message(node, payload_data, TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE + len);
 }
 
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_writeCalvinsysPayload(JNIEnv* env, jobject this, jbyteArray data, jlong jnode)
 {
-	android_platform_t* platform;
-	node_t* node;
+	node_t *node = (node_t *)get_ptr_from_jlong(jnode);
+	android_platform_t *platform = (android_platform_t *)node->platform;
 	int len = (*env)->GetArrayLength(env, data);
-	char payload_data[len];
+	char payload_data[TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE + len];
 
-	memset(payload_data, 0, len);
-	(*env)->GetByteArrayRegion(env, data, 0, len, payload_data);
-	node = (node_t*)get_ptr_from_jlong(jnode);
-	platform = (android_platform_t*) node->platform;
-	platform->send_downstream_platform_message(node, EXTERNAL_CALVINSYS_PAYLOAD, payload_data, len);
+	transport_set_length_prefix(payload_data, PLATFORM_ANDROID_COMMAND_SIZE + len);
+	memcpy(payload_data + TRANSPORT_LEN_PREFIX_SIZE, PLATFORM_ANDROID_EXTERNAL_CALVINSYS_PAYLOAD, PLATFORM_ANDROID_COMMAND_SIZE);
+	(*env)->GetByteArrayRegion(env, data, 0, len, payload_data + (TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE));
+	platform->send_downstream_platform_message(node, payload_data, TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE + len);
 }

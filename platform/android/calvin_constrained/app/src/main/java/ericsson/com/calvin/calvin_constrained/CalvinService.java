@@ -439,25 +439,29 @@ class CalvinDataListenThread implements Runnable{
             }
 
             byte[] raw_data = calvin.readUpstreamData(calvin.node);
-            int size = get_message_length(raw_data);
+            if (raw_data == null) {
+              Log.e(LOG_TAG, "Failed read upstream data");
+            } else {
+              int size = get_message_length(raw_data);
 
-            byte[] cmd = Arrays.copyOfRange(raw_data, 4, 6);
-            String cmd_string = new String(cmd);
-            byte[] payload = null;
-            if(size > 2) {
-                payload = Arrays.copyOfRange(raw_data, 6, raw_data.length - 3);
-            }
-            for(CalvinMessageHandler cmh : this.messageHandlers)
-                if (cmh.getCommand().equals(cmd_string)) {
-                    if (payload == null) {
-                        cmh.handleData(null);
-                    } else {
-                        cmh.handleData(payload);
-                    }
-                }
-            if (calvin.nodeState == Calvin.STATE.NODE_STOP) {
-                // TODO: Close pipes here instead of from calvin constrained
-                break;
+              byte[] cmd = Arrays.copyOfRange(raw_data, 4, 6);
+              String cmd_string = new String(cmd);
+              byte[] payload = null;
+              if(size > 2) {
+                  payload = Arrays.copyOfRange(raw_data, 6, raw_data.length - 3);
+              }
+              for(CalvinMessageHandler cmh : this.messageHandlers)
+                  if (cmh.getCommand().equals(cmd_string)) {
+                      if (payload == null) {
+                          cmh.handleData(null);
+                      } else {
+                          cmh.handleData(payload);
+                      }
+                  }
+              if (calvin.nodeState == Calvin.STATE.NODE_STOP) {
+                  // TODO: Close pipes here instead of from calvin constrained
+                  break;
+              }
             }
         }
         Log.d(LOG_TAG, "Calvin data listen thread stoped");

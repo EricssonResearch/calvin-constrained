@@ -20,11 +20,12 @@
 #include "platform.h"
 #include "link.h"
 
-#define STRING_TRUE "true"
-#define STRING_FALSE "false"
-#define STRING_IN "in"
-#define STRING_OUT "out"
-#define NBR_OF_COMMANDS 9
+#define STRING_TRUE			"true"
+#define STRING_FALSE		"false"
+#define STRING_IN				"in"
+#define STRING_OUT			"out"
+#define NBR_OF_COMMANDS	9
+#define SERIALIZER			"msgpack"
 
 struct command_handler_t {
 	char command[50];
@@ -1193,11 +1194,35 @@ static result_t proto_parse_tunnel_new(node_t *node, char *root)
 	return result;
 }
 
+static result_t proto_handle_join_reply(node_t *node, char *buffer)
+{
+	char id[50] = "", serializer[20] = "", sid[50] = "";
+
+	if (sscanf(buffer, "{\"cmd\": \"JOIN_REPLY\", \"id\": \"%[^\"]\", \"serializer\": \"%[^\"]\", \"sid\": \"%[^\"]\"}",
+		id, serializer, sid) != 3) {
+		log_error("Failed to parse JOIN_REPLY");
+		return FAIL;
+	}
+
+	if (strcmp(serializer, SERIALIZER) != 0) {
+		log_error("Unsupported serializer");
+		return FAIL;
+	}
+
+	node->transport_client->state = TRANSPORT_ENABLED;
+	strncpy(node->transport_client->peer_id, id, strlen(id) + 1);
+
+	return SUCCESS;
+}
+
 result_t proto_parse_message(node_t *node, char *data)
 {
 	char *cmd = NULL, *r = data, *msg_uuid = NULL, *from_rt_uuid = NULL;
 	int i = 0;
 	uint32_t cmd_len = 0, msg_uuid_len = 0, from_rt_uuid_len = 0;
+
+	if (node->transport_client->state != TRANSPORT_ENABLED)
+		return proto_handle_join_reply(node, data);
 
 	if (decode_string_from_map(r, "cmd", &cmd, &cmd_len) != SUCCESS)
 		return FAIL;

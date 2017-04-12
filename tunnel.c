@@ -188,7 +188,7 @@ static result_t tunnel_request_handler(node_t *node, char *data, void *msg_data)
 	}
 
 	if (status == 200) {
-		log_debug("Tunnel '%.*s' connect", (int)tunnel_id_len, tunnel_id);
+		log_debug("Tunnel '%.*s' connected", (int)tunnel_id_len, tunnel_id);
 		tunnel->state = TUNNEL_ENABLED;
 		return SUCCESS;
 	}
