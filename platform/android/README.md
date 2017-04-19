@@ -74,8 +74,16 @@ Supported platforms are.
 * To build the project choose Build -> Make Project.
 
 ### Run on Physical device
-1. Start a Calvin Base runtime with calvinfcm enabled as a transport plugin and specify the interface to listen on.
-2. To listen for FCM connections, run.
+1. Enable FCM and set the FCM secret by adding them to Calvin Base configuration:
+```
+{
+  "global": {
+    "transports": ["calvinip", "calvinfcm"],
+    "fcm_server_secret": "[you secret]"
+                                                }
+}
+```
+2. Start a Calvin Base runtime listening on FCM connections:
 ```
 csruntime --host [your ip] --port 5000 --controlport 5001 --uri calvinfcm://[sender id]:*
 ```
