@@ -16,6 +16,7 @@ C_SOURCE_FILES += \
 platform/android/platform_android.c \
 main.c \
 common.c \
+scheduler.c \
 node.c \
 proto.c \
 transport/socket/transport_socket.c \

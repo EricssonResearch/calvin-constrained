@@ -62,6 +62,7 @@ typedef struct node_t {
 	transport_client_t *transport_client;
 	list_t *calvinsys;
 	char *proxy_uris[MAX_URIS];
+	bool (*fire_actors)(struct node_t *node);
 } node_t;
 
 result_t node_add_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_len, result_t (*handler)(node_t *node, char *data, void *msg_data), void *msg_data);

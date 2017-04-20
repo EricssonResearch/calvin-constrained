@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include "node.h"
 #include "platform.h"
+#include "scheduler.h"
 #include "proto.h"
 #include "msgpack_helper.h"
 #include "msgpuck/msgpuck.h"
@@ -364,58 +365,26 @@ static result_t node_setup(node_t *node, char *name)
 	return SUCCESS;
 }
 
-static bool node_loop_once(node_t *node)
-{
-	bool fired = false;
-	list_t *tmp_list = NULL;
-	actor_t *actor = NULL;
-
-	tmp_list = node->actors;
-	while (tmp_list != NULL) {
-		actor = (actor_t *)tmp_list->data;
-		if (actor->state == ACTOR_ENABLED) {
-			if (actor->fire(actor)) {
-				log("Fired '%s'", actor->name);
-				fired = true;
-			}
-		}
-		tmp_list = tmp_list->next;
-	}
-
-	return fired;
-}
-
 static void node_transmit(node_t *node)
 {
 	list_t *tmp_list = NULL;
 
-	switch (node->state) {
-	case NODE_DO_START:
-		if (proto_send_node_setup(node, node_setup_reply_handler) == SUCCESS)
-			node->state = NODE_PENDING;
-		break;
-	case NODE_STARTED:
-		tmp_list = node->links;
-		while (tmp_list != NULL) {
-			link_transmit(node, (link_t *)tmp_list->data);
-			tmp_list = tmp_list->next;
-		}
+	tmp_list = node->links;
+	while (tmp_list != NULL) {
+		link_transmit(node, (link_t *)tmp_list->data);
+		tmp_list = tmp_list->next;
+	}
 
-		tmp_list = node->tunnels;
-		while (tmp_list != NULL) {
-			tunnel_transmit(node, (tunnel_t *)tmp_list->data);
-			tmp_list = tmp_list->next;
-		}
+	tmp_list = node->tunnels;
+	while (tmp_list != NULL) {
+		tunnel_transmit(node, (tunnel_t *)tmp_list->data);
+		tmp_list = tmp_list->next;
+	}
 
-		tmp_list = node->actors;
-		while (tmp_list != NULL) {
-			actor_transmit(node, (actor_t *)tmp_list->data);
-			tmp_list = tmp_list->next;
-		}
-		break;
-	case NODE_PENDING:
-	default:
-		break;
+	tmp_list = node->actors;
+	while (tmp_list != NULL) {
+		actor_transmit(node, (actor_t *)tmp_list->data);
+		tmp_list = tmp_list->next;
 	}
 }
 
@@ -445,10 +414,8 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_PENDING)
 		platform_evt_wait(node, NULL);
 
-	if (node->state == NODE_STOP || node->transport_client->state != TRANSPORT_ENABLED) {
-		log_error("Failed to join transport '%s'", uri);
+	if (node->state == NODE_STOP || node->transport_client->state != TRANSPORT_ENABLED)
 		return FAIL;
-	}
 
 	peer_id = node->transport_client->peer_id;
 	peer_id_len = strlen(peer_id);
@@ -473,6 +440,17 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 		tunnel_add_ref(node->storage_tunnel);
 	}
 
+	if (proto_send_node_setup(node, node_setup_reply_handler) != SUCCESS)
+		return FAIL;
+
+	while (node->state != NODE_STARTED && node->state != NODE_STOP)
+		platform_evt_wait(node, NULL);
+
+	if (node->state != NODE_STARTED) {
+		log_error("Failed to setup proxy");
+		return FAIL;
+	}
+
 	return SUCCESS;
 }
 
@@ -480,6 +458,8 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 {
 	int i = 0;
 	char *uri = NULL;
+
+	node->fire_actors = fire_actors;
 
 	if (platform_create(node) != SUCCESS) {
 		log_error("Failed to create platform object");
@@ -512,6 +492,11 @@ result_t node_run(node_t *node)
 		return FAIL;
 	}
 
+	if (node->fire_actors == NULL) {
+		log_error("No actor scheduler set");
+		return FAIL;
+	}
+
 	while (node->state != NODE_STOP) {
 		for (i = 0; i < MAX_URIS && node->state != NODE_STOP; i++) {
 			if (node->proxy_uris[i] != NULL) {
@@ -521,7 +506,7 @@ result_t node_run(node_t *node)
 					log("Connected to '%s'", node->proxy_uris[i]);
 					while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_ENABLED) {
 						if (node->state == NODE_STARTED)
-							node_loop_once(node);
+							node->fire_actors(node);
 						node_transmit(node);
 						platform_evt_wait(node, NULL);
 					}

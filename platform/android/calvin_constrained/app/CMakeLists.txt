@@ -16,6 +16,7 @@ add_library(
              ../../../../calvinsys.c
              ../../../../api.c
              ../../../../common.c
+             ../../../../scheduler.c
              ../../../../node.c
              ../../../../proto.c
              ../../../../transport.c

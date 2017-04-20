@@ -22,6 +22,7 @@ platform/x86/platform_x86.c \
 api.c \
 main.c \
 common.c \
+scheduler.c \
 node.c \
 proto.c \
 transport.c \

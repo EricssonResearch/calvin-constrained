@@ -82,6 +82,7 @@ $(abspath main.c) \
 $(abspath api.c) \
 $(abspath platform/nrf52/platform_nrf52.c) \
 $(abspath common.c) \
+$(abspath scheduler.c) \
 $(abspath node.c) \
 $(abspath link.c) \
 $(abspath proto.c) \

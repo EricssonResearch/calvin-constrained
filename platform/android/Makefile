@@ -13,6 +13,7 @@ platform/android/platform_android.c \
 main.c \
 common.c \
 node.c \
+scheduler.c \
 proto.c \
 transport/socket/transport_socket.c \
 tunnel.c \
