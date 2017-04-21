@@ -22,7 +22,7 @@
 #include "msgpuck/msgpuck.h"
 #include "proto.h"
 
-link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, const link_state_t state, bool is_proxy)
+link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, bool is_proxy)
 {
 	link_t *link = NULL;
 
@@ -38,7 +38,6 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, con
 	memset(link, 0, sizeof(link_t));
 
 	link->is_proxy = is_proxy;
-	link->state = state;
 	strncpy(link->peer_id, peer_id, peer_id_len);
 	link->ref_count = 0;
 
@@ -55,10 +54,9 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, con
 
 char *link_serialize(const link_t *link, char **buffer)
 {
-	*buffer = mp_encode_map(*buffer, 3);
+	*buffer = mp_encode_map(*buffer, 2);
 	{
 		*buffer = encode_str(buffer, "peer_id", link->peer_id, strlen(link->peer_id));
-		*buffer = encode_uint(buffer, "state", link->state);
 		*buffer = encode_bool(buffer, "is_proxy", link->is_proxy);
 	}
 
@@ -68,19 +66,16 @@ char *link_serialize(const link_t *link, char **buffer)
 link_t *link_deserialize(node_t *node, char *buffer)
 {
 	char *peer_id = NULL;
-	uint32_t len = 0, state = 0;
+	uint32_t len = 0;
 	bool is_proxy = false;
 
 	if (decode_string_from_map(buffer, "peer_id", &peer_id, &len) != SUCCESS)
 		return NULL;
 
-	if (decode_uint_from_map(buffer, "state", &state) != SUCCESS)
-		return NULL;
-
 	if (decode_bool_from_map(buffer, "is_proxy", &is_proxy) != SUCCESS)
 		return NULL;
 
-	return link_create(node, peer_id, len, (const link_state_t)state, is_proxy);
+	return link_create(node, peer_id, len, is_proxy);
 }
 
 void link_free(node_t *node, link_t *link)
@@ -121,59 +116,4 @@ link_t *link_get(node_t *node, const char *peer_id, uint32_t peer_id_len)
 	}
 
 	return NULL;
-}
-
-static result_t link_request_handler(node_t *node, char *data, void *msg_data)
-{
-	result_t result = FAIL;
-	char *value = NULL, *peer_id = NULL, *value_data = NULL;
-	uint32_t status = 0, peer_id_len = 0;
-	link_t *link = NULL;
-
-	result = get_value_from_map(data, "value", &value);
-
-	if (result == SUCCESS)
-		result = decode_uint_from_map(value, "status", &status);
-
-	if (result == SUCCESS)
-		result = get_value_from_map(value, "data", &value_data);
-
-	if (result == SUCCESS)
-		result = decode_string_from_map(value_data, "peer_id", &peer_id, &peer_id_len);
-
-	if (result != SUCCESS) {
-		log_error("Failed to decode message");
-		return FAIL;
-	}
-
-	link = link_get(node, peer_id, peer_id_len);
-	if (link == NULL) {
-		log_error("No link to '%.*s'", (int)peer_id_len, peer_id);
-		return FAIL;
-	}
-
-	if (result == SUCCESS) {
-		if (status == 200) {
-			log_debug("Link to '%s' enabled", link->peer_id);
-			link->state = LINK_ENABLED;
-		} else {
-			log_error("Link request failed");
-			link->state = LINK_CONNECT_FAILED;
-			result = FAIL;
-		}
-	}
-
-	return result;
-}
-
-void link_transmit(node_t *node, link_t *link)
-{
-	switch (link->state) {
-	case LINK_DO_CONNECT:
-		if (proto_send_route_request(node, link->peer_id, strlen(link->peer_id), link_request_handler) == SUCCESS)
-			link->state = LINK_PENDING;
-		break;
-	default:
-		break;
-	}
 }

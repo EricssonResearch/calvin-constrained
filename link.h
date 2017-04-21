@@ -22,22 +22,13 @@
 
 struct node_t;
 
-typedef enum {
-	LINK_DO_CONNECT,
-	LINK_ENABLED,
-	LINK_CONNECT_FAILED,
-	LINK_PENDING,
-	LINK_DO_DISCONNECT
-} link_state_t;
-
 typedef struct link_t {
 	char peer_id[UUID_BUFFER_SIZE];
-	link_state_t state;
 	uint8_t ref_count;
 	bool is_proxy;
 } link_t;
 
-link_t *link_create(struct node_t *node, const char *peer_id, uint32_t peer_id_len, const link_state_t state, bool is_proxy);
+link_t *link_create(struct node_t *node, const char *peer_id, uint32_t peer_id_len, bool is_proxy);
 char *link_serialize(const link_t *link, char **buffer);
 link_t *link_deserialize(struct node_t *node, char *buffer);
 void link_free(struct node_t *node, link_t *link);

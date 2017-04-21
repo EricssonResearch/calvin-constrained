@@ -369,12 +369,6 @@ static void node_transmit(node_t *node)
 {
 	list_t *tmp_list = NULL;
 
-	tmp_list = node->links;
-	while (tmp_list != NULL) {
-		link_transmit(node, (link_t *)tmp_list->data);
-		tmp_list = tmp_list->next;
-	}
-
 	tmp_list = node->tunnels;
 	while (tmp_list != NULL) {
 		tunnel_transmit(node, (tunnel_t *)tmp_list->data);
@@ -424,7 +418,7 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 		node_reset(node, false);
 
 	if (node->proxy_link == NULL) {
-		node->proxy_link = link_create(node, peer_id, peer_id_len, LINK_ENABLED, true);
+		node->proxy_link = link_create(node, peer_id, peer_id_len, true);
 		if (node->proxy_link == NULL) {
 			log_error("Failed to create proxy link");
 			return FAIL;

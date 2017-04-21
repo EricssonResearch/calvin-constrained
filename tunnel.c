@@ -227,9 +227,6 @@ result_t tunnel_handle_tunnel_new_request(node_t *node, char *peer_id, uint32_t 
 
 void tunnel_transmit(node_t *node, tunnel_t *tunnel)
 {
-	if (tunnel->link->state != LINK_ENABLED)
-		return;
-
 	switch (tunnel->state) {
 	case TUNNEL_DO_CONNECT:
 		if (proto_send_tunnel_request(node, tunnel, tunnel_request_handler) == SUCCESS)

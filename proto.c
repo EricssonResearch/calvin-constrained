@@ -164,35 +164,6 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 	return FAIL;
 }
 
-result_t proto_send_route_request(node_t *node, char *dest_peer_id, uint32_t dest_peer_id_len, result_t (*handler)(node_t*, char*, void*))
-{
-	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
-
-	if (!node_can_add_pending_msg(node))
-		return PENDING;
-
-	gen_uuid(msg_uuid, "MSGID_");
-
-	w = buffer + node->transport_client->prefix_len;
-	w = mp_encode_map(w, 6);
-	{
-		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
-		w = encode_str(&w, "cmd", "ROUTE_REQUEST", strlen("ROUTE_REQUEST"));
-		w = encode_str(&w, "dest_peer_id", dest_peer_id, dest_peer_id_len);
-		w = encode_str(&w, "org_peer_id", node->id, strlen(node->id));
-	}
-
-	if (transport_send(node->transport_client, buffer, w - buffer) == SUCCESS) {
-		log_debug("Sent ROUTE_REQUEST to '%.*s'", (int)dest_peer_id_len, dest_peer_id);
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
-		return SUCCESS;
-	}
-
-	return FAIL;
-}
-
 result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
@@ -1172,7 +1143,7 @@ static result_t proto_parse_tunnel_new(node_t *node, char *root)
 	} else {
 		link = link_get(node, from_rt_uuid, from_rt_uuid_len);
 		if (link == NULL) {
-			link = link_create(node, from_rt_uuid, from_rt_uuid_len, LINK_ENABLED, false);
+			link = link_create(node, from_rt_uuid, from_rt_uuid_len, false);
 			if (link == NULL) {
 				log_error("Failed to create link for tunnel request from '%.*s'", from_rt_uuid_len, from_rt_uuid);
 				result = FAIL;
