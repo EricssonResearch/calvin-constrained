@@ -17,25 +17,38 @@
 #include "actor.h"
 #include "common.h"
 
-/** Default non-preemptive actor scheduler
+/** Default non-preemptive logging actor scheduler
  */
 bool fire_actors(node_t *node)
 {
   bool fired = false;
- 	list_t *tmp_list = NULL;
- 	actor_t *actor = NULL;
+  list_t *actors = NULL, *ports = NULL;
+  actor_t *actor = NULL;
 
- 	tmp_list = node->actors;
- 	while (tmp_list != NULL) {
- 		actor = (actor_t *)tmp_list->data;
- 		if (actor->state == ACTOR_ENABLED) {
- 			if (actor->fire(actor)) {
- 				log("Fired '%s'", actor->name);
- 				fired = true;
- 			}
- 		}
- 		tmp_list = tmp_list->next;
- 	}
+  actors = node->actors;
+  while (actors != NULL) {
+    actor = (actor_t *)actors->data;
+    if (actor->state == ACTOR_ENABLED) {
+      if (actor->fire(actor)) {
+        log("Fired '%s'", actor->name);
+        fired = true;
+      }
+    }
 
- 	return fired;
+    // handle pending in-ports
+    ports = actor->in_ports;
+    while (ports != NULL) {
+      port_transmit(node, (port_t *)ports->data);
+      ports = ports->next;
+    }
+
+    // handle pending out-port and send tokens
+    ports = actor->out_ports;
+    while (ports != NULL) {
+      port_transmit(node, (port_t *)ports->data);
+      ports = ports->next;
+    }
+    actors = actors->next;
+  }
+  return fired;
 }

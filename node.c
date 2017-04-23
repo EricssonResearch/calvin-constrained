@@ -43,9 +43,9 @@ static void node_reset(node_t *node, bool remove_actors)
 		tmp_list = node->actors;
 		node->actors = node->actors->next;
 		if (remove_actors)
-			actor_free(node, (actor_t *)tmp_list->data);
+			actor_free(node, (actor_t *)tmp_list->data, true);
 		else
-			actor_disconnect((actor_t *)tmp_list->data);
+			actor_disconnect(node, (actor_t *)tmp_list->data);
 	}
 	if (remove_actors)
 		node->actors = NULL;
@@ -121,10 +121,9 @@ static bool node_get_state(node_t *node)
 						if (tunnel == NULL) {
 							result = FAIL;
 							break;
-						} else {
-							if (tunnel->type == TUNNEL_TYPE_STORAGE)
-								node->storage_tunnel = tunnel;
 						}
+						if (tunnel->type == TUNNEL_TYPE_STORAGE)
+							node->storage_tunnel = tunnel;
 					}
 				}
 			}
@@ -145,8 +144,10 @@ static bool node_get_state(node_t *node)
 			}
 		}
 
-		if (result == FAIL)
+		if (result == FAIL) {
+			log_error("Failed to decode runtime state");
 			node_reset(node, true);
+		}
 	}
 
 	return result == SUCCESS ? true : false;
@@ -215,7 +216,6 @@ result_t node_add_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_le
 	}
 
 	log_error("Pending msg queue is full");
-
 	return FAIL;
 }
 
@@ -234,7 +234,6 @@ result_t node_remove_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid
 	}
 
 	log_error("No pending msg with id '%s'", msg_uuid);
-
 	return FAIL;
 }
 
@@ -252,7 +251,6 @@ result_t node_get_pending_msg(node_t *node, const char *msg_uuid, uint32_t msg_u
 	}
 
 	log_error("No pending msg with id '%s'", msg_uuid);
-
 	return FAIL;
 }
 
@@ -292,15 +290,13 @@ result_t node_handle_token(port_t *port, const char *data, const size_t size, ui
 {
 	if (port->actor->state == ACTOR_ENABLED)
 		return fifo_com_write(&port->fifo, data, size, sequencenbr);
-
 	return FAIL;
 }
 
 void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr)
 {
-	port_t *port = NULL;
+	port_t *port = port_get(node, port_id, port_id_len);
 
-	port = port_get(node, port_id, port_id_len);
 	if (port != NULL) {
 		if (reply_type == PORT_REPLY_TYPE_ACK)
 			fifo_com_commit_read(&port->fifo, sequencenbr);
@@ -308,8 +304,7 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 			fifo_com_cancel_read(&port->fifo, sequencenbr);
 		else if (reply_type == PORT_REPLY_TYPE_ABORT)
 			log_debug("TODO: handle ABORT");
-	} else
-		log_error("Token reply received for unknown port");
+	}
 }
 
 result_t node_handle_message(node_t *node, char *buffer, size_t len)
@@ -325,7 +320,7 @@ result_t node_handle_message(node_t *node, char *buffer, size_t len)
 		return SUCCESS;
 	}
 
-	log_error("Failed to parse message");
+	log_error("Failed to handle message");
 	return FAIL;
 }
 
@@ -355,31 +350,14 @@ static result_t node_setup(node_t *node, char *name)
 #endif
 
 	gen_uuid(node->id, NULL);
+
 	if (name != NULL)
 		strncpy(node->name, name, strlen(name) + 1);
 	else
 		strncpy(node->name, "constrained", 12);
 
 	log("Node created, id '%s' name '%s'", node->id, node->name);
-
 	return SUCCESS;
-}
-
-static void node_transmit(node_t *node)
-{
-	list_t *tmp_list = NULL;
-
-	tmp_list = node->tunnels;
-	while (tmp_list != NULL) {
-		tunnel_transmit(node, (tunnel_t *)tmp_list->data);
-		tmp_list = tmp_list->next;
-	}
-
-	tmp_list = node->actors;
-	while (tmp_list != NULL) {
-		actor_transmit(node, (actor_t *)tmp_list->data);
-		tmp_list = tmp_list->next;
-	}
 }
 
 static result_t node_connect_to_proxy(node_t *node, char *uri)
@@ -426,7 +404,7 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	}
 
 	if (node->storage_tunnel == NULL) {
-		node->storage_tunnel = tunnel_create(node, TUNNEL_TYPE_STORAGE, TUNNEL_DO_CONNECT, peer_id, peer_id_len, NULL, 0);
+		node->storage_tunnel = tunnel_create(node, TUNNEL_TYPE_STORAGE, TUNNEL_DISCONNECTED, peer_id, peer_id_len, NULL, 0);
 		if (node->storage_tunnel == NULL) {
 			log_error("Failed to create storage tunnel");
 			return FAIL;
@@ -454,9 +432,25 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 	char *uri = NULL;
 
 	node->fire_actors = fire_actors;
+	node->transport_client = NULL;
+	node->proxy_link = NULL;
+	node->platform = NULL;
+	node->attributes = NULL;
+	node->links = NULL;
+	node->storage_tunnel = NULL;
+	node->tunnels = NULL;
+	node->actors = NULL;
+	node->calvinsys = NULL;
+
+	log("Initializing node");
 
 	if (platform_create(node) != SUCCESS) {
 		log_error("Failed to create platform object");
+		return FAIL;
+	}
+
+	if (platform_create_calvinsys(node) != SUCCESS) {
+		log_error("Failed to create calvinsys object");
 		return FAIL;
 	}
 
@@ -473,6 +467,9 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 			i++;
 		}
 	}
+
+	log("Node initialized");
+
 	return SUCCESS;
 }
 
@@ -480,11 +477,6 @@ result_t node_run(node_t *node)
 {
 	int i = 0;
 	struct timeval reconnect_timeout;
-
-	if (platform_create_calvinsys(node) != SUCCESS) {
-		log_error("Failed to create calvinsys object");
-		return FAIL;
-	}
 
 	if (node->fire_actors == NULL) {
 		log_error("No actor scheduler set");
@@ -499,9 +491,10 @@ result_t node_run(node_t *node)
 				if (node_connect_to_proxy(node, node->proxy_uris[i]) == SUCCESS) {
 					log("Connected to '%s'", node->proxy_uris[i]);
 					while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_ENABLED) {
-						if (node->state == NODE_STARTED)
+						if (node->state == NODE_STARTED) {
+							// fire actors and transfer data from in- and out-ports§
 							node->fire_actors(node);
-						node_transmit(node);
+						}
 						platform_evt_wait(node, NULL);
 					}
 					log("Disconnected from '%s'", node->proxy_uris[i]);

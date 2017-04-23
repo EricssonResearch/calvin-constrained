@@ -79,8 +79,8 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE], name[] = "name";
 	list_t *calvinsys = node->calvinsys;
 	uint32_t nbr_of_capabilities = 0;
-  int map_count = 0;
-  list_t *list;
+	int map_count = 0;
+	list_t *list;
 
 	if (!node_can_add_pending_msg(node))
 		return PENDING;
@@ -113,9 +113,8 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 		w = encode_bool(&w, "redeploy", 0);
 
 		if (node->attributes != NULL) {
-			if (list_get(node->attributes->indexed_public_node_name, "name") == NULL) {
+			if (list_get(node->attributes->indexed_public_node_name, "name") == NULL)
 				list_add_n(&(node->attributes)->indexed_public_node_name, name, strlen(name), node->name, strlen(node->name));
-			}
 			if (node->attributes->indexed_public_owner != NULL)
 				map_count++;
 			if (node->attributes->indexed_public_address != NULL)
@@ -130,8 +129,8 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 				w = encode_map(&w, "public_owner", map_count);
 				list = node->attributes->indexed_public_owner;
 				while (list != NULL) {
-				    w = encode_str(&w, list->id, (const char *)list->data, list->data_len);
-				    list = list->next;
+				  w = encode_str(&w, list->id, (const char *)list->data, list->data_len);
+				  list = list->next;
 				}
 			}
 			if (node->attributes->indexed_public_address != NULL) {
@@ -139,7 +138,7 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 				w = encode_map(&w, "address", map_count);
 				list = node->attributes->indexed_public_address;
 				while (list != NULL) {
-				w = encode_str(&w, list->id, (const char *)list->data, list->data_len);
+					w = encode_str(&w, list->id, (const char *)list->data, list->data_len);
 					list = list->next;
 				}
 			}
@@ -148,8 +147,8 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 				w = encode_map(&w, "node_name", map_count);
 				list = node->attributes->indexed_public_node_name;
 				while (list != NULL) {
-				    w = encode_str(&w, list->id, (const char *)list->data, list->data_len);
-				    list = list->next;
+				  w = encode_str(&w, list->id, (const char *)list->data, list->data_len);
+				  list = list->next;
 				}
 			}
 		}
@@ -186,7 +185,7 @@ result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*ha
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == SUCCESS) {
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
+		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, tunnel);
 		log_debug("Sent TUNNEL_NEW with id '%s' to '%s'", tunnel->id, tunnel->link->peer_id);
 		return SUCCESS;
 	}
@@ -449,8 +448,10 @@ result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t seque
 	char buffer[1000], *w = NULL, *peer_id = NULL;
 
 	peer_id = port_get_peer_id(node, port);
-	if (peer_id == NULL)
+	if (peer_id == NULL) {
+		log_error("Port has no peer");
 		return FAIL;
+	}
 
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 5);
@@ -473,6 +474,8 @@ result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t seque
 		log_debug("Sent TOKEN_REPLY for sequencenbr '%ld'", (unsigned long)sequencenbr);
 		return SUCCESS;
 	}
+
+	log_error("Failed to send TOKEN_REPLY");
 
 	return FAIL;
 }
@@ -662,7 +665,7 @@ result_t proto_send_remove_actor(node_t *node, actor_t *actor, result_t (*handle
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == SUCCESS) {
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, actor->id);
+		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
 		log_debug("Sent SET '%s' with nil", key);
 		return SUCCESS;
 	}
@@ -789,7 +792,7 @@ result_t proto_send_remove_port(node_t *node, port_t *port, result_t (*handler)(
 	return FAIL;
 }
 
-result_t proto_send_actor_new(node_t *node, actor_t *actor, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_actor_new(node_t *node, actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, result_t (*handler)(node_t*, char*, void*))
 {
 	char buffer[2000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 
@@ -801,7 +804,7 @@ result_t proto_send_actor_new(node_t *node, actor_t *actor, result_t (*handler)(
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "to_rt_uuid", actor->migrate_to, strlen(actor->migrate_to));
+		w = encode_str(&w, "to_rt_uuid", to_rt_uuid, to_rt_uuid_len);
 		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
 		w = encode_str(&w, "cmd", "ACTOR_NEW", 9);
 		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
@@ -848,8 +851,6 @@ static result_t proto_parse_token(node_t *node, char *root)
 	port_t *port = NULL;
 	bool ack = true;
 
-	log_debug("proto_parse_token");
-
 	if (get_value_from_map(r, "value", &obj_value) != SUCCESS)
 		return FAIL;
 
@@ -875,10 +876,7 @@ static result_t proto_parse_token(node_t *node, char *root)
 
 	ack = node_handle_token(port, obj_data, size, sequencenbr) == SUCCESS ? true : false;
 
-	if (proto_send_token_reply(node, port, sequencenbr, ack) == SUCCESS)
-		return SUCCESS;
-
-	return add_pending_token_response(port, sequencenbr, ack);
+	return proto_send_token_reply(node, port, sequencenbr, ack);
 }
 
 static result_t proto_parse_token_reply(node_t *node, char *root)
@@ -922,8 +920,6 @@ static result_t proto_parse_tunnel_data(node_t *node, char *root)
 	uint32_t msg_uuid_len = 0, cmd_len = 0;
 	result_t result = FAIL;
 
-	log_debug("proto_parse_tunnel_data");
-
 	if (get_value_from_map(r, "value", &value) != SUCCESS)
 		return FAIL;
 
@@ -931,22 +927,21 @@ static result_t proto_parse_tunnel_data(node_t *node, char *root)
 		if (decode_string_from_map(value, "msg_uuid", &msg_uuid, &msg_uuid_len) != SUCCESS)
 			return FAIL;
 
-		if (node_get_pending_msg(node, msg_uuid, msg_uuid_len, &pending_msg) != SUCCESS) {
-			log_error("No pending message with id '%.*s'", (int)msg_uuid_len, msg_uuid);
-			return FAIL;
+		if (node_get_pending_msg(node, msg_uuid, msg_uuid_len, &pending_msg) == SUCCESS) {
+			result = pending_msg.handler(node, root, pending_msg.msg_data);
+			node_remove_pending_msg(node, msg_uuid, msg_uuid_len);
+			return result;
 		}
+	}
 
-		result = pending_msg.handler(node, root, pending_msg.msg_data);
-		node_remove_pending_msg(node, msg_uuid, msg_uuid_len);
-		return result;
-	} else if (has_key(value, "cmd")) {
+	if (has_key(value, "cmd")) {
 		if (decode_string_from_map(value, "cmd", &cmd, &cmd_len) != SUCCESS)
 			return FAIL;
 
-		if (strncmp(cmd, "TOKEN", cmd_len) == 0)
-			return proto_parse_token(node, root);
-		else if (strncmp(cmd, "TOKEN_REPLY", cmd_len) == 0)
+		if (strncmp(cmd, "TOKEN_REPLY", 11) == 0)
 			return proto_parse_token_reply(node, root);
+		else if (strncmp(cmd, "TOKEN", 5) == 0)
+			return proto_parse_token(node, root);
 		log_error("Unhandled tunnel cmd '%.*s'", (int)cmd_len, cmd);
 		return FAIL;
 	}
@@ -1003,7 +998,7 @@ static result_t proto_parse_actor_migrate(node_t *node, char *root)
 		actor = actor_get(node, actor_id, actor_id_len);
 		if (actor != NULL) {
 			// TODO: Get correct rt to migrate to (not who sent the request)
-			result = actor_migrate(actor, from_rt_uuid, from_rt_uuid_len);
+			result = actor_migrate(node, actor, from_rt_uuid, from_rt_uuid_len);
 		} else {
 			log_error("No actor with id '%s'", actor_id);
 			result = FAIL;
@@ -1043,7 +1038,7 @@ static result_t proto_parse_app_destroy(node_t *node, char *root)
 		if (result == SUCCESS) {
 			actor = actor_get(node, actor_id, actor_id_len);
 			if (actor != NULL)
-				actor_delete(actor);
+				actor_free(node, actor, true);
 			else
 				log_error("No actor with '%.*s'", (int)actor_id_len, actor_id);
 		}
@@ -1197,6 +1192,8 @@ result_t proto_parse_message(node_t *node, char *data)
 
 	if (decode_string_from_map(r, "cmd", &cmd, &cmd_len) != SUCCESS)
 		return FAIL;
+
+	log_debug("Received command '%.*s'", (int)cmd_len, cmd);
 
 	for (i = 0; i < NBR_OF_COMMANDS; i++) {
 		if (strncmp(cmd, command_handlers[i].command, cmd_len) == 0)

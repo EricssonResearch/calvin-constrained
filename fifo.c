@@ -196,9 +196,9 @@ void fifo_com_commit_read(fifo_t *fifo, uint32_t sequence_nbr)
 		return;
 	}
 	if (fifo->read_pos < fifo->tentative_read_pos) {
-		if (sequence_nbr == fifo->read_pos) {
+		if (sequence_nbr == fifo->read_pos)
 			fifo->read_pos += 1;
-		} else
+		else
 			log_error("Invalid commit");
 	}
 }

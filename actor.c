@@ -109,49 +109,14 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 
 static result_t actor_remove_reply_handler(node_t *node, char *data, void *msg_data)
 {
-	actor_t *actor = NULL;
-	actor = actor_get(node, (char *)msg_data, strlen((char *)msg_data));
-	if (actor != NULL) {
-		actor_free(node, actor);
-		return SUCCESS;
-	}
-
-	log_error("No actor with id '%s'", (char *)msg_data);
-
-	return FAIL;
+	return SUCCESS;
 }
 
 static result_t actor_migrate_reply_handler(node_t *node, char *data, void *msg_data)
 {
-	actor_t *actor = NULL;
 	uint32_t status = 0;
 	char *value = NULL;
-
-	if (get_value_from_map(data, "value", &value) != SUCCESS)
-		return FAIL;
-
-	if (decode_uint_from_map(value, "status", &status) != SUCCESS)
-		return FAIL;
-
-	actor = actor_get(node, (char *)msg_data, strlen((char *)msg_data));
-	if (actor == NULL) {
-		log_error("No actor with id '%s'", (char *)msg_data);
-		return FAIL;
-	}
-
-	if (actor->did_migrate != NULL)
-		actor->did_migrate(actor);
-
-	actor_free(node, actor);
-
-	return SUCCESS;
-}
-
-static result_t actor_set_reply_handler(node_t *node, char *data, void *msg_data)
-{
 	actor_t *actor = NULL;
-	char *value = NULL;
-	bool status = false;
 
 	actor = actor_get(node, (char *)msg_data, strlen((char *)msg_data));
 	if (actor == NULL) {
@@ -160,20 +125,36 @@ static result_t actor_set_reply_handler(node_t *node, char *data, void *msg_data
 	}
 
 	if (get_value_from_map(data, "value", &value) == SUCCESS) {
+		if (decode_uint_from_map(value, "status", &status) == SUCCESS) {
+			if (status == 200) {
+				log("Actor '%s' migrated", (char *)msg_data);
+				if (actor->did_migrate != NULL)
+					actor->did_migrate(actor);
+				actor_free(node, actor, false);
+			} else
+				log_error("Failed to migrate actor '%s'", (char *)msg_data);
+			return SUCCESS;
+		}
+	}
+
+	log_error("Failed to decode message");
+	return FAIL;
+}
+
+static result_t actor_set_reply_handler(node_t *node, char *data, void *msg_data)
+{
+	char *value = NULL;
+	bool status = false;
+
+	if (get_value_from_map(data, "value", &value) == SUCCESS) {
 		if (decode_bool_from_map(value, "value", &status) == SUCCESS) {
-			if (status == true) {
-				log("Actor '%s' enabled", actor->id);
-				actor_set_state(actor, ACTOR_ENABLED);
-			} else {
-				log_error("Failed to store actor '%s'", actor->id);
-				actor_set_state(actor, ACTOR_DO_ENABLE);
-			}
+			if (status != true)
+				log("Failed to store actor '%s'", (char *)msg_data);
 			return SUCCESS;
 		}
 	}
 
 	log_error("Failed to decode data");
-
 	return FAIL;
 }
 
@@ -191,6 +172,9 @@ result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	actor->out_ports = NULL;
 	actor->instance_state = NULL;
 	actor->attributes = NULL;
+	actor->will_migrate = NULL;
+	actor->will_end = NULL;
+	actor->did_migrate = NULL;
 
 #ifdef MICROPYTHON
 	if (actor_mpy_init_from_type(actor, actor->type, type_len) == SUCCESS)
@@ -359,7 +343,7 @@ actor_t *actor_create(node_t *node, char *root)
 	actor_t *actor = NULL;
 	char *type = NULL, *obj_state = NULL, *obj_actor_state = NULL, *obj_prev_connections = NULL;
 	char *obj_ports = NULL, *obj_managed = NULL, *obj_shadow_args = NULL, *r = root, *id = NULL, *name = NULL;
-	uint32_t type_len = 0, id_len = 0, name_len = 0, constrained_state = 0;
+	uint32_t type_len = 0, id_len = 0, name_len = 0;
 	list_t *instance_attributes = NULL;
 
 	if (platform_mem_alloc((void **)&actor, sizeof(actor_t)) != SUCCESS) {
@@ -372,107 +356,107 @@ actor_t *actor_create(node_t *node, char *root)
 	actor->calvinsys = node->calvinsys;
 
 	if (get_value_from_map(r, "state", &obj_state) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (decode_string_from_map(obj_state, "actor_type", &type, &type_len) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (actor_init_from_type(actor, type, type_len) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (list_add(&node->actors, actor->id, (void *)actor, sizeof(actor_t)) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (has_key(obj_state, "constrained_state")) {
-		if (decode_uint_from_map(obj_state, "constrained_state", &constrained_state) != SUCCESS) {
-			actor_free(node, actor);
-			return NULL;
-		}
-		actor->state = (actor_state_t)constrained_state;
-	}
-
 	if (get_value_from_map(obj_state, "actor_state", &obj_actor_state) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (decode_string_from_map(obj_actor_state, "_id", &id, &id_len) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 	strncpy(actor->id, id, id_len);
 
 	if (decode_string_from_map(obj_actor_state, "_name", &name, &name_len) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 	strncpy(actor->name, name, name_len);
 
 	if (get_value_from_map(obj_state, "prev_connections", &obj_prev_connections) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (get_value_from_map(obj_actor_state, "inports", &obj_ports) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (actor_create_ports(node, actor, obj_ports, obj_prev_connections, PORT_DIRECTION_IN) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (get_value_from_map(obj_actor_state, "outports", &obj_ports) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (actor_create_ports(node, actor, obj_ports, obj_prev_connections, PORT_DIRECTION_OUT) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (get_value_from_map(obj_actor_state, "_managed", &obj_managed) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (actor_get_managed(obj_managed, obj_actor_state, &actor->attributes, &instance_attributes) != SUCCESS) {
-		actor_free(node, actor);
+		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (has_key(obj_actor_state, "_shadow_args")) {
 		if (actor->init != NULL) {
 			if (get_value_from_map(obj_actor_state, "_shadow_args", &obj_shadow_args) != SUCCESS) {
-				actor_free(node, actor);
+				actor_free(node, actor, false);
 				return NULL;
 			}
 
 			if (actor_get_shadow_args(obj_shadow_args, &instance_attributes) != SUCCESS) {
-				actor_free(node, actor);
+				actor_free(node, actor, false);
 				return NULL;
 			}
 
 			if (actor->init(&actor, instance_attributes) != SUCCESS) {
 				actor_free_managed(instance_attributes);
-				actor_free(node, actor);
+				actor_free(node, actor, false);
 				return NULL;
 			}
 		}
 	} else {
 		if (actor->set_state != NULL && actor->set_state(&actor, instance_attributes) != SUCCESS) {
 			actor_free_managed(instance_attributes);
-			actor_free(node, actor);
+			actor_free(node, actor, false);
+			return NULL;
+		}
+	}
+
+	if (node->transport_client != NULL) {
+		if (proto_send_set_actor(node, actor, actor_set_reply_handler) != SUCCESS) {
+			actor_free_managed(instance_attributes);
+			actor_free(node, actor, false);
 			return NULL;
 		}
 	}
@@ -485,11 +469,19 @@ actor_t *actor_create(node_t *node, char *root)
 	return actor;
 }
 
-void actor_free(node_t *node, actor_t *actor)
+void actor_free(node_t *node, actor_t *actor, bool remove_from_registry)
 {
 	list_t *list = NULL, *tmp_list = NULL;
 
 	log("Deleting actor '%s'", actor->name);
+
+	if (actor->will_end != NULL)
+		actor->will_end(actor);
+
+	if (remove_from_registry) {
+		if (proto_send_remove_actor(node, actor, actor_remove_reply_handler) != SUCCESS)
+			log_error("Failed to remove actor '%s'", actor->id);
+	}
 
 	if (actor->instance_state != NULL && actor->free_state != NULL)
 		actor->free_state(actor);
@@ -523,76 +515,73 @@ actor_t *actor_get(node_t *node, const char *actor_id, uint32_t actor_id_len)
 
 void actor_port_enabled(actor_t *actor)
 {
-	port_t *port = NULL;
 	list_t *list = NULL;
 
 	list = actor->in_ports;
 	while (list != NULL) {
-		port = (port_t *)list->data;
-		if (port->state != PORT_ENABLED)
+		if (((port_t *)list->data)->state != PORT_ENABLED)
 			return;
 		list = list->next;
 	}
 
 	list = actor->out_ports;
 	while (list != NULL) {
-		port = (port_t *)list->data;
-		if (port->state != PORT_ENABLED)
+		if (((port_t *)list->data)->state != PORT_ENABLED)
 			return;
 		list = list->next;
 	}
 
-	actor_set_state(actor, ACTOR_DO_ENABLE);
+	actor_set_state(actor, ACTOR_ENABLED);
 }
 
-void actor_disconnect(actor_t *actor)
+void actor_port_disconnected(actor_t *actor)
+{
+	actor_set_state(actor, ACTOR_PENDING);
+}
+
+void actor_disconnect(node_t *node, actor_t *actor)
 {
 	list_t *list = NULL;
-	port_t *port = NULL;
 
 	list = actor->in_ports;
 	while (list != NULL) {
-		port = (port_t *)list->data;
-		port_set_state(port, PORT_DO_CONNECT);
-		port->tunnel = NULL;
+		port_disconnect(node, (port_t *)list->data);
 		list = list->next;
 	}
 
 	list = actor->out_ports;
 	while (list != NULL) {
-		port = (port_t *)list->data;
-		port_set_state(port, PORT_DO_CONNECT);
-		port->tunnel = NULL;
+		port_disconnect(node, (port_t *)list->data);
 		list = list->next;
 	}
 
 	actor_set_state(actor, ACTOR_PENDING);
 }
 
-void actor_delete(actor_t *actor)
+result_t actor_migrate(node_t *node, actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len)
 {
 	list_t *list = NULL;
 
+	if (actor->will_migrate != NULL)
+		actor->will_migrate(actor);
+
 	list = actor->in_ports;
 	while (list != NULL) {
-		port_set_state((port_t *)list->data, PORT_DO_DELETE);
+		port_disconnect(node, (port_t *)list->data);
 		list = list->next;
 	}
 
 	list = actor->out_ports;
 	while (list != NULL) {
-		port_set_state((port_t *)list->data, PORT_DO_DELETE);
+		port_disconnect(node, (port_t *)list->data);
 		list = list->next;
 	}
 
-	actor_set_state(actor, ACTOR_DO_DELETE);
-}
+	if (proto_send_actor_new(node, actor, to_rt_uuid, to_rt_uuid_len, actor_migrate_reply_handler) == SUCCESS)
+		return SUCCESS;
 
-result_t actor_migrate(actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len)
-{
-	strncpy(actor->migrate_to, to_rt_uuid, to_rt_uuid_len);
-	actor_set_state(actor, ACTOR_DO_MIGRATE);
-	return SUCCESS;
+	log_error("Failed to migrate actor '%s'", actor->id);
+	return FAIL;
 }
 
 char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, bool include_state)
@@ -798,96 +787,4 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, b
 	}
 
 	return *buffer;
-}
-
-void actor_transmit(node_t *node, actor_t *actor)
-{
-	list_t *list = NULL;
-	port_t *port = NULL;
-	bool ports_ready = true;
-
-	switch (actor->state) {
-	case ACTOR_DO_ENABLE:
-		if (proto_send_set_actor(node, actor, actor_set_reply_handler) == SUCCESS)
-			actor_set_state(actor, ACTOR_PENDING);
-		break;
-	case ACTOR_DO_DELETE:
-		// check if all inports are deleted
-		list = actor->in_ports;
-		while (ports_ready && list != NULL) {
-			port = (port_t *)list->data;
-			if (port->state != PORT_DELETED)
-				ports_ready = false;
-			list = list->next;
-		}
-
-		// check if all outports are deleted
-		list = actor->out_ports;
-		while (ports_ready && list != NULL) {
-			port = (port_t *)list->data;
-			if (port->state != PORT_DELETED)
-				ports_ready = false;
-			list = list->next;
-		}
-
-		// remove actor if all ports are removed
-		if (ports_ready)
-			if (proto_send_remove_actor(node, actor, actor_remove_reply_handler) == SUCCESS) {
-				if (actor->will_end != NULL)
-					actor->will_end(actor);
-				actor_set_state(actor, ACTOR_PENDING);
-			}
-		break;
-	case ACTOR_DO_MIGRATE:
-		// disconnect enabled inports
-		list = actor->in_ports;
-		while (list != NULL) {
-			port = (port_t *)list->data;
-			if (port->state != PORT_DISCONNECTED) {
-				ports_ready = false;
-				if (port->state == PORT_ENABLED)
-					port_set_state(port, PORT_DO_DISCONNECT);
-			}
-			list = list->next;
-		}
-
-		// disconnect enabled inports
-		list = actor->out_ports;
-		while (list != NULL) {
-			port = (port_t *)list->data;
-			if (port->state != PORT_DISCONNECTED) {
-				ports_ready = false;
-				if (port->state == PORT_ENABLED)
-					port_set_state(port, PORT_DO_DISCONNECT);
-			}
-			list = list->next;
-		}
-
-		// migrate actor if all ports are disconnected
-		if (ports_ready)
-			if (proto_send_actor_new(node, actor, actor_migrate_reply_handler) == SUCCESS) {
-				if (actor->will_migrate != NULL)
-					actor->will_migrate(actor);
-				actor_set_state(actor, ACTOR_PENDING);
-			}
-		break;
-	case ACTOR_ENABLED:
-	case ACTOR_PENDING:
-	default:
-		break;
-	}
-
-	// trigger inports
-	list = actor->in_ports;
-	while (list != NULL) {
-		port_transmit(node, (port_t *)list->data);
-		list = list->next;
-	}
-
-	// trigger outports
-	list = actor->out_ports;
-	while (list != NULL) {
-		port_transmit(node, (port_t *)list->data);
-		list = list->next;
-	}
 }

@@ -107,7 +107,7 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 				read = 0;
 			} else {
 				if (handler(node, rx_data + read_pos, msg_size) != SUCCESS)
-						return FAIL;
+					return FAIL;
 				read_pos += msg_size;
 			}
 		}
@@ -131,13 +131,11 @@ result_t transport_send(transport_client_t *transport_client, char *buffer, int 
 #ifdef USE_TLS
 	if (crypto_tls_send(transport_client, buffer, size) == size)
 		return SUCCESS;
-	else
-		log_error("Failed to send TLS data");
+	log_error("Failed to send TLS data");
 #else
 	if (transport_client->send(transport_client, buffer, size) == size)
 		return SUCCESS;
-	else
-		log_error("Failed to send data");
+	log_error("Failed to send data");
 #endif
 
 	return FAIL;

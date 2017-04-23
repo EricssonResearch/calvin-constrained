@@ -45,14 +45,46 @@ tunnel_t *tunnel_get_from_peerid_and_type(node_t *node, const char *peer_id, uin
 
 static result_t tunnel_destroy_handler(node_t *node, char *data, void *msg_data)
 {
-	tunnel_t *tunnel = NULL;
+	return SUCCESS;
+}
 
-	tunnel = (tunnel_t *)list_get(node->tunnels, (char *)msg_data);
-	if (tunnel != NULL) {
-		tunnel_free(node, tunnel);
+static result_t tunnel_request_handler(node_t *node, char *data, void *msg_data)
+{
+	uint32_t status = 0, tunnel_id_len = 0;
+	char *value = NULL, *tunnel_id = NULL, *data_value = NULL;
+	result_t result = FAIL;
+	tunnel_t *tunnel = (tunnel_t *)msg_data;
+
+	if (msg_data == NULL) {
+		log_error("Expected msg_data");
+		return FAIL;
+	}
+
+	result = get_value_from_map(data, "value", &value);
+	if (result == SUCCESS)
+		result = get_value_from_map(value, "data", &data_value);
+
+	if (result == SUCCESS)
+		result = decode_string_from_map(data_value, "tunnel_id", &tunnel_id, &tunnel_id_len);
+
+	if (result == SUCCESS)
+		result = decode_uint_from_map(value, "status", &status);
+
+	if (result != SUCCESS) {
+		log_error("Failed to parse reply");
+		return FAIL;
+	}
+
+	strncpy(tunnel->id, tunnel_id, tunnel_id_len);
+
+	if (status == 200) {
+		log("Tunnel '%.*s' connected", (int)tunnel_id_len, tunnel_id);
+		tunnel->state = TUNNEL_ENABLED;
 		return SUCCESS;
 	}
 
+	log_error("Failed to connect tunnel");
+	tunnel->state = TUNNEL_DISCONNECTED;
 	return FAIL;
 }
 
@@ -67,8 +99,11 @@ tunnel_t *tunnel_create(node_t *node, tunnel_type_t type, tunnel_state_t state, 
 
 	link = link_get(node, peer_id, peer_id_len);
 	if (link == NULL) {
-		log_error("Tunnel requested to '%.*s' without link", (int)peer_id_len, peer_id);
-		return NULL;
+		link = link_create(node, peer_id, peer_id_len, strncmp(node->proxy_link->peer_id, peer_id, peer_id_len) == 0);
+		if (link == NULL) {
+			log_error("Failed to create link to '%.*s'", peer_id_len, peer_id);
+			return NULL;
+		}
 	}
 
 	if (platform_mem_alloc((void **)&tunnel, sizeof(tunnel_t)) != SUCCESS) {
@@ -86,6 +121,15 @@ tunnel_t *tunnel_create(node_t *node, tunnel_type_t type, tunnel_state_t state, 
 		gen_uuid(tunnel->id, "TUNNEL_");
 	else
 		strncpy(tunnel->id, tunnel_id, tunnel_id_len);
+
+	if (state != TUNNEL_ENABLED) {
+		if (proto_send_tunnel_request(node, tunnel, tunnel_request_handler) == SUCCESS)
+			tunnel->state = TUNNEL_PENDING;
+		else {
+			platform_mem_free((void *)tunnel);
+			return NULL;
+		}
+	}
 
 	if (list_add(&node->tunnels, tunnel->id, (void *)tunnel, sizeof(tunnel_t)) != SUCCESS) {
 		log_error("Failed to add tunnel");
@@ -143,10 +187,8 @@ void tunnel_free(node_t *node, tunnel_t *tunnel)
 
 void tunnel_add_ref(tunnel_t *tunnel)
 {
-	if (tunnel != NULL) {
+	if (tunnel != NULL)
 		tunnel->ref_count++;
-		log_debug("Tunnel ref added '%s' ref: %d", tunnel->id, tunnel->ref_count);
-	}
 }
 
 void tunnel_remove_ref(node_t *node, tunnel_t *tunnel)
@@ -154,48 +196,12 @@ void tunnel_remove_ref(node_t *node, tunnel_t *tunnel)
 	if (tunnel != NULL) {
 		tunnel->ref_count--;
 		log_debug("Tunnel ref removed '%s' ref: %d", tunnel->id, tunnel->ref_count);
-		if (tunnel->ref_count == 0)
-			tunnel->state = TUNNEL_DO_DISCONNECT;
+		if (tunnel->ref_count == 0) {
+			if (proto_send_tunnel_destroy(node, tunnel, tunnel_destroy_handler) != SUCCESS)
+				log_error("Failed to destroy tunnel '%s'", tunnel->id);
+			tunnel_free(node, tunnel);
+		}
 	}
-}
-
-static result_t tunnel_request_handler(node_t *node, char *data, void *msg_data)
-{
-	uint32_t status = 0, tunnel_id_len = 0;
-	char *value = NULL, *tunnel_id = NULL, *data_value = NULL;
-	result_t result = FAIL;
-	tunnel_t *tunnel = NULL;
-
-	result = get_value_from_map(data, "value", &value);
-	if (result == SUCCESS)
-		result = get_value_from_map(value, "data", &data_value);
-
-	if (result == SUCCESS)
-		result = decode_string_from_map(data_value, "tunnel_id", &tunnel_id, &tunnel_id_len);
-
-	if (result == SUCCESS)
-		result = decode_uint_from_map(value, "status", &status);
-
-	if (result != SUCCESS) {
-		log_error("Failed to parse reply");
-		return FAIL;
-	}
-
-	tunnel = tunnel_get_from_id(node, tunnel_id, tunnel_id_len);
-	if (tunnel == NULL) {
-		log_error("No tunnel with id '%.*s'", (int)tunnel_id_len, tunnel_id);
-		return FAIL;
-	}
-
-	if (status == 200) {
-		log_debug("Tunnel '%.*s' connected", (int)tunnel_id_len, tunnel_id);
-		tunnel->state = TUNNEL_ENABLED;
-		return SUCCESS;
-	}
-
-	log_error("Failed to connect tunnel");
-	tunnel->state = TUNNEL_CONNECT_FAILED;
-	return FAIL;
 }
 
 result_t tunnel_handle_tunnel_new_request(node_t *node, char *peer_id, uint32_t peer_id_len, char *tunnel_id, uint32_t tunnel_id_len)
@@ -213,7 +219,6 @@ result_t tunnel_handle_tunnel_new_request(node_t *node, char *peer_id, uint32_t 
 			strncpy(tunnel->id, tunnel_id, tunnel_id_len);
 
 		tunnel->state = TUNNEL_ENABLED;
-		log_debug("Tunnel '%s' enabled", tunnel->id);
 	} else {
 		tunnel = tunnel_create(node, TUNNEL_TYPE_TOKEN, TUNNEL_ENABLED, peer_id, peer_id_len, tunnel_id, tunnel_id_len);
 		if (tunnel == NULL) {
@@ -223,23 +228,4 @@ result_t tunnel_handle_tunnel_new_request(node_t *node, char *peer_id, uint32_t 
 	}
 
 	return SUCCESS;
-}
-
-void tunnel_transmit(node_t *node, tunnel_t *tunnel)
-{
-	switch (tunnel->state) {
-	case TUNNEL_DO_CONNECT:
-		if (proto_send_tunnel_request(node, tunnel, tunnel_request_handler) == SUCCESS)
-			tunnel->state = TUNNEL_PENDING;
-		break;
-	case TUNNEL_DO_DISCONNECT:
-		if (proto_send_tunnel_destroy(node, tunnel, tunnel_destroy_handler) == SUCCESS)
-			tunnel->state = TUNNEL_PENDING;
-		break;
-	case TUNNEL_CONNECT_FAILED:
-		log_error("TODO: Handle failed tunnel connections");
-		break;
-	default:
-		break;
-	}
 }

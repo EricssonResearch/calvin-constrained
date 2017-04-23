@@ -1,6 +1,9 @@
 import pytest
 import time
 import json
+import subprocess
+import os
+import signal
 from calvin.requests.request_handler import RequestHandler, RT
 from calvin.utilities.nodecontrol import dispatch_node
 from calvin.tests.helpers import wait_for_tokens
@@ -12,6 +15,8 @@ rt1 = None  # Node with constrained rt connected
 rt2 = None
 request_handler = None
 constrained_id = None
+constrained_process = None
+output_file = None
 
 def verify_actor_placement(request_handler, rt, actor_id, rt_id):
     retry = 0
@@ -48,6 +53,11 @@ def setup_module(module):
     global rt2
     global request_handler
     global constrained_id
+    global constrained_process
+    global output_file
+
+    output_file = open("cc_stderr.log", "a")
+    constrained_process = subprocess.Popen("exec ./calvin_c -n 'constrained' -p 'calvinip://127.0.0.1:5000'", shell=True, stderr=output_file)
 
     request_handler = RequestHandler()
     rt1 = RT("http://127.0.0.1:5001")
@@ -66,6 +76,12 @@ def setup_module(module):
         time.sleep(1)
 
     pytest.exit("Failed to get constrained runtime id")
+
+def teardown_module(module):
+    global constrained_process
+    global output_file
+    constrained_process.kill()
+    output_file.close()
 
 def testDataAndDestruction():
     assert rt1 is not None
@@ -126,6 +142,131 @@ def testDataAndDestruction():
 
     # verify actor removal
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id'])
+
+def testKillAndRespawn():
+    global constrained_process
+    assert rt1 is not None
+    assert constrained_id is not None
+
+    script_name = "testDataAndDestruction"
+    script = """
+    src : std.CountTimer(sleep=1)
+    id : std.Identity()
+    snk : test.Sink(store_tokens=1, quiet=1)
+    src.integer > id.token
+    id.token > snk.token
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "src": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "type": "+"
+               }],
+            "id": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                    "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "type": "+"
+                }]
+        }
+    }
+    """
+
+    resp = request_handler.deploy_application(rt1,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+
+    # verify placement
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
+
+    constrained_process.kill()
+    time.sleep(1)
+    constrained_process = subprocess.Popen("exec ./calvin_c -n 'constrained' -p 'calvinip://127.0.0.1:5000'", shell=True, stderr=output_file)
+
+    # verify data
+    wait_for_tokens(request_handler,
+                    rt1,
+                    resp['actor_map'][script_name + ':snk'], 2, 10)
+    actual = request_handler.report(rt1,
+                                    resp['actor_map'][script_name + ':snk'])
+    assert len(actual) >= 2
+
+    # remove app
+    request_handler.delete_application(rt1, resp['application_id'])
+
+    # verify actor removal
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id'])
+
+def testDataAndDestructionRouted():
+    assert rt2 is not None
+    assert constrained_id is not None
+
+    script_name = "testDataAndDestruction"
+    script = """
+    src : std.CountTimer(sleep=0.1)
+    id : std.Identity()
+    snk : test.Sink(store_tokens=1, quiet=1)
+    src.integer > id.token
+    id.token > snk.token
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "src": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt2"}]},
+                    "type": "+"
+               }],
+            "id": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                    "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt2"}]},
+                    "type": "+"
+                }]
+        }
+    }
+    """
+
+    resp = request_handler.deploy_application(rt2,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+
+    # verify placement
+    assert verify_actor_placement(request_handler, rt2, resp['actor_map'][script_name + ':id'], constrained_id)
+
+    # verify data
+    wait_for_tokens(request_handler,
+                    rt2,
+                    resp['actor_map'][script_name + ':snk'], 5, 20)
+    actual = request_handler.report(rt2,
+                                    resp['actor_map'][script_name + ':snk'])
+    assert len(actual) >= 5
+
+    # remove app
+    request_handler.delete_application(rt2, resp['application_id'])
+
+    # verify actor removal
+    assert verify_actor_removal(request_handler, rt2, resp['actor_map'][script_name + ':id'])
 
 def testPortConnect():
     assert rt1 is not None

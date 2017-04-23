@@ -24,11 +24,8 @@
 struct node_t;
 
 typedef enum {
-	ACTOR_DO_DELETE,
-	ACTOR_DO_ENABLE,
-	ACTOR_DO_MIGRATE,
-	ACTOR_ENABLED,
-	ACTOR_PENDING
+	ACTOR_PENDING,
+	ACTOR_ENABLED
 } actor_state_t;
 
 typedef struct actor_t {
@@ -55,14 +52,13 @@ typedef struct actor_t {
 void actor_set_state(actor_t *actor, actor_state_t state);
 result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len);
 actor_t *actor_create(struct node_t *node, char *root);
-void actor_free(struct node_t *node, actor_t *actor);
+void actor_free(struct node_t *node, actor_t *actor, bool remove_from_registry);
 actor_t *actor_get(struct node_t *node, const char *actor_id, uint32_t actor_id_len);
 void actor_port_enabled(actor_t *actor);
-void actor_delete(actor_t *actor);
-void actor_disconnect(actor_t *actor);
-result_t actor_migrate(actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len);
+void actor_port_disconnected(actor_t *actor);
+void actor_disconnect(struct node_t *node, actor_t *actor);
+result_t actor_migrate(struct node_t *node, actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len);
 char *actor_serialize_managed_list(list_t *managed_attributes, char **buffer);
 char *actor_serialize(const struct node_t *node, const actor_t *actor, char **buffer, bool include_state);
-void actor_transmit(struct node_t *node, actor_t *actor);
 
 #endif /* ACTOR_H */

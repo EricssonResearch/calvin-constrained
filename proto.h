@@ -38,7 +38,7 @@ result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(nod
 result_t proto_send_get_port(node_t *node, char *port_id, result_t (*handler)(node_t*, char*, void*), void *msg_data);
 result_t proto_send_remove_actor(node_t *node, actor_t *actor, result_t (*handler)(node_t*, char*, void*));
 result_t proto_send_remove_port(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*));
-result_t proto_send_actor_new(node_t *node, actor_t *actor, result_t (*handler)(node_t*, char*, void*));
+result_t proto_send_actor_new(node_t *node, actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, result_t (*handler)(node_t*, char*, void*));
 result_t proto_parse_message(node_t *node, char *data);
 
 #endif /* PROTO_H */

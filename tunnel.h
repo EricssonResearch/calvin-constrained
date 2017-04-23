@@ -22,11 +22,9 @@
 struct node_t;
 
 typedef enum {
-	TUNNEL_DO_CONNECT,
-	TUNNEL_DO_DISCONNECT,
+	TUNNEL_DISCONNECTED,
 	TUNNEL_ENABLED,
-	TUNNEL_PENDING,
-	TUNNEL_CONNECT_FAILED
+	TUNNEL_PENDING
 } tunnel_state_t;
 
 typedef enum {
@@ -51,6 +49,5 @@ void tunnel_free(struct node_t *node, tunnel_t *tunnel);
 void tunnel_add_ref(tunnel_t *tunnel);
 void tunnel_remove_ref(struct node_t *node, tunnel_t *tunnel);
 result_t tunnel_handle_tunnel_new_request(struct node_t *node, char *peer_id, uint32_t peer_id_len, char *tunnel_id, uint32_t tunnel_id_len);
-void tunnel_transmit(struct node_t *node, tunnel_t *tunnel);
 
 #endif /* TUNNEL_H */
