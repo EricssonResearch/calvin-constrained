@@ -1,0 +1,55 @@
+CC = gcc
+PROJECT_NAME = calvin_c
+
+#define the location where the micropython library is located (relative to here)
+MP_LIB_DIR = libmpy
+
+CFLAGS += -g -Wall
+CFLAGS += -Werror
+CFLAGS += --std=gnu99
+#CFLAGS += -DDEBUG
+#CFLAGS += -DDEBUG_MEM
+CFLAGS += -DPARSE_ARGS
+ifneq ($(PLATFORM), Darwin)
+CFLAGS += -lrt
+endif
+CFLAGS += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -DMICROPYTHON -DMICROPYTHON_HEAP_SIZE=20*1024
+CFLAGS += -DUSE_PERSISTENT_STORAGE -DPERSISTENT_STORAGE_CHECKPOINTING -DTRANSPORT_SOCKET
+EXT_SRC_C = $(addprefix libmpy/, cc_mpy_port.c cc_mpy_gpiohandler.c cc_mpy_environmental.c)
+
+C_SOURCE_FILES += \
+runtime/south/platform/x86/cc_platform_x86.c \
+cc_api.c \
+main.c \
+runtime/north/cc_common.c \
+runtime/north/scheduler/np_scheduler/cc_scheduler.c \
+runtime/north/cc_node.c \
+runtime/north/cc_proto.c \
+runtime/north/cc_transport.c \
+runtime/south/transport/socket/cc_transport_socket.c \
+runtime/north/cc_tunnel.c \
+runtime/north/cc_link.c \
+runtime/north/cc_actor.c \
+runtime/north/cc_port.c \
+runtime/north/cc_fifo.c \
+runtime/north/cc_token.c \
+calvinsys/cc_calvinsys.c \
+runtime/north/cc_msgpack_helper.c \
+msgpuck/msgpuck.c \
+actors/cc_actor_mpy.c \
+$(EXT_SRC_C)
+
+c_calvin: mpy-cross -lmicropython $(C_SOURCE_FILES)
+	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h
+	@$(CC) -o $(PROJECT_NAME) $(C_SOURCE_FILES) $(CFLAGS)
+
+mpy-cross:
+	@echo "Building the MicroPython cross compiler"
+	$(MAKE) -C micropython/mpy-cross
+
+-lmicropython:
+	$(MAKE) lib -C $(MP_LIB_DIR)
+
+clean:
+	$(MAKE) clean -C $(MP_LIB_DIR)
+	rm -f $(PROJECT_NAME)

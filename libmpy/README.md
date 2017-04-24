@@ -17,8 +17,8 @@ CFLAGS += -DMICROPYTHON -DMICROPYTHON_HEAP_SIZE=20*1024
 CFLAGS += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy
 
 # add sources of bindings for c to/from python
-SRC_C += actors/actor_mpy.c
-SRC_C += $(addprefix libmpy/, calvin_mpy_port.c calvin_mpy_gpiohandler.c calvin_mpy_environmental.c)
+SRC_C += actors/cc_actor_mpy.c
+SRC_C += $(addprefix libmpy/, cc_mpy_port.c cc_mpy_gpiohandler.c cc_mpy_environmental.c)
 
 # build the MicroPython cross compiler, should be called before building the runtime
 mpy-cross:

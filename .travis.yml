@@ -7,8 +7,8 @@ install:
   - ./test/test_setup.sh
 
 script:
-#  - ../dmce/dmce-launcher -n 2
+  - ../dmce/dmce-launcher -n 2
   - ./test/test.sh
   - ./test/test_mpy.sh
-#  - cat cc_stderr.log cc_mpy_stderr.log > coverage.log
-#  - ../dmce/dmce-summary coverage.log
+  - cat cc_stderr.log cc_mpy_stderr.log > coverage.log
+  - ../dmce/dmce-summary coverage.log

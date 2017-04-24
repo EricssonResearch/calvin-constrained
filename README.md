@@ -19,15 +19,15 @@ git clone --recursive https://github.com/EricssonResearch/calvin-constrained.git
 
 Calvin-constrained is designed to be portable across different architectures and can execute on anything from bare metal to on top of an operating system.
 
-The platform specific parts, such as initializing the platform and accessing hardware resources, are isolated from the core functionality. Runtime ports and instructions on how to create a new port are placed in the [platform](platform) folder.
+The platform specific parts, such as initializing the platform and accessing hardware resources, are isolated from the core functionality. Runtime ports and instructions on how to create a new port are placed in the [runtime/south/platform](runtime/south/platform) folder.
 
 ## Transport clients
 
 Transport clients handles the communication with the Calvin runtime acting as a proxy to offload functionality.
 
-Implementations and instructions on how to create new transport clients are available in the [transport](transport) folder.
+Implementations and instructions on how to create new transport clients are available in the [runtime/south/transport](runtime/south/transport) folder.
 
-TLS can be enabled for all transport clients, the [crypto](crypto) folder contains instructions to enable it.
+TLS can be enabled for all transport clients, the [runtime/south/crypto](runtime/south/crypto) folder contains instructions to enable it.
 
 ## Actors
 

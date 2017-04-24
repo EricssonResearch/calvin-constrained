@@ -1,5 +1,9 @@
 #!/bin/bash
 
+rm calvinconstrained.config
+rm cc_stderr.log
+rm calvin_c
+
 cp test/calvin.confLOCAL calvin.conf
 PYTHONPATH=calvin-base python calvin-base/calvin/Tools/csruntime.py --name rt1 -n 127.0.0.1 -p 5000 -c 5001 &
 RT1_PID=$!
@@ -15,17 +19,14 @@ exit_code+=$?
 rm calvin.conf
 
 # build and start calvin-constrained
-make -f platform/x86/Makefile_mpy
+make -f runtime/south/platform/x86/Makefile_mpy
 exit_code+=$?
-./calvin_c_mpy -n constrained -p "calvinip://127.0.0.1:5000" 2> cc_mpy_stderr.log &
-CONSTRAINED_RT_PID=$!
 
 # run test
 PYTHONPATH=calvin-base py.test -sv test/test.py
 exit_code+=$?
 
 # clean up
-kill -9 $CONSTRAINED_RT_PID
 kill -9 $RT1_PID
 kill -9 $RT2_PID
 cd calvin-base

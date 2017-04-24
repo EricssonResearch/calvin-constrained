@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "api.h"
+#include "cc_api.h"
 #ifdef PARSE_ARGS
 #include <getopt.h>
 #endif
