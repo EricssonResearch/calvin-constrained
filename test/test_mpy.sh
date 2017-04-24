@@ -26,6 +26,8 @@ exit_code+=$?
 PYTHONPATH=calvin-base py.test -sv test/test.py
 exit_code+=$?
 
+mv cc_stderr.log cc_stderr_mpy.log
+
 # clean up
 kill -9 $RT1_PID
 kill -9 $RT2_PID
