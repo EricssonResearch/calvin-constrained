@@ -53,14 +53,14 @@ static result_t init(calvinsys_t* calvinsys)
 	android_sensor_data_t* data_acc = (android_sensor_data_t*) calvinsys->state;
 	ASensorEventQueue_setEventRate(data_acc->queue, data_acc->sensor, (1000L/1)*10000); // (1000L/1)*1000
 	ASensorEventQueue_enableSensor(data_acc->queue, data_acc->sensor);
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static result_t release(calvinsys_t* calvinsys)
 {
 	android_sensor_data_t* data_acc = (android_sensor_data_t*) calvinsys->state;
 	ASensorEventQueue_disableSensor(data_acc->queue, data_acc->sensor);
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static result_t input(calvinsys_t* calvinsys, char* command, char* data, size_t data_size)
@@ -76,20 +76,20 @@ result_t create_accelerometer(node_t* node, calvinsys_t** calvinsys)
 	ASensorManager* mg;
 	android_sensor_data_t* data_acc;
 
-	if (platform_mem_alloc((void **) &accelerometer_sys, sizeof(calvinsys_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **) &accelerometer_sys, sizeof(calvinsys_t)) != CC_RESULT_SUCCESS) {
 		log_error("Could not allocate memory for accelerometer sys");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
-	if (platform_mem_alloc((void **) &(accelerometer_sys->name), 32) != SUCCESS) {
+	if (platform_mem_alloc((void **) &(accelerometer_sys->name), 32) != CC_RESULT_SUCCESS) {
 		log_error("Could not allocate memory for the name of the accelerometer sys.");
 		platform_mem_free(accelerometer_sys);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 	if (platform_mem_alloc((void **)&data_acc, sizeof(android_sensor_data_t))) {
 		log_error("Could not allocate memory for the sensor data struct");
 		platform_mem_free(accelerometer_sys->name);
 		platform_mem_free(accelerometer_sys);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 	platform = (android_platform_t*) node->platform;
 	mg = ASensorManager_getInstance();
@@ -101,7 +101,7 @@ result_t create_accelerometer(node_t* node, calvinsys_t** calvinsys)
 		platform_mem_free(accelerometer_sys->name);
 		platform_mem_free(accelerometer_sys);
 		platform_mem_free(data_acc);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	strcpy(accelerometer_sys->name, "calvinsys.sensors.accelerometer");
@@ -110,5 +110,5 @@ result_t create_accelerometer(node_t* node, calvinsys_t** calvinsys)
 	accelerometer_sys->release = &release;
 	accelerometer_sys->state = (void*) data_acc;
 	*calvinsys = accelerometer_sys;
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }

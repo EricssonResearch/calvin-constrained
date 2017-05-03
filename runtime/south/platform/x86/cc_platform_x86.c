@@ -36,12 +36,12 @@ void platform_print(const char *fmt, ...)
 
 result_t platform_stop(node_t *node)
 {
-    return SUCCESS;
+    return CC_RESULT_SUCCESS;
 }
 
 result_t platform_node_started(struct node_t *node)
 {
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static calvin_ingpio_t *platform_init_in_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, char pull, char edge)
@@ -60,7 +60,7 @@ static calvin_ingpio_t *platform_init_in_gpio(calvinsys_io_giohandler_t *gpiohan
 
 	for (i = 0; i < MAX_INGPIOS; i++) {
 		if (gpiohandler->ingpios[i] == NULL) {
-			if (platform_mem_alloc((void **)&gpiohandler->ingpios[i], sizeof(calvin_ingpio_t)) != SUCCESS) {
+			if (platform_mem_alloc((void **)&gpiohandler->ingpios[i], sizeof(calvin_ingpio_t)) != CC_RESULT_SUCCESS) {
 				log_error("Failed to allocate memory");
 				return NULL;
 			}
@@ -78,7 +78,7 @@ static calvin_ingpio_t *platform_init_in_gpio(calvinsys_io_giohandler_t *gpiohan
 
 static result_t platform_init_out_gpio(uint32_t pin)
 {
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static void platform_set_gpio(uint32_t pin, uint32_t value)
@@ -86,7 +86,7 @@ static void platform_set_gpio(uint32_t pin, uint32_t value)
 	log("Setting gpio pin '%d' '%d'", pin, value);
 }
 
-static void platform_uninit_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, gpio_direction_t direction)
+static void platform_uninit_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, calvin_gpio_direction_t direction)
 {
 	int i = 0;
 
@@ -103,7 +103,7 @@ static void platform_uninit_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_
 static result_t platform_get_temperature(double *temp)
 {
 	*temp = 15.5;
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static result_t platform_create_sensors_environmental(node_t *node)
@@ -111,9 +111,9 @@ static result_t platform_create_sensors_environmental(node_t *node)
 	char name[] = "calvinsys.sensors.environmental";
 	calvinsys_sensors_environmental_t *sensors_env = NULL;
 
-	if (platform_mem_alloc((void **)&sensors_env, sizeof(calvinsys_sensors_environmental_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&sensors_env, sizeof(calvinsys_sensors_environmental_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	sensors_env->get_temperature = platform_get_temperature;
@@ -127,10 +127,10 @@ static result_t platform_create_io_gpiohandler(node_t *node)
 	calvinsys_io_giohandler_t *io_gpiohandler = NULL;
 	int i = 0;
 
-	if (platform_mem_alloc((void **)&io_gpiohandler, sizeof(calvinsys_io_giohandler_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&io_gpiohandler, sizeof(calvinsys_io_giohandler_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
 		platform_mem_free((void *)io_gpiohandler);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	io_gpiohandler->init_in_gpio = platform_init_in_gpio;
@@ -146,13 +146,13 @@ static result_t platform_create_io_gpiohandler(node_t *node)
 
 result_t platform_create_calvinsys(node_t *node)
 {
-	if (platform_create_sensors_environmental(node) != SUCCESS)
-		return FAIL;
+	if (platform_create_sensors_environmental(node) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 
-	if (platform_create_io_gpiohandler(node) != SUCCESS)
-		return FAIL;
+	if (platform_create_io_gpiohandler(node) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 void platform_init(void)
@@ -164,7 +164,7 @@ result_t platform_create(node_t *node)
 {
   node_attributes_t *attr;
 
-	if (platform_mem_alloc((void **)&attr, sizeof(node_attributes_t)) != SUCCESS)
+	if (platform_mem_alloc((void **)&attr, sizeof(node_attributes_t)) != CC_RESULT_SUCCESS)
     log_error("Could not allocate memory for attributes");
 
 	attr->indexed_public_owner = NULL;
@@ -172,7 +172,7 @@ result_t platform_create(node_t *node)
   attr->indexed_public_address = NULL;
   node->attributes = attr;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 void platform_evt_wait(node_t *node, struct timeval *timeout)
@@ -189,7 +189,7 @@ void platform_evt_wait(node_t *node, struct timeval *timeout)
 		select(fd + 1, &fds, NULL, NULL, timeout);
 
 		if (FD_ISSET(fd, &fds)) {
-			if (transport_handle_data(node, node->transport_client, node_handle_message) != SUCCESS) {
+			if (transport_handle_data(node, node->transport_client, node_handle_message) != CC_RESULT_SUCCESS) {
 				log_error("Failed to read data from transport");
 				node->transport_client->state = TRANSPORT_DISCONNECTED;
 				return;
@@ -204,16 +204,16 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 	*buffer = malloc(size);
 	if (*buffer == NULL) {
 		log_error("Failed to allocate '%ld' memory", (unsigned long)size);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 void *platform_mem_calloc(size_t nitems, size_t size)
 {
   void *ptr = NULL;
-  if (platform_mem_alloc(&ptr, nitems * size) != SUCCESS)
+  if (platform_mem_alloc(&ptr, nitems * size) != CC_RESULT_SUCCESS)
     return NULL;
 
   memset(ptr, 0, nitems * size);
@@ -247,9 +247,9 @@ result_t platform_read_node_state(node_t *node, char buffer[], size_t size)
 	if (fp != NULL) {
 		fread(buffer, 1, size, fp);
 		fclose(fp);
-		return SUCCESS;
+		return CC_RESULT_SUCCESS;
 	}
 
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 #endif

@@ -29,18 +29,18 @@ result_t actor_temperature_init(actor_t **actor, list_t *attributes)
 	environmental = (calvinsys_sensors_environmental_t *)list_get((*actor)->calvinsys, "calvinsys.sensors.environmental");
 	if (environmental == NULL) {
 		log_error("calvinsys.sensors.environmental is not supported");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	if (platform_mem_alloc((void **)&state, sizeof(state_temperature_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&state, sizeof(state_temperature_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	state->environmental = environmental;
 	(*actor)->instance_state = (void *)state;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 result_t actor_temperature_set_state(actor_t **actor, list_t *attributes)
@@ -56,10 +56,10 @@ bool actor_temperature_fire(struct actor_t *actor)
 	calvinsys_sensors_environmental_t *environmental = ((state_temperature_t *)actor->instance_state)->environmental;
 
 	if (fifo_tokens_available(&inport->fifo, 1) == 1 && fifo_slots_available(&outport->fifo, 1) == 1) {
-		if (environmental->get_temperature(&temperature) == SUCCESS) {
+		if (environmental->get_temperature(&temperature) == CC_RESULT_SUCCESS) {
 			fifo_peek(&inport->fifo);
 			token_set_double(&out_token, temperature);
-			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == SUCCESS) {
+			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == CC_RESULT_SUCCESS) {
 				fifo_commit_read(&inport->fifo);
 				return true;
 			}

@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <stdlib.h>
-#include <string.h>
+//#include <stdlib.h>
+//#include <string.h>
 #include "cc_actor_identity.h"
 #include "../runtime/north/cc_port.h"
 #include "../runtime/north/cc_token.h"
@@ -31,21 +31,21 @@ result_t actor_identity_init(actor_t **actor, list_t *attributes)
 	data = (char *)list_get(attributes, "dump");
 	if (data == NULL) {
 		log_error("Failed to get attribute 'dump'");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	if (decode_bool(data, &dump) != SUCCESS)
-		return FAIL;
+	if (decode_bool(data, &dump) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 
-	if (platform_mem_alloc((void **)&state, sizeof(state_identity_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&state, sizeof(state_identity_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	state->dump = dump;
 	(*actor)->instance_state = (void *)state;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 result_t actor_identity_set_state(actor_t **actor, list_t *attributes)
@@ -61,9 +61,9 @@ bool actor_identity_fire(struct actor_t *actor)
 
 	if (fifo_tokens_available(&inport->fifo, 1) && fifo_slots_available(&outport->fifo, 1)) {
 		in_token = fifo_peek(&inport->fifo);
-		if (token_decode_uint(*in_token, &in_data) == SUCCESS) {
+		if (token_decode_uint(*in_token, &in_data) == CC_RESULT_SUCCESS) {
 			token_set_uint(&out_token, in_data);
-			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == SUCCESS) {
+			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == CC_RESULT_SUCCESS) {
 				fifo_commit_read(&inport->fifo);
 				return true;
 			}
@@ -89,26 +89,30 @@ result_t actor_identity_get_managed_attributes(actor_t *actor, list_t **attribut
 	char *value = NULL, *name = NULL;
 	state_identity_t *state = (state_identity_t *)actor->instance_state;
 
-	name = strdup("dump");
-	if (name == NULL) {
+	if (platform_mem_alloc((void **)&name, 5) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
+	name[0] = 'd';
+	name[1] = 'u';
+	name[2] = 'm';
+	name[3] = 'p';
+	name[4] = '\0';
 
 	size = mp_sizeof_bool(state->dump);
-	if (platform_mem_alloc((void **)&value, size) != SUCCESS) {
+	if (platform_mem_alloc((void **)&value, size) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	mp_encode_bool(value, state->dump);
 
-	if (list_add(attributes, name, value, size) != SUCCESS) {
+	if (list_add(attributes, name, value, size) != CC_RESULT_SUCCESS) {
 		log_error("Failed to add '%s' to managed list", name);
 		platform_mem_free(name);
 		platform_mem_free(value);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }

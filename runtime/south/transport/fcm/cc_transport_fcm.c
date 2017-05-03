@@ -39,13 +39,13 @@ static result_t transport_fcm_connect(node_t *node, transport_client_t *transpor
 			buffer,
 			TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE) > 0) {
 		transport_client->state = TRANSPORT_PENDING;
-		return SUCCESS;
+		return CC_RESULT_SUCCESS;
 	}
 
 	log_error("Failed to send connect request");
 	transport_client->state = TRANSPORT_INTERFACE_DOWN;
 
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 static int transport_fcm_send(transport_client_t *transport_client, char *data, size_t size)
@@ -93,14 +93,14 @@ transport_client_t *transport_fcm_create(struct node_t *node, char *uri)
 	transport_client_t *transport_client = NULL;
 	transport_fcm_client_t *fcm_client = NULL;
 
-	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
 		return NULL;
 	}
 
 	memset(transport_client, 0, sizeof(transport_client_t));
 
-	if (platform_mem_alloc((void **)&fcm_client, sizeof(transport_fcm_client_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&fcm_client, sizeof(transport_fcm_client_t)) != CC_RESULT_SUCCESS) {
 		platform_mem_free((void *)transport_client);
 		log_error("Failed to allocate memory");
 		return NULL;

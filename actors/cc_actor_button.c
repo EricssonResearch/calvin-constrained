@@ -27,18 +27,18 @@ result_t actor_button_init(actor_t **actor, list_t *attributes)
 	calvinsys_t* button = (calvinsys_t*) list_get((*actor)->calvinsys, "calvinsys.io.button");
 	if (button == NULL) {
 		log_error("calvinsys.io.button not supported");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 	state_button_t* state;
-	if (platform_mem_alloc((void**)&state, sizeof(state_button_t)) != SUCCESS) {
+	if (platform_mem_alloc((void**)&state, sizeof(state_button_t)) != CC_RESULT_SUCCESS) {
 		log_error("Could not allocate memory for button state");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 	log("Button init");
 	button->init(button);
 	state->button = button;
 	(*actor)->instance_state = (void*) state;
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 bool actor_button_fire(struct actor_t *actor)
@@ -52,7 +52,7 @@ bool actor_button_fire(struct actor_t *actor)
 				port_t *outport = (port_t *) actor->out_ports->data;
 				if (fifo_slots_available(&outport->fifo, 1) == 1) {
 					token_set_uint(&out_token, 1);
-					if (fifo_write(&outport->fifo, out_token.value, out_token.size) != SUCCESS) {
+					if (fifo_write(&outport->fifo, out_token.value, out_token.size) != CC_RESULT_SUCCESS) {
 						log_error("sent button pressed token failed");
 					} else {
 						button->new_data = 0;

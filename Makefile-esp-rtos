@@ -1,0 +1,5 @@
+SDK_PATH = /home/qfrksvn/Source/esp-open-rtos
+EXTRA_CFLAGS = -DTRANSPORT_SOCKET -DLWIP_SOCKET
+PROGRAM = calvin-esp
+PROGRAM_SRC_DIR=. runtime/south/platform/esp-open-rtos runtime/south/transport/socket runtime/north runtime/north/scheduler/np_scheduler actors msgpuck calvinsys
+include $(SDK_PATH)/common.mk

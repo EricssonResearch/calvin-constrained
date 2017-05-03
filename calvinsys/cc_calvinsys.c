@@ -22,7 +22,7 @@ result_t register_calvinsys(node_t *node, calvinsys_t *calvinsys)
 {
 	if (list_get(node->calvinsys, calvinsys->name) != NULL) {
 		log_error("Calvinsys %s already registered", calvinsys->name);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 	return list_add(&node->calvinsys, calvinsys->name, calvinsys, sizeof(calvinsys_t *));
 }

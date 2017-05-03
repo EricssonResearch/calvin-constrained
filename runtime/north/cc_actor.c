@@ -109,7 +109,7 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 
 static result_t actor_remove_reply_handler(node_t *node, char *data, void *msg_data)
 {
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static result_t actor_migrate_reply_handler(node_t *node, char *data, void *msg_data)
@@ -121,11 +121,11 @@ static result_t actor_migrate_reply_handler(node_t *node, char *data, void *msg_
 	actor = actor_get(node, (char *)msg_data, strlen((char *)msg_data));
 	if (actor == NULL) {
 		log_error("No actor with id '%s'", (char *)msg_data);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	if (get_value_from_map(data, "value", &value) == SUCCESS) {
-		if (decode_uint_from_map(value, "status", &status) == SUCCESS) {
+	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
+		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
 			if (status == 200) {
 				log("Actor '%s' migrated", (char *)msg_data);
 				if (actor->did_migrate != NULL)
@@ -133,12 +133,12 @@ static result_t actor_migrate_reply_handler(node_t *node, char *data, void *msg_
 				actor_free(node, actor, false);
 			} else
 				log_error("Failed to migrate actor '%s'", (char *)msg_data);
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 	}
 
 	log_error("Failed to decode message");
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 static result_t actor_set_reply_handler(node_t *node, char *data, void *msg_data)
@@ -146,16 +146,16 @@ static result_t actor_set_reply_handler(node_t *node, char *data, void *msg_data
 	char *value = NULL;
 	bool status = false;
 
-	if (get_value_from_map(data, "value", &value) == SUCCESS) {
-		if (decode_bool_from_map(value, "value", &status) == SUCCESS) {
+	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
+		if (decode_bool_from_map(value, "value", &status) == CC_RESULT_SUCCESS) {
 			if (status != true)
 				log("Failed to store actor '%s'", (char *)msg_data);
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 	}
 
 	log_error("Failed to decode data");
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 void actor_set_state(actor_t *actor, actor_state_t state)
@@ -177,8 +177,8 @@ result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	actor->did_migrate = NULL;
 
 #ifdef MICROPYTHON
-	if (actor_mpy_init_from_type(actor, actor->type, type_len) == SUCCESS)
-		return SUCCESS;
+	if (actor_mpy_init_from_type(actor, actor->type, type_len) == CC_RESULT_SUCCESS)
+		return CC_RESULT_SUCCESS;
 #else
 	int i = 0;
 
@@ -189,14 +189,14 @@ result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 			actor->free_state = actor_types[i].free_state;
 			actor->fire = actor_types[i].fire_actor;
 			actor->get_managed_attributes = actor_types[i].get_managed_attributes;
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 	}
 #endif
 
 	log_error("Actor type '%.*s' not supported", (int)type_len, type);
 
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 static void actor_free_managed(list_t *managed_attributes)
@@ -214,39 +214,39 @@ static void actor_free_managed(list_t *managed_attributes)
 
 static result_t actor_get_managed(char *obj_attributes, char *obj_actor_state, list_t **attributes, list_t **instance_attributes)
 {
-	result_t result = SUCCESS;
+	result_t result = CC_RESULT_SUCCESS;
 	char *obj_attribute_value = NULL, *attribute_name = NULL, *attribute_value = NULL, *tmp_string = NULL;
 	uint32_t len = 0, array_size = 0, i_managed_attr = 0;
 
 	array_size = get_size_of_array(obj_attributes);
-	for (i_managed_attr = 0; i_managed_attr < array_size && result == SUCCESS; i_managed_attr++) {
+	for (i_managed_attr = 0; i_managed_attr < array_size && result == CC_RESULT_SUCCESS; i_managed_attr++) {
 		result = decode_string_from_array(obj_attributes, i_managed_attr, &tmp_string, &len);
-		if (result == SUCCESS) {
+		if (result == CC_RESULT_SUCCESS) {
 			if (strncmp(tmp_string, "_id", 3) == 0 || strncmp(tmp_string, "_name", 5) == 0 || strncmp(tmp_string, "_shadow_args", 12) == 0)
 				continue;
 
 			attribute_name = NULL;
 			attribute_value = NULL;
 
-			if (platform_mem_alloc((void **)&attribute_name, len + 1) != SUCCESS) {
+			if (platform_mem_alloc((void **)&attribute_name, len + 1) != CC_RESULT_SUCCESS) {
 				log_error("Failed to allocate memory");
-				return FAIL;
+				return CC_RESULT_FAIL;
 			}
 
 			strncpy(attribute_name, tmp_string, len);
 			attribute_name[len] = '\0';
 
-			if (get_value_from_map(obj_actor_state, attribute_name, &obj_attribute_value) != SUCCESS) {
+			if (get_value_from_map(obj_actor_state, attribute_name, &obj_attribute_value) != CC_RESULT_SUCCESS) {
 				log_error("Failed to decode '%s'", attribute_name);
 				platform_mem_free((void *)attribute_name);
-				return FAIL;
+				return CC_RESULT_FAIL;
 			}
 
 			len = get_size_of_value(obj_attribute_value);
-			if (platform_mem_alloc((void **)&attribute_value, len) != SUCCESS) {
+			if (platform_mem_alloc((void **)&attribute_value, len) != CC_RESULT_SUCCESS) {
 				log_error("Failed to allocate memory");
 				platform_mem_free((void *)attribute_name);
-				return FAIL;
+				return CC_RESULT_FAIL;
 			}
 			memcpy(attribute_value, obj_attribute_value, len);
 
@@ -257,7 +257,7 @@ static result_t actor_get_managed(char *obj_attributes, char *obj_actor_state, l
 		}
 	}
 
-	if (result != SUCCESS) {
+	if (result != CC_RESULT_SUCCESS) {
 		actor_free_managed(*instance_attributes);
 		*instance_attributes = NULL;
 	}
@@ -275,12 +275,12 @@ static result_t actor_get_shadow_args(char *obj_shadow_args, list_t **instance_a
 		attribute_name = NULL;
 		attribute_value = NULL;
 
-		if (decode_str(attributes, &tmp, &len) != SUCCESS)
-			return FAIL;
+		if (decode_str(attributes, &tmp, &len) != CC_RESULT_SUCCESS)
+			return CC_RESULT_FAIL;
 
-		if (platform_mem_alloc((void **)&attribute_name, len + 1) != SUCCESS) {
+		if (platform_mem_alloc((void **)&attribute_name, len + 1) != CC_RESULT_SUCCESS) {
 			log_error("Failed to allocate memory");
-			return FAIL;
+			return CC_RESULT_FAIL;
 		}
 
 		strncpy(attribute_name, tmp, len);
@@ -289,39 +289,39 @@ static result_t actor_get_shadow_args(char *obj_shadow_args, list_t **instance_a
 		mp_next((const char **)&attributes);
 
 		len = get_size_of_value(attributes);
-		if (platform_mem_alloc((void **)&attribute_value, len) != SUCCESS) {
+		if (platform_mem_alloc((void **)&attribute_value, len) != CC_RESULT_SUCCESS) {
 			log_error("Failed to allocate memory");
 			platform_mem_free((void *)attribute_name);
-			return FAIL;
+			return CC_RESULT_FAIL;
 		}
 		memcpy(attribute_value, attributes, len);
 
-		if (list_add(instance_attributes, attribute_name, attribute_value, len) != SUCCESS) {
+		if (list_add(instance_attributes, attribute_name, attribute_value, len) != CC_RESULT_SUCCESS) {
 			platform_mem_free((void *)attribute_name);
 			platform_mem_free((void *)attribute_value);
-			return FAIL;
+			return CC_RESULT_FAIL;
 		}
 
 		mp_next((const char **)&attributes);
 	}
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static result_t actor_create_ports(node_t *node, actor_t *actor, char *obj_ports, char *obj_prev_connections, port_direction_t direction)
 {
-	result_t result = SUCCESS;
+	result_t result = CC_RESULT_SUCCESS;
 	char *ports = obj_ports, *prev_connections = obj_prev_connections;
 	uint32_t nbr_ports = 0, i_port = 0, nbr_keys = 0, i_key = 0;
 	port_t *port = NULL;
 
 	nbr_ports = mp_decode_map((const char **)&ports);
-	for (i_port = 0; i_port < nbr_ports && result == SUCCESS; i_port++) {
+	for (i_port = 0; i_port < nbr_ports && result == CC_RESULT_SUCCESS; i_port++) {
 		mp_next((const char **)&ports);
 
 		port = port_create(node, actor, ports, prev_connections, direction);
 		if (port == NULL)
-			return FAIL;
+			return CC_RESULT_FAIL;
 
 		if (direction == PORT_DIRECTION_IN)
 			result = list_add(&actor->in_ports, port->id, (void *)port, sizeof(port_t));
@@ -346,7 +346,7 @@ actor_t *actor_create(node_t *node, char *root)
 	uint32_t type_len = 0, id_len = 0, name_len = 0;
 	list_t *instance_attributes = NULL;
 
-	if (platform_mem_alloc((void **)&actor, sizeof(actor_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&actor, sizeof(actor_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
 		return NULL;
 	}
@@ -355,98 +355,98 @@ actor_t *actor_create(node_t *node, char *root)
 
 	actor->calvinsys = node->calvinsys;
 
-	if (get_value_from_map(r, "state", &obj_state) != SUCCESS) {
+	if (get_value_from_map(r, "state", &obj_state) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (decode_string_from_map(obj_state, "actor_type", &type, &type_len) != SUCCESS) {
+	if (decode_string_from_map(obj_state, "actor_type", &type, &type_len) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (actor_init_from_type(actor, type, type_len) != SUCCESS) {
+	if (actor_init_from_type(actor, type, type_len) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (list_add(&node->actors, actor->id, (void *)actor, sizeof(actor_t)) != SUCCESS) {
+	if (list_add(&node->actors, actor->id, (void *)actor, sizeof(actor_t)) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (get_value_from_map(obj_state, "actor_state", &obj_actor_state) != SUCCESS) {
+	if (get_value_from_map(obj_state, "actor_state", &obj_actor_state) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (decode_string_from_map(obj_actor_state, "_id", &id, &id_len) != SUCCESS) {
+	if (decode_string_from_map(obj_actor_state, "_id", &id, &id_len) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 	strncpy(actor->id, id, id_len);
 
-	if (decode_string_from_map(obj_actor_state, "_name", &name, &name_len) != SUCCESS) {
+	if (decode_string_from_map(obj_actor_state, "_name", &name, &name_len) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 	strncpy(actor->name, name, name_len);
 
-	if (get_value_from_map(obj_state, "prev_connections", &obj_prev_connections) != SUCCESS) {
+	if (get_value_from_map(obj_state, "prev_connections", &obj_prev_connections) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (get_value_from_map(obj_actor_state, "inports", &obj_ports) != SUCCESS) {
+	if (get_value_from_map(obj_actor_state, "inports", &obj_ports) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (actor_create_ports(node, actor, obj_ports, obj_prev_connections, PORT_DIRECTION_IN) != SUCCESS) {
+	if (actor_create_ports(node, actor, obj_ports, obj_prev_connections, PORT_DIRECTION_IN) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (get_value_from_map(obj_actor_state, "outports", &obj_ports) != SUCCESS) {
+	if (get_value_from_map(obj_actor_state, "outports", &obj_ports) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (actor_create_ports(node, actor, obj_ports, obj_prev_connections, PORT_DIRECTION_OUT) != SUCCESS) {
+	if (actor_create_ports(node, actor, obj_ports, obj_prev_connections, PORT_DIRECTION_OUT) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (get_value_from_map(obj_actor_state, "_managed", &obj_managed) != SUCCESS) {
+	if (get_value_from_map(obj_actor_state, "_managed", &obj_managed) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
-	if (actor_get_managed(obj_managed, obj_actor_state, &actor->attributes, &instance_attributes) != SUCCESS) {
+	if (actor_get_managed(obj_managed, obj_actor_state, &actor->attributes, &instance_attributes) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
 
 	if (has_key(obj_actor_state, "_shadow_args")) {
 		if (actor->init != NULL) {
-			if (get_value_from_map(obj_actor_state, "_shadow_args", &obj_shadow_args) != SUCCESS) {
+			if (get_value_from_map(obj_actor_state, "_shadow_args", &obj_shadow_args) != CC_RESULT_SUCCESS) {
 				actor_free(node, actor, false);
 				return NULL;
 			}
 
-			if (actor_get_shadow_args(obj_shadow_args, &instance_attributes) != SUCCESS) {
+			if (actor_get_shadow_args(obj_shadow_args, &instance_attributes) != CC_RESULT_SUCCESS) {
 				actor_free(node, actor, false);
 				return NULL;
 			}
 
-			if (actor->init(&actor, instance_attributes) != SUCCESS) {
+			if (actor->init(&actor, instance_attributes) != CC_RESULT_SUCCESS) {
 				actor_free_managed(instance_attributes);
 				actor_free(node, actor, false);
 				return NULL;
 			}
 		}
 	} else {
-		if (actor->set_state != NULL && actor->set_state(&actor, instance_attributes) != SUCCESS) {
+		if (actor->set_state != NULL && actor->set_state(&actor, instance_attributes) != CC_RESULT_SUCCESS) {
 			actor_free_managed(instance_attributes);
 			actor_free(node, actor, false);
 			return NULL;
@@ -454,7 +454,7 @@ actor_t *actor_create(node_t *node, char *root)
 	}
 
 	if (node->transport_client != NULL) {
-		if (proto_send_set_actor(node, actor, actor_set_reply_handler) != SUCCESS) {
+		if (proto_send_set_actor(node, actor, actor_set_reply_handler) != CC_RESULT_SUCCESS) {
 			actor_free_managed(instance_attributes);
 			actor_free(node, actor, false);
 			return NULL;
@@ -479,7 +479,7 @@ void actor_free(node_t *node, actor_t *actor, bool remove_from_registry)
 		actor->will_end(actor);
 
 	if (remove_from_registry) {
-		if (proto_send_remove_actor(node, actor, actor_remove_reply_handler) != SUCCESS)
+		if (proto_send_remove_actor(node, actor, actor_remove_reply_handler) != CC_RESULT_SUCCESS)
 			log_error("Failed to remove actor '%s'", actor->id);
 	}
 
@@ -577,11 +577,11 @@ result_t actor_migrate(node_t *node, actor_t *actor, char *to_rt_uuid, uint32_t 
 		list = list->next;
 	}
 
-	if (proto_send_actor_new(node, actor, to_rt_uuid, to_rt_uuid_len, actor_migrate_reply_handler) == SUCCESS)
-		return SUCCESS;
+	if (proto_send_actor_new(node, actor, to_rt_uuid, to_rt_uuid_len, actor_migrate_reply_handler) == CC_RESULT_SUCCESS)
+		return CC_RESULT_SUCCESS;
 
 	log_error("Failed to migrate actor '%s'", actor->id);
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, bool include_state)
@@ -594,7 +594,7 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, b
 	char *peer_id = NULL;
 
 	if (actor->get_managed_attributes != NULL) {
-		if (actor->get_managed_attributes((actor_t *)actor, &instance_attributes) != SUCCESS)
+		if (actor->get_managed_attributes((actor_t *)actor, &instance_attributes) != CC_RESULT_SUCCESS)
 			log_error("Failed to get instance attributes");
 	}
 

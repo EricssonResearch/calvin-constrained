@@ -205,12 +205,12 @@ static void platform_nrf_in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_pol
 
 result_t platform_stop(node_t *node)
 {
-    return SUCCESS;
+    return CC_RESULT_SUCCESS;
 }
 
 result_t platform_node_started(struct node_t *node)
 {
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 void platform_print(const char *fmt, ...)
@@ -226,16 +226,16 @@ result_t platform_create(node_t *node)
 {
 	char *uri = NULL;
 
-	if (platform_mem_alloc((void **)&uri, 5) != SUCCESS) {
+	if (platform_mem_alloc((void **)&uri, 5) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	strncpy(uri, "lwip", 4);
 	uri[4] = '\0';
 	node->proxy_uris[0] = uri;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static calvin_ingpio_t *platform_init_in_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, char pull, char edge)
@@ -283,7 +283,7 @@ static calvin_ingpio_t *platform_init_in_gpio(calvinsys_io_giohandler_t *gpiohan
 
 			nrf_drv_gpiote_in_event_enable(pin, true);
 
-			if (platform_mem_alloc((void **)&gpiohandler->ingpios[i], sizeof(calvin_ingpio_t)) != SUCCESS) {
+			if (platform_mem_alloc((void **)&gpiohandler->ingpios[i], sizeof(calvin_ingpio_t)) != CC_RESULT_SUCCESS) {
 				log_error("Failed to allocate memory");
 				nrf_drv_gpiote_out_uninit(pin);
 				return NULL;
@@ -305,7 +305,7 @@ static result_t platform_init_out_gpio(uint32_t pin)
 	if (!nrf_drv_gpiote_is_init()) {
 		if (nrf_drv_gpiote_init() != NRF_SUCCESS) {
 			log_error("Failed to initialize gpio");
-			return FAIL;
+			return CC_RESULT_FAIL;
 		}
 	}
 
@@ -313,12 +313,12 @@ static result_t platform_init_out_gpio(uint32_t pin)
 
 	if (nrf_drv_gpiote_out_init(pin, &out_config) != NRF_SUCCESS) {
 		log_error("Failed to initialize gpio");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	log("Initialized gpio '%ld' as output", (unsigned long)pin);
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static void platform_set_gpio(uint32_t pin, uint32_t value)
@@ -329,11 +329,11 @@ static void platform_set_gpio(uint32_t pin, uint32_t value)
 		nrf_drv_gpiote_out_clear(pin);
 }
 
-static void platform_uninit_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, gpio_direction_t direction)
+static void platform_uninit_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, calvin_gpio_direction_t direction)
 {
 	int i = 0;
 
-	if (direction == GPIO_IN)
+	if (direction == CALVIN_GPIO_IN)
 		nrf_drv_gpiote_in_uninit(pin);
 	else
 		nrf_drv_gpiote_out_uninit(pin);
@@ -356,7 +356,7 @@ static result_t platform_get_temperature(double *temp)
 
 	*temp = value / 4;
 
-	return err_code == NRF_SUCCESS ? SUCCESS : FAIL;
+	return err_code == NRF_SUCCESS ? CC_RESULT_SUCCESS : CC_RESULT_FAIL;
 }
 
 static result_t platform_create_sensors_environmental(node_t *node)
@@ -364,9 +364,9 @@ static result_t platform_create_sensors_environmental(node_t *node)
 	char name[] = "calvinsys.sensors.environmental";
 	calvinsys_sensors_environmental_t *sensors_env = NULL;
 
-	if (platform_mem_alloc((void **)&sensors_env, sizeof(calvinsys_sensors_environmental_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&sensors_env, sizeof(calvinsys_sensors_environmental_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	sensors_env->get_temperature = platform_get_temperature;
@@ -392,13 +392,13 @@ static result_t platform_create_io_gpiohandler(node_t *node)
 
 result_t platform_create_calvinsys(node_t *node)
 {
-	if (platform_create_sensors_environmental(node) != SUCCESS)
-		return FAIL;
+	if (platform_create_sensors_environmental(node) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 
-	if (platform_create_io_gpiohandler(node) != SUCCESS)
-		return FAIL;
+	if (platform_create_io_gpiohandler(node) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 void platform_init(void)
@@ -429,7 +429,7 @@ void platform_evt_wait(node_t *node, struct timeval *timeout)
 
 	if (node != NULL && node->transport_client != NULL && node->transport_client->state == TRANSPORT_ENABLED) {
 		if (transport_lwip_has_data(node->transport_client)) {
-			if (transport_handle_data(node, node->transport_client, node_handle_message) != SUCCESS) {
+			if (transport_handle_data(node, node->transport_client, node_handle_message) != CC_RESULT_SUCCESS) {
 				log_error("Failed to read data from transport");
 				node->transport_client->state = TRANSPORT_DISCONNECTED;
 				return;
@@ -443,10 +443,10 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 	*buffer = malloc(size);
 	if (*buffer == NULL) {
 		log_error("Failed to allocate '%ld'", (unsigned long)size);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 void platform_mem_free(void *buffer)

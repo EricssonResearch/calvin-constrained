@@ -27,9 +27,9 @@ struct node_t;
 struct transport_client_t;
 
 typedef enum {
-	GPIO_IN,
-	GPIO_OUT
-} gpio_direction_t;
+	CALVIN_GPIO_IN,
+	CALVIN_GPIO_OUT
+} calvin_gpio_direction_t;
 
 typedef struct calvin_ingpio_t {
 	uint32_t pin;
@@ -43,13 +43,13 @@ typedef struct calvinsys_io_giohandler_t {
 	calvin_ingpio_t *(*init_in_gpio)(struct calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, char pull, char edge);
 	result_t (*init_out_gpio)(uint32_t pin);
   void (*set_gpio)(uint32_t pin, uint32_t value);
-	void (*uninit_gpio)(struct calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, gpio_direction_t direction);
+	void (*uninit_gpio)(struct calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, calvin_gpio_direction_t direction);
 	calvin_ingpio_t *ingpios[MAX_INGPIOS];
 } calvinsys_io_giohandler_t;
 
 typedef struct calvinsys_sensors_environmental_t {
 	result_t (*init_enviromental)(void);
-    result_t (*get_temperature)(double *temp);
+  result_t (*get_temperature)(double *temp);
 	result_t (*get_humidity)(double* humidity);
 	result_t (*get_pressure)(double* pressure);
 } calvinsys_sensors_environmental_t;

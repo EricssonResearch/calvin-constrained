@@ -59,7 +59,7 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 {
 	char *rx_data = NULL, rx_buffer[TRANSPORT_RX_BUFFER_SIZE];
 	int read = 0, read_pos = 0, msg_size = 0, to_read = 0;
-	result_t result = SUCCESS;
+	result_t result = CC_RESULT_SUCCESS;
 
 	memset(rx_buffer, 0, TRANSPORT_RX_BUFFER_SIZE);
 
@@ -77,7 +77,7 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 			read = transport_recv(transport_client, rx_data, to_read);
 			if (read <= 0) {
 				log_error("Failed to read data from transport");
-				return FAIL;
+				return CC_RESULT_FAIL;
 			}
 		}
 
@@ -95,9 +95,9 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 			if (msg_size == (read - read_pos)) {
 				return handler(node, rx_data + read_pos, msg_size);
 			} else if (msg_size > (read - read_pos)) {
-				if (platform_mem_alloc((void **)&transport_client->rx_buffer.buffer, msg_size) != SUCCESS) {
+				if (platform_mem_alloc((void **)&transport_client->rx_buffer.buffer, msg_size) != CC_RESULT_SUCCESS) {
 					log_error("Failed to allocate memory");
-					return FAIL;
+					return CC_RESULT_FAIL;
 				}
 
 				memcpy(transport_client->rx_buffer.buffer, rx_buffer + read_pos, read - read_pos);
@@ -106,8 +106,8 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 				read_pos = 0;
 				read = 0;
 			} else {
-				if (handler(node, rx_data + read_pos, msg_size) != SUCCESS)
-					return FAIL;
+				if (handler(node, rx_data + read_pos, msg_size) != CC_RESULT_SUCCESS)
+					return CC_RESULT_FAIL;
 				read_pos += msg_size;
 			}
 		}
@@ -130,35 +130,35 @@ result_t transport_send(transport_client_t *transport_client, char *buffer, int 
 
 #ifdef USE_TLS
 	if (crypto_tls_send(transport_client, buffer, size) == size)
-		return SUCCESS;
+		return CC_RESULT_SUCCESS;
 	log_error("Failed to send TLS data");
 #else
 	if (transport_client->send(transport_client, buffer, size) == size)
-		return SUCCESS;
+		return CC_RESULT_SUCCESS;
 	log_error("Failed to send data");
 #endif
 
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 result_t transport_join(node_t *node, transport_client_t *transport_client)
 {
 #ifdef USE_TLS
-	if (crypto_tls_init(node->id, transport_client) != SUCCESS) {
+	if (crypto_tls_init(node->id, transport_client) != CC_RESULT_SUCCESS) {
 		log_error("Failed initialize TLS");
 		transport_client->disconnect(node, transport_client);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 #endif
 
-	if (proto_send_join_request(node, transport_client, SERIALIZER) != SUCCESS) {
+	if (proto_send_join_request(node, transport_client, SERIALIZER) != CC_RESULT_SUCCESS) {
 		log_error("Failed to send join request");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	transport_client->state = TRANSPORT_PENDING;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 transport_client_t *transport_create(node_t *node, char *uri)

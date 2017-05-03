@@ -25,7 +25,7 @@
 #endif
 
 #define TRANSPORT_LEN_PREFIX_SIZE	4
-#define TRANSPORT_RX_BUFFER_SIZE	1024
+#define TRANSPORT_RX_BUFFER_SIZE	512
 
 struct node_t;
 

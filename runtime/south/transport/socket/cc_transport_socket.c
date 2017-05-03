@@ -13,30 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifdef LWIP_SOCKET
+#include "lwip/sockets.h"
+#include "lwip/sys.h"
+#include "lwip/netdb.h"
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <string.h>
 #include <strings.h>
 #include <unistd.h>
 #ifdef PLATFORM_ANDROID
 #include <sys/socket.h>
 #endif
+#endif
+#include <string.h>
 #include "cc_transport_socket.h"
 #include "../../../north/cc_transport.h"
 #include "../../../south/platform/cc_platform.h"
 #include "../../../north/cc_node.h"
 
-#define LOCATION_SIZE       100
-#define URL_SIZE            100
-#define URI_SIZE            100
-#define ADDRESS_SIZE        20
-#define IP_SIZE             20
-#define SSDP_MULTICAST      "239.255.255.250"
-#define SSDP_PORT           1900
-#define SERVICE_UUID        "1693326a-abb9-11e4-8dfb-9cb654a16426"
-#define RECV_BUF_SIZE				512
+#ifdef USE_SSDP
+#define LOCATION_SIZE	100
+#define URL_SIZE	100
+#define URI_SIZE	100
+#define ADDRESS_SIZE	20
+#define IP_SIZE		20
+#define SSDP_MULTICAST	"239.255.255.250"
+#define SSDP_PORT	1900
+#define SERVICE_UUID	"1693326a-abb9-11e4-8dfb-9cb654a16426"
+#define RECV_BUF_SIZE	512
 
 static result_t transport_socket_discover_location(char *location)
 {
@@ -63,7 +70,7 @@ static result_t transport_socket_discover_location(char *location)
 	sock = socket(PF_INET, SOCK_DGRAM, 0);
 	if (sock == -1) {
 		log_error("Failed to send ssdp request");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	memset((char *)&sockname, 0, sizeof(struct sockaddr_in));
@@ -76,7 +83,7 @@ static result_t transport_socket_discover_location(char *location)
 	ret = sendto(sock, buffer, strlen(buffer), 0, (struct sockaddr *) &sockname, sizeof(struct sockaddr_in));
 	if (ret != strlen(buffer)) {
 		log_error("Failed to send ssdp request");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	FD_ZERO(&fds);
@@ -84,7 +91,7 @@ static result_t transport_socket_discover_location(char *location)
 
 	if (select(sock + 1, &fds, NULL, NULL, &tv) < 0) {
 		log_error("Failed to receive ssdp response");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	if (FD_ISSET(sock, &fds)) {
@@ -92,7 +99,7 @@ static result_t transport_socket_discover_location(char *location)
 		len = recvfrom(sock, buffer, RECV_BUF_SIZE, MSG_PEEK, &clientsock, &socklen);
 		if (len == -1) {
 			log_error("Failed to receive ssdp response");
-			return FAIL;
+			return CC_RESULT_FAIL;
 		}
 
 		buffer[len] = '\0';
@@ -100,7 +107,7 @@ static result_t transport_socket_discover_location(char *location)
 
 		if (strncmp(buffer, "HTTP/1.1 200 OK", 12) != 0) {
 			log_error("Bad ssdp response");
-			return FAIL;
+			return CC_RESULT_FAIL;
 		}
 
 		location_start = strstr(buffer, "LOCATION:");
@@ -109,7 +116,7 @@ static result_t transport_socket_discover_location(char *location)
 			if (location_end != NULL) {
 				if (strncpy(location, location_start + 10, location_end - (location_start + 10)) != NULL) {
 					location[location_end - (location_start + 10)] = '\0';
-					return SUCCESS;
+					return CC_RESULT_SUCCESS;
 				}
 				log_error("Failed to allocate memory");
 			} else
@@ -119,7 +126,7 @@ static result_t transport_socket_discover_location(char *location)
 	} else
 		log_error("No ssdp response");
 
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 static result_t transport_socket_get_ip_uri(const char *address, int port, const char *url, char *uri)
@@ -134,7 +141,7 @@ static result_t transport_socket_get_ip_uri(const char *address, int port, const
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
 		log_error("Failed to create socket");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	server.sin_addr.s_addr = inet_addr(address);
@@ -143,12 +150,12 @@ static result_t transport_socket_get_ip_uri(const char *address, int port, const
 
 	if (connect(fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
 		log_error("Failed to connect socket");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	if (send(fd, buffer, strlen(buffer), 0) < 0) {
 		log_error("Failed to send data");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	memset(&buffer, 0, RECV_BUF_SIZE);
@@ -157,32 +164,32 @@ static result_t transport_socket_get_ip_uri(const char *address, int port, const
 
 	if (len < 0) {
 		log_error("Failed read from socket");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	buffer[len] = '\0';
 
 	if (strncmp(buffer, "HTTP/1.0 200 OK", 12) != 0) {
 		log_error("Bad response");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	uri_start = strstr(buffer, "calvinip://");
 	if (uri_start == NULL) {
 		log_error("No calvinip interface");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	uri_end = strstr(uri_start, "\"");
 	if (uri_end == NULL) {
 		log_error("Failed to parse interface");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	strncpy(uri, uri_start, uri_end - uri_start);
 	uri[uri_end - uri_start] = '\0';
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static result_t transport_socket_discover_proxy(char *uri)
@@ -192,17 +199,18 @@ static result_t transport_socket_discover_proxy(char *uri)
 	char address[ADDRESS_SIZE];
 	char url[URL_SIZE];
 
-	if (transport_socket_discover_location(location) == SUCCESS) {
+	if (transport_socket_discover_location(location) == CC_RESULT_SUCCESS) {
 		if (sscanf(location, "http://%99[^:]:%99d/%99[^\n]", address, &control_port, url) != 3) {
 			log_error("Failed to parse discovery response");
-			return FAIL;
+			return CC_RESULT_FAIL;
 		}
 
 		return transport_socket_get_ip_uri(address, control_port, url, uri);
 	}
 
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
+#endif
 
 static int transport_socket_send(transport_client_t *transport_client, char *data, size_t size)
 {
@@ -237,7 +245,7 @@ static result_t transport_socket_connect(node_t *node, transport_client_t *trans
 	transport_socket->fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (transport_socket->fd < 0) {
 		log_error("Failed to create socket");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	server.sin_addr.s_addr = inet_addr(transport_socket->ip);
@@ -246,21 +254,24 @@ static result_t transport_socket_connect(node_t *node, transport_client_t *trans
 
 	if (connect(transport_socket->fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
 		log_error("Failed to connect socket");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	transport_client->state = TRANSPORT_CONNECTED;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 transport_client_t *transport_socket_create(node_t *node, char *uri)
 {
+#ifdef USE_SSDP
 	char discovery_result[100];
+#endif
 	transport_client_t *transport_client = NULL;
 	transport_socket_client_t *transport_socket = NULL;
 
-	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) == SUCCESS) {
+	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) == CC_RESULT_SUCCESS) {
+		memset(transport_client, 0, sizeof(transport_client_t));
 		transport_client->transport_type = TRANSPORT_SOCKET_TYPE;
 		transport_client->state = TRANSPORT_INTERFACE_UP;
 		transport_client->rx_buffer.buffer = NULL;
@@ -273,10 +284,11 @@ transport_client_t *transport_socket_create(node_t *node, char *uri)
 		transport_client->free = transport_socket_free;
 		transport_client->prefix_len = TRANSPORT_LEN_PREFIX_SIZE;
 
-		if (platform_mem_alloc((void **)&transport_socket, sizeof(transport_socket_client_t)) == SUCCESS) {
+		if (platform_mem_alloc((void **)&transport_socket, sizeof(transport_socket_client_t)) == CC_RESULT_SUCCESS) {
 			transport_client->client_state = transport_socket;
+#ifdef USE_SSDP
 			if (strncmp(uri, "ssdp", 4) == 0) {
-				if (transport_socket_discover_proxy(discovery_result) == SUCCESS) {
+				if (transport_socket_discover_proxy(discovery_result) == CC_RESULT_SUCCESS) {
 					log("Discovery response '%s'", discovery_result);
 					if (sscanf(discovery_result, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2)
 						return transport_client;
@@ -285,11 +297,14 @@ transport_client_t *transport_socket_create(node_t *node, char *uri)
 				} else
 					log_error("Discovery failed");
 			} else {
+#endif
 				if (sscanf(uri, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2)
 					return transport_client;
 				else
 					log_error("Failed to parse uri '%s'", uri);
+#ifdef USE_SSDP
 			}
+#endif
 			platform_mem_free((void *)transport_socket);
 		} else
 			log_error("Failed to allocate memory");

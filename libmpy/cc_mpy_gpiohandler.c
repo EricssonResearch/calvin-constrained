@@ -64,9 +64,9 @@ static mp_obj_t gpiopin_close(mp_obj_t self_in)
 	cc_mp_gpiopin_t *gpio = self_in;
 
 	if (gpio->gpio != NULL)
-		gpio->gpiohandler->uninit_gpio(gpio->gpiohandler, gpio->pin, GPIO_IN);
+		gpio->gpiohandler->uninit_gpio(gpio->gpiohandler, gpio->pin, CALVIN_GPIO_IN);
 	else
-		gpio->gpiohandler->uninit_gpio(gpio->gpiohandler, gpio->pin, GPIO_OUT);
+		gpio->gpiohandler->uninit_gpio(gpio->gpiohandler, gpio->pin, CALVIN_GPIO_OUT);
 
 	gpio = MP_OBJ_NULL;
 
@@ -104,7 +104,7 @@ static mp_obj_t gpiohandler_open(mp_uint_t n_args, const mp_obj_t *args)
 	pin = mp_obj_get_int(args[1]);
 	dir = (char *)mp_obj_str_get_data(args[2], &len);
 	if (dir[0] == 'o') {
-		if (gpiohandler->init_out_gpio(pin) == SUCCESS) {
+		if (gpiohandler->init_out_gpio(pin) == CC_RESULT_SUCCESS) {
 			gpiopin = m_new_obj(cc_mp_gpiopin_t);
 			memset(gpiopin, 0, sizeof(cc_mp_gpiopin_t));
 			gpiopin->base.type = &gpiopin_type;

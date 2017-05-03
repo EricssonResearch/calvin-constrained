@@ -45,7 +45,7 @@ bool mpy_port_init(uint32_t heap_size)
 {
 	void *heap = NULL;
 
-	if (platform_mem_alloc(&heap, heap_size) != SUCCESS) {
+	if (platform_mem_alloc(&heap, heap_size) != CC_RESULT_SUCCESS) {
 		log_error("Failed allocate MicroPython heap");
 		return false;
 	}
@@ -105,7 +105,7 @@ STATIC mp_obj_t mpy_port_ccmp_peek_token(mp_obj_t mp_actor, mp_obj_t mp_port_nam
 	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
 	if (port != NULL) {
 		token = fifo_peek(&port->fifo);
-		if (decode_to_mpy_obj(token->value, &value) == SUCCESS)
+		if (decode_to_mpy_obj(token->value, &value) == CC_RESULT_SUCCESS)
 			return value;
 	}	else
 		log_error("No port with name '%s'", port_name);
@@ -140,8 +140,8 @@ STATIC mp_obj_t mpy_port_ccmp_write_token(mp_obj_t mp_actor, mp_obj_t mp_port_na
 
 	port = port_get_from_name(actor, port_name, PORT_DIRECTION_OUT);
 	if (port != NULL) {
-		if (encode_from_mpy_obj(&token.value, &token.size, mp_value) == SUCCESS) {
-			if (fifo_write(&port->fifo, token.value, token.size) != SUCCESS)
+		if (encode_from_mpy_obj(&token.value, &token.size, mp_value) == CC_RESULT_SUCCESS) {
+			if (fifo_write(&port->fifo, token.value, token.size) != CC_RESULT_SUCCESS)
 				log_error("Failed to write token to port '%s'", port_name);
 			free_token(&token);
 		}

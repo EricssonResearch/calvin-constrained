@@ -28,7 +28,7 @@
 
 result_t decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 {
-	result_t result = FAIL;
+	result_t result = CC_RESULT_FAIL;
 	char *tmp_string = NULL;
 	uint32_t len = 0, u_num = 0;
 	int32_t num = 0;
@@ -39,47 +39,47 @@ result_t decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 	switch (mp_typeof(*buffer)) {
 	case MP_NIL:
 		*value = mp_const_none;
-		return SUCCESS;
+		return CC_RESULT_SUCCESS;
 	case MP_STR:
 		result = decode_str(buffer, &tmp_string, &len);
-		if (result == SUCCESS) {
+		if (result == CC_RESULT_SUCCESS) {
 			*value = mp_obj_new_str(tmp_string, len, 0);
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		break;
 	case MP_UINT:
 		result = decode_uint(buffer, &u_num);
-		if (result == SUCCESS) {
+		if (result == CC_RESULT_SUCCESS) {
 			*value = mp_obj_new_int_from_uint(u_num);
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		break;
 	case MP_INT:
 		result = decode_int(buffer, &num);
-		if (result == SUCCESS) {
+		if (result == CC_RESULT_SUCCESS) {
 			*value = mp_obj_new_int(num);
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		break;
 	case MP_BOOL:
 		result = decode_bool(buffer, &b);
-		if (result == SUCCESS) {
+		if (result == CC_RESULT_SUCCESS) {
 			*value = mp_obj_new_bool(b);
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		break;
 	case MP_FLOAT:
 		result = decode_float(buffer, &f);
-		if (result == SUCCESS) {
+		if (result == CC_RESULT_SUCCESS) {
 			*value = mp_obj_new_float(f);
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		break;
 	case MP_DOUBLE:
 		result = decode_double(buffer, &d);
-		if (result == SUCCESS) {
+		if (result == CC_RESULT_SUCCESS) {
 			*value = mp_obj_new_float(d);
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		break;
 	default:
@@ -101,76 +101,76 @@ result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t input)
 	if (MP_OBJ_IS_SMALL_INT(input)) {
 		unum = MP_OBJ_SMALL_INT_VALUE(input);
 		*size = mp_sizeof_uint(unum);
-		if (platform_mem_alloc((void **)buffer, *size) == SUCCESS) {
+		if (platform_mem_alloc((void **)buffer, *size) == CC_RESULT_SUCCESS) {
 			tmp = *buffer;
 			mp_encode_uint(*buffer, unum);
 			buffer = &tmp;
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
-		return FAIL;
+		return CC_RESULT_FAIL;
 	} else if (MP_OBJ_IS_INT(input)) {
 		num = mp_obj_get_int(input);
 		*size = mp_sizeof_int(num);
-		if (platform_mem_alloc((void **)buffer, *size) == SUCCESS) {
+		if (platform_mem_alloc((void **)buffer, *size) == CC_RESULT_SUCCESS) {
 			tmp = *buffer;
 			mp_encode_int(*buffer, num);
 			buffer = &tmp;
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
-		return FAIL;
+		return CC_RESULT_FAIL;
 	} else if (mp_obj_is_float(input)) {
 		d = mp_obj_float_get(input);
 		*size = mp_sizeof_double(d);
-		if (platform_mem_alloc((void **)buffer, *size) == SUCCESS) {
+		if (platform_mem_alloc((void **)buffer, *size) == CC_RESULT_SUCCESS) {
 			tmp = *buffer;
 			mp_encode_double(*buffer, d);
 			buffer = &tmp;
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
-		return FAIL;
+		return CC_RESULT_FAIL;
 	} else if (MP_OBJ_IS_TYPE(input, &mp_type_bool)) {
 		b = mp_obj_new_bool(mp_obj_get_int(input));
 		*size = mp_sizeof_bool(b);
-		if (platform_mem_alloc((void **)buffer, *size) == SUCCESS) {
+		if (platform_mem_alloc((void **)buffer, *size) == CC_RESULT_SUCCESS) {
 			tmp = *buffer;
 			mp_encode_bool(*buffer, b);
 			buffer = &tmp;
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
-		return FAIL;
+		return CC_RESULT_FAIL;
 	} else if (MP_OBJ_IS_TYPE(input, &mp_type_NoneType)) {
 		*size = mp_sizeof_nil();
 		*buffer = (char *)malloc(*size);
-		if (platform_mem_alloc((void **)buffer, *size) == SUCCESS) {
+		if (platform_mem_alloc((void **)buffer, *size) == CC_RESULT_SUCCESS) {
 			tmp = *buffer;
 			mp_encode_nil(*buffer);
 			buffer = &tmp;
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
-		return FAIL;
+		return CC_RESULT_FAIL;
 	} else if (MP_OBJ_IS_STR(input)) {
 		str = mp_obj_get_type_str(input);
 		*size = mp_sizeof_str(strlen(str));
-		if (platform_mem_alloc((void **)buffer, *size) == SUCCESS) {
+		if (platform_mem_alloc((void **)buffer, *size) == CC_RESULT_SUCCESS) {
 			tmp = *buffer;
 			mp_encode_str(*buffer, str, strlen(str));
 			buffer = &tmp;
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	input = MP_OBJ_NULL;
 
 	log_error("Encoding not supported for the data type");
 
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 static result_t actor_mpy_init(actor_t **actor, list_t *attributes)
@@ -180,7 +180,7 @@ static result_t actor_mpy_init(actor_t **actor, list_t *attributes)
 	ccmp_state_actor_t *state = (ccmp_state_actor_t *)(*actor)->instance_state;
 	mp_obj_t args[2 + 2 * nbr_of_attributes];
 	mp_obj_t tmp = MP_OBJ_NULL;
-	result_t result = SUCCESS;
+	result_t result = CC_RESULT_SUCCESS;
 	int i = 0;
 	mp_obj_t actor_init_method[2];
 
@@ -189,7 +189,7 @@ static result_t actor_mpy_init(actor_t **actor, list_t *attributes)
 	args[0] = actor_init_method[0];
 	args[1] = actor_init_method[1];
 
-	while (list != NULL && result == SUCCESS) {
+	while (list != NULL && result == CC_RESULT_SUCCESS) {
 		tmp = mp_obj_new_str(list->id, strlen(list->id), true);
 		j += 2;
 		args[j] = tmp;
@@ -204,14 +204,14 @@ static result_t actor_mpy_init(actor_t **actor, list_t *attributes)
 	for (i = 0; i < j; i++)
 		args[i] = MP_OBJ_NULL;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static result_t actor_mpy_set_state(actor_t **actor, list_t *attributes)
 {
 	uint32_t nbr_of_attributes = list_count(attributes);
 	ccmp_state_actor_t *state = (ccmp_state_actor_t *)(*actor)->instance_state;
-	result_t result = SUCCESS;
+	result_t result = CC_RESULT_SUCCESS;
 	uint32_t item = 0;
 	list_t *list = attributes;
 	mp_obj_t value = MP_OBJ_NULL;
@@ -223,11 +223,11 @@ static result_t actor_mpy_set_state(actor_t **actor, list_t *attributes)
 	py_managed_list = mp_obj_new_list(nbr_of_attributes, NULL);
 	mp_store_attr(state->actor_class_instance, QSTR_FROM_STR_STATIC("_managed"), py_managed_list);
 	log_debug("in actor_mpy_set_state, after creating _managed list and associate it with actor instance");
-	while (list != NULL && result == SUCCESS) {
+	while (list != NULL && result == CC_RESULT_SUCCESS) {
 		q_attr = QSTR_FROM_STR_STATIC(list->id);
 		attr = mp_obj_new_str(list->id, strlen(list->id), true);
 		result = decode_to_mpy_obj((char *)list->data, &value);
-		if (result == SUCCESS) {
+		if (result == CC_RESULT_SUCCESS) {
 			mp_obj_list_store(py_managed_list, MP_OBJ_NEW_SMALL_INT(item), attr);
 			mp_store_attr(state->actor_class_instance, q_attr, value);
 			item++;
@@ -258,7 +258,7 @@ static result_t actor_mpy_get_managed_attributes(actor_t *actor, list_t **attrib
 	mp_load_method(state->actor_class_instance, QSTR_FROM_STR_STATIC("_managed"), mpy_attr);
 	if (mpy_attr[0] == MP_OBJ_NULL && mpy_attr[1] == MP_OBJ_NULL) {
 		log_debug("No managed variables");
-		return SUCCESS;
+		return CC_RESULT_SUCCESS;
 	}
 
 	managed_list = MP_OBJ_TO_PTR(mpy_attr[0]);
@@ -272,16 +272,16 @@ static result_t actor_mpy_get_managed_attributes(actor_t *actor, list_t **attrib
 			continue;
 		}
 
-		if (encode_from_mpy_obj(&packed_value, &size, mpy_attr[0]) != SUCCESS)
-			return FAIL;
+		if (encode_from_mpy_obj(&packed_value, &size, mpy_attr[0]) != CC_RESULT_SUCCESS)
+			return CC_RESULT_FAIL;
 
-		if (list_add_n(attributes, (char *)name, len, packed_value, size) != SUCCESS) {
+		if (list_add_n(attributes, (char *)name, len, packed_value, size) != CC_RESULT_SUCCESS) {
 			platform_mem_free(packed_value);
-			return FAIL;
+			return CC_RESULT_FAIL;
 		}
 	}
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static bool actor_mpy_fire(actor_t *actor)
@@ -371,9 +371,9 @@ result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 
 	sprintf(instance_name, "actor_obj%d", counter++);
 
-	if (platform_mem_alloc((void **)&state, sizeof(ccmp_state_actor_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&state, sizeof(ccmp_state_actor_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 	memset(state, 0, sizeof(ccmp_state_actor_t));
 	actor->instance_state = (void *)state;
@@ -415,7 +415,7 @@ result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	actor->will_end = actor_mpy_will_end;
 	actor->did_migrate = actor_mpy_did_migrate;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 #endif

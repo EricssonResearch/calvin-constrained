@@ -60,29 +60,29 @@ result_t list_add_n(list_t **head, char *id, uint32_t len, void *data, uint32_t 
 {
 	char *name = NULL;
 
-	if (platform_mem_alloc((void **)&name, sizeof(char) * (len + 1)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&name, sizeof(char) * (len + 1)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	strncpy(name, id, len);
 	name[len] = '\0';
 
-	if (list_add(head, name, data, data_len) == FAIL) {
+	if (list_add(head, name, data, data_len) == CC_RESULT_FAIL) {
 		platform_mem_free(name);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 result_t list_add(list_t **head, char *id, void *data, uint32_t data_len)
 {
 	list_t *new_item = NULL, *tmp = NULL;
 
-	if (platform_mem_alloc((void **)&new_item, sizeof(list_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&new_item, sizeof(list_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	new_item->id = id;
@@ -99,7 +99,7 @@ result_t list_add(list_t **head, char *id, void *data, uint32_t data_len)
 		tmp->next = new_item;
 	}
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 void list_remove(list_t **head, const char *id)

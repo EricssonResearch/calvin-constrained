@@ -29,9 +29,9 @@
 #define SERIALIZER				"msgpack"
 
 typedef enum {
-	SUCCESS,
-	FAIL,
-	PENDING
+	CC_RESULT_SUCCESS,
+	CC_RESULT_FAIL,
+	CC_RESULT_PENDING
 } result_t;
 
 // list with a string identifier

@@ -29,7 +29,7 @@ static mp_obj_t environmental_get_temperature(mp_obj_t self_in)
 	cc_mp_environmental_t *environmental = self_in;
 	double temperature = 0;
 
-	if (environmental->environmental->get_temperature(&temperature) != SUCCESS) {
+	if (environmental->environmental->get_temperature(&temperature) != CC_RESULT_SUCCESS) {
 		log_error("Failed to get temperature");
 		return mp_const_none;
 	}

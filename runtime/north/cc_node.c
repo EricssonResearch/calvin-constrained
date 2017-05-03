@@ -75,34 +75,34 @@ static void node_reset(node_t *node, bool remove_actors)
 #ifdef USE_PERSISTENT_STORAGE
 static bool node_get_state(node_t *node)
 {
-	result_t result = FAIL;
+	result_t result = CC_RESULT_FAIL;
 	char buffer[NODE_STATE_BUFFER_SIZE], *value = NULL, *array_value = NULL;
 	uint32_t i = 0, value_len = 0, array_size = 0, state = 0;
 	link_t *link = NULL;
 	tunnel_t *tunnel = NULL;
 	actor_t *actor = NULL;
 
-	if (platform_read_node_state(node, buffer, NODE_STATE_BUFFER_SIZE) == SUCCESS) {
+	if (platform_read_node_state(node, buffer, NODE_STATE_BUFFER_SIZE) == CC_RESULT_SUCCESS) {
 		result = decode_uint_from_map(buffer, "state", &state);
-		if (result == SUCCESS)
+		if (result == CC_RESULT_SUCCESS)
 			node->state = (node_state_t)state;
 
 		result = decode_string_from_map(buffer, "id", &value, &value_len);
-		if (result == SUCCESS)
+		if (result == CC_RESULT_SUCCESS)
 			strncpy(node->id, value, value_len);
 
 		result = decode_string_from_map(buffer, "name", &value, &value_len);
-		if (result == SUCCESS)
+		if (result == CC_RESULT_SUCCESS)
 			strncpy(node->name, value, value_len);
 
-		if (result == SUCCESS) {
-			if (get_value_from_map(buffer, "links", &array_value) == SUCCESS) {
+		if (result == CC_RESULT_SUCCESS) {
+			if (get_value_from_map(buffer, "links", &array_value) == CC_RESULT_SUCCESS) {
 				array_size = get_size_of_array(array_value);
 				for (i = 0; i < array_size; i++) {
-					if (get_value_from_array(array_value, i, &value) == SUCCESS) {
+					if (get_value_from_array(array_value, i, &value) == CC_RESULT_SUCCESS) {
 						link = link_deserialize(node, value);
 						if (link == NULL) {
-							result = FAIL;
+							result = CC_RESULT_FAIL;
 							break;
 						}
 						if (link->is_proxy)
@@ -112,14 +112,14 @@ static bool node_get_state(node_t *node)
 			}
 		}
 
-		if (result == SUCCESS) {
-			if (get_value_from_map(buffer, "tunnels", &array_value) == SUCCESS) {
+		if (result == CC_RESULT_SUCCESS) {
+			if (get_value_from_map(buffer, "tunnels", &array_value) == CC_RESULT_SUCCESS) {
 				array_size = get_size_of_array(array_value);
 				for (i = 0; i < array_size; i++) {
-					if (get_value_from_array(array_value, i, &value) == SUCCESS) {
+					if (get_value_from_array(array_value, i, &value) == CC_RESULT_SUCCESS) {
 						tunnel = tunnel_deserialize(node, value);
 						if (tunnel == NULL) {
-							result = FAIL;
+							result = CC_RESULT_FAIL;
 							break;
 						}
 						if (tunnel->type == TUNNEL_TYPE_STORAGE)
@@ -129,14 +129,14 @@ static bool node_get_state(node_t *node)
 			}
 		}
 
-		if (result == SUCCESS) {
-			if (get_value_from_map(buffer, "actors", &array_value) == SUCCESS) {
+		if (result == CC_RESULT_SUCCESS) {
+			if (get_value_from_map(buffer, "actors", &array_value) == CC_RESULT_SUCCESS) {
 				array_size = get_size_of_array(array_value);
 				for (i = 0; i < array_size; i++) {
-					if (get_value_from_array(array_value, i, &value) == SUCCESS) {
+					if (get_value_from_array(array_value, i, &value) == CC_RESULT_SUCCESS) {
 						actor = actor_create(node, value);
 						if (actor == NULL) {
-							result = FAIL;
+							result = CC_RESULT_FAIL;
 							break;
 						}
 					}
@@ -144,13 +144,13 @@ static bool node_get_state(node_t *node)
 			}
 		}
 
-		if (result == FAIL) {
+		if (result == CC_RESULT_FAIL) {
 			log_error("Failed to decode runtime state");
 			node_reset(node, true);
 		}
 	}
 
-	return result == SUCCESS ? true : false;
+	return result == CC_RESULT_SUCCESS ? true : false;
 }
 
 void node_set_state(node_t *node)
@@ -211,12 +211,12 @@ result_t node_add_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_le
 			strncpy(node->pending_msgs[i].msg_uuid, msg_uuid, msg_uuid_len);
 			node->pending_msgs[i].handler = handler;
 			node->pending_msgs[i].msg_data = msg_data;
-			return SUCCESS;
+			return CC_RESULT_SUCCESS;
 		}
 	}
 
 	log_error("Pending msg queue is full");
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 result_t node_remove_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_len)
@@ -228,13 +228,13 @@ result_t node_remove_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid
 			if (strncmp(node->pending_msgs[i].msg_uuid, msg_uuid, msg_uuid_len) == 0) {
 				node->pending_msgs[i].handler = NULL;
 				node->pending_msgs[i].msg_data = NULL;
-				return SUCCESS;
+				return CC_RESULT_SUCCESS;
 			}
 		}
 	}
 
 	log_error("No pending msg with id '%s'", msg_uuid);
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 result_t node_get_pending_msg(node_t *node, const char *msg_uuid, uint32_t msg_uuid_len, pending_msg_t *pending_msg)
@@ -245,13 +245,13 @@ result_t node_get_pending_msg(node_t *node, const char *msg_uuid, uint32_t msg_u
 		if (node->pending_msgs[i].handler != NULL) {
 			if (strncmp(node->pending_msgs[i].msg_uuid, msg_uuid, msg_uuid_len) == 0) {
 				*pending_msg = node->pending_msgs[i];
-				return SUCCESS;
+				return CC_RESULT_SUCCESS;
 			}
 		}
 	}
 
 	log_error("No pending msg with id '%s'", msg_uuid);
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 bool node_can_add_pending_msg(const node_t *node)
@@ -271,26 +271,26 @@ static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_dat
 	uint32_t status;
 	char *value = NULL;
 
-	if (get_value_from_map(data, "value", &value) == SUCCESS) {
-		if (decode_uint_from_map(value, "status", &status) == SUCCESS) {
+	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
+		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
 			if (status == 200) {
 				log("Node started with proxy '%s'", node->transport_client->peer_id);
 				node->state = NODE_STARTED;
 				platform_node_started(node);
-				return SUCCESS;
+				return CC_RESULT_SUCCESS;
 			}
 			log_error("Failed to setup node, status '%d'", (int)status);
 		}
 	}
 
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 result_t node_handle_token(port_t *port, const char *data, const size_t size, uint32_t sequencenbr)
 {
 	if (port->actor->state == ACTOR_ENABLED)
 		return fifo_com_write(&port->fifo, data, size, sequencenbr);
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, port_reply_type_t reply_type, uint32_t sequencenbr)
@@ -309,7 +309,7 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 
 result_t node_handle_message(node_t *node, char *buffer, size_t len)
 {
-	if (proto_parse_message(node, buffer) == SUCCESS) {
+	if (proto_parse_message(node, buffer) == CC_RESULT_SUCCESS) {
 #ifdef USE_PERSISTENT_STORAGE
 #ifdef PERSISTENT_STORAGE_CHECKPOINTING
 		// message successfully handled == state changed -> serialize the node
@@ -317,11 +317,11 @@ result_t node_handle_message(node_t *node, char *buffer, size_t len)
 			node_set_state(node);
 #endif
 #endif
-		return SUCCESS;
+		return CC_RESULT_SUCCESS;
 	}
 
 	log_error("Failed to handle message");
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 static result_t node_setup(node_t *node, char *name)
@@ -331,7 +331,7 @@ static result_t node_setup(node_t *node, char *name)
 		log("Node created from previous state, id '%s' name '%s'",
 				node->id,
 				node->name);
-		return SUCCESS;
+		return CC_RESULT_SUCCESS;
 	}
 #endif
 
@@ -340,12 +340,12 @@ static result_t node_setup(node_t *node, char *name)
 #ifdef USE_TLS
 	char domain[50];
 
-	if (crypto_get_node_info(domain, node->name, node->id) == SUCCESS) {
+	if (crypto_get_node_info(domain, node->name, node->id) == CC_RESULT_SUCCESS) {
 		log("Node created from certificate, domain: '%s' id '%s' name '%s'",
 				domain,
 				node->id,
 				node->name);
-		return SUCCESS;
+		return CC_RESULT_SUCCESS;
 	}
 #endif
 
@@ -357,7 +357,7 @@ static result_t node_setup(node_t *node, char *name)
 		strncpy(node->name, "constrained", 12);
 
 	log("Node created, id '%s' name '%s'", node->id, node->name);
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static result_t node_connect_to_proxy(node_t *node, char *uri)
@@ -368,26 +368,26 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	if (node->transport_client == NULL) {
 		node->transport_client = transport_create(node, uri);
 		if (node->transport_client == NULL)
-			return FAIL;
+			return CC_RESULT_FAIL;
 	}
 
 	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_INTERFACE_DOWN)
 		platform_evt_wait(node, NULL);
 
-	if (node->state == NODE_STOP || node->transport_client->connect(node, node->transport_client) != SUCCESS)
-		return FAIL;
+	if (node->state == NODE_STOP || node->transport_client->connect(node, node->transport_client) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 
 	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_PENDING)
 		platform_evt_wait(node, NULL);
 
-	if (transport_join(node, node->transport_client) != SUCCESS)
-		return FAIL;
+	if (transport_join(node, node->transport_client) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 
 	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_PENDING)
 		platform_evt_wait(node, NULL);
 
 	if (node->state == NODE_STOP || node->transport_client->state != TRANSPORT_ENABLED)
-		return FAIL;
+		return CC_RESULT_FAIL;
 
 	peer_id = node->transport_client->peer_id;
 	peer_id_len = strlen(peer_id);
@@ -399,7 +399,7 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 		node->proxy_link = link_create(node, peer_id, peer_id_len, true);
 		if (node->proxy_link == NULL) {
 			log_error("Failed to create proxy link");
-			return FAIL;
+			return CC_RESULT_FAIL;
 		}
 	}
 
@@ -407,23 +407,23 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 		node->storage_tunnel = tunnel_create(node, TUNNEL_TYPE_STORAGE, TUNNEL_DISCONNECTED, peer_id, peer_id_len, NULL, 0);
 		if (node->storage_tunnel == NULL) {
 			log_error("Failed to create storage tunnel");
-			return FAIL;
+			return CC_RESULT_FAIL;
 		}
 		tunnel_add_ref(node->storage_tunnel);
 	}
 
-	if (proto_send_node_setup(node, node_setup_reply_handler) != SUCCESS)
-		return FAIL;
+	if (proto_send_node_setup(node, node_setup_reply_handler) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 
 	while (node->state != NODE_STARTED && node->state != NODE_STOP)
 		platform_evt_wait(node, NULL);
 
 	if (node->state != NODE_STARTED) {
 		log_error("Failed to setup proxy");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 result_t node_init(node_t *node, char *name, char *proxy_uris)
@@ -444,19 +444,19 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 
 	log("Initializing node");
 
-	if (platform_create(node) != SUCCESS) {
+	if (platform_create(node) != CC_RESULT_SUCCESS) {
 		log_error("Failed to create platform object");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	if (platform_create_calvinsys(node) != SUCCESS) {
+	if (platform_create_calvinsys(node) != CC_RESULT_SUCCESS) {
 		log_error("Failed to create calvinsys object");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	if (node_setup(node, name) != SUCCESS) {
+	if (node_setup(node, name) != CC_RESULT_SUCCESS) {
 		log_error("Failed to setup node");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	if (proxy_uris != NULL) {
@@ -470,7 +470,7 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 
 	log("Node initialized");
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 result_t node_run(node_t *node)
@@ -480,7 +480,7 @@ result_t node_run(node_t *node)
 
 	if (node->fire_actors == NULL) {
 		log_error("No actor scheduler set");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	while (node->state != NODE_STOP) {
@@ -488,7 +488,7 @@ result_t node_run(node_t *node)
 			if (node->proxy_uris[i] != NULL) {
 				log("Connecting to '%s'", node->proxy_uris[i]);
 				node->state = NODE_DO_START;
-				if (node_connect_to_proxy(node, node->proxy_uris[i]) == SUCCESS) {
+				if (node_connect_to_proxy(node, node->proxy_uris[i]) == CC_RESULT_SUCCESS) {
 					log("Connected to '%s'", node->proxy_uris[i]);
 					while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_ENABLED) {
 						if (node->state == NODE_STARTED) {
@@ -516,5 +516,5 @@ result_t node_run(node_t *node)
 	}
 
 	log("Node stopped");
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }

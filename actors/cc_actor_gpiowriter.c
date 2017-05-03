@@ -27,32 +27,32 @@ result_t actor_gpiowriter_init(actor_t **actor, list_t *attributes)
 	char *data = NULL;
 
 	data = (char *)list_get(attributes, "gpio_pin");
-	if (data == NULL || decode_uint(data, &pin) != SUCCESS) {
+	if (data == NULL || decode_uint(data, &pin) != CC_RESULT_SUCCESS) {
 		log_error("Failed to get 'gpio_pin'");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	gpiohandler = (calvinsys_io_giohandler_t *)list_get((*actor)->calvinsys, "calvinsys.io.gpiohandler");
 	if (gpiohandler == NULL) {
 		log_error("calvinsys.io.gpiohandler is not supported");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	if (gpiohandler->init_out_gpio(pin) != SUCCESS) {
+	if (gpiohandler->init_out_gpio(pin) != CC_RESULT_SUCCESS) {
 		log("Failed to init gpio");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	if (platform_mem_alloc((void **)&state, sizeof(state_gpiowriter_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&state, sizeof(state_gpiowriter_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	state->pin = pin;
 	state->gpiohandler = gpiohandler;
 	(*actor)->instance_state = (void *)state;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 result_t actor_gpiowriter_set_state(actor_t **actor, list_t *attributes)
@@ -71,7 +71,7 @@ bool actor_gpiowriter_fire(struct actor_t *actor)
 	if (fifo_tokens_available(&inport->fifo, 1) == 1) {
 		in_token = fifo_peek(&inport->fifo);
 
-		if (token_decode_uint(*in_token, &in_data) == SUCCESS) {
+		if (token_decode_uint(*in_token, &in_data) == CC_RESULT_SUCCESS) {
 			gpiohandler->set_gpio(gpio_state->pin, in_data);
 			fifo_commit_read(&inport->fifo);
 			return true;
@@ -89,12 +89,12 @@ void actor_gpiowriter_free(actor_t *actor)
 	state_gpiowriter_t *gpio_state = (state_gpiowriter_t *)actor->instance_state;
 	calvinsys_io_giohandler_t *gpiohandler = gpio_state->gpiohandler;
 
-	gpiohandler->uninit_gpio(gpiohandler, gpio_state->pin, GPIO_OUT);
+	gpiohandler->uninit_gpio(gpiohandler, gpio_state->pin, CALVIN_GPIO_OUT);
 	platform_mem_free((void *)gpio_state);
 }
 
 result_t actor_gpiowriter_get_managed_attributes(actor_t *actor, list_t **attributes)
 {
 	// TODO: Implement
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }

@@ -24,15 +24,15 @@ result_t token_set_data(token_t *token, const char *data, const size_t size)
 {
 	if (size > MAX_TOKEN_SIZE) {
 		log_error("Token data '%zu' to big", size);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
-	if (platform_mem_alloc((void **)&token->value, size) == SUCCESS) {
+	if (platform_mem_alloc((void **)&token->value, size) == CC_RESULT_SUCCESS) {
 		memcpy(token->value, data, size);
 		token->size = size;
-		return SUCCESS;
+		return CC_RESULT_SUCCESS;
 	}
 
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 char *token_encode(char **buffer, token_t token, bool with_key)
@@ -54,7 +54,7 @@ char *token_encode(char **buffer, token_t token, bool with_key)
 void token_set_double(token_t *token, const double value)
 {
 	token->size = mp_sizeof_double(value);
-	if (platform_mem_alloc((void **)&(token->value), token->size) == SUCCESS)
+	if (platform_mem_alloc((void **)&(token->value), token->size) == CC_RESULT_SUCCESS)
 		mp_encode_double(token->value, value);
 	else
 		log_error("Failed to allocate memory");
@@ -63,7 +63,7 @@ void token_set_double(token_t *token, const double value)
 void token_set_uint(token_t *token, const uint32_t value)
 {
 	token->size = mp_sizeof_uint(value);
-	if (platform_mem_alloc((void **)&(token->value), token->size) == SUCCESS)
+	if (platform_mem_alloc((void **)&(token->value), token->size) == CC_RESULT_SUCCESS)
 		mp_encode_uint(token->value, value);
 	else
 		log_error("Failed to allocate memory");
@@ -75,10 +75,10 @@ result_t token_decode_uint(token_t token, uint32_t *value)
 
 	if (mp_typeof(*data) == MP_UINT) {
 		*value = mpk_decode_uint((const char **)&data);
-		return SUCCESS;
+		return CC_RESULT_SUCCESS;
 	}
 
-	return FAIL;
+	return CC_RESULT_FAIL;
 }
 
 void free_token(token_t *token)

@@ -30,7 +30,7 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, boo
 	if (link != NULL)
 		return link;
 
-	if (platform_mem_alloc((void **)&link, sizeof(link_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&link, sizeof(link_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
 		return NULL;
 	}
@@ -41,7 +41,7 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, boo
 	strncpy(link->peer_id, peer_id, peer_id_len);
 	link->ref_count = 0;
 
-	if (list_add(&node->links, link->peer_id, (void *)link, sizeof(link_t)) != SUCCESS) {
+	if (list_add(&node->links, link->peer_id, (void *)link, sizeof(link_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to add link");
 		platform_mem_free((void *)link);
 		return NULL;
@@ -69,10 +69,10 @@ link_t *link_deserialize(node_t *node, char *buffer)
 	uint32_t len = 0;
 	bool is_proxy = false;
 
-	if (decode_string_from_map(buffer, "peer_id", &peer_id, &len) != SUCCESS)
+	if (decode_string_from_map(buffer, "peer_id", &peer_id, &len) != CC_RESULT_SUCCESS)
 		return NULL;
 
-	if (decode_bool_from_map(buffer, "is_proxy", &is_proxy) != SUCCESS)
+	if (decode_bool_from_map(buffer, "is_proxy", &is_proxy) != CC_RESULT_SUCCESS)
 		return NULL;
 
 	return link_create(node, peer_id, len, is_proxy);

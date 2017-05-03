@@ -57,10 +57,10 @@ int main(int argc, char **argv)
 	}
 #endif
 
-	if (api_runtime_init(&node, name, proxy_uris, "./") != SUCCESS)
+	if (api_runtime_init(&node, name, proxy_uris, "./") != CC_RESULT_SUCCESS)
 		return EXIT_FAILURE;
 
-	if (api_runtime_start(node) != SUCCESS)
+	if (api_runtime_start(node) != CC_RESULT_SUCCESS)
 		return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;

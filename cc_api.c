@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <string.h>
 #include <unistd.h>
 #include "cc_api.h"
@@ -22,7 +21,6 @@
 #include "libmpy/cc_mpy_port.h"
 #endif
 
-
 result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char *storage_dir)
 {
 	platform_init();
@@ -30,13 +28,13 @@ result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char *sto
 #ifdef MICROPYTHON
 	if (!mpy_port_init(MICROPYTHON_HEAP_SIZE)) {
 		log_error("Failed to initialize micropython lib");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 #endif
 
-	if (platform_mem_alloc((void **)node, sizeof(node_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)node, sizeof(node_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 	memset(*node, 0, sizeof(node_t));
 	(*node)->storage_dir = storage_dir;
@@ -49,13 +47,14 @@ result_t api_runtime_start(node_t *node)
 {
 	node_run(node);
 	platform_stop(node);
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 result_t api_runtime_stop(node_t *node)
 {
 	node->state = NODE_STOP;
-	return SUCCESS;
+	platform_mem_free((void *)node);
+	return CC_RESULT_SUCCESS;
 }
 
 result_t api_runtime_serialize_and_stop(node_t *node)
@@ -64,8 +63,7 @@ result_t api_runtime_serialize_and_stop(node_t *node)
 	if (node->state == NODE_STARTED)
 		node_set_state(node);
 #endif
-	node->state = NODE_STOP;
-	return SUCCESS;
+	return api_runtime_stop(node);
 }
 
 #ifdef USE_PERSISTENT_STORAGE
@@ -79,8 +77,8 @@ result_t api_clear_serialization_file(char *filedir)
 		strcat(abs_filepath, "/");
 	strcat(abs_filepath, filename);
 	if (unlink(abs_filepath) < 0)
-		return FAIL;
-	return SUCCESS;
+		return CC_RESULT_FAIL;
+	return CC_RESULT_SUCCESS;
 }
 #endif
 
@@ -88,5 +86,5 @@ result_t api_reconnect(node_t *node)
 {
 	if (node->transport_client->state == TRANSPORT_ENABLED)
 		node->transport_client->state = TRANSPORT_INTERFACE_DOWN;
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }

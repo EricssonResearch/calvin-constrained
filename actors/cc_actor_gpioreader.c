@@ -30,42 +30,42 @@ result_t actor_gpioreader_init(actor_t **actor, list_t *attributes)
 	gpiohandler = (calvinsys_io_giohandler_t *)list_get((*actor)->calvinsys, "calvinsys.io.gpiohandler");
 	if (gpiohandler == NULL) {
 		log_error("calvinsys.io.gpiohandler is not supported");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	data = (char *)list_get(attributes, "gpio_pin");
-	if (data == NULL || decode_uint((char *)data, &pin) != SUCCESS) {
+	if (data == NULL || decode_uint((char *)data, &pin) != CC_RESULT_SUCCESS) {
 		log_error("Failed to get 'gpio_pin'");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	data = (char *)list_get(attributes, "pull");
-	if (data == NULL || decode_str(data, (char **)&pull, &len) != SUCCESS) {
+	if (data == NULL || decode_str(data, (char **)&pull, &len) != CC_RESULT_SUCCESS) {
 		log_error("Failed to get 'pull'");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	data = (char *)list_get(attributes, "edge");
-	if (data == NULL || decode_str(data, (char **)&edge, &len) != SUCCESS) {
+	if (data == NULL || decode_str(data, (char **)&edge, &len) != CC_RESULT_SUCCESS) {
 		log_error("Failed to get 'edge'");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
-	if (platform_mem_alloc((void **)&state, sizeof(state_gpioreader_t)) != SUCCESS) {
+	if (platform_mem_alloc((void **)&state, sizeof(state_gpioreader_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	state->gpio = gpiohandler->init_in_gpio(gpiohandler, pin, pull[0], edge[0]);
 	if (state->gpio == NULL) {
 		log_error("Failed create gpio");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 	state->gpiohandler = gpiohandler;
 
 	(*actor)->instance_state = (void *)state;
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 result_t actor_gpioreader_set_state(actor_t **actor, list_t *attributes)
@@ -82,7 +82,7 @@ bool actor_gpioreader_fire(struct actor_t *actor)
 	if (gpio_state->gpio->has_triggered) {
 		if (fifo_slots_available(&outport->fifo, 1) == 1) {
 			token_set_uint(&out_token, gpio_state->gpio->value);
-			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == SUCCESS) {
+			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == CC_RESULT_SUCCESS) {
 				gpio_state->gpio->has_triggered = false;
 				return true;
 			}
@@ -97,11 +97,11 @@ void actor_gpioreader_free(actor_t *actor)
 	state_gpioreader_t *gpio_state = (state_gpioreader_t *)actor->instance_state;
 	calvinsys_io_giohandler_t *gpiohandler = gpio_state->gpiohandler;
 
-	gpiohandler->uninit_gpio(gpiohandler, gpio_state->gpio->pin, GPIO_IN);
+	gpiohandler->uninit_gpio(gpiohandler, gpio_state->gpio->pin, CALVIN_GPIO_IN);
 	platform_mem_free((void *)gpio_state);
 }
 
 result_t actor_gpioreader_get_managed_attributes(actor_t *actor, list_t **attributes)
 {
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }

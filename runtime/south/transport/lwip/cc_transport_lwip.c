@@ -44,7 +44,7 @@ static result_t transport_lwip_convert_mac_to_link_local(const char *mac, char *
 		"fe80::%02lx%02lx:%02lxff:fe%02lx:%02lx%02lx",
 		col1, col2, col3, col4, col5, col6);
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static void transport_lwip_error_handler(void *arg, err_t err)
@@ -175,20 +175,20 @@ static result_t transport_lwip_connect(node_t *node, transport_client_t *transpo
 	err_t err;
 	char ip[40];
 
-	if (transport_lwip_convert_mac_to_link_local(transport_lwip->mac, ip) != SUCCESS) {
+	if (transport_lwip_convert_mac_to_link_local(transport_lwip->mac, ip) != CC_RESULT_SUCCESS) {
 		log_error("Failed to convert MAC address '%s'", transport_lwip->mac);
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	if (!ip6addr_aton(ip, &ipv6_addr)) {
 		log_error("Failed to convert IP address");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	err = tcp_connect_ip6(transport_lwip->tcp_port, &ipv6_addr, 5000, transport_lwip_connection_callback);
 	if (err != ERR_OK) {
 		log_error("Failed to connect socket");
-		return FAIL;
+		return CC_RESULT_FAIL;
 	}
 
 	log("TCP connection requested to %s:%d.", ip, 5000);
@@ -196,7 +196,7 @@ static result_t transport_lwip_connect(node_t *node, transport_client_t *transpo
 	transport_lwip_wait_for_state(transport_client, TRANSPORT_CONNECTED);
 	log("TCP connected to %s:%d.", ip, 5000);
 
-	return SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 static void transport_lwip_disconnect(node_t *node, transport_client_t *transport_client)
@@ -217,7 +217,7 @@ transport_client_t *transport_lwip_create(node_t *node, char *uri)
 {
 	transport_lwip_client_t *transport_lwip = NULL;
 
-	if (platform_mem_alloc(&transport_lwip, sizeof(transport_lwip_client_t)) != SUCCESS) {
+	if (platform_mem_alloc(&transport_lwip, sizeof(transport_lwip_client_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
 		return NULL;
 	}

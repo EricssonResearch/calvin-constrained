@@ -11,6 +11,9 @@ All functionality included in the standard Calvin implementation is not feasible
 The state of the implementation is experimental and it goes without saying that it should not be used in production in its current state, but it does provide an excellent starting point for further experimentation.
 
 ## Clone
+
+Clone recursively to include used submodules:
+
 ```
 git clone --recursive https://github.com/EricssonResearch/calvin-constrained.git
 ```
