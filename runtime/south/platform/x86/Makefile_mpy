@@ -7,14 +7,12 @@ MP_LIB_DIR = libmpy
 CFLAGS += -g -Wall
 CFLAGS += -Werror
 CFLAGS += --std=gnu99
-#CFLAGS += -DDEBUG
-#CFLAGS += -DDEBUG_MEM
-CFLAGS += -DPARSE_ARGS
 ifneq ($(PLATFORM), Darwin)
 CFLAGS += -lrt
 endif
-CFLAGS += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -DMICROPYTHON -DMICROPYTHON_HEAP_SIZE=20*1024
-CFLAGS += -DUSE_PERSISTENT_STORAGE -DPERSISTENT_STORAGE_CHECKPOINTING -DCC_RUNTIME_STATE_BUFFER_SIZE=10000 -DTRANSPORT_SOCKET
+CFLAGS += -DCC_GETOPT_ENABLED
+CFLAGS += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -DCC_PYTHON_ENABLED -DCC_PYTHON_HEAP_SIZE=20*1024
+CFLAGS += -DCC_STORAGE_ENABLED -DCC_STATE_CHECKPOINTING -DCC_RUNTIME_STATE_BUFFER_SIZE=10000 -DCC_TRANSPORT_SOCKET
 EXT_SRC_C = $(addprefix libmpy/, cc_mpy_port.c cc_mpy_gpiohandler.c cc_mpy_environmental.c)
 
 C_SOURCE_FILES += \

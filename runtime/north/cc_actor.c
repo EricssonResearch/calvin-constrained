@@ -29,11 +29,11 @@
 #include "cc_msgpack_helper.h"
 #include "../../msgpuck/msgpuck.h"
 #include "cc_proto.h"
-#ifdef MICROPYTHON
+#ifdef CC_PYTHON_ENABLED
 #include "../../actors/cc_actor_mpy.h"
 #endif
 
-#ifndef MICROPYTHON
+#ifndef CC_PYTHON_ENABLED
 #define NBR_OF_ACTOR_TYPES 5
 
 struct actor_type_t {
@@ -176,7 +176,7 @@ result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	actor->will_end = NULL;
 	actor->did_migrate = NULL;
 
-#ifdef MICROPYTHON
+#ifdef CC_PYTHON_ENABLED
 	if (actor_mpy_init_from_type(actor, actor->type, type_len) == CC_RESULT_SUCCESS)
 		return CC_RESULT_SUCCESS;
 #else

@@ -30,10 +30,6 @@
 #include "calvinsys/accelerometer.h"
 #include "../../../north/cc_msgpack_helper.h"
 #include "../../../../calvinsys/cc_calvinsys.h"
-#ifdef SLEEP_AT_UNACTIVITY
-#include "time.h"
-time_t last_activity;
-#endif
 
 static result_t external_calvinsys_init(calvinsys_t* calvinsys);
 static result_t external_calvinsys_release(calvinsys_t* calvinsys);
@@ -171,19 +167,23 @@ static int platform_android_socket_fd_handler(int fd, int events, void *data)
 	return 1; // Always return 1, since 0  will unregister the FD in the looper
 }
 
-void platform_evt_wait(node_t *node, uint32_t timeout_seconds)
+#ifdef CC_DEEPSLEEP_ENABLED
+void platform_deepsleep(node_t *node)
 {
-#ifdef SLEEP_AT_UNACTIVITY
-	time_t current_time;
+	log("Going to deepsleep state, runtime will stop!");
+}
 #endif
+
+bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
+{
 	android_platform_t *platform = (android_platform_t*)node->platform;
-	int status = 0, timeout_trigger = 5000;
+	int status = 0;
 	int platform_trigger_id = 2, socket_transport_trigger_id = 3;
 
 	if (node->transport_client == NULL || timeout_seconds > 0) {
 		// Sleep for some time before reconnect
 		sleep(timeout_seconds);
-		return;
+		return false;
 	}
 
 	// Add FD for FCM and platform communications
@@ -200,19 +200,10 @@ void platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 		}
 	}
 
-	status = ALooper_pollOnce(timeout_trigger, NULL, NULL, NULL);
+	if (ALooper_pollOnce(timeout_seconds, NULL, NULL, NULL) == ALOOPER_POLL_CALLBACK)
+    return true;
 
-#ifdef SLEEP_AT_UNACTIVITY
-	current_time = time(NULL);
-	if (status == ALOOPER_POLL_TIMEOUT) {
-		if (difftime(current_time, last_activity) >= ((double)PLATFORM_ANDROID_UNACTIVITY_TIMEOUT)) {
-			log("platform timeout triggered");
-			api_runtime_serialize_and_stop(node);
-		}
-	} else {
-		last_activity = current_time;
-	}
-#endif
+  return false;
 }
 
 void platform_print(const char *fmt, ...)
@@ -441,9 +432,6 @@ result_t platform_create_calvinsys(struct node_t *node)
 
 void platform_init(void)
 {
-#ifdef SLEEP_AT_UNACTIVITY
-	last_activity = time(NULL);
-#endif
 	srand(time(NULL));
 }
 
@@ -493,7 +481,7 @@ void platform_mem_free(void *buffer)
 	free(buffer);
 }
 
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 void platform_write_node_state(node_t *node, char *buffer, size_t size)
 {
 	FILE *fp = NULL;

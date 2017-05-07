@@ -20,7 +20,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "cc_common.h"
-#ifdef USE_TLS
+#ifdef CC_TLS_ENABLED
 #include "../../crypto/cc_crypto.h"
 #endif
 
@@ -74,7 +74,7 @@ typedef struct transport_client_t {
 	transport_buffer_t rx_buffer; // used to assemble fragmented messages
 	void *client_state;
 	uint8_t prefix_len;
-#ifdef USE_TLS
+#ifdef CC_TLS_ENABLED
 	crypto_t crypto;
 #endif
 	result_t (*connect)(struct node_t *node, struct transport_client_t *transport_client);

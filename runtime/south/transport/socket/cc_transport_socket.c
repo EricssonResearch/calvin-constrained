@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifdef LWIP_SOCKET
+#ifdef CC_LWIP_SOCKET
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include "lwip/netdb.h"
@@ -24,7 +24,7 @@
 #include <arpa/inet.h>
 #include <strings.h>
 #include <unistd.h>
-#ifdef PLATFORM_ANDROID
+#ifdef CC_PLATFORM_ANDROID
 #include <sys/socket.h>
 #endif
 #endif
@@ -34,7 +34,7 @@
 #include "../../../south/platform/cc_platform.h"
 #include "../../../north/cc_node.h"
 
-#ifdef USE_SSDP
+#ifdef CC_TRANSPORT_SOCKET_SSDP_ENABLED
 #define LOCATION_SIZE	100
 #define URL_SIZE	100
 #define URI_SIZE	100
@@ -264,7 +264,7 @@ static result_t transport_socket_connect(node_t *node, transport_client_t *trans
 
 transport_client_t *transport_socket_create(node_t *node, char *uri)
 {
-#ifdef USE_SSDP
+#ifdef CC_TRANSPORT_SOCKET_SSDP_ENABLED
 	char discovery_result[100];
 #endif
 	transport_client_t *transport_client = NULL;
@@ -286,7 +286,7 @@ transport_client_t *transport_socket_create(node_t *node, char *uri)
 
 		if (platform_mem_alloc((void **)&transport_socket, sizeof(transport_socket_client_t)) == CC_RESULT_SUCCESS) {
 			transport_client->client_state = transport_socket;
-#ifdef USE_SSDP
+#ifdef CC_TRANSPORT_SOCKET_SSDP_ENABLED
 			if (strncmp(uri, "ssdp", 4) == 0) {
 				if (transport_socket_discover_proxy(discovery_result) == CC_RESULT_SUCCESS) {
 					log("Discovery response '%s'", discovery_result);
@@ -302,7 +302,7 @@ transport_client_t *transport_socket_create(node_t *node, char *uri)
 					return transport_client;
 				else
 					log_error("Failed to parse uri '%s'", uri);
-#ifdef USE_SSDP
+#ifdef CC_TRANSPORT_SOCKET_SSDP_ENABLED
 			}
 #endif
 			platform_mem_free((void *)transport_socket);

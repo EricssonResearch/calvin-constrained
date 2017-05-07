@@ -17,7 +17,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "cc_api.h"
-#ifdef PARSE_ARGS
+#ifdef CC_GETOPT_ENABLED
 #include <getopt.h>
 #endif
 
@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 {
 	char *name = NULL, *proxy_uris = NULL;
 	node_t *node = NULL;
-#ifdef PARSE_ARGS
+#ifdef CC_GETOPT_ENABLED
 	int c = 0;
 	static struct option long_options[] = {
 		{"name", required_argument, NULL, 'n'},

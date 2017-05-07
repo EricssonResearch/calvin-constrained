@@ -157,17 +157,17 @@ result_t platform_stop(struct node_t* node);
  */
 result_t platform_node_started(struct node_t* node);
 
-#ifdef CC_PLATFORM_SLEEP
+#ifdef CC_DEEPSLEEP_ENABLED
 /**
- * platform_sleep() - Enter platform sleep state.
+ * platform_deepsleep() - Enter platform deep sleep state.
  * @node the node
  */
-void platform_sleep(struct node_t *node);
+void platform_deepsleep(struct node_t *node);
 #endif
 
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 /**
- * platform_write_node_state() - Write serialized node state to persistent media.
+ * platform_write_node_state() - Write serialized node state to nonvolatile memory.
  * @buffer the serialized data to write
  * @size the size of the serialized dat
  */
@@ -195,7 +195,7 @@ result_t platform_read_node_state(struct node_t* node, char buffer[], size_t siz
 int platform_random_vector_generate(void *ctx, unsigned char *buffer, size_t size);
 #endif
 
-#ifdef DEBUG
+#ifdef CC_DEBUG
 #define log_debug(a, args...) platform_print("DEBUG: %s(%s:%d) "a"",  __func__, __FILE__, __LINE__, ##args)
 #else
 #define log_debug(a, args...) do {} while (0)

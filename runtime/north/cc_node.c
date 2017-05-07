@@ -24,7 +24,7 @@
 #include "cc_msgpack_helper.h"
 #include "../../msgpuck/msgpuck.h"
 #include "../south/platform/cc_platform.h"
-#ifdef USE_TLS
+#ifdef CC_TLS_ENABLED
 #include "../../crypto/cc_crypto.h"
 #endif
 
@@ -70,7 +70,7 @@ static void node_reset(node_t *node, bool remove_actors)
 	}
 }
 
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 static bool node_get_state(node_t *node)
 {
 	result_t result = CC_RESULT_FAIL;
@@ -285,7 +285,7 @@ static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_dat
 	return CC_RESULT_FAIL;
 }
 
-#ifdef CC_PLATFORM_SLEEP
+#ifdef CC_DEEPSLEEP_ENABLED
 static result_t node_enter_sleep_reply_handler(node_t *node, char *data, void *msg_data)
 {
 	uint32_t status;
@@ -295,14 +295,14 @@ static result_t node_enter_sleep_reply_handler(node_t *node, char *data, void *m
 		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
 			if (status == 200) {
 				log("Node going to deep sleep");
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 				node_set_state(node);
 #else
 				// TODO: Move actors to proxy while sleeping and when notifying proxy
 				// of wake up, move actors back
 #endif
 				node->state = NODE_STOP;
-				platform_sleep(node);
+				platform_deepsleep(node);
 			} else
 				log_error("Failed to request sleep");
 			return CC_RESULT_SUCCESS;
@@ -338,12 +338,10 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 result_t node_handle_message(node_t *node, char *buffer, size_t len)
 {
 	if (proto_parse_message(node, buffer) == CC_RESULT_SUCCESS) {
-#ifdef USE_PERSISTENT_STORAGE
-#ifdef PERSISTENT_STORAGE_CHECKPOINTING
+#if defined(CC_STORAGE_ENABLED) && defined(CC_STATE_CHECKPOINTING)
 		// message successfully handled == state changed -> serialize the node
 		if (node->state == NODE_STARTED)
 			node_set_state(node);
-#endif
 #endif
 		return CC_RESULT_SUCCESS;
 	}
@@ -354,7 +352,7 @@ result_t node_handle_message(node_t *node, char *buffer, size_t len)
 
 static result_t node_setup(node_t *node, char *name)
 {
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 	if (node_get_state(node)) {
 		log("Node created from previous state, id '%s' name '%s'",
 				node->id,
@@ -365,7 +363,7 @@ static result_t node_setup(node_t *node, char *name)
 
 	node->state = NODE_DO_START;
 
-#ifdef USE_TLS
+#ifdef CC_TLS_ENABLED
 	char domain[50];
 
 	if (crypto_get_node_info(domain, node->name, node->id) == CC_RESULT_SUCCESS) {
@@ -515,7 +513,7 @@ result_t node_run(node_t *node)
 					while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_ENABLED) {
 						if (node->state == NODE_STARTED)
 							node->fire_actors(node);
-#ifdef CC_PLATFORM_SLEEP
+#ifdef CC_DEEPSLEEP_ENABLED
 						if (!platform_evt_wait(node, CC_INACTIVITY_TIMEOUT)) {
 							log("Requesting sleep");
 							if (proto_send_node_setup(node, true, node_enter_sleep_reply_handler) == CC_RESULT_SUCCESS)

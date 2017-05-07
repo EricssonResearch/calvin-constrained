@@ -24,7 +24,7 @@ result_t api_runtime_start(node_t* node);
 result_t api_runtime_stop(node_t* node);
 result_t api_runtime_serialize_and_stop(node_t* node);
 result_t api_reconnect(node_t* node);
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 result_t api_clear_serialization_file(char* filedir);
 #endif
 #endif /* API_H */

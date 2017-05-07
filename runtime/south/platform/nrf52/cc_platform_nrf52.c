@@ -30,7 +30,7 @@
 #include "iot_timer.h"
 #include "ipv6_medium.h"
 #include "nrf_drv_gpiote.h"
-#ifdef USE_TLS
+#ifdef CC_TLS_ENABLED
 #include "nrf_drv_rng.h"
 #endif
 #include "../cc_platform.h"
@@ -456,7 +456,7 @@ void platform_mem_free(void *buffer)
 	free(buffer);
 }
 
-#ifdef USE_TLS
+#ifdef CC_TLS_ENABLED
 int platform_random_vector_generate(void *ctx, unsigned char *buffer, size_t size)
 {
 	uint8_t available;

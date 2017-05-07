@@ -3,7 +3,7 @@
 Place the certificate, cert.pem, and the private key, private.key, in the root of the calvin-constrained repository and enable TLS with:
 
 ```
-CFLAGS += -DUSE_TLS
+CFLAGS += -DCC_TLS_ENABLED
 INC_PATHS  = -Imbedtls/include
 ```
 

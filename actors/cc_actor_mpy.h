@@ -16,7 +16,7 @@
 #ifndef ACTOR_MPY_H
 #define ACTOR_MPY_H
 
-#ifdef MICROPYTHON
+#ifdef CC_PYTHON_ENABLED
 
 #include "../runtime/north/cc_actor.h"
 #include "py/runtime.h"

@@ -19,13 +19,13 @@
 #include "cc_node.h"
 #include "cc_proto.h"
 #include "../south/platform/cc_platform.h"
-#ifdef TRANSPORT_SOCKET
+#ifdef CC_TRANSPORT_SOCKET
 #include "../south/transport/socket/cc_transport_socket.h"
 #endif
-#ifdef TRANSPORT_LWIP
+#ifdef CC_TRANSPORT_LWIP
 #include "../south/transport/lwip/cc_transport_lwip.h"
 #endif
-#ifdef PLATFORM_ANDROID
+#ifdef CC_TRANSPORT_FCM
 #include "../south/transport/fcm/cc_transport_fcm.h"
 #endif
 
@@ -41,7 +41,7 @@ unsigned int transport_get_message_len(const char *buffer)
 
 static int transport_recv(transport_client_t *transport_client, char *buffer, size_t size)
 {
-#ifdef USE_TLS
+#ifdef CC_TLS_ENABLED
 	return crypto_tls_recv(transport_client, buffer, size);
 #endif
 	return transport_client->recv(transport_client, buffer, size);
@@ -128,7 +128,7 @@ result_t transport_send(transport_client_t *transport_client, char *buffer, int 
 {
 	transport_set_length_prefix(buffer, size - TRANSPORT_LEN_PREFIX_SIZE);
 
-#ifdef USE_TLS
+#ifdef CC_TLS_ENABLED
 	if (crypto_tls_send(transport_client, buffer, size) == size)
 		return CC_RESULT_SUCCESS;
 	log_error("Failed to send TLS data");
@@ -143,7 +143,7 @@ result_t transport_send(transport_client_t *transport_client, char *buffer, int 
 
 result_t transport_join(node_t *node, transport_client_t *transport_client)
 {
-#ifdef USE_TLS
+#ifdef CC_TLS_ENABLED
 	if (crypto_tls_init(node->id, transport_client) != CC_RESULT_SUCCESS) {
 		log_error("Failed initialize TLS");
 		transport_client->disconnect(node, transport_client);
@@ -163,16 +163,16 @@ result_t transport_join(node_t *node, transport_client_t *transport_client)
 
 transport_client_t *transport_create(node_t *node, char *uri)
 {
-#ifdef TRANSPORT_SOCKET
+#ifdef CC_TRANSPORT_SOCKET
 	if (strncmp(uri, "calvinip://", 11) == 0 || strncmp(uri, "ssdp", 4) == 0)
 		return transport_socket_create(node, uri);
 #endif
 
-#ifdef TRANSPORT_LWIP
+#ifdef CC_TRANSPORT_LWIP
 	if (strncmp(uri, "lwip", 4) == 0)
 		return transport_lwip_create(node);
 #endif
-#ifdef TRANSPORT_FCM
+#ifdef CC_TRANSPORT_FCM
 	if (strncmp(uri, "calvinfcm://", 12) == 0)
 		return transport_fcm_create(node, uri);
 #endif

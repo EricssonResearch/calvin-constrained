@@ -177,9 +177,10 @@ OUTPUT_BINARY_DIRECTORY = $(OBJECT_DIRECTORY)
 # Sorting removes duplicates
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY) $(LISTING_DIRECTORY) )
 
-#flags common to all targets
-CFLAGS  = -DTRANSPORT_LWIP
-#CFLAGS += -DDEBUG
+CFLAGS  = -DCC_TRANSPORT_LWIP
+CFLAGS += -DCC_PYTHON_ENABLED
+CFLAGS += -DCC_PYTHON_HEAP_SIZE=10*1024
+
 CFLAGS += -D__HEAP_SIZE=14336
 CFLAGS += -DSWI_DISABLE0
 CFLAGS += -DSOFTDEVICE_PRESENT
@@ -196,9 +197,6 @@ CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 # keep every function in separate section. This will allow linker to dump unused functions
 CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 CFLAGS += -fno-builtin --short-enums
-# Micropython variables
-CFLAGS += -DMICROPYTHON
-CFLAGS += -DMICROPYTHON_HEAP_SIZE=10*1024
 # keep every function in separate section. This will allow linker to dump unused functions
 LDFLAGS += -Xlinker -Map=$(LISTING_DIRECTORY)/$(OUTPUT_FILENAME).map
 LDFLAGS += -mthumb -mabi=aapcs -L $(TEMPLATE_PATH) -T$(LINKER_SCRIPT)

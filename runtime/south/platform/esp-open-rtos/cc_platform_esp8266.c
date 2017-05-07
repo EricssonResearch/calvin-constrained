@@ -42,7 +42,7 @@ void platform_init(void)
 	log("%20s: %u Mbytes", "Flash size", sdk_flashchip.chip_size / 1024 / 1024);
 	log("----------------------------------------");
 
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 	esp_spiffs_init();
 	if (esp_spiffs_mount() != SPIFFS_OK) {
     log_error("Failed to mount SPIFFS");
@@ -162,7 +162,7 @@ result_t platform_node_started(struct node_t* node)
 	return CC_RESULT_SUCCESS;
 }
 
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 void platform_write_node_state(struct node_t* node, char *buffer, size_t size)
 {
   spiffs_file fd = SPIFFS_open(&fs, CALVIN_RUNTIME_STATE_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
@@ -190,8 +190,8 @@ result_t platform_read_node_state(struct node_t* node, char buffer[], size_t siz
 }
 #endif
 
-#ifdef CC_PLATFORM_SLEEP
-void platform_sleep(node_t *node)
+#ifdef CC_DEEPSLEEP_ENABLED
+void platform_deepsleep(node_t *node)
 {
 	log("Enterring system deep sleep for '%d' seconds", CC_SLEEP_TIME);
 	sdk_system_deep_sleep(CC_SLEEP_TIME * 1000 * 1000);

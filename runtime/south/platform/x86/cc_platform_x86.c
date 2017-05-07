@@ -234,14 +234,14 @@ void platform_mem_free(void *buffer)
 	free(buffer);
 }
 
-#ifdef CC_PLATFORM_SLEEP
-void platform_sleep(node_t *node)
+#ifdef CC_DEEPSLEEP_ENABLED
+void platform_deepsleep(node_t *node)
 {
-	log("Going to deep sleep, runtime needs to be restarted");
+	log("Going to deepsleep state, runtime will stop!");
 }
 #endif
 
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 void platform_write_node_state(node_t *node, char *buffer, size_t size)
 {
 	FILE *fp = NULL;

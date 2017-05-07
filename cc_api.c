@@ -17,7 +17,7 @@
 #include <unistd.h>
 #include "cc_api.h"
 #include "errno.h"
-#ifdef MICROPYTHON
+#ifdef CC_PYTHON_ENABLED
 #include "libmpy/cc_mpy_port.h"
 #endif
 
@@ -25,8 +25,8 @@ result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char *sto
 {
 	platform_init();
 
-#ifdef MICROPYTHON
-	if (!mpy_port_init(MICROPYTHON_HEAP_SIZE)) {
+#ifdef CC_PYTHON_ENABLED
+	if (!mpy_port_init(CC_PYTHON_HEAP_SIZE)) {
 		log_error("Failed to initialize micropython lib");
 		return CC_RESULT_FAIL;
 	}
@@ -59,14 +59,14 @@ result_t api_runtime_stop(node_t *node)
 
 result_t api_runtime_serialize_and_stop(node_t *node)
 {
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 	if (node->state == NODE_STARTED)
 		node_set_state(node);
 #endif
 	return api_runtime_stop(node);
 }
 
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 result_t api_clear_serialization_file(char *filedir)
 {
 	char *filename = "calvinconstrained.config";

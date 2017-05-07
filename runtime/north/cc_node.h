@@ -41,9 +41,9 @@ typedef struct pending_msg_t {
 } pending_msg_t;
 
 typedef struct node_attributes_t {
-    list_t *indexed_public_owner;
-    list_t *indexed_public_address;
-    list_t *indexed_public_node_name;
+  list_t *indexed_public_owner;
+  list_t *indexed_public_address;
+  list_t *indexed_public_node_name;
 } node_attributes_t;
 
 typedef struct node_t {
@@ -74,7 +74,7 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 result_t node_handle_message(node_t *node, char *buffer, size_t len);
 result_t node_init(node_t* node, char *name, char *proxy_uris);
 result_t node_run(node_t *node);
-#ifdef USE_PERSISTENT_STORAGE
+#ifdef CC_STORAGE_ENABLED
 void node_set_state(node_t *node);
 #endif
 #endif /* NODE_H */

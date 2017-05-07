@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#ifdef MICROPYTHON
+#ifdef CC_PYTHON_ENABLED
 
 #include <stddef.h>
 #include <string.h>
@@ -296,7 +296,7 @@ static bool actor_mpy_fire(actor_t *actor)
 	res = MP_OBJ_NULL;
 
 	gc_collect();
-#ifdef DEBUG_MEM
+#ifdef CC_DEBUG_MEM
 	gc_dump_info();
 #endif
 
@@ -315,7 +315,7 @@ static void actor_mpy_free_state(actor_t *actor)
 	}
 
 	gc_collect();
-#ifdef DEBUG_MEM
+#ifdef CC_DEBUG_MEM
 	gc_dump_info();
 #endif
 }
