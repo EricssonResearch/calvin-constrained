@@ -171,7 +171,7 @@ static int platform_android_socket_fd_handler(int fd, int events, void *data)
 	return 1; // Always return 1, since 0  will unregister the FD in the looper
 }
 
-void platform_evt_wait(node_t *node, struct timeval *timeout)
+void platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 {
 #ifdef SLEEP_AT_UNACTIVITY
 	time_t current_time;
@@ -180,9 +180,9 @@ void platform_evt_wait(node_t *node, struct timeval *timeout)
 	int status = 0, timeout_trigger = 5000;
 	int platform_trigger_id = 2, socket_transport_trigger_id = 3;
 
-	if (node->transport_client == NULL || timeout != NULL) {
+	if (node->transport_client == NULL || timeout_seconds > 0) {
 		// Sleep for some time before reconnect
-		sleep(timeout->tv_sec);
+		sleep(timeout_seconds);
 		return;
 	}
 
@@ -292,7 +292,7 @@ static result_t platform_register_external_calvinsys(node_t *node, char *data, s
 	}
 
 	// Send new proxy config if successful
-	return proto_send_node_setup(node, node_setup_reply_handler);
+	return proto_send_node_setup(node, false, node_setup_reply_handler);
 }
 
 static result_t platform_handle_external_calvinsys_data(node_t *node, char *data, size_t size)

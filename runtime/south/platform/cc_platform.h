@@ -87,7 +87,7 @@ void platform_print(const char *fmt, ...);
  * Called when the node has been created to create a platform object
  * on node->platform.
  *
- * Return: SUCCESS/FAILURE
+ * Return: CC_RESULT_SUCCESS/CC_RESULT_FAILURE
  */
 result_t platform_create(struct node_t* node);
 
@@ -98,7 +98,7 @@ result_t platform_create(struct node_t* node);
  * Called when node is starting to create calvinsys objects, the
  * calvinsys objects should be added to node->calvinsys.
  *
- * Return: SUCCESS/FAILURE
+ * Return: CC_RESULT_SUCCESS/CC_RESULT_FAILURE
  */
 result_t platform_create_calvinsys(struct node_t *node);
 
@@ -107,7 +107,7 @@ result_t platform_create_calvinsys(struct node_t *node);
  * @buffer buffer to allocate
  * @size size of the memory block to allocate
  *
- * Return: SUCCESS/FAILURE
+ * Return: CC_RESULT_SUCCESS/CC_RESULT_FAILURE
  */
 result_t platform_mem_alloc(void **buffer, uint32_t size);
 
@@ -129,33 +129,47 @@ void platform_mem_free(void *buffer);
 /**
  * platform_evt_wait() - Wait for an event
  * @node the node
- * @timeout time to block waiting for an event
+ * @timeout_seconds time in seconds to block waiting for an event
  *
  * The call should block waiting for:
  * - Data is available on a transport interface, received data from a transport interface is
  *   handled by calling transport_handle_data defined in transport.h.
  * - A event from a platform function has triggered (such as a timer expiring or a digitial input toggling).
  * - The timeout expires.
+ *
+ * Return: true if triggered, false if timeout triggered
  */
-void platform_evt_wait(struct node_t *node, struct timeval *timeout);
+bool platform_evt_wait(struct node_t *node, uint32_t timeout_seconds);
 
 /**
  * platform_stop() - Called when the platform stops
  * @node the node
+ *
+ * Return: CC_RESULT_SUCCESS/CC_RESULT_FAILURE
  */
 result_t platform_stop(struct node_t* node);
 
 /**
  * platform_node_started() - Called when the node has started
  * @node the node
+ *
+ * Return: CC_RESULT_SUCCESS/CC_RESULT_FAILURE
  */
 result_t platform_node_started(struct node_t* node);
+
+#ifdef CC_PLATFORM_SLEEP
+/**
+ * platform_sleep() - Enter platform sleep state.
+ * @node the node
+ */
+void platform_sleep(struct node_t *node);
+#endif
 
 #ifdef USE_PERSISTENT_STORAGE
 /**
  * platform_write_node_state() - Write serialized node state to persistent media.
  * @buffer the serialized data to write
- * @size the size of the serialized data
+ * @size the size of the serialized dat
  */
 void platform_write_node_state(struct node_t* node, char *buffer, size_t size);
 

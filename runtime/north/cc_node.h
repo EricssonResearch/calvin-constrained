@@ -41,9 +41,9 @@ typedef struct pending_msg_t {
 } pending_msg_t;
 
 typedef struct node_attributes_t {
-    list_t* indexed_public_owner;
-    list_t* indexed_public_address;
-    list_t* indexed_public_node_name;
+    list_t *indexed_public_owner;
+    list_t *indexed_public_address;
+    list_t *indexed_public_node_name;
 } node_attributes_t;
 
 typedef struct node_t {

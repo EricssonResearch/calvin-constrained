@@ -74,11 +74,11 @@ result_t proto_send_join_request(const node_t *node, transport_client_t *transpo
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_node_setup(node_t *node, bool will_sleep, result_t (*handler)(node_t*, char*, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE], name[] = "name";
 	list_t *calvinsys = node->calvinsys;
-	uint32_t nbr_of_capabilities = 0;
+	uint32_t nbr_of_capabilities = 0, nbr_of_attributes = 9;
 	int map_count = 0;
 	list_t *list;
 
@@ -92,19 +92,23 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 		calvinsys = calvinsys->next;
 	}
 
+	if (node->attributes != NULL)
+		nbr_of_attributes = nbr_of_attributes + 1;
+
 	w = buffer + node->transport_client->prefix_len;
-	w = mp_encode_map(w, node->attributes == NULL ? 8 : 9);
+	w = mp_encode_map(w, nbr_of_attributes);
 	{
 		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
 		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
 		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
 		w = encode_str(&w, "cmd", "PROXY_CONFIG", strlen("PROXY_CONFIG"));
 		w = encode_str(&w, "name", node->name, strlen(node->name));
+		w = encode_bool(&w, "will_sleep", will_sleep);
 		w = encode_array(&w, "capabilities", nbr_of_capabilities);
 		{
 			calvinsys = node->calvinsys;
 			while (calvinsys != NULL) {
-				log("Setting capability %s", calvinsys->id);
+				log_debug("Setting capability %s", calvinsys->id);
 				w = mp_encode_str(w, calvinsys->id, strlen(calvinsys->id));
 				calvinsys = calvinsys->next;
 			}
@@ -836,8 +840,8 @@ static result_t proto_parse_reply(node_t *node, char *root)
 		return CC_RESULT_FAIL;
 
 	if (node_get_pending_msg(node, msg_uuid, len, &pending_msg) != CC_RESULT_SUCCESS) {
-		log_error("No pending messge with id '%.*s'", (int)len, msg_uuid);
-		return CC_RESULT_FAIL;
+		log_debug("No pending messge with id '%.*s'", (int)len, msg_uuid);
+		return CC_RESULT_SUCCESS;
 	}
 
 	result = pending_msg.handler(node, root, pending_msg.msg_data);

@@ -422,7 +422,7 @@ void platform_init(void)
 	log("Platform initialized");
 }
 
-void platform_evt_wait(node_t *node, struct timeval *timeout)
+bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 {
 	if (sd_app_evt_wait() != ERR_OK)
 		log_error("Failed to wait for event");
@@ -434,8 +434,10 @@ void platform_evt_wait(node_t *node, struct timeval *timeout)
 				node->transport_client->state = TRANSPORT_DISCONNECTED;
 				return;
 			}
+			return true;
 		}
 	}
+	return false;
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)

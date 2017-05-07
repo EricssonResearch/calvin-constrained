@@ -28,9 +28,7 @@
 #include "../../crypto/cc_crypto.h"
 #endif
 
-#ifdef USE_PERSISTENT_STORAGE
-#define NODE_STATE_BUFFER_SIZE			10000
-#endif
+#define CC_RECONNECT_TIMEOUT 5
 
 static void node_reset(node_t *node, bool remove_actors)
 {
@@ -76,13 +74,13 @@ static void node_reset(node_t *node, bool remove_actors)
 static bool node_get_state(node_t *node)
 {
 	result_t result = CC_RESULT_FAIL;
-	char buffer[NODE_STATE_BUFFER_SIZE], *value = NULL, *array_value = NULL;
+	char buffer[CC_RUNTIME_STATE_BUFFER_SIZE], *value = NULL, *array_value = NULL;
 	uint32_t i = 0, value_len = 0, array_size = 0, state = 0;
 	link_t *link = NULL;
 	tunnel_t *tunnel = NULL;
 	actor_t *actor = NULL;
 
-	if (platform_read_node_state(node, buffer, NODE_STATE_BUFFER_SIZE) == CC_RESULT_SUCCESS) {
+	if (platform_read_node_state(node, buffer, CC_RUNTIME_STATE_BUFFER_SIZE) == CC_RESULT_SUCCESS) {
 		result = decode_uint_from_map(buffer, "state", &state);
 		if (result == CC_RESULT_SUCCESS)
 			node->state = (node_state_t)state;
@@ -155,7 +153,7 @@ static bool node_get_state(node_t *node)
 
 void node_set_state(node_t *node)
 {
-	char buffer[NODE_STATE_BUFFER_SIZE];
+	char buffer[CC_RUNTIME_STATE_BUFFER_SIZE];
 	char *tmp = buffer;
 	int nbr_of_items = 0;
 	list_t *item = NULL;
@@ -250,7 +248,7 @@ result_t node_get_pending_msg(node_t *node, const char *msg_uuid, uint32_t msg_u
 		}
 	}
 
-	log_error("No pending msg with id '%s'", msg_uuid);
+	log_debug("No pending msg with id '%s'", msg_uuid);
 	return CC_RESULT_FAIL;
 }
 
@@ -277,14 +275,44 @@ static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_dat
 				log("Node started with proxy '%s'", node->transport_client->peer_id);
 				node->state = NODE_STARTED;
 				platform_node_started(node);
-				return CC_RESULT_SUCCESS;
-			}
-			log_error("Failed to setup node, status '%d'", (int)status);
+			} else
+				log_error("Failed to setup node, status '%lu'", (unsigned long)status);
+			return CC_RESULT_SUCCESS;
 		}
 	}
 
+	log_error("Failed to decode PROXY_CONFIG reply");
 	return CC_RESULT_FAIL;
 }
+
+#ifdef CC_PLATFORM_SLEEP
+static result_t node_enter_sleep_reply_handler(node_t *node, char *data, void *msg_data)
+{
+	uint32_t status;
+	char *value = NULL;
+
+	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
+		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
+			if (status == 200) {
+				log("Node going to deep sleep");
+#ifdef USE_PERSISTENT_STORAGE
+				node_set_state(node);
+#else
+				// TODO: Move actors to proxy while sleeping and when notifying proxy
+				// of wake up, move actors back
+#endif
+				node->state = NODE_STOP;
+				platform_sleep(node);
+			} else
+				log_error("Failed to request sleep");
+			return CC_RESULT_SUCCESS;
+		}
+	}
+
+	log_error("Failed to decode PROXY_CONFIG reply for enterring deep sleep");
+	return CC_RESULT_FAIL;
+}
+#endif
 
 result_t node_handle_token(port_t *port, const char *data, const size_t size, uint32_t sequencenbr)
 {
@@ -372,19 +400,19 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	}
 
 	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_INTERFACE_DOWN)
-		platform_evt_wait(node, NULL);
+		platform_evt_wait(node, 0);
 
 	if (node->state == NODE_STOP || node->transport_client->connect(node, node->transport_client) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_PENDING)
-		platform_evt_wait(node, NULL);
+		platform_evt_wait(node, 0);
 
 	if (transport_join(node, node->transport_client) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_PENDING)
-		platform_evt_wait(node, NULL);
+		platform_evt_wait(node, 0);
 
 	if (node->state == NODE_STOP || node->transport_client->state != TRANSPORT_ENABLED)
 		return CC_RESULT_FAIL;
@@ -412,14 +440,14 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 		tunnel_add_ref(node->storage_tunnel);
 	}
 
-	if (proto_send_node_setup(node, node_setup_reply_handler) != CC_RESULT_SUCCESS)
+	if (proto_send_node_setup(node, false, node_setup_reply_handler) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	while (node->state != NODE_STARTED && node->state != NODE_STOP)
-		platform_evt_wait(node, NULL);
+		platform_evt_wait(node, 0);
 
 	if (node->state != NODE_STARTED) {
-		log_error("Failed to setup proxy");
+		log_error("Failed connect to proxy");
 		return CC_RESULT_FAIL;
 	}
 
@@ -441,8 +469,6 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 	node->tunnels = NULL;
 	node->actors = NULL;
 	node->calvinsys = NULL;
-
-	log("Initializing node");
 
 	if (platform_create(node) != CC_RESULT_SUCCESS) {
 		log_error("Failed to create platform object");
@@ -468,15 +494,12 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 		}
 	}
 
-	log("Node initialized");
-
 	return CC_RESULT_SUCCESS;
 }
 
 result_t node_run(node_t *node)
 {
 	int i = 0;
-	struct timeval reconnect_timeout;
 
 	if (node->fire_actors == NULL) {
 		log_error("No actor scheduler set");
@@ -486,16 +509,21 @@ result_t node_run(node_t *node)
 	while (node->state != NODE_STOP) {
 		for (i = 0; i < MAX_URIS && node->state != NODE_STOP; i++) {
 			if (node->proxy_uris[i] != NULL) {
-				log("Connecting to '%s'", node->proxy_uris[i]);
 				node->state = NODE_DO_START;
 				if (node_connect_to_proxy(node, node->proxy_uris[i]) == CC_RESULT_SUCCESS) {
 					log("Connected to '%s'", node->proxy_uris[i]);
 					while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_ENABLED) {
-						if (node->state == NODE_STARTED) {
-							// fire actors and transfer data from in- and out-ports§
+						if (node->state == NODE_STARTED)
 							node->fire_actors(node);
+#ifdef CC_PLATFORM_SLEEP
+						if (!platform_evt_wait(node, CC_INACTIVITY_TIMEOUT)) {
+							log("Requesting sleep");
+							if (proto_send_node_setup(node, true, node_enter_sleep_reply_handler) == CC_RESULT_SUCCESS)
+								node->state = NODE_PENDING;
 						}
-						platform_evt_wait(node, NULL);
+#else
+						platform_evt_wait(node, 0);
+#endif
 					}
 					log("Disconnected from '%s'", node->proxy_uris[i]);
 				}
@@ -509,9 +537,8 @@ result_t node_run(node_t *node)
 		}
 
 		if (node->state != NODE_STOP) {
-			reconnect_timeout.tv_sec = 5;
-			reconnect_timeout.tv_usec = 0;
-			platform_evt_wait(node, &reconnect_timeout);
+			// TODO: If reconnect fails goto sleep after x retries
+			platform_evt_wait(node, 5);
 		}
 	}
 

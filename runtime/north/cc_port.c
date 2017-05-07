@@ -237,17 +237,24 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 		tunnel_add_ref(port->tunnel);
 	}
 
-	if (node->transport_client != NULL) {
-		if (proto_send_set_port(node, port, port_store_reply_handler) != CC_RESULT_SUCCESS) {
-			log_error("Failed to store port");
-			port_free(node, port);
+	if (has_key(r, "constrained_state")) {
+		if (decode_uint_from_map(r, "constrained_state", (uint32_t *)&port->state) != CC_RESULT_SUCCESS)
 			return NULL;
-		}
+		if (port->state == PORT_ENABLED)
+				actor_port_enabled(port->actor);
+	} else {
+		if (node->transport_client != NULL) {
+			if (proto_send_set_port(node, port, port_store_reply_handler) != CC_RESULT_SUCCESS) {
+				log_error("Failed to store port");
+				port_free(node, port);
+				return NULL;
+			}
 
-		if (port_setup_connection(node, port, peer_id, peer_id_len) != CC_RESULT_SUCCESS) {
-			log_error("Failed setup connections");
-			port_free(node, port);
-			return NULL;
+			if (port_setup_connection(node, port, peer_id, peer_id_len) != CC_RESULT_SUCCESS) {
+				log_error("Failed setup connections");
+				port_free(node, port);
+				return NULL;
+			}
 		}
 	}
 

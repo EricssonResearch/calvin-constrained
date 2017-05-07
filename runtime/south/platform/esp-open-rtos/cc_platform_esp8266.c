@@ -20,21 +20,43 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "lwip/sockets.h"
+#include "spiffs.h"
+#include "esp_spiffs.h"
+#include "espressif/esp_system.h"
 #include "ssid_config.h"
 #include "../../../../cc_api.h"
 #include "../../../../runtime/north/cc_common.h"
 #include "../../../../runtime/north/cc_node.h"
 #include "../../transport/socket/cc_transport_socket.h"
 
+#define CALVIN_RUNTIME_STATE_FILE "cc_state.conf"
+
 void platform_init(void)
 {
 	uart_set_baud(0, 115200);
+
 	log("----------------------------------------");
 	log("SDK version:%s", sdk_system_get_sdk_version());
 	log("%20s: %u b", "Heap size", sdk_system_get_free_heap_size());
 	log("%20s: 0x%08x", "Flash ID", sdk_spi_flash_get_id());
 	log("%20s: %u Mbytes", "Flash size", sdk_flashchip.chip_size / 1024 / 1024);
 	log("----------------------------------------");
+
+#ifdef USE_PERSISTENT_STORAGE
+	esp_spiffs_init();
+	if (esp_spiffs_mount() != SPIFFS_OK) {
+    log_error("Failed to mount SPIFFS");
+
+		SPIFFS_unmount(&fs);
+		if (SPIFFS_format(&fs) == SPIFFS_OK)
+			log("Format complete");
+		else
+			log_error("Format failed");
+
+		if (esp_spiffs_mount() != SPIFFS_OK)
+			log_error("Failed to mount SPIFFS");
+	}
+#endif
 
 	// WIFI_SSID and WIFI_PASS should be defined in ssid_config.h
 	struct sdk_station_config config = {
@@ -95,10 +117,17 @@ void platform_mem_free(void *buffer)
 	free(buffer);
 }
 
-void platform_evt_wait(struct node_t *node, struct timeval *timeout)
+bool platform_evt_wait(struct node_t *node, uint32_t timeout_seconds)
 {
 	fd_set fds;
 	int fd = 0;
+	struct timeval tv, *tv_ref = NULL;
+
+	if (timeout_seconds > 0) {
+		tv.tv_sec = timeout_seconds;
+		tv.tv_usec = 0;
+		tv_ref = &tv;
+	}
 
 	FD_ZERO(&fds);
 
@@ -106,17 +135,21 @@ void platform_evt_wait(struct node_t *node, struct timeval *timeout)
 		FD_SET(((transport_socket_client_t *)node->transport_client->client_state)->fd, &fds);
 		fd = ((transport_socket_client_t *)node->transport_client->client_state)->fd;
 
-		select(fd + 1, &fds, NULL, NULL, timeout);
+		select(fd + 1, &fds, NULL, NULL, tv_ref);
 
 		if (FD_ISSET(fd, &fds)) {
 			if (transport_handle_data(node, node->transport_client, node_handle_message) != CC_RESULT_SUCCESS) {
 				log_error("Failed to read data from transport");
 				node->transport_client->state = TRANSPORT_DISCONNECTED;
-				return;
 			}
+			return true;
 		}
-	} else
-		vTaskDelay((timeout->tv_sec * 1000) / portTICK_PERIOD_MS);
+	} else {
+		if (timeout_seconds > 0)
+			vTaskDelay((timeout_seconds * 1000) / portTICK_PERIOD_MS);
+	}
+
+	return false;
 }
 
 result_t platform_stop(struct node_t* node)
@@ -129,9 +162,49 @@ result_t platform_node_started(struct node_t* node)
 	return CC_RESULT_SUCCESS;
 }
 
+#ifdef USE_PERSISTENT_STORAGE
+void platform_write_node_state(struct node_t* node, char *buffer, size_t size)
+{
+  spiffs_file fd = SPIFFS_open(&fs, CALVIN_RUNTIME_STATE_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
+	int res = 0;
+
+	res = SPIFFS_write(&fs, fd, buffer, size);
+	if (res != size)
+		log_error("Failed to write runtime state, status '%d'", res);
+
+	SPIFFS_close(&fs, fd);
+}
+
+result_t platform_read_node_state(struct node_t* node, char buffer[], size_t size)
+{
+	spiffs_file fd = SPIFFS_open(&fs, CALVIN_RUNTIME_STATE_FILE, SPIFFS_RDONLY, 0);
+	if (fd < 0) {
+		log_error("Error opening file");
+		return CC_RESULT_FAIL;
+	}
+
+	SPIFFS_read(&fs, fd, buffer, size);
+	SPIFFS_close(&fs, fd);
+
+	return CC_RESULT_SUCCESS;
+}
+#endif
+
+#ifdef CC_PLATFORM_SLEEP
+void platform_sleep(node_t *node)
+{
+	log("Enterring system deep sleep for '%d' seconds", CC_SLEEP_TIME);
+	sdk_system_deep_sleep(CC_SLEEP_TIME * 1000 * 1000);
+	vTaskDelay(1000 / portTICK_PERIOD_MS);
+	log("----------- Should not come here --------------");
+}
+#endif
+
 void calvin_task(void *pvParameters)
 {
 	node_t *node = NULL;
+
+	platform_init();
 
 	while (1) {
 		while (sdk_wifi_station_get_connect_status() != STATION_GOT_IP) {
@@ -150,8 +223,6 @@ void calvin_task(void *pvParameters)
 
 void user_init(void)
 {
-	platform_init();
-
 	// TODO: Set proper stack size and prio
 	xTaskCreate(&calvin_task, "calvin_task", 2048, NULL, 2, NULL);
 }

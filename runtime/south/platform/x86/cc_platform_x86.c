@@ -175,10 +175,17 @@ result_t platform_create(node_t *node)
 	return CC_RESULT_SUCCESS;
 }
 
-void platform_evt_wait(node_t *node, struct timeval *timeout)
+bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 {
 	fd_set fds;
 	int fd = 0;
+	struct timeval tv, *tv_ref = NULL;
+
+	if (timeout_seconds > 0) {
+		tv.tv_sec = timeout_seconds;
+		tv.tv_usec = 0;
+		tv_ref = &tv;
+	}
 
 	FD_ZERO(&fds);
 
@@ -186,17 +193,19 @@ void platform_evt_wait(node_t *node, struct timeval *timeout)
 		FD_SET(((transport_socket_client_t *)node->transport_client->client_state)->fd, &fds);
 		fd = ((transport_socket_client_t *)node->transport_client->client_state)->fd;
 
-		select(fd + 1, &fds, NULL, NULL, timeout);
+		select(fd + 1, &fds, NULL, NULL, tv_ref);
 
 		if (FD_ISSET(fd, &fds)) {
 			if (transport_handle_data(node, node->transport_client, node_handle_message) != CC_RESULT_SUCCESS) {
 				log_error("Failed to read data from transport");
 				node->transport_client->state = TRANSPORT_DISCONNECTED;
-				return;
 			}
+			return true;
 		}
 	} else
-		select(0, NULL, NULL, NULL, timeout);
+		select(0, NULL, NULL, NULL, tv_ref);
+
+	return false;
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)
@@ -225,15 +234,26 @@ void platform_mem_free(void *buffer)
 	free(buffer);
 }
 
+#ifdef CC_PLATFORM_SLEEP
+void platform_sleep(node_t *node)
+{
+	log("Going to deep sleep, runtime needs to be restarted");
+}
+#endif
+
 #ifdef USE_PERSISTENT_STORAGE
 void platform_write_node_state(node_t *node, char *buffer, size_t size)
 {
 	FILE *fp = NULL;
+	int len = 0;
 
 	fp = fopen("calvinconstrained.config", "w+");
 	if (fp != NULL) {
-		if (fwrite(buffer, 1, size, fp) != size)
+		len = fwrite(buffer, 1, size, fp);
+		if (len != size)
 			log_error("Failed to write node config");
+		else
+			log_debug("Wrote runtime state '%d' bytes", len);
 		fclose(fp);
 	} else
 		log("Failed to open calvinconstrained.config for writing");

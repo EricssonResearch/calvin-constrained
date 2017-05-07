@@ -1,5 +1,12 @@
-SDK_PATH = /home/qfrksvn/Source/esp-open-rtos
-EXTRA_CFLAGS = -DTRANSPORT_SOCKET -DLWIP_SOCKET
 PROGRAM = calvin-esp
+SDK_PATH = /home/qfrksvn/Source/esp-open-rtos
+EXTRA_CFLAGS = -DTRANSPORT_SOCKET -DLWIP_SOCKET -DUSE_PERSISTENT_STORAGE -DCC_PLATFORM_SLEEP -DCC_INACTIVITY_TIMEOUT=10 -DCC_SLEEP_TIME=10 -DCC_RUNTIME_STATE_BUFFER_SIZE=4000
 PROGRAM_SRC_DIR=. runtime/south/platform/esp-open-rtos runtime/south/transport/socket runtime/north runtime/north/scheduler/np_scheduler actors msgpuck calvinsys
+
+# spiffs
+EXTRA_COMPONENTS+=extras/spiffs
+FLASH_SIZE = 32
+SPIFFS_BASE_ADDR = 0x200000
+SPIFFS_SIZE = 0x010000
+
 include $(SDK_PATH)/common.mk
