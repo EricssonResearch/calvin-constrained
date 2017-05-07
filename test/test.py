@@ -534,18 +534,11 @@ def testGPIOWriter():
     script_name = "testGPIOWriterActor"
     script = """
     src : std.CountTimer(sleep=0.1)
-    alt : std.Dealternate(order=[&zero.in, &one.in])
     zero : std.Constantify(constant=0)
-    one : std.Constantify(constant=1)
-    join : std.Join()
     gpio : io.GPIOWriter(gpio_pin=13)
 
-    src.integer > alt.token
-    alt.token > zero.in
-    alt.token > one.in
-    zero.out > join.token_1
-    one.out > join.token_2
-    join.token > gpio.state
+    src.integer > zero.in
+    zero.out > gpio.state
     """
 
     deploy_info = """
@@ -557,25 +550,7 @@ def testGPIOWriter():
                     "kwargs": {"index": ["node_name", {"name": "rt1"}]},
                     "type": "+"
                }],
-            "alt": [
-                {
-                  "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
-                    "type": "+"
-               }],
             "zero": [
-                {
-                  "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
-                    "type": "+"
-               }],
-            "one": [
-                {
-                  "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
-                    "type": "+"
-               }],
-            "join": [
                 {
                   "op": "node_attr_match",
                     "kwargs": {"index": ["node_name", {"name": "rt1"}]},
