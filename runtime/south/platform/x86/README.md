@@ -4,7 +4,7 @@
 
 ```
 cd calvin-constrained
-make -f platform/x86/Makefile
+make -f runtime/south/platform/x86/Makefile
 ```
 
 ### Run

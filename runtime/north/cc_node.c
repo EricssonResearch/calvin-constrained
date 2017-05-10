@@ -71,9 +71,8 @@ static void node_reset(node_t *node, bool remove_actors)
 }
 
 #ifdef CC_STORAGE_ENABLED
-static bool node_get_state(node_t *node)
+static result_t node_get_state(node_t *node)
 {
-	result_t result = CC_RESULT_FAIL;
 	char buffer[CC_RUNTIME_STATE_BUFFER_SIZE], *value = NULL, *array_value = NULL;
 	uint32_t i = 0, value_len = 0, array_size = 0, state = 0;
 	link_t *link = NULL;
@@ -81,74 +80,82 @@ static bool node_get_state(node_t *node)
 	actor_t *actor = NULL;
 
 	if (platform_read_node_state(node, buffer, CC_RUNTIME_STATE_BUFFER_SIZE) == CC_RESULT_SUCCESS) {
-		result = decode_uint_from_map(buffer, "state", &state);
-		if (result == CC_RESULT_SUCCESS)
-			node->state = (node_state_t)state;
+		if (decode_string_from_map(buffer, "id", &value, &value_len) != CC_RESULT_SUCCESS) {
+			log_error("Failed to decode 'id'");
+			return CC_RESULT_FAIL;
+		}
+		strncpy(node->id, value, value_len);
 
-		result = decode_string_from_map(buffer, "id", &value, &value_len);
-		if (result == CC_RESULT_SUCCESS)
-			strncpy(node->id, value, value_len);
+		if (decode_string_from_map(buffer, "name", &value, &value_len) != CC_RESULT_SUCCESS) {
+			log_error("Failed to decode 'name'");
+			return CC_RESULT_FAIL;
+		}
+		strncpy(node->name, value, value_len);
+		node->name[value_len] = '\0';
 
-		result = decode_string_from_map(buffer, "name", &value, &value_len);
-		if (result == CC_RESULT_SUCCESS)
-			strncpy(node->name, value, value_len);
+		if (has_key(buffer, "state")) {
+			if (decode_uint_from_map(buffer, "state", &state) == CC_RESULT_SUCCESS)
+				node->state = (node_state_t)state;
+		}
 
-		if (result == CC_RESULT_SUCCESS) {
+		if (decode_string_from_map(buffer, "proxy_uri", &value, &value_len) == CC_RESULT_SUCCESS) {
+			if (platform_mem_alloc((void **)&node->proxy_uris[0], value_len + 1) != CC_RESULT_SUCCESS) {
+				log_error("Failed to allocate memory");
+				return CC_RESULT_FAIL;
+			}
+			strncpy(node->proxy_uris[0], value, value_len);
+			node->proxy_uris[0][value_len] = '\0';
+		}
+
+		if (has_key(buffer, "links")) {
 			if (get_value_from_map(buffer, "links", &array_value) == CC_RESULT_SUCCESS) {
 				array_size = get_size_of_array(array_value);
 				for (i = 0; i < array_size; i++) {
 					if (get_value_from_array(array_value, i, &value) == CC_RESULT_SUCCESS) {
 						link = link_deserialize(node, value);
-						if (link == NULL) {
-							result = CC_RESULT_FAIL;
-							break;
+						if (link == NULL)
+							log_error("Failed to decode link");
+						else {
+							if (link->is_proxy)
+								node->proxy_link = link;
 						}
-						if (link->is_proxy)
-							node->proxy_link = link;
 					}
 				}
 			}
 		}
 
-		if (result == CC_RESULT_SUCCESS) {
+		if (has_key(buffer, "tunnels")) {
 			if (get_value_from_map(buffer, "tunnels", &array_value) == CC_RESULT_SUCCESS) {
 				array_size = get_size_of_array(array_value);
 				for (i = 0; i < array_size; i++) {
 					if (get_value_from_array(array_value, i, &value) == CC_RESULT_SUCCESS) {
 						tunnel = tunnel_deserialize(node, value);
-						if (tunnel == NULL) {
-							result = CC_RESULT_FAIL;
-							break;
+						if (tunnel == NULL)
+						 	log_error("Failed to decode tunnel");
+						else {
+							if (tunnel->type == TUNNEL_TYPE_STORAGE)
+								node->storage_tunnel = tunnel;
 						}
-						if (tunnel->type == TUNNEL_TYPE_STORAGE)
-							node->storage_tunnel = tunnel;
 					}
 				}
 			}
 		}
 
-		if (result == CC_RESULT_SUCCESS) {
+		if (has_key(buffer, "actors")) {
 			if (get_value_from_map(buffer, "actors", &array_value) == CC_RESULT_SUCCESS) {
 				array_size = get_size_of_array(array_value);
 				for (i = 0; i < array_size; i++) {
 					if (get_value_from_array(array_value, i, &value) == CC_RESULT_SUCCESS) {
 						actor = actor_create(node, value);
-						if (actor == NULL) {
-							result = CC_RESULT_FAIL;
-							break;
-						}
+						if (actor == NULL)
+							log_error("Failed to decode actor");
 					}
 				}
 			}
 		}
-
-		if (result == CC_RESULT_FAIL) {
-			log_error("Failed to decode runtime state");
-			node_reset(node, true);
-		}
+		return CC_RESULT_SUCCESS;
 	}
-
-	return result == CC_RESULT_SUCCESS ? true : false;
+	return CC_RESULT_FAIL;
 }
 
 void node_set_state(node_t *node)
@@ -158,11 +165,16 @@ void node_set_state(node_t *node)
 	int nbr_of_items = 0;
 	list_t *item = NULL;
 
-	tmp = mp_encode_map(tmp, 7);
+	tmp = mp_encode_map(tmp, 8);
 	{
 		tmp = encode_uint(&tmp, "state", node->state);
 		tmp = encode_str(&tmp, "id", node->id, strlen(node->id));
 		tmp = encode_str(&tmp, "name", node->name, strlen(node->name));
+
+		if (node->transport_client != NULL)
+			tmp = encode_str(&tmp, "proxy_uri", node->transport_client->uri, strlen(node->transport_client->uri));
+		else
+			tmp = encode_str(&tmp, "proxy_uri", node->proxy_uris[0], strlen(node->proxy_uris[0]));
 
 		nbr_of_items = list_count(node->links);
 		tmp = encode_array(&tmp, "links", nbr_of_items);
@@ -352,25 +364,18 @@ result_t node_handle_message(node_t *node, char *buffer, size_t len)
 
 static result_t node_setup(node_t *node, char *name)
 {
-#ifdef CC_STORAGE_ENABLED
-	if (node_get_state(node)) {
-		log("Node created from previous state, id '%s' name '%s'",
-				node->id,
-				node->name);
-		return CC_RESULT_SUCCESS;
-	}
-#endif
-
-	node->state = NODE_DO_START;
-
 #ifdef CC_TLS_ENABLED
 	char domain[50];
 
 	if (crypto_get_node_info(domain, node->name, node->id) == CC_RESULT_SUCCESS) {
-		log("Node created from certificate, domain: '%s' id '%s' name '%s'",
-				domain,
-				node->id,
-				node->name);
+		log("Node created from certificate, domain: '%s' id '%s' name '%s'", domain, node->id, node->name);
+		return CC_RESULT_SUCCESS;
+	}
+#endif
+
+#ifdef CC_STORAGE_ENABLED
+	if (node_get_state(node) == CC_RESULT_SUCCESS) {
+		log("Node created from state, id '%s' name '%s'", node->id, node->name);
 		return CC_RESULT_SUCCESS;
 	}
 #endif
@@ -383,6 +388,7 @@ static result_t node_setup(node_t *node, char *name)
 		strncpy(node->name, "constrained", 12);
 
 	log("Node created, id '%s' name '%s'", node->id, node->name);
+
 	return CC_RESULT_SUCCESS;
 }
 
@@ -457,6 +463,7 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 	int i = 0;
 	char *uri = NULL;
 
+	node->state = NODE_DO_START;
 	node->fire_actors = fire_actors;
 	node->transport_client = NULL;
 	node->proxy_link = NULL;

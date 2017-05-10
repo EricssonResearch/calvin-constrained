@@ -59,7 +59,7 @@ where [sender id] is your firebase project number. The project number can be fou
 ### Build
 1. Build Micropython for Android by running the following from the root of the Calvin Constrained repo.
 ```
-platform/android/build_android.sh \<android-sdk-directory\>/ndk-bundle/ [optional platform parameter]
+runtime/south/platform/android/build_android.sh \<android-sdk-directory\>/ndk-bundle/ [optional platform parameter]
 ```
 And replace \<android-sdk-directory\> with your installation path of the SDK. If you are only building for a certain platform, enter the platform name as a second parameter. To build for all platforms, ignore the parameter.
 Supported platforms are.

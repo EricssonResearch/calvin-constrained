@@ -23,7 +23,7 @@ And download and install J-Link Software and Documentation Pack (https://www.seg
 ### Build and flash
 
     cd calvin-constrained
-    make -f platform/nrf52/pca10040/armgcc/Makefile
+    make -f runtime/south/platform/nrf52/pca10040/armgcc/Makefile
     ./platform/nrf52/flash.sh
 
 ### Run
