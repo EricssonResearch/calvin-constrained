@@ -128,8 +128,6 @@ static result_t actor_migrate_reply_handler(node_t *node, char *data, void *msg_
 		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
 			if (status == 200) {
 				log("Actor '%s' migrated", (char *)msg_data);
-				if (actor->did_migrate != NULL)
-					actor->did_migrate(actor);
 				actor_free(node, actor, false);
 			} else
 				log_error("Failed to migrate actor '%s'", (char *)msg_data);
@@ -451,6 +449,8 @@ actor_t *actor_create(node_t *node, char *root)
 			actor_free(node, actor, false);
 			return NULL;
 		}
+		if (actor->did_migrate != NULL)
+			actor->did_migrate(actor);
 	}
 
 	if (node->transport_client != NULL) {
