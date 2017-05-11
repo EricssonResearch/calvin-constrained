@@ -143,71 +143,6 @@ def testDataAndDestruction():
     # verify actor removal
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id'])
 
-def testKillAndRespawn():
-    global constrained_process
-    assert rt1 is not None
-    assert constrained_id is not None
-
-    script_name = "testDataAndDestruction"
-    script = """
-    src : std.CountTimer(sleep=1)
-    id : std.Identity()
-    snk : test.Sink(store_tokens=1, quiet=1)
-    src.integer > id.token
-    id.token > snk.token
-    """
-
-    deploy_info = """
-    {
-        "requirements": {
-            "src": [
-                {
-                  "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
-                    "type": "+"
-               }],
-            "id": [
-                {
-                  "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
-                    "type": "+"
-               }],
-            "snk": [
-                {
-                    "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
-                    "type": "+"
-                }]
-        }
-    }
-    """
-
-    resp = request_handler.deploy_application(rt1,
-                                              script_name,
-                                              script,
-                                              deploy_info=json.loads(deploy_info))
-
-    # verify placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
-
-    constrained_process.kill()
-    time.sleep(1)
-    constrained_process = subprocess.Popen("exec ./calvin_c -n 'constrained' -p 'calvinip://127.0.0.1:5000'", shell=True, stderr=output_file)
-
-    # verify data
-    wait_for_tokens(request_handler,
-                    rt1,
-                    resp['actor_map'][script_name + ':snk'], 2, 10)
-    actual = request_handler.report(rt1,
-                                    resp['actor_map'][script_name + ':snk'])
-    assert len(actual) >= 2
-
-    # remove app
-    request_handler.delete_application(rt1, resp['application_id'])
-
-    # verify actor removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id'])
-
 def testDataAndDestructionRouted():
     assert rt2 is not None
     assert constrained_id is not None
@@ -648,3 +583,71 @@ def testLocalConnections():
     # verify actor removal
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id1'])
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id2'])
+
+def testDeepSleep():
+    global constrained_process
+    assert rt1 is not None
+    assert constrained_id is not None
+
+    script_name = "testDataAndDestruction"
+    script = """
+    src : std.CountTimer(sleep=10)
+    id : std.Identity()
+    snk : test.Sink(store_tokens=1, quiet=1)
+    src.integer > id.token
+    id.token > snk.token
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "src": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "type": "+"
+               }],
+            "id": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                    "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "type": "+"
+                }]
+        }
+    }
+    """
+
+    resp = request_handler.deploy_application(rt1,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+
+    # verify placement
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
+
+    # wait for sleep and firings
+    time.sleep(10)
+
+    assert constrained_process.poll() is 0
+
+    constrained_process = subprocess.Popen("exec ./calvin_c -n 'constrained' -p 'calvinip://127.0.0.1:5000'", shell=True, stderr=output_file)
+
+    # verify data
+    wait_for_tokens(request_handler,
+                    rt1,
+                    resp['actor_map'][script_name + ':snk'], 1, 10)
+    actual = request_handler.report(rt1,
+                                    resp['actor_map'][script_name + ':snk'])
+    assert len(actual) >= 1
+
+    # remove app
+    request_handler.delete_application(rt1, resp['application_id'])
+
+    # verify actor removal
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id'])
