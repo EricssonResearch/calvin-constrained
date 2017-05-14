@@ -24,6 +24,10 @@
 #include "../../../north/cc_transport.h"
 #include "../../../north/cc_node.h"
 #include "../../../north/cc_common.h"
+#include "../../../../calvinsys/cc_calvinsys.h"
+#include "../../../../msgpuck/msgpuck.h"
+#include "../../../north/cc_msgpack_helper.h"
+
 
 void platform_print(const char *fmt, ...)
 {
@@ -36,7 +40,7 @@ void platform_print(const char *fmt, ...)
 
 result_t platform_stop(node_t *node)
 {
-    return CC_RESULT_SUCCESS;
+  return CC_RESULT_SUCCESS;
 }
 
 result_t platform_node_started(struct node_t *node)
@@ -44,112 +48,186 @@ result_t platform_node_started(struct node_t *node)
 	return CC_RESULT_SUCCESS;
 }
 
-static calvin_ingpio_t *platform_init_in_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, char pull, char edge)
+// calvinsys functions
+static bool platform_temp_can_read(struct calvinsys_obj_t *obj)
 {
-	int i = 0;
-
-	if (pull != 'u' && pull != 'd') {
-		log_error("Unsupported pull direction '%c'", pull);
-		return NULL;
-	}
-
-	if (edge != 'r' && edge != 'f' && edge != 'b') {
-		log_error("Unsupported edge '%c'", edge);
-		return NULL;
-	}
-
-	for (i = 0; i < MAX_INGPIOS; i++) {
-		if (gpiohandler->ingpios[i] == NULL) {
-			if (platform_mem_alloc((void **)&gpiohandler->ingpios[i], sizeof(calvin_ingpio_t)) != CC_RESULT_SUCCESS) {
-				log_error("Failed to allocate memory");
-				return NULL;
-			}
-
-			gpiohandler->ingpios[i]->pin = pin;
-			gpiohandler->ingpios[i]->has_triggered = false;
-			gpiohandler->ingpios[i]->pull = pull;
-			gpiohandler->ingpios[i]->edge = edge;
-			return gpiohandler->ingpios[i];
-		}
-	}
-
-	return NULL;
+	return true;
 }
 
-static result_t platform_init_out_gpio(uint32_t pin)
+static result_t platform_temp_read(struct calvinsys_obj_t *obj, char **data, size_t *size)
 {
-	return CC_RESULT_SUCCESS;
-}
+	double temp = 15.5;
 
-static void platform_set_gpio(uint32_t pin, uint32_t value)
-{
-	log("Setting gpio pin '%d' '%d'", pin, value);
-}
-
-static void platform_uninit_gpio(calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, calvin_gpio_direction_t direction)
-{
-	int i = 0;
-
-	for (i = 0; i < MAX_INGPIOS; i++) {
-		if (gpiohandler->ingpios[i] != NULL && gpiohandler->ingpios[i]->pin == pin) {
-			platform_mem_free((void *)gpiohandler->ingpios[i]);
-			gpiohandler->ingpios[i] = NULL;
-			log("Released in gpio '%d'", pin);
-			return;
-		}
-	}
-}
-
-static result_t platform_get_temperature(double *temp)
-{
-	*temp = 15.5;
-	return CC_RESULT_SUCCESS;
-}
-
-static result_t platform_create_sensors_environmental(node_t *node)
-{
-	char name[] = "calvinsys.sensors.environmental";
-	calvinsys_sensors_environmental_t *sensors_env = NULL;
-
-	if (platform_mem_alloc((void **)&sensors_env, sizeof(calvinsys_sensors_environmental_t)) != CC_RESULT_SUCCESS) {
+	*size = mp_sizeof_double(temp);
+	if (platform_mem_alloc((void **)data, *size) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
-	sensors_env->get_temperature = platform_get_temperature;
+	mp_encode_double(*data, temp);
 
-	return list_add_n(&node->calvinsys, name, strlen(name), sensors_env, sizeof(calvinsys_sensors_environmental_t));
+	return CC_RESULT_SUCCESS;
 }
 
-static result_t platform_create_io_gpiohandler(node_t *node)
+static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *data, size_t len)
 {
-	char name[] = "calvinsys.io.gpiohandler";
-	calvinsys_io_giohandler_t *io_gpiohandler = NULL;
-	int i = 0;
+	calvinsys_obj_t *obj = NULL;
 
-	if (platform_mem_alloc((void **)&io_gpiohandler, sizeof(calvinsys_io_giohandler_t)) != CC_RESULT_SUCCESS) {
+	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		platform_mem_free((void *)io_gpiohandler);
+		return NULL;
+	}
+
+	obj->write = NULL;
+	obj->can_read = platform_temp_can_read;
+	obj->read = platform_temp_read;
+	obj->close = NULL;
+	obj->handler = handler;
+	obj->next = NULL;
+	handler->objects = obj; // assume only one object
+
+	return obj;
+}
+
+static result_t platform_create_calvinsys_temp(node_t *node)
+{
+	calvinsys_handler_t *handler = NULL;
+
+	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) != CC_RESULT_SUCCESS) {
+		log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
-	io_gpiohandler->init_in_gpio = platform_init_in_gpio;
-	io_gpiohandler->init_out_gpio = platform_init_out_gpio;
-	io_gpiohandler->set_gpio = platform_set_gpio;
-	io_gpiohandler->uninit_gpio = platform_uninit_gpio;
+	handler->open = platform_temp_open;
+	handler->objects = NULL;
+	calvinsys_register_handler(&node->calvinsys, "calvinsys.sensors.environmental", handler);
 
-	for (i = 0; i < MAX_INGPIOS; i++)
-		io_gpiohandler->ingpios[i] = NULL;
-
-	return list_add_n(&node->calvinsys, name, strlen(name), io_gpiohandler, sizeof(calvinsys_io_giohandler_t));
+	return CC_RESULT_SUCCESS;
 }
+
+static result_t platform_gpio_write(struct calvinsys_obj_t *obj, char *data, size_t size)
+{
+	uint32_t value = 0;
+
+	if (decode_uint(data, &value) == CC_RESULT_SUCCESS) {
+		log("Setting GPIO with '%d'", (int)value);
+		return CC_RESULT_SUCCESS;
+	}
+
+	log_error("Failed to decode GPIO data");
+	return CC_RESULT_FAIL;
+}
+
+static bool platform_gpio_can_read(struct calvinsys_obj_t *obj)
+{
+	return true;
+}
+
+static result_t platform_gpio_read(struct calvinsys_obj_t *obj, char **data, size_t *size)
+{
+	static uint32_t value = 1;
+
+	*size = mp_sizeof_uint(value);
+	if (platform_mem_alloc((void **)data, *size) != CC_RESULT_SUCCESS) {
+		log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
+
+	mp_encode_uint(*data, value);
+
+	if (value == 1)
+		value = 0;
+	else
+		value = 1;
+
+	return CC_RESULT_SUCCESS;
+}
+
+static result_t platform_gpio_close(struct calvinsys_obj_t *obj)
+{
+	log("Closing gpio");
+	return CC_RESULT_SUCCESS;
+}
+
+static calvinsys_obj_t *platform_gpio_open(calvinsys_handler_t *handler, char *data, size_t len)
+{
+	uint32_t pin = 0, value_len = 0;
+	char *direction = NULL, *edge = NULL, *pull = NULL;
+	calvinsys_obj_t *obj = NULL;
+
+	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
+		log_error("Failed to allocate memory");
+		return NULL;
+	}
+
+	if (decode_uint_from_map(data, "pin", &pin) != CC_RESULT_SUCCESS) {
+		log_error("Failed to decode 'pin'");
+		return NULL;
+	}
+
+	if (decode_string_from_map(data, "direction", &direction, &value_len) != CC_RESULT_SUCCESS) {
+		log_error("Failed to decode 'direction'");
+		return NULL;
+	}
+
+	if (direction[0] == 'i') {
+		if (decode_string_from_map(data, "edge", &edge, &value_len) != CC_RESULT_SUCCESS) {
+			log_error("Failed to decode 'edge'");
+			return NULL;
+		}
+
+		if (decode_string_from_map(data, "pull", &pull, &value_len) != CC_RESULT_SUCCESS) {
+			log_error("Failed to decode 'pull'");
+			return NULL;
+		}
+		obj->write = NULL;
+		obj->can_read = platform_gpio_can_read;
+		obj->read = platform_gpio_read;
+		obj->close = platform_gpio_close;
+		log("Opened GPIO pin '%d' as input with direction '%c' edge '%c' pull '%c'", (int)pin, *direction, *edge, *pull);
+	} else {
+		obj->write = platform_gpio_write;
+		obj->can_read = NULL;
+		obj->read = NULL;
+		obj->close = platform_gpio_close;
+		log("Opened GPIO pin '%d' as output", (int)pin);
+	}
+
+	obj->write = platform_gpio_write;
+	obj->can_read = platform_gpio_can_read;
+	obj->read = platform_gpio_read;
+	obj->close = NULL;
+	obj->handler = handler;
+	obj->next = NULL;
+	handler->objects = obj; // assume only one object
+
+	return obj;
+}
+
+static result_t platform_create_calvinsys_gpio(node_t *node)
+{
+	calvinsys_handler_t *handler = NULL;
+
+	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) != CC_RESULT_SUCCESS) {
+		log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
+
+	handler->open = platform_gpio_open;
+	handler->objects = NULL;
+	calvinsys_register_handler(&node->calvinsys, "calvinsys.io.gpiohandler", handler);
+
+	return CC_RESULT_SUCCESS;
+}
+
+// end of calvinsys functions
 
 result_t platform_create_calvinsys(node_t *node)
 {
-	if (platform_create_sensors_environmental(node) != CC_RESULT_SUCCESS)
+	if (platform_create_calvinsys_temp(node) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
-	if (platform_create_io_gpiohandler(node) != CC_RESULT_SUCCESS)
+	if (platform_create_calvinsys_gpio(node) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	return CC_RESULT_SUCCESS;

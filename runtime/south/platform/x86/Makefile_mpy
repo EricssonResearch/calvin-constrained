@@ -14,7 +14,7 @@ CFLAGS += -DCC_GETOPT_ENABLED
 CFLAGS += -DCC_TRANSPORT_SOCKET -DCC_TRANSPORT_SOCKET_SSDP_ENABLED
 CFLAGS += -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_INACTIVITY_TIMEOUT=5 -DCC_SLEEP_TIME=60 -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
 CFLAGS += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -DCC_PYTHON_ENABLED -DCC_PYTHON_HEAP_SIZE=20*1024
-EXT_SRC_C = $(addprefix libmpy/, cc_mpy_port.c cc_mpy_gpiohandler.c cc_mpy_environmental.c)
+EXT_SRC_C = $(addprefix libmpy/, cc_mpy_port.c cc_mpy_calvinsys.c)
 
 C_SOURCE_FILES += \
 runtime/south/platform/x86/cc_platform_x86.c \

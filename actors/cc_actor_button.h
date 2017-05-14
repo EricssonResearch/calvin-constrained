@@ -20,13 +20,12 @@
 #include "../calvinsys/cc_calvinsys.h"
 
 typedef struct state_button_t {
-	calvinsys_t* button;
+  calvinsys_obj_t *obj;
 } state_button_t;
 
 result_t actor_button_init(actor_t **actor, list_t *attributes);
+result_t actor_button_set_state(actor_t **actor, list_t *attributes);
 bool actor_button_fire(actor_t *actor);
 void actor_button_free(actor_t *actor);
-void actor_button_will_end(actor_t* actor);
-result_t actor_button_set_state(actor_t **actor, list_t *attributes);
 
 #endif /* ACTOR_BUTTON_H */

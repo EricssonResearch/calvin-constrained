@@ -17,10 +17,10 @@
 #define ACTOR_TEMPERATURE_H
 
 #include "../runtime/north/cc_actor.h"
-#include "../runtime/south/platform/cc_platform.h"
+#include "../calvinsys/cc_calvinsys.h"
 
 typedef struct state_temperature_t {
-  calvinsys_sensors_environmental_t *environmental;
+  calvinsys_obj_t *obj;
 } state_temperature_t;
 
 result_t actor_temperature_init(actor_t **actor, list_t *attributes);

@@ -56,27 +56,7 @@ bool uuid_is_higher(char *id1, size_t len1, char *id2, size_t len2)
 	return false;
 }
 
-result_t list_add_n(list_t **head, char *id, uint32_t len, void *data, uint32_t data_len)
-{
-	char *name = NULL;
-
-	if (platform_mem_alloc((void **)&name, sizeof(char) * (len + 1)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
-	}
-
-	strncpy(name, id, len);
-	name[len] = '\0';
-
-	if (list_add(head, name, data, data_len) == CC_RESULT_FAIL) {
-		platform_mem_free(name);
-		return CC_RESULT_FAIL;
-	}
-
-	return CC_RESULT_SUCCESS;
-}
-
-result_t list_add(list_t **head, char *id, void *data, uint32_t data_len)
+static result_t _list_add(list_t **head, char *id, bool free_id, void *data, uint32_t data_len)
 {
 	list_t *new_item = NULL, *tmp = NULL;
 
@@ -89,6 +69,7 @@ result_t list_add(list_t **head, char *id, void *data, uint32_t data_len)
 	new_item->data = data;
 	new_item->data_len = data_len;
 	new_item->next = NULL;
+	new_item->free_id = free_id;
 
 	if (*head == NULL) {
 		*head = new_item;
@@ -102,6 +83,38 @@ result_t list_add(list_t **head, char *id, void *data, uint32_t data_len)
 	return CC_RESULT_SUCCESS;
 }
 
+result_t list_add_n(list_t **head, const char *id, uint32_t len, void *data, uint32_t data_len)
+{
+	char *name = NULL;
+
+	if (platform_mem_alloc((void **)&name, sizeof(char) * (len + 1)) != CC_RESULT_SUCCESS) {
+		log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
+
+	strncpy(name, id, len);
+	name[len] = '\0';
+
+	if (_list_add(head, name, true, data, data_len) == CC_RESULT_FAIL) {
+		platform_mem_free(name);
+		return CC_RESULT_FAIL;
+	}
+
+	return CC_RESULT_SUCCESS;
+}
+
+result_t list_add(list_t **head, char *id, void *data, uint32_t data_len)
+{
+	return _list_add(head, id, false, data, data_len);
+}
+
+static void list_free_item(list_t *item)
+{
+	if (item->free_id)
+		platform_mem_free((void *)item->id);
+	platform_mem_free((void *)item);
+}
+
 void list_remove(list_t **head, const char *id)
 {
 	list_t *curr = NULL, *prev = NULL;
@@ -112,7 +125,7 @@ void list_remove(list_t **head, const char *id)
 				*head = curr->next;
 			else
 				prev->next = curr->next;
-			platform_mem_free((void *)curr);
+			list_free_item(curr);
 			return;
 		}
 	}

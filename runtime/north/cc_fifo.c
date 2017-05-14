@@ -18,13 +18,14 @@
 #include "cc_fifo.h"
 #include "cc_msgpack_helper.h"
 #include "../south/platform/cc_platform.h"
+#include "../../msgpuck/msgpuck.h"
 
 result_t fifo_init(fifo_t *fifo, char *obj_fifo)
 {
 	result_t result = CC_RESULT_SUCCESS;
 	char *reader = NULL, *tmp_reader = NULL, *obj_read_pos = NULL, *obj_tokens = NULL, *obj_readers = NULL;
 	char *obj_token = NULL, *obj_tentative_read_pos = NULL, *obj_data = NULL, *queuetype = NULL, *r = obj_fifo;
-	uint32_t i_token = 0, queuetype_len = 0, reader_len = 0, nbr_of_tokens = 0;
+	uint32_t i_token = 0, queuetype_len = 0, reader_len = 0, nbr_of_tokens = 0, size = 0;
 
 	fifo->size = 0;
 	fifo->write_pos = 0;
@@ -61,23 +62,6 @@ result_t fifo_init(fifo_t *fifo, char *obj_fifo)
 	if (get_value_from_map(r, "read_pos", &obj_read_pos) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
-	if (get_value_from_map(r, "fifo", &obj_tokens) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
-
-	nbr_of_tokens = get_size_of_array(obj_tokens);
-	for (i_token = 0; i_token < nbr_of_tokens; i_token++) {
-		if (get_value_from_array(obj_tokens, i_token, &obj_token) != CC_RESULT_SUCCESS)
-			return CC_RESULT_FAIL;
-
-		if (get_value_from_map(obj_token, "data", &obj_data) != CC_RESULT_SUCCESS)
-			return CC_RESULT_FAIL;
-
-		if (token_set_data(&fifo->tokens[i_token], obj_data, get_size_of_value(obj_data)) != CC_RESULT_SUCCESS) {
-			log_error("Failed to set token");
-			return CC_RESULT_FAIL;
-		}
-	}
-
 	if (platform_mem_alloc((void **)&tmp_reader, reader_len + 1) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
@@ -92,6 +76,32 @@ result_t fifo_init(fifo_t *fifo, char *obj_fifo)
 	if (result == CC_RESULT_SUCCESS)
 		result = decode_uint_from_map(obj_read_pos, tmp_reader, &fifo->read_pos);
 
+	if (get_value_from_map(r, "fifo", &obj_tokens) == CC_RESULT_SUCCESS) {
+		nbr_of_tokens = get_size_of_array(obj_tokens);
+		for (i_token = 0; i_token < nbr_of_tokens; i_token++) {
+			if (get_value_from_array(obj_tokens, i_token, &obj_token) != CC_RESULT_SUCCESS) {
+				result = CC_RESULT_FAIL;
+				break;
+			}
+
+			if (get_value_from_map(obj_token, "data", &obj_data) != CC_RESULT_SUCCESS) {
+				result = CC_RESULT_FAIL;
+				break;
+			}
+
+			if (fifo->read_pos != fifo->tentative_read_pos || fifo->write_pos != fifo->read_pos) {
+				size = get_size_of_value(obj_data);
+				if (platform_mem_alloc((void **)&fifo->tokens[i_token].value, size) != CC_RESULT_SUCCESS) {
+					log_error("Failed to allocate memory");
+					result = CC_RESULT_FAIL;
+					break;
+				}
+				memcpy(fifo->tokens[i_token].value, obj_data, size);
+				fifo->tokens[i_token].size = size;
+			}
+		}
+	}
+
 	if (result != CC_RESULT_SUCCESS)
 		fifo_free(fifo);
 
@@ -103,12 +113,6 @@ result_t fifo_init(fifo_t *fifo, char *obj_fifo)
 
 void fifo_free(fifo_t *fifo)
 {
-	uint32_t i_token = 0;
-
-	if (fifo != NULL) {
-		for (i_token = 0; i_token < fifo->size; i_token++)
-			free_token(&fifo->tokens[i_token]);
-	}
 	fifo->size = 0;
 	fifo->write_pos = 0;
 	fifo->read_pos = 0;
@@ -130,11 +134,9 @@ token_t *fifo_peek(fifo_t *fifo)
 	return &fifo->tokens[read_pos % fifo->size];
 }
 
-bool fifo_commit_read(fifo_t *fifo)
+void fifo_commit_read(fifo_t *fifo)
 {
-	free_token(&fifo->tokens[fifo->read_pos  % fifo->size]);
 	fifo->read_pos = fifo->tentative_read_pos;
-	return false;
 }
 
 void fifo_cancel_commit(fifo_t *fifo)
@@ -152,19 +154,15 @@ bool fifo_tokens_available(const fifo_t *fifo, uint32_t length)
 	return (fifo->write_pos - fifo->tentative_read_pos) >= length;
 }
 
-result_t fifo_write(fifo_t *fifo, const char *data, const size_t size)
+result_t fifo_write(fifo_t *fifo, char *data, const size_t size)
 {
 	result_t result = CC_RESULT_SUCCESS;
 
-	if (fifo_slots_available(fifo, 1) != 1)
+	if (!fifo_slots_available(fifo, 1))
 		return CC_RESULT_FAIL;
 
-	if (fifo->tokens[fifo->write_pos % fifo->size].value != NULL)
-		free_token(&fifo->tokens[fifo->write_pos % fifo->size]);
-
-	result = token_set_data(&fifo->tokens[fifo->write_pos % fifo->size], data, size);
-	if (result == CC_RESULT_SUCCESS)
-		fifo->write_pos++;
+	token_set_data(&fifo->tokens[fifo->write_pos % fifo->size], data, size);
+	fifo->write_pos++;
 
 	return result;
 }
@@ -175,9 +173,8 @@ void fifo_com_peek(fifo_t *fifo, token_t **token, uint32_t *sequence_nbr)
 	*token = fifo_peek(fifo);
 }
 
-result_t fifo_com_write(fifo_t *fifo, const char *data, size_t size, uint32_t sequence_nbr)
+result_t fifo_com_write(fifo_t *fifo, char *data, size_t size, uint32_t sequence_nbr)
 {
-	log_debug("fifo_com_write");
 	if (sequence_nbr >= fifo->write_pos) { // TODO: Should be sequence_nbr == fifo->write_pos
 		fifo_write(fifo, data, size);
 		return CC_RESULT_SUCCESS;
@@ -190,16 +187,17 @@ result_t fifo_com_write(fifo_t *fifo, const char *data, size_t size, uint32_t se
 
 void fifo_com_commit_read(fifo_t *fifo, uint32_t sequence_nbr)
 {
-	if (sequence_nbr >= fifo->tentative_read_pos) {
-		log_error("Invalid commit");
+	if ((sequence_nbr < fifo->tentative_read_pos) && (fifo->read_pos < fifo->tentative_read_pos)) {
+		while (fifo->read_pos <= sequence_nbr) {
+			token_free(&fifo->tokens[sequence_nbr % fifo->size]);
+			fifo->tokens[sequence_nbr % fifo->size].value = NULL;
+			fifo->tokens[sequence_nbr % fifo->size].size = 0;
+			fifo->read_pos += 1;
+		}
 		return;
 	}
-	if (fifo->read_pos < fifo->tentative_read_pos) {
-		if (sequence_nbr == fifo->read_pos)
-			fifo->read_pos += 1;
-		else
-			log_error("Invalid commit");
-	}
+
+	log_error("Invalid commit");
 }
 
 void fifo_com_cancel_read(fifo_t *fifo, uint32_t sequence_nbr)

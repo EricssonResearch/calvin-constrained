@@ -19,34 +19,30 @@
 #include "../runtime/north/cc_msgpack_helper.h"
 #include "../runtime/north/cc_fifo.h"
 #include "../runtime/north/cc_token.h"
+#include "../calvinsys/cc_calvinsys.h"
+#include "../msgpuck/msgpuck.h"
 
 result_t actor_gpioreader_init(actor_t **actor, list_t *attributes)
 {
+	calvinsys_obj_t *obj = NULL;
 	state_gpioreader_t *state = NULL;
-	char *data = NULL, *pull = NULL, *edge = NULL;
-	uint32_t pin = 0, len = 0;
-	calvinsys_io_giohandler_t *gpiohandler = NULL;
+	char buffer[100], *tmp = buffer;
+	char *pin, *pull = NULL, *edge = NULL;
 
-	gpiohandler = (calvinsys_io_giohandler_t *)list_get((*actor)->calvinsys, "calvinsys.io.gpiohandler");
-	if (gpiohandler == NULL) {
-		log_error("calvinsys.io.gpiohandler is not supported");
+	pin = (char *)list_get(attributes, "gpio_pin");
+	if (pin == NULL) {
+		log_error("Failed to get 'pin'");
 		return CC_RESULT_FAIL;
 	}
 
-	data = (char *)list_get(attributes, "gpio_pin");
-	if (data == NULL || decode_uint((char *)data, &pin) != CC_RESULT_SUCCESS) {
-		log_error("Failed to get 'gpio_pin'");
-		return CC_RESULT_FAIL;
-	}
-
-	data = (char *)list_get(attributes, "pull");
-	if (data == NULL || decode_str(data, (char **)&pull, &len) != CC_RESULT_SUCCESS) {
+	pull = (char *)list_get(attributes, "pull");
+	if (pull == NULL) {
 		log_error("Failed to get 'pull'");
 		return CC_RESULT_FAIL;
 	}
 
-	data = (char *)list_get(attributes, "edge");
-	if (data == NULL || decode_str(data, (char **)&edge, &len) != CC_RESULT_SUCCESS) {
+	edge = (char *)list_get(attributes, "edge");
+	if (edge == NULL) {
 		log_error("Failed to get 'edge'");
 		return CC_RESULT_FAIL;
 	}
@@ -56,13 +52,21 @@ result_t actor_gpioreader_init(actor_t **actor, list_t *attributes)
 		return CC_RESULT_FAIL;
 	}
 
-	state->gpio = gpiohandler->init_in_gpio(gpiohandler, pin, pull[0], edge[0]);
-	if (state->gpio == NULL) {
-		log_error("Failed create gpio");
+	tmp = mp_encode_map(tmp, 4);
+	{
+		tmp = encode_str(&tmp, "direction", "i", 1);
+		tmp = encode_value(&tmp, "pin", pin, get_size_of_value(pin));
+		tmp = encode_value(&tmp, "pull", pull, get_size_of_value(pull));
+		tmp = encode_value(&tmp, "edge", edge, get_size_of_value(edge));
+	}
+
+	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.io.gpiohandler", buffer, tmp - buffer);
+	if (obj == NULL) {
+		log_error("Failed to open 'calvinsys.io.gpiohandler'");
 		return CC_RESULT_FAIL;
 	}
-	state->gpiohandler = gpiohandler;
 
+	state->obj = obj;
 	(*actor)->instance_state = (void *)state;
 
 	return CC_RESULT_SUCCESS;
@@ -75,17 +79,16 @@ result_t actor_gpioreader_set_state(actor_t **actor, list_t *attributes)
 
 bool actor_gpioreader_fire(struct actor_t *actor)
 {
-	token_t out_token;
 	port_t *outport = (port_t *)actor->out_ports->data;
-	state_gpioreader_t *gpio_state = (state_gpioreader_t *)actor->instance_state;
+	calvinsys_obj_t *obj = ((state_gpioreader_t *)actor->instance_state)->obj;
+	char *data = NULL;
+	size_t size = 0;
 
-	if (gpio_state->gpio->has_triggered) {
-		if (fifo_slots_available(&outport->fifo, 1) == 1) {
-			token_set_uint(&out_token, gpio_state->gpio->value);
-			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == CC_RESULT_SUCCESS) {
-				gpio_state->gpio->has_triggered = false;
+	if (obj->can_read(obj) && fifo_slots_available(&outport->fifo, 1) == 1) {
+		if (obj->read(obj, &data, &size) == CC_RESULT_SUCCESS) {
+			if (fifo_write(&outport->fifo, data, size) == CC_RESULT_SUCCESS)
 				return true;
-			}
+			platform_mem_free((void *)data);
 		}
 	}
 
@@ -94,14 +97,11 @@ bool actor_gpioreader_fire(struct actor_t *actor)
 
 void actor_gpioreader_free(actor_t *actor)
 {
-	state_gpioreader_t *gpio_state = (state_gpioreader_t *)actor->instance_state;
-	calvinsys_io_giohandler_t *gpiohandler = gpio_state->gpiohandler;
+	state_gpioreader_t *state = (state_gpioreader_t *)actor->instance_state;
 
-	gpiohandler->uninit_gpio(gpiohandler, gpio_state->gpio->pin, CALVIN_GPIO_IN);
-	platform_mem_free((void *)gpio_state);
-}
-
-result_t actor_gpioreader_get_managed_attributes(actor_t *actor, list_t **attributes)
-{
-	return CC_RESULT_SUCCESS;
+	if (state != NULL) {
+		if (state->obj != NULL)
+			calvinsys_close(state->obj);
+		platform_mem_free((void *)state);
+	}
 }

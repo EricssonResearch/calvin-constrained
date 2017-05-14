@@ -30,10 +30,11 @@ class Temperature(Actor):
 
     @manage([])
     def init(self):
+        self.temp = None
         self.setup()
 
     def setup(self):
-        self.use("calvinsys.sensors.environmental", shorthand="temp")
+        self.temp = self.open("calvinsys.sensors.environmental")
 
     def will_migrate(self):
         pass
@@ -43,8 +44,7 @@ class Temperature(Actor):
 
     @condition(['measure'], ['centigrade'])
     def measure(self, _):
-        temperature = self['temp'].get_temperature()
-        return (temperature,)
+        return (self.temp.read(),)
 
     action_priority = (measure,)
     requires =  ['calvinsys.sensors.environmental']

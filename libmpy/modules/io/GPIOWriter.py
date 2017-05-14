@@ -28,24 +28,24 @@ class GPIOWriter(Actor):
     @manage(["gpio_pin"])
     def init(self, gpio_pin):
         self.gpio_pin = gpio_pin
+        self.gpio = None
         self.setup()
 
     def setup(self):
-        self.use("calvinsys.io.gpiohandler", shorthand="gpiohandler")
-        self.gpio = self["gpiohandler"].open(self.gpio_pin, "o")
+        self.gpio = self.open("calvinsys.io.gpiohandler", pin=self.gpio_pin, direction="o")
 
     def will_migrate(self):
-        self.gpio.close()
+        self.close(self.gpio)
 
     def will_end(self):
-        self.gpio.close()
+        self.close(self.gpio)
 
     def did_migrate(self):
         self.setup()
 
     @condition(action_input=("state",))
     def set_state(self, state):
-        self.gpio.set_state(state)
+        self.gpio.write(state)
 
 
     action_priority = (set_state, )

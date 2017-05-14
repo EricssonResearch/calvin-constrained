@@ -13,32 +13,55 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <string.h>
 #include "../runtime/north/cc_common.h"
 #include "../runtime/north/cc_node.h"
 #include "cc_calvinsys.h"
 
-result_t register_calvinsys(node_t *node, calvinsys_t *calvinsys)
+result_t calvinsys_register_handler(list_t **calvinsys, const char *name, calvinsys_handler_t *handler)
 {
-	if (list_get(node->calvinsys, calvinsys->name) != NULL) {
-		log_error("Calvinsys %s already registered", calvinsys->name);
+	if (list_get(*calvinsys, name) != NULL) {
+		log_error("Calvinsys '%s' handler already registered", name);
 		return CC_RESULT_FAIL;
 	}
-	return list_add(&node->calvinsys, calvinsys->name, calvinsys, sizeof(calvinsys_t *));
+
+	log("Calvinsys '%s' registered", name);
+	return list_add_n(calvinsys, name, strlen(name), handler, sizeof(calvinsys_handler_t *));
 }
 
-void unregister_calvinsys(node_t *node, calvinsys_t *calvinsys)
+void calvinsys_free_handler(node_t *node, char *name)
 {
-	list_remove(&node->calvinsys, calvinsys->name);
+	calvinsys_handler_t *handler = NULL;
+	calvinsys_obj_t *obj = NULL;
+
+	handler = (calvinsys_handler_t *)list_get(node->calvinsys, name);
+	if (handler != NULL) {
+		while (handler->objects != NULL) {
+			obj = handler->objects;
+			handler->objects = handler->objects->next;
+			platform_mem_free((void *)obj);
+		}
+		platform_mem_free((void *)handler);
+		list_remove(&node->calvinsys, name);
+	}
 }
 
-void release_calvinsys(calvinsys_t **calvinsys)
+calvinsys_obj_t *calvinsys_open(list_t *calvinsys, const char *name, char *data, size_t size)
 {
-	if ((*calvinsys)->data != NULL)
-		platform_mem_free((*calvinsys)->data);
-	if ((*calvinsys)->command != NULL)
-		platform_mem_free((*calvinsys)->command);
-	platform_mem_free((*calvinsys)->name);
-	platform_mem_free(*calvinsys);
-	*calvinsys = NULL;
+	calvinsys_handler_t *handler = NULL;
+	calvinsys_obj_t *obj = NULL;
+
+	handler = (calvinsys_handler_t *)list_get(calvinsys, name);
+	if (handler != NULL)
+		obj = handler->open(handler, data, size);
+
+	return obj;
+}
+
+void calvinsys_close(calvinsys_obj_t *obj)
+{
+	if (obj->close != NULL)
+		obj->close(obj);
+	obj->handler->objects = NULL; // TODO: Handle multiple objects and rearrange list
+	platform_mem_free((void *)obj);
 }

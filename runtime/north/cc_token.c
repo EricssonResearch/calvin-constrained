@@ -20,19 +20,10 @@
 #include "cc_msgpack_helper.h"
 #include "../../msgpuck/msgpuck.h"
 
-result_t token_set_data(token_t *token, const char *data, const size_t size)
+void token_set_data(token_t *token, char *data, const size_t size)
 {
-	if (size > MAX_TOKEN_SIZE) {
-		log_error("Token data '%zu' to big", size);
-		return CC_RESULT_FAIL;
-	}
-	if (platform_mem_alloc((void **)&token->value, size) == CC_RESULT_SUCCESS) {
-		memcpy(token->value, data, size);
-		token->size = size;
-		return CC_RESULT_SUCCESS;
-	}
-
-	return CC_RESULT_FAIL;
+	token->value = data;
+	token->size = size;
 }
 
 char *token_encode(char **buffer, token_t token, bool with_key)
@@ -81,13 +72,11 @@ result_t token_decode_uint(token_t token, uint32_t *value)
 	return CC_RESULT_FAIL;
 }
 
-void free_token(token_t *token)
+void token_free(token_t *token)
 {
-	if (token != NULL) {
-		if (token->value != NULL) {
-			platform_mem_free((void *)token->value);
-			token->value = NULL;
-		}
+	if (token->value != NULL && token->size != 0) {
+		platform_mem_free((void *)token->value);
+		token->value = NULL;
 		token->size = 0;
 	}
 }

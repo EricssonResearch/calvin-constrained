@@ -31,7 +31,7 @@ MP_TOP = micropython
 FROZEN_MPY_DIR = libmpy/modules
 
 # Add the names of the files for QSTR extraction
-EXT_SRC_C = cc_mpy_port.c cc_mpy_gpiohandler.c cc_mpy_environmental.c
+EXT_SRC_C = cc_mpy_port.c cc_mpy_calvinsys.c
 
 # The -DMICROPYTHON enables the MICROPYTHON directive in the program
 CFLAGS = -std=c99 -fpic -fPIC -fpie -I$(MPY_CONF_FOLDER) -I$(MP_TOP) -DMICROPYTHON -Os -DNDEBUG

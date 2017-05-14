@@ -23,6 +23,7 @@
 #include "cc_transport.h"
 #include "cc_msgpack_helper.h"
 #include "../../msgpuck/msgpuck.h"
+#include "../../calvinsys/cc_calvinsys.h"
 #include "../south/platform/cc_platform.h"
 #ifdef CC_TLS_ENABLED
 #include "../../crypto/cc_crypto.h"
@@ -328,8 +329,24 @@ static result_t node_enter_sleep_reply_handler(node_t *node, char *data, void *m
 
 result_t node_handle_token(port_t *port, const char *data, const size_t size, uint32_t sequencenbr)
 {
-	if (port->actor->state == ACTOR_ENABLED)
-		return fifo_com_write(&port->fifo, data, size, sequencenbr);
+	char *buffer = NULL;
+
+	if (port->actor->state == ACTOR_ENABLED) {
+		if (fifo_slots_available(&port->fifo, 1)) {
+			if (platform_mem_alloc((void **)&buffer, size) != CC_RESULT_SUCCESS) {
+				log_error("Failed to allocate memory");
+				return CC_RESULT_FAIL;
+			}
+			memcpy(buffer, data, size);
+			if (fifo_com_write(&port->fifo, buffer, size, sequencenbr) == CC_RESULT_SUCCESS)
+				return CC_RESULT_SUCCESS;
+			else
+				platform_mem_free((void *)buffer);
+		} else
+			log("Token received but no slots available");
+	} else
+		log("Token received but actor not enabled");
+
 	return CC_RESULT_FAIL;
 }
 
@@ -338,11 +355,11 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 	port_t *port = port_get(node, port_id, port_id_len);
 
 	if (port != NULL) {
-		if (reply_type == PORT_REPLY_TYPE_ACK)
+		if (reply_type == PORT_REPLY_TYPE_ACK) {
 			fifo_com_commit_read(&port->fifo, sequencenbr);
-		else if (reply_type == PORT_REPLY_TYPE_NACK)
+		} else if (reply_type == PORT_REPLY_TYPE_NACK) {
 			fifo_com_cancel_read(&port->fifo, sequencenbr);
-		else if (reply_type == PORT_REPLY_TYPE_ABORT)
+		} else if (reply_type == PORT_REPLY_TYPE_ABORT)
 			log_debug("TODO: handle ABORT");
 	}
 }
@@ -502,6 +519,56 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 	return CC_RESULT_SUCCESS;
 }
 
+static void node_free(node_t *node)
+{
+	list_t *item = NULL, *tmp_item;
+
+	item = node->actors;
+	while (item != NULL) {
+		tmp_item = item;
+		item = item->next;
+		actor_free(node, (actor_t *)tmp_item->data, false);
+	}
+
+	item = node->tunnels;
+	while (item != NULL) {
+		tmp_item = item;
+		item = item->next;
+		tunnel_free(node, (tunnel_t *)tmp_item->data);
+	}
+
+	item = node->links;
+	while (item != NULL) {
+		tmp_item = item;
+		item = item->next;
+		link_free(node, (link_t *)tmp_item->data);
+	}
+
+	platform_stop(node);
+
+	if (node->attributes != NULL) {
+		item = node->attributes->indexed_public_node_name;
+		while (item != NULL) {
+			tmp_item = node->attributes->indexed_public_node_name;
+			item = item->next;
+			list_remove(&node->attributes->indexed_public_node_name, tmp_item->id);
+		}
+		platform_mem_free((void *)node->attributes);
+	}
+
+	if (node->platform != NULL)
+		platform_mem_free((void *)node->platform);
+
+	item = node->calvinsys;
+	while (item != NULL) {
+		tmp_item = item;
+		item = item->next;
+		calvinsys_free_handler(node, tmp_item->id);
+	}
+
+	platform_mem_free((void *)node);
+}
+
 result_t node_run(node_t *node)
 {
 	int i = 0;
@@ -520,6 +587,7 @@ result_t node_run(node_t *node)
 					while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_ENABLED) {
 						if (node->state == NODE_STARTED)
 							node->fire_actors(node);
+							log_debug("Enterring platform_evt_wait");
 #ifdef CC_DEEPSLEEP_ENABLED
 						if (!platform_evt_wait(node, CC_INACTIVITY_TIMEOUT)) {
 							log("Requesting sleep");
@@ -546,6 +614,8 @@ result_t node_run(node_t *node)
 			platform_evt_wait(node, 5);
 		}
 	}
+
+	node_free(node);
 
 	log("Node stopped");
 	return CC_RESULT_SUCCESS;

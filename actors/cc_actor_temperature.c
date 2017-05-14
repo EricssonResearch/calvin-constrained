@@ -23,21 +23,22 @@
 
 result_t actor_temperature_init(actor_t **actor, list_t *attributes)
 {
-	calvinsys_sensors_environmental_t *environmental = NULL;
+	calvinsys_obj_t *obj = NULL;
 	state_temperature_t *state = NULL;
 
-	environmental = (calvinsys_sensors_environmental_t *)list_get((*actor)->calvinsys, "calvinsys.sensors.environmental");
-	if (environmental == NULL) {
-		log_error("calvinsys.sensors.environmental is not supported");
+	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.sensors.environmental", NULL, 0);
+	if (obj == NULL) {
+		log_error("Failed to open 'calvinsys.sensors.environmental'");
 		return CC_RESULT_FAIL;
 	}
 
 	if (platform_mem_alloc((void **)&state, sizeof(state_temperature_t)) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
+		obj->close(obj);
 		return CC_RESULT_FAIL;
 	}
 
-	state->environmental = environmental;
+	state->obj = obj;
 	(*actor)->instance_state = (void *)state;
 
 	return CC_RESULT_SUCCESS;
@@ -50,23 +51,24 @@ result_t actor_temperature_set_state(actor_t **actor, list_t *attributes)
 
 bool actor_temperature_fire(struct actor_t *actor)
 {
-	token_t out_token;
-	double temperature;
 	port_t *inport = (port_t *)actor->in_ports->data, *outport = (port_t *)actor->out_ports->data;
-	calvinsys_sensors_environmental_t *environmental = ((state_temperature_t *)actor->instance_state)->environmental;
+	calvinsys_obj_t *obj = ((state_temperature_t *)actor->instance_state)->obj;
+	char *data = NULL;
+	size_t size = 0;
 
-	if (fifo_tokens_available(&inport->fifo, 1) == 1 && fifo_slots_available(&outport->fifo, 1) == 1) {
-		if (environmental->get_temperature(&temperature) == CC_RESULT_SUCCESS) {
+	if (obj->can_read(obj) && fifo_tokens_available(&inport->fifo, 1) && fifo_slots_available(&outport->fifo, 1)) {
+		if (obj->read(obj, &data, &size) == CC_RESULT_SUCCESS) {
 			fifo_peek(&inport->fifo);
-			token_set_double(&out_token, temperature);
-			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == CC_RESULT_SUCCESS) {
+			if (fifo_write(&outport->fifo, data, size) == CC_RESULT_SUCCESS) {
 				fifo_commit_read(&inport->fifo);
 				return true;
 			}
 			fifo_cancel_commit(&inport->fifo);
+			platform_mem_free((void *)data);
 		} else
-			log_error("Failed to get temperature");
+			log_error("Failed to read temperature");
 	}
+
 	return false;
 }
 
@@ -74,6 +76,9 @@ void actor_temperature_free(actor_t *actor)
 {
 	state_temperature_t *state = (state_temperature_t *)actor->instance_state;
 
-	if (state != NULL)
+	if (state != NULL) {
+		if (state->obj != NULL)
+			calvinsys_close(state->obj);
 		platform_mem_free((void *)state);
+	}
 }

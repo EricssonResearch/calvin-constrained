@@ -53,7 +53,7 @@ typedef struct node_t {
 	char *storage_dir;
 	pending_msg_t pending_msgs[MAX_PENDING_MSGS];
 	void *platform;
-  node_attributes_t* attributes;
+  node_attributes_t *attributes;
 	link_t *proxy_link;
 	list_t *links;
 	tunnel_t *storage_tunnel;

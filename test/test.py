@@ -631,10 +631,10 @@ def testDeepSleep():
     # verify placement
     assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
 
-    # wait for sleep and firings
+    # wait for src firing
     time.sleep(10)
 
-    assert constrained_process.poll() is 0
+    assert constrained_process.poll() is not None
 
     constrained_process = subprocess.Popen("exec ./calvin_c -n 'constrained' -p 'calvinip://127.0.0.1:5000'", shell=True, stderr=output_file)
 

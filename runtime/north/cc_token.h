@@ -26,11 +26,11 @@ typedef struct token_t {
 	size_t size;		// Size of serialized token data
 } token_t;
 
-result_t token_set_data(token_t *token, const char *data, const size_t size);
+void token_set_data(token_t *token, char *data, const size_t size);
 char *token_encode(char **buffer, token_t token, bool with_key);
 void token_set_double(token_t *token, const double value);
 void token_set_uint(token_t *token, const uint32_t value);
 result_t token_decode_uint(token_t token, uint32_t *value);
-void free_token(token_t *token);
+void token_free(token_t *token);
 
 #endif /* TOKEN_H */

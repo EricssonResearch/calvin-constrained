@@ -55,23 +55,17 @@ result_t actor_identity_set_state(actor_t **actor, list_t *attributes)
 
 bool actor_identity_fire(struct actor_t *actor)
 {
-	token_t *in_token = NULL, out_token;
-	uint32_t in_data = 0;
+	token_t *token = NULL;
 	port_t *inport = (port_t *)actor->in_ports->data, *outport = (port_t *)actor->out_ports->data;
 
 	if (fifo_tokens_available(&inport->fifo, 1) && fifo_slots_available(&outport->fifo, 1)) {
-		in_token = fifo_peek(&inport->fifo);
-		if (token_decode_uint(*in_token, &in_data) == CC_RESULT_SUCCESS) {
-			token_set_uint(&out_token, in_data);
-			if (fifo_write(&outport->fifo, out_token.value, out_token.size) == CC_RESULT_SUCCESS) {
-				fifo_commit_read(&inport->fifo);
-				return true;
-			}
-		} else
-			log_error("Failed to decode token");
+		token = fifo_peek(&inport->fifo);
+		if (fifo_write(&outport->fifo, token->value, token->size) == CC_RESULT_SUCCESS) {
+			fifo_commit_read(&inport->fifo);
+			return true;
+		}
 		fifo_cancel_commit(&inport->fifo);
 	}
-
 	return false;
 }
 
@@ -93,11 +87,7 @@ result_t actor_identity_get_managed_attributes(actor_t *actor, list_t **attribut
 		log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
-	name[0] = 'd';
-	name[1] = 'u';
-	name[2] = 'm';
-	name[3] = 'p';
-	name[4] = '\0';
+	strncpy(name, "dump", 5);
 
 	size = mp_sizeof_bool(state->dump);
 	if (platform_mem_alloc((void **)&value, size) != CC_RESULT_SUCCESS) {

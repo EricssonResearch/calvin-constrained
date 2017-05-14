@@ -32,13 +32,13 @@ result_t fifo_init(fifo_t *fifo, char *obj_fifo);
 void fifo_free(fifo_t *fifo);
 void fifo_cancel(fifo_t *fifo);
 token_t *fifo_peek(fifo_t *fifo);
-bool fifo_commit_read(fifo_t *fifo);
+void fifo_commit_read(fifo_t *fifo);
 void fifo_cancel_commit(fifo_t *fifo);
 bool fifo_slots_available(const fifo_t *fifo, uint32_t length);
 bool fifo_tokens_available(const fifo_t *fifo, uint32_t length);
-result_t fifo_write(fifo_t *fifo, const char *data, const size_t size);
+result_t fifo_write(fifo_t *fifo, char *data, const size_t size);
 void fifo_com_peek(fifo_t *fifo, token_t **token, uint32_t *sequence_nbr);
-result_t fifo_com_write(fifo_t *fifo, const char *data, size_t size, uint32_t sequence_nbr);
+result_t fifo_com_write(fifo_t *fifo, char *data, size_t size, uint32_t sequence_nbr);
 void fifo_com_commit_read(fifo_t *fifo, uint32_t sequence_nbr);
 void fifo_com_cancel_read(fifo_t *fifo, uint32_t sequence_nbr);
 

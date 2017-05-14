@@ -273,6 +273,8 @@ void port_free(node_t *node, port_t *port)
 	if (port->tunnel != NULL)
 		tunnel_remove_ref(node, port->tunnel);
 
+	fifo_free(&port->fifo);
+
 	platform_mem_free((void *)port);
 }
 
@@ -510,9 +512,9 @@ void port_transmit(node_t *node, port_t *port)
 							fifo_com_cancel_read(&port->fifo, sequencenbr);
 					} else if (port->peer_port != NULL) {
 						if (fifo_write(&port->peer_port->fifo, token->value, token->size) == CC_RESULT_SUCCESS)
-							fifo_com_commit_read(&port->fifo, sequencenbr);
+							fifo_commit_read(&port->fifo);
 						else
-							fifo_com_cancel_read(&port->fifo, sequencenbr);
+							fifo_cancel_commit(&port->fifo);
 					} else {
 						log_error("Port '%s' is enabled without a peer", port->name);
 						fifo_com_cancel_read(&port->fifo, sequencenbr);

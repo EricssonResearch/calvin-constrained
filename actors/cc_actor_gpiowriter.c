@@ -18,28 +18,18 @@
 #include "cc_actor_gpiowriter.h"
 #include "../runtime/north/cc_msgpack_helper.h"
 #include "../runtime/north/cc_fifo.h"
+#include "../msgpuck/msgpuck.h"
 
 result_t actor_gpiowriter_init(actor_t **actor, list_t *attributes)
 {
-	uint32_t pin = 0;
-	calvinsys_io_giohandler_t *gpiohandler = NULL;
+	calvinsys_obj_t *obj = NULL;
 	state_gpiowriter_t *state = NULL;
-	char *data = NULL;
+	char buffer[100], *tmp = buffer;
+	char *pin;
 
-	data = (char *)list_get(attributes, "gpio_pin");
-	if (data == NULL || decode_uint(data, &pin) != CC_RESULT_SUCCESS) {
-		log_error("Failed to get 'gpio_pin'");
-		return CC_RESULT_FAIL;
-	}
-
-	gpiohandler = (calvinsys_io_giohandler_t *)list_get((*actor)->calvinsys, "calvinsys.io.gpiohandler");
-	if (gpiohandler == NULL) {
-		log_error("calvinsys.io.gpiohandler is not supported");
-		return CC_RESULT_FAIL;
-	}
-
-	if (gpiohandler->init_out_gpio(pin) != CC_RESULT_SUCCESS) {
-		log("Failed to init gpio");
+	pin = (char *)list_get(attributes, "gpio_pin");
+	if (pin == NULL) {
+		log_error("Failed to get 'pin'");
 		return CC_RESULT_FAIL;
 	}
 
@@ -48,8 +38,19 @@ result_t actor_gpiowriter_init(actor_t **actor, list_t *attributes)
 		return CC_RESULT_FAIL;
 	}
 
-	state->pin = pin;
-	state->gpiohandler = gpiohandler;
+	tmp = mp_encode_map(tmp, 2);
+	{
+		tmp = encode_str(&tmp, "direction", "o", 1);
+		tmp = encode_value(&tmp, "pin", pin, get_size_of_value(pin));
+	}
+
+	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.io.gpiohandler", buffer, tmp - buffer);
+	if (obj == NULL) {
+		log_error("Failed to open 'calvinsys.io.gpiohandler'");
+		return CC_RESULT_FAIL;
+	}
+
+	state->obj = obj;
 	(*actor)->instance_state = (void *)state;
 
 	return CC_RESULT_SUCCESS;
@@ -62,22 +63,16 @@ result_t actor_gpiowriter_set_state(actor_t **actor, list_t *attributes)
 
 bool actor_gpiowriter_fire(struct actor_t *actor)
 {
-	state_gpiowriter_t *gpio_state = (state_gpiowriter_t *)actor->instance_state;
-	calvinsys_io_giohandler_t *gpiohandler = gpio_state->gpiohandler;
 	port_t *inport = (port_t *)actor->in_ports->data;
-	token_t *in_token = NULL;
-	uint32_t in_data = 0;
+	calvinsys_obj_t *obj = ((state_gpiowriter_t *)actor->instance_state)->obj;
+	token_t *token = NULL;
 
-	if (fifo_tokens_available(&inport->fifo, 1) == 1) {
-		in_token = fifo_peek(&inport->fifo);
-
-		if (token_decode_uint(*in_token, &in_data) == CC_RESULT_SUCCESS) {
-			gpiohandler->set_gpio(gpio_state->pin, in_data);
+	if (fifo_tokens_available(&inport->fifo, 1)) {
+		token = fifo_peek(&inport->fifo);
+		if (obj->write(obj, token->value, token->size) == CC_RESULT_SUCCESS) {
 			fifo_commit_read(&inport->fifo);
 			return true;
 		}
-
-		log_error("Failed to decode token");
 		fifo_cancel_commit(&inport->fifo);
 	}
 
@@ -86,15 +81,11 @@ bool actor_gpiowriter_fire(struct actor_t *actor)
 
 void actor_gpiowriter_free(actor_t *actor)
 {
-	state_gpiowriter_t *gpio_state = (state_gpiowriter_t *)actor->instance_state;
-	calvinsys_io_giohandler_t *gpiohandler = gpio_state->gpiohandler;
+	state_gpiowriter_t *state = (state_gpiowriter_t *)actor->instance_state;
 
-	gpiohandler->uninit_gpio(gpiohandler, gpio_state->pin, CALVIN_GPIO_OUT);
-	platform_mem_free((void *)gpio_state);
-}
-
-result_t actor_gpiowriter_get_managed_attributes(actor_t *actor, list_t **attributes)
-{
-	// TODO: Implement
-	return CC_RESULT_SUCCESS;
+	if (state != NULL) {
+		if (state->obj != NULL)
+			calvinsys_close(state->obj);
+		platform_mem_free((void *)state);
+	}
 }

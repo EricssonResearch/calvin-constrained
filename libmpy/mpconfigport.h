@@ -28,12 +28,6 @@
 #include CCMP_CONFIGFILE
 #endif
 
-#if !defined(CCMP_MODULE_GPIOHANDLER)
-#define	CCMP_MODULE_GPIOHANDLER		(1)
-#endif
-#if !defined(CCMP_MODULE_ENVIRONMENTAL)
-#define    CCMP_MODULE_ENVIRONMENTAL   (1)
-#endif
 #include <stdint.h>
 
 // options to control how Micro Python is built
@@ -91,24 +85,12 @@
 
 extern const struct _mp_obj_module_t mp_module_mpy_port;
 
-#if CCMP_MODULE_GPIOHANDLER
-extern const struct _mp_obj_module_t mp_module_gpiohandler;
-#define CCMP_MODULE_GPIOHANDLER_DEF    { MP_OBJ_NEW_QSTR(MP_QSTR_gpiohandler), (mp_obj_t)&mp_module_gpiohandler },
-#else
-#define CCMP_MODULE_GPIOHANDLER_DEF
-#endif
-
-#if CCMP_MODULE_ENVIRONMENTAL
-extern const struct _mp_obj_module_t mp_module_environmental;
-#define CCMP_MODULE_ENVIRONMENTAL_DEF    { MP_OBJ_NEW_QSTR(MP_QSTR_environmental), (mp_obj_t)&mp_module_environmental },
-#else
-#define CCMP_MODULE_ENVIRONMENTAL_DEF
-#endif
+extern const struct _mp_obj_module_t cc_mp_module_calvinsys;
+#define CCMP_MODULE_CALVINSYS_DEF    { MP_OBJ_NEW_QSTR(MP_QSTR_calvinsys), (mp_obj_t)&cc_mp_module_calvinsys },
 
 #define MICROPY_PORT_BUILTIN_MODULES \
 	{ MP_OBJ_NEW_QSTR(MP_QSTR_mpy_port), (mp_obj_t)&mp_module_mpy_port }, \
-	CCMP_MODULE_GPIOHANDLER_DEF \
-	CCMP_MODULE_ENVIRONMENTAL_DEF \
+	CCMP_MODULE_CALVINSYS_DEF \
 
 // assume that if we already defined the obj repr then we also defined types
 #ifndef MICROPY_OBJ_REPR

@@ -46,14 +46,12 @@ result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char *sto
 result_t api_runtime_start(node_t *node)
 {
 	node_run(node);
-	platform_stop(node);
 	return CC_RESULT_SUCCESS;
 }
 
 result_t api_runtime_stop(node_t *node)
 {
 	node->state = NODE_STOP;
-	platform_mem_free((void *)node);
 	return CC_RESULT_SUCCESS;
 }
 

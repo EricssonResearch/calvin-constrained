@@ -125,29 +125,23 @@ class Actor(object):
     # Class variable controls action priority order
     action_priority = tuple()
 
-    test_args = ()
-    test_kwargs = {}
-
     def __init__(self, actor_ref):
         """Should _not_ be overridden in subclasses."""
         super(Actor, self).__init__()
         self.actor_ref = actor_ref
         self._managed = set(('id', 'name', '_deployment_requirements', '_signature', 'subject_attributes', 'migration_info'))
-        #TODO handle calvinsys
-        self._calvinsys = calvinsys.Sys()
-        self._using = {}
 
     def init(self):
         raise Exception("Implementing 'init()' is mandatory.")
 
-    #TODO handle calvinsys
-    def __getitem__(self, attr):
-        if attr in self._using:
-            return self._using[attr]
-        raise KeyError(attr)
+    def open(self, requirement, **kwargs):
+        obj = calvinsys.open(self.actor_ref, requirement, **kwargs)
+        if obj is None:
+            raise Exception("Failed to open object")
+        return obj
 
-    def use(self, requirement, shorthand):
-        self._using[shorthand] = self._calvinsys.use_requirement(self.actor_ref, requirement)
+    def close(self, obj):
+        calvinsys.close(obj)
 
     def fire(self):
         """

@@ -122,9 +122,10 @@ STATIC mp_obj_t mpy_port_ccmp_peek_commit(mp_obj_t mp_actor, mp_obj_t mp_port_na
 	bool value = false;
 
 	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
-	if (port != NULL)
-		value = fifo_commit_read(&port->fifo);
-	else
+	if (port != NULL) {
+		fifo_commit_read(&port->fifo);
+		value = true;
+	} else
 		log_error("No port with name '%s'", port_name);
 
 	return mp_obj_new_bool(value);
@@ -141,9 +142,10 @@ STATIC mp_obj_t mpy_port_ccmp_write_token(mp_obj_t mp_actor, mp_obj_t mp_port_na
 	port = port_get_from_name(actor, port_name, PORT_DIRECTION_OUT);
 	if (port != NULL) {
 		if (encode_from_mpy_obj(&token.value, &token.size, mp_value) == CC_RESULT_SUCCESS) {
-			if (fifo_write(&port->fifo, token.value, token.size) != CC_RESULT_SUCCESS)
+			if (fifo_write(&port->fifo, token.value, token.size) != CC_RESULT_SUCCESS) {
 				log_error("Failed to write token to port '%s'", port_name);
-			free_token(&token);
+				token_free(&token);
+			}
 		}
 	} else
 		log_error("No port with name '%s'", port_name);

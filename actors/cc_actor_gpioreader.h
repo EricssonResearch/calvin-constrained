@@ -18,17 +18,15 @@
 
 #include "../runtime/north/cc_common.h"
 #include "../runtime/north/cc_actor.h"
-#include "../runtime/south/platform/cc_platform.h"
+#include "../calvinsys/cc_calvinsys.h"
 
 typedef struct state_gpioreader_t {
-	calvin_ingpio_t *gpio;
-	calvinsys_io_giohandler_t *gpiohandler;
+  calvinsys_obj_t *obj;
 } state_gpioreader_t;
 
 result_t actor_gpioreader_init(actor_t **actor, list_t *attributes);
 result_t actor_gpioreader_set_state(actor_t **actor, list_t *attributes);
 bool actor_gpioreader_fire(actor_t *actor);
 void actor_gpioreader_free(actor_t *actor);
-result_t actor_gpioreader_get_managed_attributes(actor_t *actor, list_t **attributes);
 
 #endif /* ACTOR_GPIOREADER_H */

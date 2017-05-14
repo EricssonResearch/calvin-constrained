@@ -18,20 +18,29 @@
 
 #include "../runtime/north/cc_common.h"
 
-typedef struct calvinsys_t {
-	char* name;
-	char* data;
-	char* command;
-	bool new_data;
-	size_t data_size;
-	result_t (*init)(struct calvinsys_t* calvinsys);
-	result_t (*release)(struct calvinsys_t* calvinsys);
-	result_t (*write)(struct calvinsys_t* calvinsys, char* command, char* data, size_t data_size);
-	struct node_t* node;
-	void* state;
-} calvinsys_t;
+struct node_t;
 
-result_t register_calvinsys(struct node_t* node, struct calvinsys_t* calvinsys);
-void unregister_calvinsys(struct node_t* node, calvinsys_t* calvinsys);
-void release_calvinsys(calvinsys_t** calvinsys);
-#endif
+typedef struct calvinsys_obj_t {
+	// write messagepack encode data
+	result_t (*write)(struct calvinsys_obj_t *obj, char *data, size_t data_size);
+	// data/device ready
+	bool (*can_read)(struct calvinsys_obj_t *obj);
+	// return data in messagepack format
+	result_t (*read)(struct calvinsys_obj_t *obj, char **data, size_t *data_size);
+	// close the object
+	result_t (*close)(struct calvinsys_obj_t *obj);
+	struct calvinsys_handler_t *handler;
+	struct calvinsys_obj_t *next;
+} calvinsys_obj_t;
+
+typedef struct calvinsys_handler_t {
+	calvinsys_obj_t *(*open)(struct calvinsys_handler_t *handler, char *data, size_t len);
+	calvinsys_obj_t *objects;
+} calvinsys_handler_t;
+
+result_t calvinsys_register_handler(list_t **calvinsys, const char *name, calvinsys_handler_t *handler);
+void calvinsys_free_handler(struct node_t *node, char *name);
+calvinsys_obj_t *calvinsys_open(list_t *calvinsys, const char *name, char *data, size_t size);
+void calvinsys_close(calvinsys_obj_t *obj);
+
+#endif /* CALVINSYS_H */

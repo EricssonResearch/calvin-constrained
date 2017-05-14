@@ -21,50 +21,8 @@
 #include <sys/time.h>
 #include "../../north/cc_common.h"
 
-#define MAX_INGPIOS 5
-
 struct node_t;
 struct transport_client_t;
-
-typedef enum {
-	CALVIN_GPIO_IN,
-	CALVIN_GPIO_OUT
-} calvin_gpio_direction_t;
-
-typedef struct calvin_ingpio_t {
-	uint32_t pin;
-	bool has_triggered;
-	uint32_t value;
-	char pull;
-	char edge;
-} calvin_ingpio_t;
-
-typedef struct calvinsys_io_giohandler_t {
-	calvin_ingpio_t *(*init_in_gpio)(struct calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, char pull, char edge);
-	result_t (*init_out_gpio)(uint32_t pin);
-  void (*set_gpio)(uint32_t pin, uint32_t value);
-	void (*uninit_gpio)(struct calvinsys_io_giohandler_t *gpiohandler, uint32_t pin, calvin_gpio_direction_t direction);
-	calvin_ingpio_t *ingpios[MAX_INGPIOS];
-} calvinsys_io_giohandler_t;
-
-typedef struct calvinsys_sensors_environmental_t {
-	result_t (*init_enviromental)(void);
-  result_t (*get_temperature)(double *temp);
-	result_t (*get_humidity)(double* humidity);
-	result_t (*get_pressure)(double* pressure);
-} calvinsys_sensors_environmental_t;
-
-typedef struct calvinsys_sensors_accelerometer_t {
-	result_t (*activate)(struct node_t* node, long event_rate);
-	result_t (*deactivate)(void);
-	result_t (*get_acceleration)(int* acceleration);
-} calvinsys_sensors_accelerometer_t;
-
-typedef struct calvinsys_sensors_gyroscope_t {
-	result_t (*activate)(struct node_t* node, long event_rate);
-	result_t (*deactivate)(void);
-	result_t (*get_orientation)(int* orientation);
-} calvinsys_sensors_gyroscope_t;
 
 /**
  * platform_init() - Initialize the platform.

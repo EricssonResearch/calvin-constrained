@@ -35,22 +35,21 @@ class GPIOReader(Actor):
         self.setup()
 
     def setup(self):
-        self.use("calvinsys.io.gpiohandler", shorthand="gpiohandler")
-        self.gpio = self["gpiohandler"].open(self.gpio_pin, "i", self.pull, self.edge)
+        self.gpio = self.open("calvinsys.io.gpiohandler", pin=self.gpio_pin, direction="i", pull=self.pull, edge=self.edge)
 
     def will_migrate(self):
-        self.gpio.close()
+        self.close(self.gpio)
 
     def will_end(self):
-        self.gpio.close()
+        self.close(self.gpio)
 
     def did_migrate(self):
         self.setup()
 
-    @stateguard(lambda self: self.gpio is not None and self.gpio.edge_detected())
+    @stateguard(lambda self: self.gpio is not None and self.gpio.can_read())
     @condition(action_output=('state',))
     def get_state(self):
-        return (self.gpio.edge_value(), )
+        return (self.gpio.read(), )
 
     action_priority = (get_state, )
     requires = ['calvinsys.io.gpiohandler']

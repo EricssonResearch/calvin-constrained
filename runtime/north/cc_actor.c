@@ -66,7 +66,7 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		actor_gpioreader_set_state,
 		actor_gpioreader_free,
 		actor_gpioreader_fire,
-		actor_gpioreader_get_managed_attributes,
+		NULL,
 		NULL,
 		NULL,
 		NULL
@@ -77,7 +77,7 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		actor_gpiowriter_set_state,
 		actor_gpiowriter_free,
 		actor_gpiowriter_fire,
-		actor_gpiowriter_get_managed_attributes,
+		NULL,
 		NULL,
 		NULL,
 		NULL
@@ -101,7 +101,7 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		actor_button_fire,
 		NULL,
 		NULL,
-		actor_button_will_end,
+		NULL,
 		NULL,
 	}
 };

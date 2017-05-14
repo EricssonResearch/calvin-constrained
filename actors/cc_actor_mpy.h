@@ -30,6 +30,7 @@ typedef struct ccmp_state_actor_t {
 
 result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len);
 result_t decode_to_mpy_obj(char *buffer, mp_obj_t *value);
+char *encode_mpy_map(char **buffer, mp_map_t *map);
 result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t value);
 
 #endif

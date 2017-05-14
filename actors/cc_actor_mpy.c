@@ -89,6 +89,38 @@ result_t decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 	return result;
 }
 
+char *encode_mpy_map(char **buffer, mp_map_t *map)
+{
+	uint i = 0;
+
+	*buffer = mp_encode_map(*buffer, map->alloc);
+	for (i = 0; i < map->alloc; i++) {
+		const char *key = mp_obj_str_get_str(map->table[i].key);
+		*buffer = mp_encode_str(*buffer, key, strlen(key));
+
+		if (MP_OBJ_IS_SMALL_INT(map->table[i].value))
+			*buffer = mp_encode_uint(*buffer, MP_OBJ_SMALL_INT_VALUE(map->table[i].value));
+		else if (MP_OBJ_IS_INT(map->table[i].value))
+			*buffer = mp_encode_int(*buffer, mp_obj_get_int(map->table[i].value));
+		else if (mp_obj_is_float(map->table[i].value))
+			*buffer = mp_encode_double(*buffer, mp_obj_float_get(map->table[i].value));
+		else if (MP_OBJ_IS_TYPE(map->table[i].value, &mp_type_bool))
+			*buffer = mp_encode_bool(*buffer, mp_obj_new_bool(mp_obj_get_int(map->table[i].value)));
+		else if (MP_OBJ_IS_TYPE(map->table[i].value, &mp_type_NoneType))
+			*buffer = mp_encode_nil(*buffer);
+		else if (MP_OBJ_IS_STR(map->table[i].value)) {
+			mp_uint_t len;
+			const char *s = mp_obj_str_get_data(map->table[i].value, &len);
+			*buffer = mp_encode_str(*buffer, s, strlen(s));
+		} else {
+			log_error("Object type is not supported");
+			return NULL;
+		}
+	}
+
+	return *buffer;
+}
+
 result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t input)
 {
 	uint32_t unum;
