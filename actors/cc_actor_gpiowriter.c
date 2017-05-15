@@ -69,7 +69,7 @@ bool actor_gpiowriter_fire(struct actor_t *actor)
 
 	if (fifo_tokens_available(&inport->fifo, 1)) {
 		token = fifo_peek(&inport->fifo);
-		if (obj->write(obj, token->value, token->size) == CC_RESULT_SUCCESS) {
+		if (obj->write(obj, NULL, 0, token->value, token->size) == CC_RESULT_SUCCESS) {
 			fifo_commit_read(&inport->fifo);
 			return true;
 		}

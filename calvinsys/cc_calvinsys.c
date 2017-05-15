@@ -20,13 +20,27 @@
 
 result_t calvinsys_register_handler(list_t **calvinsys, const char *name, calvinsys_handler_t *handler)
 {
+	char *new_name = NULL;
+
 	if (list_get(*calvinsys, name) != NULL) {
 		log_error("Calvinsys '%s' handler already registered", name);
 		return CC_RESULT_FAIL;
 	}
 
-	log("Calvinsys '%s' registered", name);
-	return list_add_n(calvinsys, name, strlen(name), handler, sizeof(calvinsys_handler_t *));
+	if (platform_mem_alloc((void **)&new_name, strlen(name) + 1) != CC_RESULT_SUCCESS) {
+		log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
+
+	strncpy(new_name, name, strlen(name) + 1);
+	handler->name = new_name;
+
+	if (list_add(calvinsys, new_name, handler, sizeof(calvinsys_handler_t *)) == CC_RESULT_SUCCESS) {
+		log("Calvinsys '%s' registered", name);
+		return CC_RESULT_SUCCESS;
+	}
+
+	return CC_RESULT_FAIL;
 }
 
 void calvinsys_free_handler(node_t *node, char *name)
@@ -41,6 +55,7 @@ void calvinsys_free_handler(node_t *node, char *name)
 			handler->objects = handler->objects->next;
 			platform_mem_free((void *)obj);
 		}
+		platform_mem_free((void *)handler->name);
 		platform_mem_free((void *)handler);
 		list_remove(&node->calvinsys, name);
 	}

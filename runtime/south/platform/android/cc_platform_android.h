@@ -52,6 +52,8 @@ typedef struct android_sensor_data_t {
 	ASensorEventQueue *queue;
 	ASensor *sensor;
 	ASensorEvent *event;
+	char *data;
+	size_t data_size;
 } android_sensor_data_t;
 
 #endif

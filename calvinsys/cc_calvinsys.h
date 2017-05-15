@@ -21,21 +21,21 @@
 struct node_t;
 
 typedef struct calvinsys_obj_t {
-	// write messagepack encode data
-	result_t (*write)(struct calvinsys_obj_t *obj, char *data, size_t data_size);
-	// data/device ready
+	bool (*can_write)(struct calvinsys_obj_t *obj);
+	result_t (*write)(struct calvinsys_obj_t *obj, char *cmd, size_t cmd_len, char *data, size_t data_size);
 	bool (*can_read)(struct calvinsys_obj_t *obj);
-	// return data in messagepack format
 	result_t (*read)(struct calvinsys_obj_t *obj, char **data, size_t *data_size);
-	// close the object
 	result_t (*close)(struct calvinsys_obj_t *obj);
 	struct calvinsys_handler_t *handler;
+	void *state;
 	struct calvinsys_obj_t *next;
 } calvinsys_obj_t;
 
 typedef struct calvinsys_handler_t {
 	calvinsys_obj_t *(*open)(struct calvinsys_handler_t *handler, char *data, size_t len);
 	calvinsys_obj_t *objects;
+	struct node_t *node;
+	char *name;
 } calvinsys_handler_t;
 
 result_t calvinsys_register_handler(list_t **calvinsys, const char *name, calvinsys_handler_t *handler);

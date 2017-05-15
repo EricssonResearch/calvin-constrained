@@ -78,12 +78,14 @@ static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *d
 		return NULL;
 	}
 
+	obj->can_write = NULL;
 	obj->write = NULL;
 	obj->can_read = platform_temp_can_read;
 	obj->read = platform_temp_read;
 	obj->close = NULL;
 	obj->handler = handler;
 	obj->next = NULL;
+	obj->state = NULL;
 	handler->objects = obj; // assume only one object
 
 	return obj;
@@ -100,12 +102,18 @@ static result_t platform_create_calvinsys_temp(node_t *node)
 
 	handler->open = platform_temp_open;
 	handler->objects = NULL;
+	handler->node = NULL;
 	calvinsys_register_handler(&node->calvinsys, "calvinsys.sensors.environmental", handler);
 
 	return CC_RESULT_SUCCESS;
 }
 
-static result_t platform_gpio_write(struct calvinsys_obj_t *obj, char *data, size_t size)
+static bool platform_gpio_can_write(struct calvinsys_obj_t *obj)
+{
+	return true;
+}
+
+static result_t platform_gpio_write(struct calvinsys_obj_t *obj, char *cmd, size_t cmd_len, char *data, size_t size)
 {
 	uint32_t value = 0;
 
@@ -180,24 +188,22 @@ static calvinsys_obj_t *platform_gpio_open(calvinsys_handler_t *handler, char *d
 			log_error("Failed to decode 'pull'");
 			return NULL;
 		}
+		obj->can_write = NULL;
 		obj->write = NULL;
 		obj->can_read = platform_gpio_can_read;
 		obj->read = platform_gpio_read;
-		obj->close = platform_gpio_close;
 		log("Opened GPIO pin '%d' as input with direction '%c' edge '%c' pull '%c'", (int)pin, *direction, *edge, *pull);
 	} else {
+		obj->can_write = platform_gpio_can_write;
 		obj->write = platform_gpio_write;
 		obj->can_read = NULL;
 		obj->read = NULL;
-		obj->close = platform_gpio_close;
 		log("Opened GPIO pin '%d' as output", (int)pin);
 	}
 
-	obj->write = platform_gpio_write;
-	obj->can_read = platform_gpio_can_read;
-	obj->read = platform_gpio_read;
-	obj->close = NULL;
+	obj->close = platform_gpio_close;
 	obj->handler = handler;
+	obj->state = NULL;
 	obj->next = NULL;
 	handler->objects = obj; // assume only one object
 
@@ -215,6 +221,7 @@ static result_t platform_create_calvinsys_gpio(node_t *node)
 
 	handler->open = platform_gpio_open;
 	handler->objects = NULL;
+	handler->node = node;
 	calvinsys_register_handler(&node->calvinsys, "calvinsys.io.gpiohandler", handler);
 
 	return CC_RESULT_SUCCESS;

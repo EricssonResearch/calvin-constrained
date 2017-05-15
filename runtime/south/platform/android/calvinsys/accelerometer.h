@@ -18,4 +18,4 @@
 
 #define COMMAND_ACCELEROMETER_DATA "accelerometer_data"
 
-result_t create_accelerometer(struct node_t* node, calvinsys_t** calvinsys);
+result_t accelerometer_create(struct node_t *node);
