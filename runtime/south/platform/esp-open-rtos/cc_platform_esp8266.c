@@ -29,6 +29,7 @@
 #include "../../../../runtime/north/cc_node.h"
 #include "../../transport/socket/cc_transport_socket.h"
 #include "../../../../runtime/north/cc_msgpack_helper.c"
+#include "calvinsys/cc_calvinsys_ds18b20.h"
 
 #define CALVIN_ESP_RUNTIME_STATE_FILE		"cc_state.conf"
 #define CALVIN_ESP_WIFI_CONFIG_FILE		"cc_wifi.conf"
@@ -321,9 +322,7 @@ result_t platform_create(struct node_t* node)
 
 result_t platform_create_calvinsys(struct node_t *node)
 {
-	// TODO: Create calvinsys objects
-	node->calvinsys = NULL;
-	return CC_RESULT_SUCCESS;
+	return calvinsys_ds18b20_create(node);
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)
