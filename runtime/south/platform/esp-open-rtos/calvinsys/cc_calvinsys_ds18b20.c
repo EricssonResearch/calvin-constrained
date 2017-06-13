@@ -105,7 +105,7 @@ result_t calvinsys_ds18b20_create(node_t *node)
 	handler->open = calvinsys_ds18b20_open;
 	handler->objects = NULL;
 	handler->node = NULL;
-	calvinsys_register_handler(&node->calvinsys, "calvinsys.sensors.environmental", handler);
+	calvinsys_register_handler(&node->calvinsys, "calvinsys.sensors.temperature", handler);
 
 	return CC_RESULT_SUCCESS;
 }

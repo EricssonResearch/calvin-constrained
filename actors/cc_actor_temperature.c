@@ -24,22 +24,14 @@
 result_t actor_temperature_init(actor_t **actor, list_t *attributes)
 {
 	calvinsys_obj_t *obj = NULL;
-	state_temperature_t *state = NULL;
 
-	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.sensors.environmental", NULL, 0);
+	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.sensors.temperature", NULL, 0);
 	if (obj == NULL) {
-		log_error("Failed to open 'calvinsys.sensors.environmental'");
+		log_error("Failed to open 'calvinsys.sensors.temperature'");
 		return CC_RESULT_FAIL;
 	}
 
-	if (platform_mem_alloc((void **)&state, sizeof(state_temperature_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
-		obj->close(obj);
-		return CC_RESULT_FAIL;
-	}
-
-	state->obj = obj;
-	(*actor)->instance_state = (void *)state;
+	(*actor)->instance_state = (void *)obj;
 
 	return CC_RESULT_SUCCESS;
 }
@@ -52,7 +44,7 @@ result_t actor_temperature_set_state(actor_t **actor, list_t *attributes)
 bool actor_temperature_fire(struct actor_t *actor)
 {
 	port_t *inport = (port_t *)actor->in_ports->data, *outport = (port_t *)actor->out_ports->data;
-	calvinsys_obj_t *obj = ((state_temperature_t *)actor->instance_state)->obj;
+	calvinsys_obj_t *obj = (calvinsys_obj_t *)actor->instance_state;
 	char *data = NULL;
 	size_t size = 0;
 
@@ -74,11 +66,5 @@ bool actor_temperature_fire(struct actor_t *actor)
 
 void actor_temperature_free(actor_t *actor)
 {
-	state_temperature_t *state = (state_temperature_t *)actor->instance_state;
-
-	if (state != NULL) {
-		if (state->obj != NULL)
-			calvinsys_close(state->obj);
-		platform_mem_free((void *)state);
-	}
+	calvinsys_close((calvinsys_obj_t *)actor->instance_state);
 }

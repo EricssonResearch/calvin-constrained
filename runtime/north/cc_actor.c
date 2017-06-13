@@ -21,10 +21,9 @@
 #include "cc_fifo.h"
 #include "cc_token.h"
 #include "../../actors/cc_actor_identity.h"
-#include "../../actors/cc_actor_gpioreader.h"
-#include "../../actors/cc_actor_gpiowriter.h"
-#include "../../actors/cc_actor_temperature.h"
+#include "../../actors/cc_actor_led.h"
 #include "../../actors/cc_actor_button.h"
+#include "../../actors/cc_actor_temperature.h"
 #include "../south/platform/cc_platform.h"
 #include "cc_msgpack_helper.h"
 #include "../../msgpuck/msgpuck.h"
@@ -34,7 +33,7 @@
 #endif
 
 #ifndef CC_PYTHON_ENABLED
-#define NBR_OF_ACTOR_TYPES 5
+#define NBR_OF_ACTOR_TYPES 4
 
 struct actor_type_t {
 	char type[50];
@@ -61,33 +60,11 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		NULL
 	},
 	{
-		"io.GPIOReader",
-		actor_gpioreader_init,
-		actor_gpioreader_set_state,
-		actor_gpioreader_free,
-		actor_gpioreader_fire,
-		NULL,
-		NULL,
-		NULL,
-		NULL
-	},
-	{
-		"io.GPIOWriter",
-		actor_gpiowriter_init,
-		actor_gpiowriter_set_state,
-		actor_gpiowriter_free,
-		actor_gpiowriter_fire,
-		NULL,
-		NULL,
-		NULL,
-		NULL
-	},
-	{
-		"sensor.Temperature",
-		actor_temperature_init,
-		actor_temperature_set_state,
-		actor_temperature_free,
-		actor_temperature_fire,
+		"io.Led",
+		actor_led_init,
+		actor_led_set_state,
+		actor_led_free,
+		actor_led_fire,
 		NULL,
 		NULL,
 		NULL,
@@ -103,6 +80,17 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		NULL,
 		NULL,
 		NULL,
+	},
+	{
+		"sensor.Temperature",
+		actor_temperature_init,
+		actor_temperature_set_state,
+		actor_temperature_free,
+		actor_temperature_fire,
+		NULL,
+		NULL,
+		NULL,
+		NULL
 	}
 };
 #endif
@@ -187,6 +175,7 @@ result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 			actor->free_state = actor_types[i].free_state;
 			actor->fire = actor_types[i].fire_actor;
 			actor->get_managed_attributes = actor_types[i].get_managed_attributes;
+			log("Initing actor '%s'", type);
 			return CC_RESULT_SUCCESS;
 		}
 	}

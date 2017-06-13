@@ -31,10 +31,9 @@ runtime/north/cc_msgpack_helper.c \
 msgpuck/msgpuck.c \
 calvinsys/cc_calvinsys.c \
 actors/cc_actor_identity.c \
-actors/cc_actor_gpioreader.c \
-actors/cc_actor_gpiowriter.c \
-actors/cc_actor_temperature.c \
-actors/cc_actor_button.c
+actors/cc_actor_led.c \
+actors/cc_actor_button.c \
+actors/cc_actor_temperature.c
 
 c_calvin: $(C_SOURCE_FILES)
 	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h

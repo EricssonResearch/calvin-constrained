@@ -14,38 +14,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from calvin.actor.actor import Actor, manage, stateguard, condition, calvinsys
+from calvin.actor.actor import Actor, condition, stateguard, calvinsys
 
 
-class Temperature(Actor):
+class Led(Actor):
 
     """
-        Read temperature when told to
-
-    Inputs:
-        measure: Triggers a temperature reading
-    Outputs:
-        centigrade: The measured temperature in centigrade
+    Set state of a LED (Light Emitting Diode)
+    Input:
+      state : 1/0 for on/off
     """
 
-    @manage([])
     def init(self):
-        self.temp = None
+        self.led = None
         self.setup()
 
     def setup(self):
-        self.temp = calvinsys.open(self, "calvinsys.sensors.temperature")
+        self.led = calvinsys.open(self, "calvinsys.io.led")
 
     def will_migrate(self):
-        pass
+        calvinsys.close(self.led)
+
+    def will_end(self):
+        calvinsys.close(self.led)
 
     def did_migrate(self):
         self.setup()
 
-    @stateguard(lambda self: self.temp and calvinsys.can_read(self.temp))
-    @condition(['measure'], ['centigrade'])
-    def measure(self, _):
-        return (calvinsys.read(self.temp),)
+    @stateguard(lambda self: self.led and calvinsys.can_write(self.led))
+    @condition(action_input=("state",))
+    def set_state(self, state):
+        calvinsys.write(self.led, state)
 
-    action_priority = (measure,)
-    requires =  ['calvinsys.sensors.temperature']
+    action_priority = (set_state, )
+    requires = ["calvinsys.io.led"]

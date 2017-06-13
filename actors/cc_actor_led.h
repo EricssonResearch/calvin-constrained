@@ -13,19 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_GPIOWRITER_H
-#define ACTOR_GPIOWRITER_H
+#ifndef ACTOR_LED_H
+#define ACTOR_LED_H
 
 #include "../runtime/north/cc_actor.h"
 #include "../calvinsys/cc_calvinsys.h"
 
-typedef struct state_gpiowriter_t {
-  calvinsys_obj_t *obj;
-} state_gpiowriter_t;
+result_t actor_led_init(actor_t **actor, list_t *attributes);
+result_t actor_led_set_state(actor_t **actor, list_t *attributes);
+bool actor_led_fire(actor_t *actor);
+void actor_led_free(actor_t *actor);
 
-result_t actor_gpiowriter_init(actor_t **actor, list_t *attributes);
-result_t actor_gpiowriter_set_state(actor_t **actor, list_t *attributes);
-bool actor_gpiowriter_fire(actor_t *actor);
-void actor_gpiowriter_free(actor_t *actor);
-
-#endif /* ACTOR_GPIOWRITER_H */
+#endif /* ACTOR_LED_H */

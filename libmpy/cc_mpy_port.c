@@ -171,7 +171,7 @@ STATIC mp_obj_t mpy_port_ccmp_peek_cancel(mp_obj_t mp_actor, mp_obj_t mp_port_na
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(mpy_port_ccmp_peek_cancel_obj, mpy_port_ccmp_peek_cancel);
 
 STATIC const mp_map_elem_t mpy_port_globals_table[] = {
-	{ MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_mpy_port)},
+	{ MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_cc_mp_port)},
 	{ MP_OBJ_NEW_QSTR(MP_QSTR_ccmp_tokens_available), (mp_obj_t)&mpy_port_ccmp_tokens_available_obj },
 	{ MP_OBJ_NEW_QSTR(MP_QSTR_ccmp_slots_available), (mp_obj_t)&mpy_port_ccmp_slots_available_obj },
 	{ MP_OBJ_NEW_QSTR(MP_QSTR_ccmp_peek_token), (mp_obj_t)&mpy_port_ccmp_peek_token_obj },
@@ -182,7 +182,7 @@ STATIC const mp_map_elem_t mpy_port_globals_table[] = {
 
 STATIC MP_DEFINE_CONST_DICT(mp_module_mpy_port_globals, mpy_port_globals_table);
 
-const mp_obj_module_t mp_module_mpy_port = {
+const mp_obj_module_t cc_mp_module_port = {
 	.base = { &mp_type_module },
 	.globals = (mp_obj_dict_t *)&mp_module_mpy_port_globals
 };

@@ -282,7 +282,7 @@ static result_t platform_create_calvinsys_temp(node_t *node)
 
 	handler->open = platform_temp_open;
 	handler->objects = NULL;
-	calvinsys_register_handler(&node->calvinsys, "calvinsys.sensors.environmental", handler);
+	calvinsys_register_handler(&node->calvinsys, "calvinsys.sensors.temperature", handler);
 
 	return CC_RESULT_SUCCESS;
 }

@@ -83,14 +83,11 @@
 #define UINT_FMT "%lu"
 #define INT_FMT "%ld"
 
-extern const struct _mp_obj_module_t mp_module_mpy_port;
-
+extern const struct _mp_obj_module_t cc_mp_module_port;
 extern const struct _mp_obj_module_t cc_mp_module_calvinsys;
-#define CCMP_MODULE_CALVINSYS_DEF    { MP_OBJ_NEW_QSTR(MP_QSTR_calvinsys), (mp_obj_t)&cc_mp_module_calvinsys },
-
 #define MICROPY_PORT_BUILTIN_MODULES \
-	{ MP_OBJ_NEW_QSTR(MP_QSTR_mpy_port), (mp_obj_t)&mp_module_mpy_port }, \
-	CCMP_MODULE_CALVINSYS_DEF \
+	{ MP_OBJ_NEW_QSTR(MP_QSTR_cc_mp_port), (mp_obj_t)&cc_mp_module_port }, \
+	{ MP_OBJ_NEW_QSTR(MP_QSTR_cc_mp_calvinsys), (mp_obj_t)&cc_mp_module_calvinsys }, \
 
 // assume that if we already defined the obj repr then we also defined types
 #ifndef MICROPY_OBJ_REPR

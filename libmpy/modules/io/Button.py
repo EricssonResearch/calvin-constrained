@@ -14,39 +14,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from calvin.actor.actor import Actor, manage, condition
+from calvin.actor.actor import Actor, manage, condition, stateguard, calvinsys
 
-
-class GPIOWriter(Actor):
-
+class Button(Actor):
     """
-    Set state of GPIO pin <pin>.
-    Input:
-      state : 1/0 for state high/low
+    Handle a button and trigger on state changes.
+
+    Output:
+      state : Button state 1=pressed, 0=not pressed
     """
 
-    @manage(["gpio_pin"])
-    def init(self, gpio_pin):
-        self.gpio_pin = gpio_pin
-        self.gpio = None
+    @manage(include = ["text"])
+    def init(self, text="Button"):
+        self.button = None
+        self.text = text
         self.setup()
 
     def setup(self):
-        self.gpio = self.open("calvinsys.io.gpiohandler", pin=self.gpio_pin, direction="o")
+        self.button = calvinsys.open(self, "calvinsys.io.button", text=self.text)
 
     def will_migrate(self):
-        self.close(self.gpio)
+        calvinsys.close(self.button)
 
     def will_end(self):
-        self.close(self.gpio)
+        calvinsys.close(self.button)
 
     def did_migrate(self):
         self.setup()
 
-    @condition(action_input=("state",))
-    def set_state(self, state):
-        self.gpio.write(state)
+    @stateguard(lambda self: self.button and calvinsys.can_read(self.button))
+    @condition([], ["state"])
+    def trigger(self):
+        return (calvinsys.read(self.button),)
 
-
-    action_priority = (set_state, )
-    requires = ["calvinsys.io.gpiohandler"]
+    action_priority = (trigger, )
+    requires = ['calvinsys.io.button']

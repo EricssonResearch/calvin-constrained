@@ -103,35 +103,35 @@ static result_t platform_create_calvinsys_temp(node_t *node)
 	handler->open = platform_temp_open;
 	handler->objects = NULL;
 	handler->node = NULL;
-	calvinsys_register_handler(&node->calvinsys, "calvinsys.sensors.environmental", handler);
+	calvinsys_register_handler(&node->calvinsys, "calvinsys.sensors.temperature", handler);
 
 	return CC_RESULT_SUCCESS;
 }
 
-static bool platform_gpio_can_write(struct calvinsys_obj_t *obj)
+static bool platform_calvinsys_digitial_in_out_can_write(struct calvinsys_obj_t *obj)
 {
 	return true;
 }
 
-static result_t platform_gpio_write(struct calvinsys_obj_t *obj, char *cmd, size_t cmd_len, char *data, size_t size)
+static result_t platform_calvinsys_digitial_in_out_write(struct calvinsys_obj_t *obj, char *data, size_t size)
 {
 	uint32_t value = 0;
 
 	if (decode_uint(data, &value) == CC_RESULT_SUCCESS) {
-		log("Setting GPIO with '%d'", (int)value);
+		log("Setting digitial out with '%d'", (int)value);
 		return CC_RESULT_SUCCESS;
 	}
 
-	log_error("Failed to decode GPIO data");
+	log_error("Failed to decode data");
 	return CC_RESULT_FAIL;
 }
 
-static bool platform_gpio_can_read(struct calvinsys_obj_t *obj)
+static bool platform_calvinsys_digitial_in_out_can_read(struct calvinsys_obj_t *obj)
 {
 	return true;
 }
 
-static result_t platform_gpio_read(struct calvinsys_obj_t *obj, char **data, size_t *size)
+static result_t platform_calvinsys_digitial_in_out_read(struct calvinsys_obj_t *obj, char **data, size_t *size)
 {
 	static uint32_t value = 1;
 
@@ -151,16 +151,14 @@ static result_t platform_gpio_read(struct calvinsys_obj_t *obj, char **data, siz
 	return CC_RESULT_SUCCESS;
 }
 
-static result_t platform_gpio_close(struct calvinsys_obj_t *obj)
+static result_t platform_calvinsys_digitial_in_out_close(struct calvinsys_obj_t *obj)
 {
-	log("Closing gpio");
+	log("Closing digitial in/out");
 	return CC_RESULT_SUCCESS;
 }
 
-static calvinsys_obj_t *platform_gpio_open(calvinsys_handler_t *handler, char *data, size_t len)
+static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handler_t *handler, char *data, size_t len)
 {
-	uint32_t pin = 0, value_len = 0;
-	char *direction = NULL, *edge = NULL, *pull = NULL;
 	calvinsys_obj_t *obj = NULL;
 
 	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
@@ -168,49 +166,22 @@ static calvinsys_obj_t *platform_gpio_open(calvinsys_handler_t *handler, char *d
 		return NULL;
 	}
 
-	if (decode_uint_from_map(data, "pin", &pin) != CC_RESULT_SUCCESS) {
-		log_error("Failed to decode 'pin'");
-		return NULL;
-	}
-
-	if (decode_string_from_map(data, "direction", &direction, &value_len) != CC_RESULT_SUCCESS) {
-		log_error("Failed to decode 'direction'");
-		return NULL;
-	}
-
-	if (direction[0] == 'i') {
-		if (decode_string_from_map(data, "edge", &edge, &value_len) != CC_RESULT_SUCCESS) {
-			log_error("Failed to decode 'edge'");
-			return NULL;
-		}
-
-		if (decode_string_from_map(data, "pull", &pull, &value_len) != CC_RESULT_SUCCESS) {
-			log_error("Failed to decode 'pull'");
-			return NULL;
-		}
-		obj->can_write = NULL;
-		obj->write = NULL;
-		obj->can_read = platform_gpio_can_read;
-		obj->read = platform_gpio_read;
-		log("Opened GPIO pin '%d' as input with direction '%c' edge '%c' pull '%c'", (int)pin, *direction, *edge, *pull);
-	} else {
-		obj->can_write = platform_gpio_can_write;
-		obj->write = platform_gpio_write;
-		obj->can_read = NULL;
-		obj->read = NULL;
-		log("Opened GPIO pin '%d' as output", (int)pin);
-	}
-
-	obj->close = platform_gpio_close;
+	obj->can_write = platform_calvinsys_digitial_in_out_can_write;
+	obj->write = platform_calvinsys_digitial_in_out_write;
+	obj->can_read = platform_calvinsys_digitial_in_out_can_read;
+	obj->read = platform_calvinsys_digitial_in_out_read;
+	obj->close = platform_calvinsys_digitial_in_out_close;
 	obj->handler = handler;
 	obj->state = NULL;
 	obj->next = NULL;
 	handler->objects = obj; // assume only one object
 
+	log("Opened digitial in/out");
+
 	return obj;
 }
 
-static result_t platform_create_calvinsys_gpio(node_t *node)
+static result_t platform_create_calvinsys_digitial_in_out(node_t *node)
 {
 	calvinsys_handler_t *handler = NULL;
 
@@ -219,10 +190,11 @@ static result_t platform_create_calvinsys_gpio(node_t *node)
 		return CC_RESULT_FAIL;
 	}
 
-	handler->open = platform_gpio_open;
+	handler->open = platform_calvinsys_digitial_in_out_open;
 	handler->objects = NULL;
 	handler->node = node;
-	calvinsys_register_handler(&node->calvinsys, "calvinsys.io.gpiohandler", handler);
+	calvinsys_register_handler(&node->calvinsys, "calvinsys.io.button", handler);
+	calvinsys_register_handler(&node->calvinsys, "calvinsys.io.led", handler);
 
 	return CC_RESULT_SUCCESS;
 }
@@ -234,7 +206,7 @@ result_t platform_create_calvinsys(node_t *node)
 	if (platform_create_calvinsys_temp(node) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
-	if (platform_create_calvinsys_gpio(node) != CC_RESULT_SUCCESS)
+	if (platform_create_calvinsys_digitial_in_out(node) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	return CC_RESULT_SUCCESS;

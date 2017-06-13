@@ -12,7 +12,7 @@ git submodule update
 git clone https://github.com/EricssonResearch/calvin-base.git
 pushd calvin-base
 git fetch
-git checkout 78aa6b4173f33d31740cf6d4c60da0fd35d4b008
+git checkout df947239e084f3b173f938efc947a500b813e8ad
 pip install -r requirements.txt
 pip install -r test-requirements.txt
 popd

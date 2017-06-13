@@ -15,19 +15,18 @@
  */
 #include <stdlib.h>
 #include <string.h>
-#include "cc_actor_button.h"
-#include "../runtime/north/cc_port.h"
-#include "../runtime/north/cc_token.h"
+#include "cc_actor_led.h"
 #include "../runtime/north/cc_msgpack_helper.h"
+#include "../runtime/north/cc_fifo.h"
 #include "../msgpuck/msgpuck.h"
 
-result_t actor_button_init(actor_t **actor, list_t *attributes)
+result_t actor_led_init(actor_t **actor, list_t *attributes)
 {
 	calvinsys_obj_t *obj = NULL;
 
-	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.io.button", NULL, 0);
+	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.io.led", NULL, 0);
 	if (obj == NULL) {
-		log_error("Failed to open 'calvinsys.io.button'");
+		log_error("Failed to open 'calvinsys.io.led'");
 		return CC_RESULT_FAIL;
 	}
 
@@ -36,31 +35,30 @@ result_t actor_button_init(actor_t **actor, list_t *attributes)
 	return CC_RESULT_SUCCESS;
 }
 
-result_t actor_button_set_state(actor_t **actor, list_t *attributes)
+result_t actor_led_set_state(actor_t **actor, list_t *attributes)
 {
-	return actor_button_init(actor, attributes);
+	return actor_led_init(actor, attributes);
 }
 
-bool actor_button_fire(struct actor_t *actor)
+bool actor_led_fire(struct actor_t *actor)
 {
-	port_t *outport = (port_t *)actor->out_ports->data;
+	port_t *inport = (port_t *)actor->in_ports->data;
 	calvinsys_obj_t *obj = (calvinsys_obj_t *)actor->instance_state;
-	char *data = NULL;
-	size_t size = 0;
+	token_t *token = NULL;
 
-	if (obj->can_read(obj) && fifo_slots_available(&outport->fifo, 1)) {
-		if (obj->read(obj, &data, &size) == CC_RESULT_SUCCESS) {
-			if (fifo_write(&outport->fifo, data, size) == CC_RESULT_SUCCESS)
-				return true;
-			platform_mem_free((void *)data);
-		} else
-			log_error("Failed to read button state");
+	if (fifo_tokens_available(&inport->fifo, 1)) {
+		token = fifo_peek(&inport->fifo);
+		if (obj->write(obj, token->value, token->size) == CC_RESULT_SUCCESS) {
+			fifo_commit_read(&inport->fifo);
+			return true;
+		}
+		fifo_cancel_commit(&inport->fifo);
 	}
 
 	return false;
 }
 
-void actor_button_free(actor_t *actor)
+void actor_led_free(actor_t *actor)
 {
 	calvinsys_close((calvinsys_obj_t *)actor->instance_state);
 }

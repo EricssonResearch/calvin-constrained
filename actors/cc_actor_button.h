@@ -19,10 +19,6 @@
 #include "../runtime/north/cc_actor.h"
 #include "../calvinsys/cc_calvinsys.h"
 
-typedef struct state_button_t {
-  calvinsys_obj_t *obj;
-} state_button_t;
-
 result_t actor_button_init(actor_t **actor, list_t *attributes);
 result_t actor_button_set_state(actor_t **actor, list_t *attributes);
 bool actor_button_fire(actor_t *actor);

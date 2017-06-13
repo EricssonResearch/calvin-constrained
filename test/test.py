@@ -419,21 +419,21 @@ def testTemperatureActor():
     # verify removal
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':temp'])
 
-def testGPIOReader():
+def testButtonActor():
     assert rt1 is not None
     assert constrained_id is not None
 
-    script_name = "testGPIOReader"
+    script_name = "testButton"
     script = """
-    gpio : io.GPIOReader(gpio_pin=13, edge="b", pull="d")
+    btn : io.Button()
     snk : test.Sink(store_tokens=1, quiet=1)
-    gpio.state > snk.token
+    btn.state > snk.token
     """
 
     deploy_info = """
     {
         "requirements": {
-            "gpio": [
+            "btn": [
                 {
                   "op": "node_attr_match",
                     "kwargs": {"index": ["node_name", {"name": "constrained"}]},
@@ -454,26 +454,27 @@ def testGPIOReader():
                                               deploy_info=json.loads(deploy_info))
 
     # verify actor placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':gpio'], constrained_id)
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':btn'], constrained_id)
+
 
     # delete application
     request_handler.delete_application(rt1, resp['application_id'])
 
     # verify removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':gpio'])
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':btn'])
 
-def testGPIOWriter():
+def testLedActor():
     assert rt1 is not None
     assert constrained_id is not None
 
-    script_name = "testGPIOWriterActor"
+    script_name = "testLed"
     script = """
     src : std.CountTimer(sleep=0.1)
     zero : std.Constantify(constant=0)
-    gpio : io.GPIOWriter(gpio_pin=13)
+    led : io.Led()
 
     src.integer > zero.in
-    zero.out > gpio.state
+    zero.out > led.state
     """
 
     deploy_info = """
@@ -491,7 +492,7 @@ def testGPIOWriter():
                     "kwargs": {"index": ["node_name", {"name": "rt1"}]},
                     "type": "+"
                }],
-            "gpio": [
+            "led": [
                 {
                   "op": "node_attr_match",
                     "kwargs": {"index": ["node_name", {"name": "constrained"}]},
@@ -506,13 +507,13 @@ def testGPIOWriter():
                                               deploy_info=json.loads(deploy_info))
 
     # verify actor placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':gpio'], constrained_id)
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':led'], constrained_id)
 
     # destroy application
     request_handler.delete_application(rt1, resp['application_id'])
 
     # verify removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':gpio'])
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':led'])
 
 def testLocalConnections():
     assert rt1 is not None

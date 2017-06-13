@@ -22,7 +22,7 @@ struct node_t;
 
 typedef struct calvinsys_obj_t {
 	bool (*can_write)(struct calvinsys_obj_t *obj);
-	result_t (*write)(struct calvinsys_obj_t *obj, char *cmd, size_t cmd_len, char *data, size_t data_size);
+	result_t (*write)(struct calvinsys_obj_t *obj, char *data, size_t data_size);
 	bool (*can_read)(struct calvinsys_obj_t *obj);
 	result_t (*read)(struct calvinsys_obj_t *obj, char **data, size_t *data_size);
 	result_t (*close)(struct calvinsys_obj_t *obj);

@@ -15,8 +15,8 @@
 # limitations under the License.
 
 import functools
-import mpy_port
-import calvinsys
+import cc_mp_port
+import cc_mp_calvinsys
 
 def manage(include=None, exclude=None):
     if include and type(include) is not list or exclude and type(exclude) is not list:
@@ -40,8 +40,6 @@ def manage(include=None, exclude=None):
         return manage_wrapper
     return wrap
 
-
-
 def condition(action_input=[], action_output=[]):
     """
     Decorator condition specifies the required input data and output space.
@@ -56,10 +54,10 @@ def condition(action_input=[], action_output=[]):
         @functools.wraps(action_method)
         def condition_wrapper(self):
             # Check if input ports have enough tokens
-            input_ok = all(mpy_port.ccmp_tokens_available(self.actor_ref, portname, 1) for portname in action_input)
+            input_ok = all(cc_mp_port.ccmp_tokens_available(self.actor_ref, portname, 1) for portname in action_input)
 
             # Check if output port have enough free token slots
-            output_ok = all(mpy_port.ccmp_slots_available(self.actor_ref, portname, 1) for portname in action_output)
+            output_ok = all(cc_mp_port.ccmp_slots_available(self.actor_ref, portname, 1) for portname in action_output)
 
             if not input_ok or not output_ok:
                 return (False, output_ok, ())
@@ -68,7 +66,7 @@ def condition(action_input=[], action_output=[]):
             # TODO: Handle exception tokens
             args = []
             for portname in action_input:
-                value = mpy_port.ccmp_peek_token(self.actor_ref, portname)
+                value = cc_mp_port.ccmp_peek_token(self.actor_ref, portname)
                 args.append(value)
 
             # Perform the action (N.B. the method may be wrapped in a guard)
@@ -81,21 +79,20 @@ def condition(action_input=[], action_output=[]):
             exhausted_ports = set()
             if valid_production:
                 for portname in action_input:
-                    exhausted = mpy_port.ccmp_peek_commit(self.actor_ref, portname)
+                    exhausted = cc_mp_port.ccmp_peek_commit(self.actor_ref, portname)
                     if exhausted:
                         exhausted_ports.add(portname)
             else:
                 for portname in action_input:
-                    mpy_port.ccmp_peek_cancel(self.actor_ref, portname)
+                    cc_mp_port.ccmp_peek_cancel(self.actor_ref, portname)
                 raise Exception("Failed to execute %s, invalid production", action_input)
 
             for portname, retval in zip(action_output, production):
-                mpy_port.ccmp_write_token(self.actor_ref, portname, retval)
+                cc_mp_port.ccmp_write_token(self.actor_ref, portname, retval)
 
             return (True, True, exhausted_ports)
         return condition_wrapper
     return wrap
-
 
 def stateguard(action_guard):
     """
@@ -116,6 +113,50 @@ def stateguard(action_guard):
         return guard_wrapper
     return wrap
 
+class calvinsys(object):
+
+    """
+    Calvinsys interface exposed to actors
+    """
+
+    @staticmethod
+    def open(actor, name, **kwargs):
+        return cc_mp_calvinsys.open(actor.actor_ref, name, **kwargs)
+
+    @staticmethod
+    def can_write(obj):
+        try:
+            data = obj.can_write()
+        except Exception as e:
+            _log.exception("'can_write' failed, exception={}".format(e))
+        return data
+
+    @staticmethod
+    def write(obj, data):
+        try:
+            obj.write(data)
+        except Exception as e:
+            _log.exception("'write()' failed, exception={}".format(e))
+
+    @staticmethod
+    def can_read(obj):
+        try:
+            data = obj.can_read()
+        except Exception as e:
+            _log.exception("'can_read()' failed, exception={}".format(e))
+        return data
+
+    @staticmethod
+    def read(obj):
+        try:
+            data = obj.read()
+        except Exception as e:
+            _log.exception("'read()' failed, exception={}".format(e))
+        return data
+
+    @staticmethod
+    def close(obj):
+        cc_mp_calvinsys.close(obj)
 
 class Actor(object):
     """
@@ -133,15 +174,6 @@ class Actor(object):
 
     def init(self):
         raise Exception("Implementing 'init()' is mandatory.")
-
-    def open(self, requirement, **kwargs):
-        obj = calvinsys.open(self.actor_ref, requirement, **kwargs)
-        if obj is None:
-            raise Exception("Failed to open object")
-        return obj
-
-    def close(self, obj):
-        calvinsys.close(obj)
 
     def fire(self):
         """
