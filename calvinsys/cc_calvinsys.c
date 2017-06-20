@@ -50,7 +50,7 @@ void calvinsys_delete_handler(calvinsys_handler_t *handler)
 result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name, calvinsys_handler_t *handler)
 {
 	if (list_get(calvinsys->capabilities, name) != NULL) {
-		log_error("Capability '%s' already registered", name);
+		cc_log_error("Capability '%s' already registered", name);
 		return CC_RESULT_FAIL;
 	}
 

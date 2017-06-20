@@ -121,7 +121,7 @@ static mp_obj_t cc_mp_calvinsys_open(size_t n_args, const mp_obj_t *args, mp_map
 		obj = calvinsys_open(actor->calvinsys, name, NULL, 0);
 
 	if (obj == NULL) {
-	  log_error("Failed to open object");
+	  cc_log_error("Failed to open object");
 	  return mp_const_none;
 	}
 

@@ -42,7 +42,7 @@ static result_t transport_fcm_connect(node_t *node, transport_client_t *transpor
 		return CC_RESULT_SUCCESS;
 	}
 
-	log_error("Failed to send connect request");
+	cc_log_error("Failed to send connect request");
 	transport_client->state = TRANSPORT_INTERFACE_DOWN;
 
 	return CC_RESULT_FAIL;
@@ -52,7 +52,7 @@ static int transport_fcm_send(transport_client_t *transport_client, char *data, 
 {
   transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
 
-	log("transport_fcm_send");
+	cc_log("transport_fcm_send");
 
 	return ((android_platform_t *)fcm_client->node->platform)->send_upstream_platform_message(
 		transport_client,
@@ -65,7 +65,7 @@ static int transport_fcm_recv(transport_client_t *transport_client, char *buffer
 {
   transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
 
-	log("transport_fcm_recv");
+	cc_log("transport_fcm_recv");
 	return read(((android_platform_t*)fcm_client->node->platform)->downstream_platform_fd[0], buffer, size);
 }
 
@@ -94,7 +94,7 @@ transport_client_t *transport_fcm_create(struct node_t *node, char *uri)
 	transport_fcm_client_t *fcm_client = NULL;
 
 	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
@@ -102,7 +102,7 @@ transport_client_t *transport_fcm_create(struct node_t *node, char *uri)
 
 	if (platform_mem_alloc((void **)&fcm_client, sizeof(transport_fcm_client_t)) != CC_RESULT_SUCCESS) {
 		platform_mem_free((void *)transport_client);
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 

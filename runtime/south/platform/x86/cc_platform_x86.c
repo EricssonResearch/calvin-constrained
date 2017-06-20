@@ -61,7 +61,7 @@ static result_t platform_temp_read(struct calvinsys_obj_t *obj, char **data, siz
 
 	*size = mp_sizeof_double(temp);
 	if (platform_mem_alloc((void **)data, *size) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
@@ -75,7 +75,7 @@ static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *d
 	calvinsys_obj_t *obj = NULL;
 
 	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
@@ -101,7 +101,7 @@ static calvinsys_handler_t *platform_create_temperature_handler(void)
 		handler->objects = NULL;
 		handler->next = NULL;
 	} else
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 
 	return handler;
 }
@@ -116,11 +116,11 @@ static result_t platform_calvinsys_digitial_in_out_write(struct calvinsys_obj_t 
 	uint32_t value = 0;
 
 	if (decode_uint(data, &value) == CC_RESULT_SUCCESS) {
-		log("Setting digitial out with '%d'", (int)value);
+		cc_log("Setting digitial out with '%d'", (int)value);
 		return CC_RESULT_SUCCESS;
 	}
 
-	log_error("Failed to decode data");
+	cc_log_error("Failed to decode data");
 	return CC_RESULT_FAIL;
 }
 
@@ -135,7 +135,7 @@ static result_t platform_calvinsys_digitial_in_out_read(struct calvinsys_obj_t *
 
 	*size = mp_sizeof_uint(value);
 	if (platform_mem_alloc((void **)data, *size) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
@@ -151,7 +151,7 @@ static result_t platform_calvinsys_digitial_in_out_read(struct calvinsys_obj_t *
 
 static result_t platform_calvinsys_digitial_in_out_close(struct calvinsys_obj_t *obj)
 {
-	log("Closing digitial in/out");
+	cc_log("Closing digitial in/out");
 	return CC_RESULT_SUCCESS;
 }
 
@@ -160,7 +160,7 @@ static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handle
 	calvinsys_obj_t *obj = NULL;
 
 	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
@@ -174,7 +174,7 @@ static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handle
 	obj->next = NULL;
 	handler->objects = obj; // assume only one object
 
-	log("Opened digitial in/out");
+	cc_log("Opened digitial in/out");
 
 	return obj;
 }
@@ -188,7 +188,7 @@ static calvinsys_handler_t *platform_create_digitial_in_out_handler(void)
 		handler->objects = NULL;
 		handler->next = NULL;
 	} else
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 
 	return handler;
 }
@@ -253,7 +253,7 @@ bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 
 		if (FD_ISSET(fd, &fds)) {
 			if (transport_handle_data(node, node->transport_client, node_handle_message) != CC_RESULT_SUCCESS) {
-				log_error("Failed to read data from transport");
+				cc_log_error("Failed to read data from transport");
 				node->transport_client->state = TRANSPORT_DISCONNECTED;
 			}
 			return true;
@@ -268,7 +268,7 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 {
 	*buffer = malloc(size);
 	if (*buffer == NULL) {
-		log_error("Failed to allocate '%ld' memory", (unsigned long)size);
+		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)size);
 		return CC_RESULT_FAIL;
 	}
 
@@ -293,7 +293,7 @@ void platform_mem_free(void *buffer)
 #ifdef CC_DEEPSLEEP_ENABLED
 void platform_deepsleep(node_t *node)
 {
-	log("Going to deepsleep state, runtime will stop!");
+	cc_log("Going to deepsleep state, runtime will stop!");
 }
 #endif
 
@@ -307,12 +307,12 @@ void platform_write_node_state(node_t *node, char *buffer, size_t size)
 	if (fp != NULL) {
 		len = fwrite(buffer, 1, size, fp);
 		if (len != size)
-			log_error("Failed to write node config");
+			cc_log_error("Failed to write node config");
 		else
-			log_debug("Wrote runtime state '%d' bytes", len);
+			cc_log_debug("Wrote runtime state '%d' bytes", len);
 		fclose(fp);
 	} else
-		log("Failed to open %s for writing", CC_CONFIG_FILE);
+		cc_log("Failed to open %s for writing", CC_CONFIG_FILE);
 }
 
 result_t platform_read_node_state(node_t *node, char buffer[], size_t size)

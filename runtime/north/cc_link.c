@@ -31,7 +31,7 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, boo
 		return link;
 
 	if (platform_mem_alloc((void **)&link, sizeof(link_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
@@ -42,12 +42,12 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, boo
 	link->ref_count = 0;
 
 	if (list_add(&node->links, link->peer_id, (void *)link, sizeof(link_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to add link");
+		cc_log_error("Failed to add link");
 		platform_mem_free((void *)link);
 		return NULL;
 	}
 
-	log_debug("Link created, peer id '%s' is_proxy '%s'", link->peer_id, link->is_proxy ? "yes" : "no");
+	cc_log_debug("Link created, peer id '%s' is_proxy '%s'", link->peer_id, link->is_proxy ? "yes" : "no");
 
 	return link;
 }
@@ -80,7 +80,7 @@ link_t *link_deserialize(node_t *node, char *buffer)
 
 void link_free(node_t *node, link_t *link)
 {
-	log_debug("Deleting link to '%s'", link->peer_id);
+	cc_log_debug("Deleting link to '%s'", link->peer_id);
 	list_remove(&node->links, link->peer_id);
 	platform_mem_free((void *)link);
 }
@@ -89,7 +89,7 @@ void link_add_ref(link_t *link)
 {
 	if (link != NULL) {
 		link->ref_count++;
-		log_debug("Link ref added '%s' ref: %d", link->peer_id, link->ref_count);
+		cc_log_debug("Link ref added '%s' ref: %d", link->peer_id, link->ref_count);
 	}
 }
 
@@ -97,7 +97,7 @@ void link_remove_ref(node_t *node, link_t *link)
 {
 	if (link != NULL) {
 		link->ref_count--;
-		log_debug("Link ref removed '%s' ref: %d", link->peer_id, link->ref_count);
+		cc_log_debug("Link ref removed '%s' ref: %d", link->peer_id, link->ref_count);
 		if (link->ref_count == 0)
 			link_free(node, link);
 	}

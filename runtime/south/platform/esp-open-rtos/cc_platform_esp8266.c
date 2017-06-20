@@ -47,12 +47,12 @@ static result_t platform_esp_start_station_mode()
 
 	fd = SPIFFS_open(&fs, CALVIN_ESP_WIFI_CONFIG_FILE, SPIFFS_RDONLY, 0);
 	if (fd < 0) {
-		log_error("Failed to open config file");
+		cc_log_error("Failed to open config file");
 		return CC_RESULT_FAIL;
 	}
 
 	if (SPIFFS_read(&fs, fd, buffer, CALVIN_ESP_WIFI_CONFIG_BUFFER_SIZE) < 0) {
-		log_error("Failed to read file");
+		cc_log_error("Failed to read file");
 		SPIFFS_close(&fs, fd);
 		return CC_RESULT_FAIL;
 	}
@@ -60,12 +60,12 @@ static result_t platform_esp_start_station_mode()
 	SPIFFS_close(&fs, fd);
 
 	if (decode_string_from_map(buffer, "ssid", &ssid, &ssid_len) != CC_RESULT_SUCCESS) {
-		log_error("Failed to read 'ssid' from config");
+		cc_log_error("Failed to read 'ssid' from config");
 		return CC_RESULT_FAIL;
 	}
 
 	if (decode_string_from_map(buffer, "password", &password, &password_len) != CC_RESULT_SUCCESS) {
-		log_error("Failed to read 'password' from config");
+		cc_log_error("Failed to read 'password' from config");
 		return CC_RESULT_FAIL;
 	}
 
@@ -74,7 +74,7 @@ static result_t platform_esp_start_station_mode()
 	strncpy((char *)config.password, password, password_len);
 	config.password[password_len] = '\0';
 
-	log("Starting in station mode with AP '%s'", config.ssid);
+	cc_log("Starting in station mode with AP '%s'", config.ssid);
 
 	sdk_wifi_set_opmode(STATION_MODE);
 	sdk_wifi_station_set_config(&config);
@@ -92,7 +92,7 @@ static result_t platform_esp_write_calvin_config(char *attributes, uint32_t attr
 
 	fd = SPIFFS_open(&fs, CALVIN_ESP_RUNTIME_STATE_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	if (fd < 0) {
-		log_error("Failed to open config file");
+		cc_log_error("Failed to open config file");
 		return CC_RESULT_FAIL;
 	}
 
@@ -128,7 +128,7 @@ static result_t platform_esp_write_calvin_config(char *attributes, uint32_t attr
 	SPIFFS_close(&fs, fd);
 
 	if (res != size) {
-		log_error("Failed to write runtime config, status '%d'", res);
+		cc_log_error("Failed to write runtime config, status '%d'", res);
 		return CC_RESULT_FAIL;
 	}
 
@@ -147,7 +147,7 @@ static result_t platform_esp_write_wifi_config(char *ssid, uint32_t ssid_len, ch
 
 	fd = SPIFFS_open(&fs, CALVIN_ESP_WIFI_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	if (fd < 0) {
-		log_error("Failed to open config file");
+		cc_log_error("Failed to open config file");
 		return CC_RESULT_FAIL;
 	}
 
@@ -162,7 +162,7 @@ static result_t platform_esp_write_wifi_config(char *ssid, uint32_t ssid_len, ch
 	SPIFFS_close(&fs, fd);
 
 	if (res != size) {
-		log_error("Failed to write runtime wifi config, status '%d'", res);
+		cc_log_error("Failed to write runtime wifi config, status '%d'", res);
 		return CC_RESULT_FAIL;
 	}
 
@@ -187,7 +187,7 @@ static result_t platform_esp_start_ap_mode()
 		.beacon_interval = 100,
 	};
 
-	log("Waiting for config on '172.16.0.1:5003'");
+	cc_log("Waiting for config on '172.16.0.1:5003'");
 
 	sdk_wifi_set_opmode(SOFTAP_MODE);
 
@@ -205,7 +205,7 @@ static result_t platform_esp_start_ap_mode()
 	// Wait for configuration data from client
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0) {
-		log_error("Failed to open socket");
+		cc_log_error("Failed to open socket");
 		return CC_RESULT_FAIL;
 	}
 
@@ -215,7 +215,7 @@ static result_t platform_esp_start_ap_mode()
 	serv_addr.sin_port = htons(5003);
 
 	if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-		log_error("Failed to bind socket");
+		cc_log_error("Failed to bind socket");
 		return CC_RESULT_FAIL;
 	}
 
@@ -224,21 +224,21 @@ static result_t platform_esp_start_ap_mode()
 
 	newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, (socklen_t *)&clilen);
 	if (newsockfd < 0) {
-		log_error("Failed to accept client");
+		cc_log_error("Failed to accept client");
 		return CC_RESULT_FAIL;
 	}
 
 	bzero(buffer, CALVIN_ESP_WIFI_RECV_CONFIG_BUFFER_SIZE);
 	len = read(newsockfd, buffer, CALVIN_ESP_WIFI_RECV_CONFIG_BUFFER_SIZE);
 	if (len < 0) {
-		log_error("Failed to read data");
+		cc_log_error("Failed to read data");
 		close(newsockfd);
 		return CC_RESULT_FAIL;
 	}
 
 	attributes = strstr(buffer, "\"attributes\": ");
 	if (attributes == NULL) {
-		log_error("Failed to parse 'attributes' from '%s'", buffer);
+		cc_log_error("Failed to parse 'attributes' from '%s'", buffer);
 		close(newsockfd);
 		return CC_RESULT_FAIL;
 	}
@@ -246,7 +246,7 @@ static result_t platform_esp_start_ap_mode()
 
 	uri = strstr(buffer, "\"proxy_uris\": \"");
 	if (uri == NULL) {
-		log_error("Failed to parse 'proxy_uris' from '%s'", buffer);
+		cc_log_error("Failed to parse 'proxy_uris' from '%s'", buffer);
 		close(newsockfd);
 		return CC_RESULT_FAIL;
 	}
@@ -254,7 +254,7 @@ static result_t platform_esp_start_ap_mode()
 
 	ssid = strstr(buffer, "\"ssid\": \"");
 	if (ssid == NULL) {
-		log_error("Failed to parse 'ssid' from '%s'", buffer);
+		cc_log_error("Failed to parse 'ssid' from '%s'", buffer);
 		close(newsockfd);
 		return CC_RESULT_FAIL;
 	}
@@ -262,7 +262,7 @@ static result_t platform_esp_start_ap_mode()
 
 	password = strstr(buffer, "\"password\": \"");
 	if (password == NULL) {
-		log_error("Failed to parse 'password' from configuration data");
+		cc_log_error("Failed to parse 'password' from configuration data");
 		close(newsockfd);
 		return CC_RESULT_FAIL;
 	}
@@ -289,38 +289,38 @@ void platform_init(void)
 
 	uart_set_baud(0, 115200);
 
-	log("----------------------------------------");
-	log("SDK version:%s", sdk_system_get_sdk_version());
-	log("%20s: %u b", "Heap size", sdk_system_get_free_heap_size());
-	log("%20s: 0x%08x", "Flash ID", sdk_spi_flash_get_id());
-	log("%20s: %u Mbytes", "Flash size", sdk_flashchip.chip_size / 1024 / 1024);
-	log("----------------------------------------");
+	cc_log("----------------------------------------");
+	cc_log("SDK version:%s", sdk_system_get_sdk_version());
+	cc_log("%20s: %u b", "Heap size", sdk_system_get_free_heap_size());
+	cc_log("%20s: 0x%08x", "Flash ID", sdk_spi_flash_get_id());
+	cc_log("%20s: %u Mbytes", "Flash size", sdk_flashchip.chip_size / 1024 / 1024);
+	cc_log("----------------------------------------");
 
 	esp_spiffs_init();
 	if (esp_spiffs_mount() != SPIFFS_OK) {
 		SPIFFS_unmount(&fs);
 		if (SPIFFS_format(&fs) == SPIFFS_OK)
-			log("Filesystem formatted");
+			cc_log("Filesystem formatted");
 		else
-			log_error("Failed to format filesystem");
+			cc_log_error("Failed to format filesystem");
 
 		if (esp_spiffs_mount() != SPIFFS_OK)
-			log_error("Failed to mount filesystem");
+			cc_log_error("Failed to mount filesystem");
 	}
 
 	if (SPIFFS_stat(&fs, CALVIN_ESP_WIFI_CONFIG_FILE, &s) != SPIFFS_OK) {
 			if (platform_esp_start_ap_mode() == CC_RESULT_SUCCESS) {
-				log("Restarting");
+				cc_log("Restarting");
 				sdk_system_restart();
 				return;
 			}
-			log("Removing WiFi config");
+			cc_log("Removing WiFi config");
 			SPIFFS_remove(&fs, CALVIN_ESP_WIFI_CONFIG_FILE);
 	}
 
 	if (platform_esp_start_station_mode() != CC_RESULT_SUCCESS) {
 		SPIFFS_remove(&fs, CALVIN_ESP_WIFI_CONFIG_FILE);
-		log("Restarting");
+		cc_log("Restarting");
 		sdk_system_restart();
 	}
 }
@@ -349,7 +349,7 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 {
 	*buffer = malloc(size);
 	if (*buffer == NULL) {
-		log_error("Failed to allocate '%ld' memory", (unsigned long)size);
+		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)size);
 		return CC_RESULT_FAIL;
 	}
 
@@ -394,7 +394,7 @@ bool platform_evt_wait(struct node_t *node, uint32_t timeout_seconds)
 
 		if (FD_ISSET(fd, &fds)) {
 			if (transport_handle_data(node, node->transport_client, node_handle_message) != CC_RESULT_SUCCESS) {
-				log_error("Failed to read data from transport");
+				cc_log_error("Failed to read data from transport");
 				node->transport_client->state = TRANSPORT_DISCONNECTED;
 			}
 			return true;
@@ -424,7 +424,7 @@ void platform_write_node_state(struct node_t* node, char *buffer, size_t size)
 
 	res = SPIFFS_write(&fs, fd, buffer, size);
 	if (res != size)
-		log_error("Failed to write runtime state, status '%d'", res);
+		cc_log_error("Failed to write runtime state, status '%d'", res);
 
 	SPIFFS_close(&fs, fd);
 }
@@ -433,7 +433,7 @@ result_t platform_read_node_state(struct node_t* node, char buffer[], size_t siz
 {
 	spiffs_file fd = SPIFFS_open(&fs, CALVIN_ESP_RUNTIME_STATE_FILE, SPIFFS_RDONLY, 0);
 	if (fd < 0) {
-		log_error("Error opening file");
+		cc_log_error("Error opening file");
 		return CC_RESULT_FAIL;
 	}
 
@@ -446,10 +446,10 @@ result_t platform_read_node_state(struct node_t* node, char buffer[], size_t siz
 #ifdef CC_DEEPSLEEP_ENABLED
 void platform_deepsleep(node_t *node)
 {
-	log("Enterring system deep sleep for '%d' seconds", CC_SLEEP_TIME);
+	cc_log("Enterring system deep sleep for '%d' seconds", CC_SLEEP_TIME);
 	sdk_system_deep_sleep(CC_SLEEP_TIME * 1000 * 1000);
 	vTaskDelay(1000 / portTICK_PERIOD_MS);
-	log("----------- Should not come here --------------");
+	cc_log("----------- Should not come here --------------");
 }
 #endif
 
@@ -463,7 +463,7 @@ void calvin_task(void *pvParameters)
 	while (1) {
 		while (sdk_wifi_station_get_connect_status() != STATION_GOT_IP) {
 			vTaskDelay(1000 / portTICK_PERIOD_MS);
-			log("Waiting for connection to AP");
+			cc_log("Waiting for connection to AP");
 			retries++;
 			if (retries == 10) {
 #ifdef CC_DEEPSLEEP_ENABLED
@@ -474,7 +474,7 @@ void calvin_task(void *pvParameters)
 			}
 		}
 
-		log("Connected to AP\n");
+		cc_log("Connected to AP\n");
 
 		if (api_runtime_init(&node, NULL, NULL, NULL) == CC_RESULT_SUCCESS)
 			api_runtime_start(node);

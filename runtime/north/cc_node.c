@@ -35,7 +35,7 @@ static void node_reset(node_t *node, bool remove_actors)
 	int i = 0;
 	list_t *tmp_list = NULL;
 
-	log("Resetting runtime");
+	cc_log("Resetting runtime");
 
 	while (node->actors != NULL) {
 		tmp_list = node->actors;
@@ -81,19 +81,19 @@ static result_t node_get_state(node_t *node)
 
 	if (platform_read_node_state(node, buffer, CC_RUNTIME_STATE_BUFFER_SIZE) == CC_RESULT_SUCCESS) {
 		if (decode_string_from_map(buffer, "id", &value, &value_len) != CC_RESULT_SUCCESS) {
-			log_error("Failed to decode 'id'");
+			cc_log_error("Failed to decode 'id'");
 			return CC_RESULT_FAIL;
 		}
 		strncpy(node->id, value, value_len);
 
 		if (has_key(buffer, "attributes")) {
 			if (decode_string_from_map(buffer, "attributes", &value, &value_len) != CC_RESULT_SUCCESS) {
-				log_error("Failed to decode 'attributes'");
+				cc_log_error("Failed to decode 'attributes'");
 				return CC_RESULT_FAIL;
 			}
 
 			if (platform_mem_alloc((void **)&node->attributes, value_len + 1) != CC_RESULT_SUCCESS) {
-				log_error("Failed to allocate memory");
+				cc_log_error("Failed to allocate memory");
 				return CC_RESULT_FAIL;
 			}
 
@@ -123,7 +123,7 @@ static result_t node_get_state(node_t *node)
 					if (get_value_from_array(array_value, i, &value) == CC_RESULT_SUCCESS) {
 						link = link_deserialize(node, value);
 						if (link == NULL)
-							log_error("Failed to decode link");
+							cc_log_error("Failed to decode link");
 						else {
 							if (link->is_proxy)
 								node->proxy_link = link;
@@ -140,7 +140,7 @@ static result_t node_get_state(node_t *node)
 					if (get_value_from_array(array_value, i, &value) == CC_RESULT_SUCCESS) {
 						tunnel = tunnel_deserialize(node, value);
 						if (tunnel == NULL)
-						 	log_error("Failed to decode tunnel");
+						 	cc_log_error("Failed to decode tunnel");
 						else {
 							if (tunnel->type == TUNNEL_TYPE_STORAGE)
 								node->storage_tunnel = tunnel;
@@ -157,7 +157,7 @@ static result_t node_get_state(node_t *node)
 					if (get_value_from_array(array_value, i, &value) == CC_RESULT_SUCCESS) {
 						actor = actor_create(node, value);
 						if (actor == NULL)
-							log_error("Failed to decode actor");
+							cc_log_error("Failed to decode actor");
 					}
 				}
 			}
@@ -239,7 +239,7 @@ result_t node_add_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_le
 		}
 	}
 
-	log_error("Pending msg queue is full");
+	cc_log_error("Pending msg queue is full");
 	return CC_RESULT_FAIL;
 }
 
@@ -257,7 +257,7 @@ result_t node_remove_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid
 		}
 	}
 
-	log_error("No pending msg with id '%s'", msg_uuid);
+	cc_log_error("No pending msg with id '%s'", msg_uuid);
 	return CC_RESULT_FAIL;
 }
 
@@ -274,7 +274,7 @@ result_t node_get_pending_msg(node_t *node, const char *msg_uuid, uint32_t msg_u
 		}
 	}
 
-	log_debug("No pending msg with id '%s'", msg_uuid);
+	cc_log_debug("No pending msg with id '%s'", msg_uuid);
 	return CC_RESULT_FAIL;
 }
 
@@ -298,16 +298,16 @@ static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_dat
 	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
 		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
 			if (status == 200) {
-				log("Connected to proxy with id '%s' and uri '%s'", node->transport_client->peer_id, node->transport_client->uri);
+				cc_log("Connected to proxy with id '%s' and uri '%s'", node->transport_client->peer_id, node->transport_client->uri);
 				node->state = NODE_STARTED;
 				platform_node_started(node);
 			} else
-				log_error("Failed to setup node, status '%lu'", (unsigned long)status);
+				cc_log_error("Failed to setup node, status '%lu'", (unsigned long)status);
 			return CC_RESULT_SUCCESS;
 		}
 	}
 
-	log_error("Failed to decode PROXY_CONFIG reply");
+	cc_log_error("Failed to decode PROXY_CONFIG reply");
 	return CC_RESULT_FAIL;
 }
 
@@ -320,7 +320,7 @@ static result_t node_enter_sleep_reply_handler(node_t *node, char *data, void *m
 	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
 		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
 			if (status == 200) {
-				log("Runtime going to deep sleep");
+				cc_log("Runtime going to deep sleep");
 #ifdef CC_STORAGE_ENABLED
 				node_set_state(node);
 #else
@@ -330,12 +330,12 @@ static result_t node_enter_sleep_reply_handler(node_t *node, char *data, void *m
 				node->state = NODE_STOP;
 				platform_deepsleep(node);
 			} else
-				log_error("Failed to request sleep");
+				cc_log_error("Failed to request sleep");
 			return CC_RESULT_SUCCESS;
 		}
 	}
 
-	log_error("Failed to decode PROXY_CONFIG reply for enterring deep sleep");
+	cc_log_error("Failed to decode PROXY_CONFIG reply for enterring deep sleep");
 	return CC_RESULT_FAIL;
 }
 #endif
@@ -347,20 +347,20 @@ result_t node_handle_token(port_t *port, const char *data, const size_t size, ui
 	if (port->actor->state == ACTOR_ENABLED) {
 		if (fifo_slots_available(port->fifo, 1)) {
 			if (platform_mem_alloc((void **)&buffer, size) != CC_RESULT_SUCCESS) {
-				log_error("Failed to allocate memory");
+				cc_log_error("Failed to allocate memory");
 				return CC_RESULT_FAIL;
 			}
 			memcpy(buffer, data, size);
 			if (fifo_com_write(port->fifo, buffer, size, sequencenbr) == CC_RESULT_SUCCESS)
 				return CC_RESULT_SUCCESS;
 			else {
-				log_error("Failed to write to fifo");
+				cc_log_error("Failed to write to fifo");
 				platform_mem_free((void *)buffer);
 			}
 		} else
-			log("Token received but no slots available");
+			cc_log("Token received but no slots available");
 	} else
-		log("Token received but actor not enabled");
+		cc_log("Token received but actor not enabled");
 
 	return CC_RESULT_FAIL;
 }
@@ -375,7 +375,7 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 		} else if (reply_type == PORT_REPLY_TYPE_NACK) {
 			fifo_com_cancel_read(port->fifo, sequencenbr);
 		} else if (reply_type == PORT_REPLY_TYPE_ABORT)
-			log_debug("TODO: handle ABORT");
+			cc_log_debug("TODO: handle ABORT");
 	}
 }
 
@@ -390,7 +390,7 @@ result_t node_handle_message(node_t *node, char *buffer, size_t len)
 		return CC_RESULT_SUCCESS;
 	}
 
-	log_error("Failed to handle message");
+	cc_log_error("Failed to handle message");
 	return CC_RESULT_FAIL;
 }
 
@@ -451,7 +451,7 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	if (node->proxy_link == NULL) {
 		node->proxy_link = link_create(node, peer_id, peer_id_len, true);
 		if (node->proxy_link == NULL) {
-			log_error("Failed to create proxy link");
+			cc_log_error("Failed to create proxy link");
 			return CC_RESULT_FAIL;
 		}
 	}
@@ -459,7 +459,7 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	if (node->storage_tunnel == NULL) {
 		node->storage_tunnel = tunnel_create(node, TUNNEL_TYPE_STORAGE, TUNNEL_DISCONNECTED, peer_id, peer_id_len, NULL, 0);
 		if (node->storage_tunnel == NULL) {
-			log_error("Failed to create storage tunnel");
+			cc_log_error("Failed to create storage tunnel");
 			return CC_RESULT_FAIL;
 		}
 		tunnel_add_ref(node->storage_tunnel);
@@ -472,7 +472,7 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 		platform_evt_wait(node, 0);
 
 	if (node->state != NODE_STARTED) {
-		log_error("Failed connect to proxy");
+		cc_log_error("Failed connect to proxy");
 		return CC_RESULT_FAIL;
 	}
 
@@ -495,7 +495,7 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 	node->actors = NULL;
 	if (attributes != NULL) {
 		if (platform_mem_alloc((void **)&node->attributes, strlen(attributes)) != CC_RESULT_SUCCESS) {
-			log_error("Failed to allocate memory");
+			cc_log_error("Failed to allocate memory");
 			return CC_RESULT_FAIL;
 		}
 		strcpy(node->attributes, attributes);
@@ -503,19 +503,19 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 
 	if (storage_dir != NULL) {
 		if (platform_mem_alloc((void **)&node->storage_dir, strlen(storage_dir)) != CC_RESULT_SUCCESS) {
-			log_error("Failed to allocate memory");
+			cc_log_error("Failed to allocate memory");
 			return CC_RESULT_FAIL;
 		}
 		strcpy(node->storage_dir, storage_dir);
 	}
 
 	if (platform_create(node) != CC_RESULT_SUCCESS) {
-		log_error("Failed to create platform object");
+		cc_log_error("Failed to create platform object");
 		return CC_RESULT_FAIL;
 	}
 
 	if (platform_mem_alloc((void **)&node->calvinsys, sizeof(calvinsys_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
@@ -524,12 +524,11 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 	node->calvinsys->handlers = NULL;
 
 	if (platform_create_calvinsys(&node->calvinsys) != CC_RESULT_SUCCESS) {
-		log_error("Failed to create calvinsys");
+		cc_log_error("Failed to create calvinsys");
 		return CC_RESULT_FAIL;
 	}
-
 	if (node_setup(node) != CC_RESULT_SUCCESS) {
-		log_error("Failed to setup runtime");
+		cc_log_error("Failed to setup runtime");
 		return CC_RESULT_FAIL;
 	}
 
@@ -541,34 +540,34 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 		}
 	}
 
-	log("Runtime initialized");
-	log("----------------------------------------");
-	log("ID: %s", node->id);
+	cc_log("Runtime initialized");
+	cc_log("----------------------------------------");
+	cc_log("ID: %s", node->id);
 	if (node->attributes != NULL)
-		log("Attributes: %s", node->attributes);
+		cc_log("Attributes: %s", node->attributes);
 	if (node->proxy_uris != NULL) {
-		log("Proxy URIs:");
+		cc_log("Proxy URIs:");
 		item = node->proxy_uris;
 		while (item != NULL) {
-			log(" %s", item->id);
+			cc_log(" %s", item->id);
 			item = item->next;
 		}
 	}
 	if (node->calvinsys != NULL) {
-		log("Capabilities:");
+		cc_log("Capabilities:");
 		item = node->calvinsys->capabilities;
 		while (item != NULL) {
-			log(" %s", item->id);
+			cc_log(" %s", item->id);
 			item = item->next;
 		}
 	}
 	if (node->storage_dir != NULL)
-		log("Storage directory: %s", node->storage_dir);
+		cc_log("Storage directory: %s", node->storage_dir);
 #ifdef CC_DEEPSLEEP_ENABLED
-	log("Inactivity timeout: %d seconds", CC_INACTIVITY_TIMEOUT);
-	log("Sleep time: %d seconds", CC_SLEEP_TIME);
+	cc_log("Inactivity timeout: %d seconds", CC_INACTIVITY_TIMEOUT);
+	cc_log("Sleep time: %d seconds", CC_SLEEP_TIME);
 #endif
-	log("----------------------------------------");
+	cc_log("----------------------------------------");
 
 	return CC_RESULT_SUCCESS;
 }
@@ -630,7 +629,7 @@ result_t node_run(node_t *node)
 	list_t *item = NULL;
 
 	if (node->fire_actors == NULL) {
-		log_error("No actor scheduler set");
+		cc_log_error("No actor scheduler set");
 		return CC_RESULT_FAIL;
 	}
 
@@ -669,6 +668,6 @@ result_t node_run(node_t *node)
 
 	node_free(node);
 
-	log("Runtime stopped");
+	cc_log("Runtime stopped");
 	return CC_RESULT_SUCCESS;
 }

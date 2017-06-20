@@ -83,7 +83,7 @@ result_t decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 		}
 		break;
 	default:
-		log_error("Decoding not supported for this data '%d'", mp_typeof(*buffer));
+		cc_log_error("Decoding not supported for this data '%d'", mp_typeof(*buffer));
 	}
 
 	return result;
@@ -113,7 +113,7 @@ char *encode_mpy_map(char **buffer, mp_map_t *map)
 			const char *s = mp_obj_str_get_data(map->table[i].value, &len);
 			*buffer = mp_encode_str(*buffer, s, strlen(s));
 		} else {
-			log_error("Object type is not supported");
+			cc_log_error("Object type is not supported");
 			return NULL;
 		}
 	}
@@ -139,7 +139,7 @@ result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t input)
 			buffer = &tmp;
 			return CC_RESULT_SUCCESS;
 		}
-		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
+		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
 		return CC_RESULT_FAIL;
 	} else if (MP_OBJ_IS_INT(input)) {
 		num = mp_obj_get_int(input);
@@ -150,7 +150,7 @@ result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t input)
 			buffer = &tmp;
 			return CC_RESULT_SUCCESS;
 		}
-		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
+		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
 		return CC_RESULT_FAIL;
 	} else if (mp_obj_is_float(input)) {
 		d = mp_obj_float_get(input);
@@ -161,7 +161,7 @@ result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t input)
 			buffer = &tmp;
 			return CC_RESULT_SUCCESS;
 		}
-		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
+		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
 		return CC_RESULT_FAIL;
 	} else if (MP_OBJ_IS_TYPE(input, &mp_type_bool)) {
 		b = mp_obj_new_bool(mp_obj_get_int(input));
@@ -172,7 +172,7 @@ result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t input)
 			buffer = &tmp;
 			return CC_RESULT_SUCCESS;
 		}
-		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
+		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
 		return CC_RESULT_FAIL;
 	} else if (MP_OBJ_IS_TYPE(input, &mp_type_NoneType)) {
 		*size = mp_sizeof_nil();
@@ -183,7 +183,7 @@ result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t input)
 			buffer = &tmp;
 			return CC_RESULT_SUCCESS;
 		}
-		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
+		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
 		return CC_RESULT_FAIL;
 	} else if (MP_OBJ_IS_STR(input)) {
 		str = mp_obj_get_type_str(input);
@@ -194,13 +194,13 @@ result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t input)
 			buffer = &tmp;
 			return CC_RESULT_SUCCESS;
 		}
-		log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
+		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
 		return CC_RESULT_FAIL;
 	}
 
 	input = MP_OBJ_NULL;
 
-	log_error("Encoding not supported for the data type");
+	cc_log_error("Encoding not supported for the data type");
 
 	return CC_RESULT_FAIL;
 }
@@ -254,7 +254,7 @@ static result_t actor_mpy_set_state(actor_t **actor, list_t *attributes)
 	// Copy to python world
 	py_managed_list = mp_obj_new_list(nbr_of_attributes, NULL);
 	mp_store_attr(state->actor_class_instance, QSTR_FROM_STR_STATIC("_managed"), py_managed_list);
-	log_debug("in actor_mpy_set_state, after creating _managed list and associate it with actor instance");
+	cc_log_debug("in actor_mpy_set_state, after creating _managed list and associate it with actor instance");
 	while (list != NULL && result == CC_RESULT_SUCCESS) {
 		q_attr = QSTR_FROM_STR_STATIC(list->id);
 		attr = mp_obj_new_str(list->id, strlen(list->id), true);
@@ -264,7 +264,7 @@ static result_t actor_mpy_set_state(actor_t **actor, list_t *attributes)
 			mp_store_attr(state->actor_class_instance, q_attr, value);
 			item++;
 		}
-		log_debug("Adding attribute %s", list->id);
+		cc_log_debug("Adding attribute %s", list->id);
 		list = list->next;
 	}
 
@@ -272,7 +272,7 @@ static result_t actor_mpy_set_state(actor_t **actor, list_t *attributes)
 	py_managed_list = MP_OBJ_NULL;
 	attr = MP_OBJ_NULL;
 
-	log_debug("Done storing managed attributes\n");
+	cc_log_debug("Done storing managed attributes\n");
 
 	return result;
 }
@@ -289,7 +289,7 @@ static result_t actor_mpy_get_managed_attributes(actor_t *actor, list_t **attrib
 
 	mp_load_method(state->actor_class_instance, QSTR_FROM_STR_STATIC("_managed"), mpy_attr);
 	if (mpy_attr[0] == MP_OBJ_NULL && mpy_attr[1] == MP_OBJ_NULL) {
-		log_debug("No managed variables");
+		cc_log_debug("No managed variables");
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -300,7 +300,7 @@ static result_t actor_mpy_get_managed_attributes(actor_t *actor, list_t **attrib
 		q_attr = qstr_from_strn((const char *)name, len);
 		mp_load_method(state->actor_class_instance, q_attr, mpy_attr);
 		if (mpy_attr[0] == MP_OBJ_NULL) {
-			log("Unknown managed attribute");
+			cc_log("Unknown managed attribute");
 			continue;
 		}
 
@@ -404,7 +404,7 @@ result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	sprintf(instance_name, "actor_obj%d", counter++);
 
 	if (platform_mem_alloc((void **)&state, sizeof(ccmp_state_actor_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 	memset(state, 0, sizeof(ccmp_state_actor_t));

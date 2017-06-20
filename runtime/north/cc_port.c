@@ -44,7 +44,7 @@ static result_t port_get_peer_port_reply_handler(node_t *node, char *data, void 
 			return CC_RESULT_FAIL;
 
 		if (status != 200) {
-			log_error("Failed to get port info");
+			cc_log_error("Failed to get port info");
 			return CC_RESULT_SUCCESS;
 		}
 	}
@@ -65,7 +65,7 @@ static result_t port_get_peer_port_reply_handler(node_t *node, char *data, void 
 		end = strstr(tmp, "\"");
 		if (end != NULL) {
 			if (platform_mem_alloc((void **)&node_id, end + 1 - tmp) != CC_RESULT_SUCCESS) {
-				log_error("Failed to allocate memory");
+				cc_log_error("Failed to allocate memory");
 				return CC_RESULT_FAIL;
 			}
 
@@ -75,7 +75,7 @@ static result_t port_get_peer_port_reply_handler(node_t *node, char *data, void 
 	}
 
 	if (node_id == NULL) {
-		log_error("Failed to decode message");
+		cc_log_error("Failed to decode message");
 		return CC_RESULT_FAIL;
 	}
 
@@ -127,25 +127,25 @@ static result_t port_store_reply_handler(node_t *node, char *data, void *msg_dat
 		if (decode_bool_from_map(value, "value", &status) == CC_RESULT_SUCCESS) {
 			if (decode_bool_from_map(value, "value", &status) == CC_RESULT_SUCCESS) {
 				if (status != true)
-					log_error("Failed to store port '%s'", (char *)msg_data);
+					cc_log_error("Failed to store port '%s'", (char *)msg_data);
 				return CC_RESULT_SUCCESS;
 			}
 		}
 	}
 
-	log_error("Failed to decode message");
+	cc_log_error("Failed to decode message");
 	return CC_RESULT_FAIL;
 }
 
 static result_t port_disconnect_reply_handler(node_t *node, char *data, void *msg_data)
 {
-	log_debug("Port '%s' disconnected", msg_data);
+	cc_log_debug("Port '%s' disconnected", msg_data);
 	return CC_RESULT_SUCCESS;
 }
 
 void port_set_state(port_t *port, port_state_t state)
 {
-	log_debug("Port '%s' state '%d' -> '%d'", port->id, port->state, state);
+	cc_log_debug("Port '%s' state '%d' -> '%d'", port->id, port->state, state);
 	port->state = state;
 }
 
@@ -169,7 +169,7 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 		return NULL;
 
 	if (strncmp("default", routing, routing_len) != 0 && strncmp("fanout", routing, routing_len) != 0) {
-		log_error("Unsupported routing");
+		cc_log_error("Unsupported routing");
 		return NULL;
 	}
 
@@ -177,7 +177,7 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 		return NULL;
 
 	if (nbr_peers != 1) {
-		log_error("Only one peer is supported");
+		cc_log_error("Only one peer is supported");
 		return NULL;
 	}
 
@@ -207,7 +207,7 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 		return NULL;
 
 	if (platform_mem_alloc((void **)&port, sizeof(port_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
@@ -224,7 +224,7 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 
 	port->fifo = fifo_init(obj_queue);
 	if (port->fifo ==  NULL) {
-		log_error("Failed to init fifo");
+		cc_log_error("Failed to init fifo");
 		port_free(node, port, false);
 		return NULL;
 	}
@@ -246,31 +246,31 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 	} else {
 		if (node->transport_client != NULL) {
 			if (proto_send_set_port(node, port, port_store_reply_handler) != CC_RESULT_SUCCESS) {
-				log_error("Failed to store port");
+				cc_log_error("Failed to store port");
 				port_free(node, port, false);
 				return NULL;
 			}
 
 			if (port_setup_connection(node, port, peer_id, peer_id_len) != CC_RESULT_SUCCESS) {
-				log_error("Failed setup connections");
+				cc_log_error("Failed setup connections");
 				port_free(node, port, true);
 				return NULL;
 			}
 		}
 	}
 
-	log_debug("Created port '%s' with name '%s' and direction '%s'", port->id, port->name, port->direction == PORT_DIRECTION_IN ? "in" : "out");
+	cc_log_debug("Created port '%s' with name '%s' and direction '%s'", port->id, port->name, port->direction == PORT_DIRECTION_IN ? "in" : "out");
 
 	return port;
 }
 
 void port_free(node_t *node, port_t *port, bool remove_from_registry)
 {
-	log_debug("Deleting port '%s'", port->id);
+	cc_log_debug("Deleting port '%s'", port->id);
 
 	if (remove_from_registry) {
 		if (proto_send_remove_port(node, port, port_remove_reply_handler) != CC_RESULT_SUCCESS)
-			log_error("Failed to remove port '%s'", port->id);
+			cc_log_error("Failed to remove port '%s'", port->id);
 	}
 
 	if (port->tunnel != NULL)
@@ -372,7 +372,7 @@ result_t port_handle_connect(node_t *node, const char *port_id, uint32_t port_id
 
 	port = port_get(node, port_id, port_id_len);
 	if (port == NULL) {
-		log_error("No port with '%.*s'", (int)port_id_len, port_id);
+		cc_log_error("No port with '%.*s'", (int)port_id_len, port_id);
 		return CC_RESULT_FAIL;
 	}
 
@@ -387,14 +387,14 @@ result_t port_handle_connect(node_t *node, const char *port_id, uint32_t port_id
 
 	port->tunnel = tunnel_get_from_id(node, tunnel_id, tunnel_id_len);
 	if (port->tunnel == NULL) {
-		log_error("No tunnel with '%.*s'", (int)tunnel_id_len, tunnel_id);
+		cc_log_error("No tunnel with '%.*s'", (int)tunnel_id_len, tunnel_id);
 		return CC_RESULT_FAIL;
 	}
 
 	tunnel_add_ref(port->tunnel);
 	port_set_state(port, PORT_ENABLED);
 	actor_port_enabled(port->actor);
-	log_debug("Port '%s' connected by remote", port->id);
+	cc_log_debug("Port '%s' connected by remote", port->id);
 
 	return CC_RESULT_SUCCESS;
 }
@@ -405,7 +405,7 @@ result_t port_handle_disconnect(node_t *node, const char *port_id, uint32_t port
 
 	port = port_get(node, port_id, port_id_len);
 	if (port == NULL) {
-		log_error("No port with '%.*s'", (int)port_id_len, port_id);
+		cc_log_error("No port with '%.*s'", (int)port_id_len, port_id);
 		return CC_RESULT_FAIL;
 	}
 
@@ -418,7 +418,7 @@ result_t port_handle_disconnect(node_t *node, const char *port_id, uint32_t port
 		port->tunnel = NULL;
 	}
 
-	log_debug("Port '%s' disconnected by remote", port->id);
+	cc_log_debug("Port '%s' disconnected by remote", port->id);
 
 	return CC_RESULT_SUCCESS;
 }
@@ -454,7 +454,7 @@ static result_t port_setup_connection(node_t *node, port_t *port, char *peer_id,
 		port->tunnel = NULL;
 		peer_port->peer_port = port;
 		port_set_state(peer_port, PORT_ENABLED);
-		log_debug("Port '%s' connected to local port '%s'", port->id, port->peer_port_id);
+		cc_log_debug("Port '%s' connected to local port '%s'", port->id, port->peer_port_id);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -464,7 +464,7 @@ static result_t port_setup_connection(node_t *node, port_t *port, char *peer_id,
 		if (port->tunnel == NULL) {
 			port->tunnel = tunnel_create(node, TUNNEL_TYPE_TOKEN, TUNNEL_DISCONNECTED, peer_id, peer_id_len, NULL, 0);
 			if (port->tunnel == NULL) {
-				log_error("Failed to create a tunnel for port '%s'", port->id);
+				cc_log_error("Failed to create a tunnel for port '%s'", port->id);
 				return CC_RESULT_FAIL;
 			}
 		}
@@ -476,7 +476,7 @@ static result_t port_setup_connection(node_t *node, port_t *port, char *peer_id,
 	// lookup peer
 	if (port->state == PORT_DISCONNECTED) {
 		if (proto_send_get_port(node, port->peer_port_id, port_get_peer_port_reply_handler, port->id) == CC_RESULT_SUCCESS) {
-			log_debug("Doing peer lookup for port '%s' with peer port '%s'", port->id, port->peer_port_id);
+			cc_log_debug("Doing peer lookup for port '%s' with peer port '%s'", port->id, port->peer_port_id);
 			port_set_state(port, PORT_PENDING);
 			return CC_RESULT_SUCCESS;
 		}
@@ -489,7 +489,7 @@ void port_disconnect(node_t *node, port_t *port)
 {
 	if (port->tunnel != NULL) {
 		if (proto_send_port_disconnect(node, port, port_disconnect_reply_handler) != CC_RESULT_SUCCESS)
-			log_error("Failed to disconnect port");
+			cc_log_error("Failed to disconnect port");
 		tunnel_remove_ref(node, port->tunnel);
 		port->tunnel = NULL;
 	}
@@ -519,7 +519,7 @@ void port_transmit(node_t *node, port_t *port)
 						else
 							fifo_cancel_commit(port->fifo);
 					} else {
-						log_error("Port '%s' is enabled without a peer", port->name);
+						cc_log_error("Port '%s' is enabled without a peer", port->name);
 						fifo_com_cancel_read(port->fifo, sequencenbr);
 					}
 				}

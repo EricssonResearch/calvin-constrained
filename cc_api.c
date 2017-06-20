@@ -27,13 +27,13 @@ result_t api_runtime_init(node_t **node, const char *attributes, const char *pro
 
 #ifdef CC_PYTHON_ENABLED
 	if (!mpy_port_init(CC_PYTHON_HEAP_SIZE)) {
-		log_error("Failed to initialize micropython lib");
+		cc_log_error("Failed to initialize micropython lib");
 		return CC_RESULT_FAIL;
 	}
 #endif
 
 	if (platform_mem_alloc((void **)node, sizeof(node_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 	memset(*node, 0, sizeof(node_t));

@@ -23,7 +23,7 @@
 void token_set_data(token_t *token, char *data, const size_t size)
 {
 	if (token->value != NULL) {
-		log_error("Token not freed");
+		cc_log_error("Token not freed");
 		platform_mem_free((void *)token->value);
 		token->value = NULL;
 	}

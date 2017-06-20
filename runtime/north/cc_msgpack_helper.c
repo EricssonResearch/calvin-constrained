@@ -111,7 +111,7 @@ bool has_key(char *buffer, const char *key)
 			mp_next((const char **)&r);
 		}
 	} else
-		log_error("Buffer is not a map");
+		cc_log_error("Buffer is not a map");
 
 	return false;
 }
@@ -135,7 +135,7 @@ result_t get_value_from_array(char *buffer, int index, char **value)
 		return CC_RESULT_SUCCESS;
 	}
 
-	log_error("Parse error for index '%d'", index);
+	cc_log_error("Parse error for index '%d'", index);
 
 	return CC_RESULT_FAIL;
 }
@@ -157,14 +157,14 @@ result_t get_value_from_map_n(char *buffer, const char *key, uint32_t key_len, c
 				}
 				mp_next((const char **)&r);
 			} else {
-				log_error("Failed to decode map");
+				cc_log_error("Failed to decode map");
 				return CC_RESULT_FAIL;
 			}
 		}
 	} else
-		log_error("Buffer is not a map");
+		cc_log_error("Buffer is not a map");
 
-	log_error("Parse error for '%s'", key);
+	cc_log_error("Parse error for '%s'", key);
 
 	return CC_RESULT_FAIL;
 }
@@ -179,7 +179,7 @@ result_t decode_str(char *buffer, char **value, uint32_t *len)
 	char *r = buffer;
 
 	if (mp_typeof(*r) != MP_STR) {
-		log_error("Failed to decode value, not a string");
+		cc_log_error("Failed to decode value, not a string");
 		return CC_RESULT_FAIL;
 	}
 
@@ -193,7 +193,7 @@ result_t decode_bin(char *buffer, char **value, uint32_t *len)
 	char *r = buffer;
 
 	if (mp_typeof(*r) != MP_BIN) {
-		log_error("Failed to decode value, not binary data");
+		cc_log_error("Failed to decode value, not binary data");
 		return CC_RESULT_FAIL;
 	}
 
@@ -207,7 +207,7 @@ result_t decode_bool(char *buffer, bool *value)
 	char *r = buffer;
 
 	if (mp_typeof(*r) != MP_BOOL) {
-		log_error("Failed to decode value, not a boolean");
+		cc_log_error("Failed to decode value, not a boolean");
 		return CC_RESULT_FAIL;
 	}
 
@@ -221,7 +221,7 @@ result_t decode_uint(char *buffer, uint32_t *value)
 	char *r = buffer;
 
 	if (mp_typeof(*r) != MP_UINT) {
-		log_error("Failed to decode value, not a uint");
+		cc_log_error("Failed to decode value, not a uint");
 		return CC_RESULT_FAIL;
 	}
 
@@ -235,7 +235,7 @@ result_t decode_int(char *buffer, int32_t *value)
 	char *r = buffer;
 
 	if (mp_typeof(*r) != MP_INT) {
-		log_error("Failed to decode value, not a int");
+		cc_log_error("Failed to decode value, not a int");
 		return CC_RESULT_FAIL;
 	}
 
@@ -249,7 +249,7 @@ result_t decode_float(char *buffer, float *value)
 	char *r = buffer;
 
 	if (mp_typeof(*r) != MP_FLOAT) {
-		log_error("Failed to decode value, not a float");
+		cc_log_error("Failed to decode value, not a float");
 		return CC_RESULT_FAIL;
 	}
 
@@ -263,7 +263,7 @@ result_t decode_double(char *buffer, double *value)
 	char *r = buffer;
 
 	if (mp_typeof(*r) != MP_DOUBLE) {
-		log_error("Failed to decode value, not a double");
+		cc_log_error("Failed to decode value, not a double");
 		return CC_RESULT_FAIL;
 	}
 
@@ -288,11 +288,11 @@ result_t decode_string_from_map(char *buffer, const char *key, char **value, uin
 			mp_next((const char **)&r);
 		}
 	} else {
-		log_error("Buffer is not a map");
+		cc_log_error("Buffer is not a map");
 		return CC_RESULT_FAIL;
 	}
 
-	log_error("Parse error for '%s'", key);
+	cc_log_error("Parse error for '%s'", key);
 
 	return CC_RESULT_FAIL;
 }
@@ -313,11 +313,11 @@ result_t decode_bin_from_map(char *buffer, const char *key, char **value, uint32
 			mp_next((const char **)&r);
 		}
 	} else {
-		log_error("Buffer is not a map");
+		cc_log_error("Buffer is not a map");
 		return CC_RESULT_FAIL;
 	}
 
-	log_error("Parse error for '%s'", key);
+	cc_log_error("Parse error for '%s'", key);
 
 	return CC_RESULT_FAIL;
 }
@@ -333,7 +333,7 @@ result_t decode_string_from_array(char *buffer, int index, char **value, uint32_
 		return decode_str(r, value, len);
 	}
 
-	log_error("Index out of range");
+	cc_log_error("Index out of range");
 
 	return CC_RESULT_FAIL;
 }
@@ -358,9 +358,9 @@ result_t decode_uint_from_map(char *buffer, const char *key, uint32_t *value)
 		}
 
 	} else
-		log_error("Buffer is not a map");
+		cc_log_error("Buffer is not a map");
 
-	log_error("Parse error for '%s'", key);
+	cc_log_error("Parse error for '%s'", key);
 
 	return CC_RESULT_FAIL;
 }
@@ -384,9 +384,9 @@ result_t decode_bool_from_map(char *buffer, const char *key, bool *value)
 			}
 		}
 	} else
-		log_error("Buffer is not a map");
+		cc_log_error("Buffer is not a map");
 
-	log_error("Parse error for '%s'", key);
+	cc_log_error("Parse error for '%s'", key);
 
 	return CC_RESULT_FAIL;
 }
@@ -411,9 +411,9 @@ result_t decode_double_from_map(char *buffer, const char *key, double *value)
 		}
 
 	} else
-		log_error("Buffer is not a map");
+		cc_log_error("Buffer is not a map");
 
-	log_error("Parse error for '%s'", key);
+	cc_log_error("Parse error for '%s'", key);
 
 	return CC_RESULT_FAIL;
 }
@@ -438,9 +438,9 @@ result_t decode_float_from_map(char *buffer, const char *key, float *value)
 		}
 
 	} else
-		log_error("Buffer is not a map");
+		cc_log_error("Buffer is not a map");
 
-	log_error("Parse error for '%s'", key);
+	cc_log_error("Parse error for '%s'", key);
 	return CC_RESULT_FAIL;
 }
 

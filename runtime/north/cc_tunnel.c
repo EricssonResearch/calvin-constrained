@@ -56,7 +56,7 @@ static result_t tunnel_request_handler(node_t *node, char *data, void *msg_data)
 	tunnel_t *tunnel = (tunnel_t *)msg_data;
 
 	if (msg_data == NULL) {
-		log_error("Expected msg_data");
+		cc_log_error("Expected msg_data");
 		return CC_RESULT_FAIL;
 	}
 
@@ -71,19 +71,19 @@ static result_t tunnel_request_handler(node_t *node, char *data, void *msg_data)
 		result = decode_uint_from_map(value, "status", &status);
 
 	if (result != CC_RESULT_SUCCESS) {
-		log_error("Failed to parse reply");
+		cc_log_error("Failed to parse reply");
 		return CC_RESULT_FAIL;
 	}
 
 	strncpy(tunnel->id, tunnel_id, tunnel_id_len);
 
 	if (status == 200) {
-		log_debug("Tunnel '%.*s' connected", (int)tunnel_id_len, tunnel_id);
+		cc_log_debug("Tunnel '%.*s' connected", (int)tunnel_id_len, tunnel_id);
 		tunnel->state = TUNNEL_ENABLED;
 		return CC_RESULT_SUCCESS;
 	}
 
-	log_error("Failed to connect tunnel");
+	cc_log_error("Failed to connect tunnel");
 	tunnel->state = TUNNEL_DISCONNECTED;
 	return CC_RESULT_FAIL;
 }
@@ -101,13 +101,13 @@ tunnel_t *tunnel_create(node_t *node, tunnel_type_t type, tunnel_state_t state, 
 	if (link == NULL) {
 		link = link_create(node, peer_id, peer_id_len, strncmp(node->proxy_link->peer_id, peer_id, peer_id_len) == 0);
 		if (link == NULL) {
-			log_error("Failed to create link to '%.*s'", peer_id_len, peer_id);
+			cc_log_error("Failed to create link to '%.*s'", peer_id_len, peer_id);
 			return NULL;
 		}
 	}
 
 	if (platform_mem_alloc((void **)&tunnel, sizeof(tunnel_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
@@ -132,14 +132,14 @@ tunnel_t *tunnel_create(node_t *node, tunnel_type_t type, tunnel_state_t state, 
 	}
 
 	if (list_add(&node->tunnels, tunnel->id, (void *)tunnel, sizeof(tunnel_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to add tunnel");
+		cc_log_error("Failed to add tunnel");
 		platform_mem_free((void *)tunnel);
 		return NULL;
 	}
 
 	link_add_ref(link);
 
-	log_debug("Tunnel created, id '%s' peer_id '%s'", tunnel->id, tunnel->link->peer_id);
+	cc_log_debug("Tunnel created, id '%s' peer_id '%s'", tunnel->id, tunnel->link->peer_id);
 
 	return tunnel;
 }
@@ -179,7 +179,7 @@ tunnel_t *tunnel_deserialize(struct node_t *node, char *buffer)
 
 void tunnel_free(node_t *node, tunnel_t *tunnel)
 {
-	log_debug("Deleting tunnel '%s'", tunnel->id);
+	cc_log_debug("Deleting tunnel '%s'", tunnel->id);
 	list_remove(&node->tunnels, tunnel->id);
 	link_remove_ref(node, tunnel->link);
 	platform_mem_free((void *)tunnel);
@@ -195,10 +195,10 @@ void tunnel_remove_ref(node_t *node, tunnel_t *tunnel)
 {
 	if (tunnel != NULL) {
 		tunnel->ref_count--;
-		log_debug("Tunnel ref removed '%s' ref: %d", tunnel->id, tunnel->ref_count);
+		cc_log_debug("Tunnel ref removed '%s' ref: %d", tunnel->id, tunnel->ref_count);
 		if (tunnel->ref_count == 0) {
 			if (proto_send_tunnel_destroy(node, tunnel, tunnel_destroy_handler) != CC_RESULT_SUCCESS)
-				log_debug("Failed to destroy tunnel '%s'", tunnel->id);
+				cc_log_debug("Failed to destroy tunnel '%s'", tunnel->id);
 			tunnel_free(node, tunnel);
 		}
 	}
@@ -211,7 +211,7 @@ result_t tunnel_handle_tunnel_new_request(node_t *node, char *peer_id, uint32_t 
 	tunnel = tunnel_get_from_peerid_and_type(node, peer_id, peer_id_len, TUNNEL_TYPE_TOKEN);
 	if (tunnel != NULL) {
 		if (tunnel->state == TUNNEL_ENABLED) {
-			log_error("Tunnel already connected to '%s'", peer_id);
+			cc_log_error("Tunnel already connected to '%s'", peer_id);
 			return CC_RESULT_SUCCESS;
 		}
 
@@ -222,7 +222,7 @@ result_t tunnel_handle_tunnel_new_request(node_t *node, char *peer_id, uint32_t 
 	} else {
 		tunnel = tunnel_create(node, TUNNEL_TYPE_TOKEN, TUNNEL_ENABLED, peer_id, peer_id_len, tunnel_id, tunnel_id_len);
 		if (tunnel == NULL) {
-			log_error("Failed to create tunnel");
+			cc_log_error("Failed to create tunnel");
 			return CC_RESULT_FAIL;
 		}
 	}

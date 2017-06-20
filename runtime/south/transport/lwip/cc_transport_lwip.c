@@ -52,7 +52,7 @@ static void transport_lwip_error_handler(void *arg, err_t err)
 	LWIP_UNUSED_ARG(arg);
 	LWIP_UNUSED_ARG(err);
 
-	log_error("Error on TCP port, reason 0x%08x", err);
+	cc_log_error("Error on TCP port, reason 0x%08x", err);
 }
 
 static err_t transport_lwip_connection_poll(void *arg, struct tcp_pcb *pcb)
@@ -94,7 +94,7 @@ static int transport_lwip_send(transport_client_t *transport_client, char *buffe
 		res = tcp_write(pcb, buffer + written, to_write, 1);
 		if (res != ERR_OK) {
 			transport_client->state = TRANSPORT_ENABLED;
-			log_error("Failed to write data");
+			cc_log_error("Failed to write data");
 			return -1;
 		}
 		transport_lwip_wait_for_state(transport_client, TRANSPORT_ENABLED);
@@ -111,7 +111,7 @@ static err_t transport_lwip_data_handler(void *arg, struct tcp_pcb *pcb, struct 
 
 	if (err == ERR_OK) {
 		if (buffer->tot_len > TRANSPORT_RX_BUFFER_SIZE - state->rx_buffer.size) {
-			log_error("TODO: Increase rx buffer or link rx buffers (read: %d rx_buffer: %d rx_buffer pos: %d)",
+			cc_log_error("TODO: Increase rx buffer or link rx buffers (read: %d rx_buffer: %d rx_buffer pos: %d)",
 				buffer->tot_len,
 				TRANSPORT_RX_BUFFER_SIZE,
 				state->rx_buffer.size);
@@ -141,7 +141,7 @@ static int transport_lwip_recv(transport_client_t *transport_client, char *buffe
 	transport_lwip_wait_for_data(transport_client);
 
 	if (size < state->rx_buffer.size) {
-		log_error("Read buffer '%d' < read data '%d'", size, state->rx_buffer.size);
+		cc_log_error("Read buffer '%d' < read data '%d'", size, state->rx_buffer.size);
 		return -1;
 	}
 
@@ -158,7 +158,7 @@ static err_t transport_lwip_connection_callback(void *arg, struct tcp_pcb *pcb, 
 	transport_client_t *transport_client = (transport_client_t *)arg;
 
 	if (err != ERR_OK) {
-		log_error("Failed to create TCP connection");
+		cc_log_error("Failed to create TCP connection");
 		transport_client->state = TRANSPORT_INTERFACE_DOWN;
 		return err;
 	}
@@ -176,25 +176,25 @@ static result_t transport_lwip_connect(node_t *node, transport_client_t *transpo
 	char ip[40];
 
 	if (transport_lwip_convert_mac_to_link_local(transport_lwip->mac, ip) != CC_RESULT_SUCCESS) {
-		log_error("Failed to convert MAC address '%s'", transport_lwip->mac);
+		cc_log_error("Failed to convert MAC address '%s'", transport_lwip->mac);
 		return CC_RESULT_FAIL;
 	}
 
 	if (!ip6addr_aton(ip, &ipv6_addr)) {
-		log_error("Failed to convert IP address");
+		cc_log_error("Failed to convert IP address");
 		return CC_RESULT_FAIL;
 	}
 
 	err = tcp_connect_ip6(transport_lwip->tcp_port, &ipv6_addr, 5000, transport_lwip_connection_callback);
 	if (err != ERR_OK) {
-		log_error("Failed to connect socket");
+		cc_log_error("Failed to connect socket");
 		return CC_RESULT_FAIL;
 	}
 
-	log("TCP connection requested to %s:%d.", ip, 5000);
+	cc_log("TCP connection requested to %s:%d.", ip, 5000);
 	transport_client->state = TRANSPORT_PENDING;
 	transport_lwip_wait_for_state(transport_client, TRANSPORT_CONNECTED);
-	log("TCP connected to %s:%d.", ip, 5000);
+	cc_log("TCP connected to %s:%d.", ip, 5000);
 
 	return CC_RESULT_SUCCESS;
 }
@@ -218,7 +218,7 @@ transport_client_t *transport_lwip_create(node_t *node, char *uri)
 	transport_lwip_client_t *transport_lwip = NULL;
 
 	if (platform_mem_alloc(&transport_lwip, sizeof(transport_lwip_client_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 

@@ -27,7 +27,7 @@ result_t actor_button_init(actor_t **actor, list_t *attributes)
 
 	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.io.button", NULL, 0);
 	if (obj == NULL) {
-		log_error("Failed to open 'calvinsys.io.button'");
+		cc_log_error("Failed to open 'calvinsys.io.button'");
 		return CC_RESULT_FAIL;
 	}
 
@@ -54,7 +54,7 @@ bool actor_button_fire(struct actor_t *actor)
 				return true;
 			platform_mem_free((void *)data);
 		} else
-			log_error("Failed to read button state");
+			cc_log_error("Failed to read button state");
 	}
 
 	return false;

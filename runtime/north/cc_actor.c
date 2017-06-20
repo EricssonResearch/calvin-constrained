@@ -108,22 +108,22 @@ static result_t actor_migrate_reply_handler(node_t *node, char *data, void *msg_
 
 	actor = actor_get(node, (char *)msg_data, strlen((char *)msg_data));
 	if (actor == NULL) {
-		log_error("No actor with id '%s'", (char *)msg_data);
+		cc_log_error("No actor with id '%s'", (char *)msg_data);
 		return CC_RESULT_FAIL;
 	}
 
 	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
 		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
 			if (status == 200) {
-				log_debug("Actor '%s' migrated", (char *)msg_data);
+				cc_log_debug("Actor '%s' migrated", (char *)msg_data);
 				actor_free(node, actor, false);
 			} else
-				log_error("Failed to migrate actor '%s'", (char *)msg_data);
+				cc_log_error("Failed to migrate actor '%s'", (char *)msg_data);
 			return CC_RESULT_SUCCESS;
 		}
 	}
 
-	log_error("Failed to decode message");
+	cc_log_error("Failed to decode message");
 	return CC_RESULT_FAIL;
 }
 
@@ -135,18 +135,18 @@ static result_t actor_set_reply_handler(node_t *node, char *data, void *msg_data
 	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
 		if (decode_bool_from_map(value, "value", &status) == CC_RESULT_SUCCESS) {
 			if (status != true)
-				log_error("Failed to store actor '%s'", (char *)msg_data);
+				cc_log_error("Failed to store actor '%s'", (char *)msg_data);
 			return CC_RESULT_SUCCESS;
 		}
 	}
 
-	log_error("Failed to decode data");
+	cc_log_error("Failed to decode data");
 	return CC_RESULT_FAIL;
 }
 
 void actor_set_state(actor_t *actor, actor_state_t state)
 {
-	log_debug("Actor '%s' state '%d' -> '%d'", actor->id, actor->state, state);
+	cc_log_debug("Actor '%s' state '%d' -> '%d'", actor->id, actor->state, state);
 	actor->state = state;
 }
 
@@ -180,7 +180,7 @@ result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	}
 #endif
 
-	log_error("Actor type '%.*s' not supported", (int)type_len, type);
+	cc_log_error("Actor type '%.*s' not supported", (int)type_len, type);
 
 	return CC_RESULT_FAIL;
 }
@@ -215,7 +215,7 @@ static result_t actor_get_managed(char *obj_attributes, char *obj_actor_state, l
 			attribute_value = NULL;
 
 			if (platform_mem_alloc((void **)&attribute_name, len + 1) != CC_RESULT_SUCCESS) {
-				log_error("Failed to allocate memory");
+				cc_log_error("Failed to allocate memory");
 				return CC_RESULT_FAIL;
 			}
 
@@ -223,14 +223,14 @@ static result_t actor_get_managed(char *obj_attributes, char *obj_actor_state, l
 			attribute_name[len] = '\0';
 
 			if (get_value_from_map(obj_actor_state, attribute_name, &obj_attribute_value) != CC_RESULT_SUCCESS) {
-				log_error("Failed to decode '%s'", attribute_name);
+				cc_log_error("Failed to decode '%s'", attribute_name);
 				platform_mem_free((void *)attribute_name);
 				return CC_RESULT_FAIL;
 			}
 
 			len = get_size_of_value(obj_attribute_value);
 			if (platform_mem_alloc((void **)&attribute_value, len) != CC_RESULT_SUCCESS) {
-				log_error("Failed to allocate memory");
+				cc_log_error("Failed to allocate memory");
 				platform_mem_free((void *)attribute_name);
 				return CC_RESULT_FAIL;
 			}
@@ -265,7 +265,7 @@ static result_t actor_get_shadow_args(char *obj_shadow_args, list_t **instance_a
 			return CC_RESULT_FAIL;
 
 		if (platform_mem_alloc((void **)&attribute_name, len + 1) != CC_RESULT_SUCCESS) {
-			log_error("Failed to allocate memory");
+			cc_log_error("Failed to allocate memory");
 			return CC_RESULT_FAIL;
 		}
 
@@ -276,7 +276,7 @@ static result_t actor_get_shadow_args(char *obj_shadow_args, list_t **instance_a
 
 		len = get_size_of_value(attributes);
 		if (platform_mem_alloc((void **)&attribute_value, len) != CC_RESULT_SUCCESS) {
-			log_error("Failed to allocate memory");
+			cc_log_error("Failed to allocate memory");
 			platform_mem_free((void *)attribute_name);
 			return CC_RESULT_FAIL;
 		}
@@ -333,7 +333,7 @@ actor_t *actor_create(node_t *node, char *root)
 	list_t *instance_attributes = NULL;
 
 	if (platform_mem_alloc((void **)&actor, sizeof(actor_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
@@ -452,7 +452,7 @@ actor_t *actor_create(node_t *node, char *root)
 	// attributes should now be handled by the instance
 	actor_free_managed(instance_attributes);
 
-	log_debug("Actor '%s' created with id '%s' and type '%s'", actor->name, actor->id, actor->type);
+	cc_log_debug("Actor '%s' created with id '%s' and type '%s'", actor->name, actor->id, actor->type);
 
 	return actor;
 }
@@ -461,14 +461,14 @@ void actor_free(node_t *node, actor_t *actor, bool remove_from_registry)
 {
 	list_t *list = NULL, *tmp_list = NULL;
 
-	log_debug("Deleting actor '%s'", actor->name);
+	cc_log_debug("Deleting actor '%s'", actor->name);
 
 	if (actor->will_end != NULL)
 		actor->will_end(actor);
 
 	if (remove_from_registry) {
 		if (proto_send_remove_actor(node, actor, actor_remove_reply_handler) != CC_RESULT_SUCCESS)
-			log_error("Failed to remove actor '%s'", actor->id);
+			cc_log_error("Failed to remove actor '%s'", actor->id);
 	}
 
 	if (actor->instance_state != NULL && actor->free_state != NULL)
@@ -568,7 +568,7 @@ result_t actor_migrate(node_t *node, actor_t *actor, char *to_rt_uuid, uint32_t 
 	if (proto_send_actor_new(node, actor, to_rt_uuid, to_rt_uuid_len, actor_migrate_reply_handler) == CC_RESULT_SUCCESS)
 		return CC_RESULT_SUCCESS;
 
-	log_error("Failed to migrate actor '%s'", actor->id);
+	cc_log_error("Failed to migrate actor '%s'", actor->id);
 	return CC_RESULT_FAIL;
 }
 
@@ -583,7 +583,7 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, b
 
 	if (actor->get_managed_attributes != NULL) {
 		if (actor->get_managed_attributes((actor_t *)actor, &instance_attributes) != CC_RESULT_SUCCESS)
-			log_error("Failed to get instance attributes");
+			cc_log_error("Failed to get instance attributes");
 	}
 
 	nbr_managed_attributes = 2; // _id/_name

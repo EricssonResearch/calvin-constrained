@@ -50,7 +50,7 @@ static ipv6_medium_instance_t               m_ipv6_medium;
 
 void platform_nrf_app_error_handler(uint32_t error_code, uint32_t line_num, const uint8_t *p_file_name)
 {
-	log_error("Error 0x%08lX, Line %ld, File %s", error_code, line_num, p_file_name);
+	cc_log_error("Error 0x%08lX, Line %ld, File %s", error_code, line_num, p_file_name);
 //	NVIC_SystemReset();
 	for (;;) {
 	}
@@ -67,7 +67,7 @@ static void platform_nrf_connectable_mode_enter(void)
 
 	APP_ERROR_CHECK(err_code);
 
-	log_debug("Physical layer in connectable mode");
+	cc_log_debug("Physical layer in connectable mode");
 }
 
 static void platform_nrf_on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt)
@@ -79,13 +79,13 @@ static void platform_nrf_on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt
 	switch (p_ipv6_medium_evt->ipv6_medium_evt_id) {
 	case IPV6_MEDIUM_EVT_CONN_UP:
 	{
-		log("Physical layer connected mac '%s'", p_ipv6_medium_evt->mac);
+		cc_log("Physical layer connected mac '%s'", p_ipv6_medium_evt->mac);
 		strncpy(transport_state->mac, p_ipv6_medium_evt->mac, strlen(p_ipv6_medium_evt->mac));
 		break;
 	}
 	case IPV6_MEDIUM_EVT_CONN_DOWN:
 	{
-		log("Physical layer disconnected");
+		cc_log("Physical layer disconnected");
 		platform_nrf_connectable_mode_enter();
 		transport_client->state = TRANSPORT_INTERFACE_DOWN;
 		break;
@@ -99,7 +99,7 @@ static void platform_nrf_on_ipv6_medium_evt(ipv6_medium_evt_t *p_ipv6_medium_evt
 
 static void platform_nrf_on_ipv6_medium_error(ipv6_medium_error_t *p_ipv6_medium_error)
 {
-	log_error("Physical layer error");
+	cc_log_error("Physical layer error");
 }
 
 static void platform_nrf_ip_stack_init(void)
@@ -178,7 +178,7 @@ static void platform_nrf_timers_init(void)
 
 void nrf_driver_interface_up(void)
 {
-	log("IP interface up");
+	cc_log("IP interface up");
 	platform_nrf_start_calvin_connect_timer();
 }
 
@@ -187,7 +187,7 @@ void nrf_driver_interface_down(void)
 	transport_client_t *transport_client = transport_lwip_get_client();
 
 	transport_client->state = TRANSPORT_INTERFACE_DOWN;
-	log("IP interface down");
+	cc_log("IP interface down");
 }
 
 result_t platform_stop(node_t *node)
@@ -214,7 +214,7 @@ result_t platform_create(node_t *node)
 	char *uri = NULL;
 
 	if (platform_mem_alloc((void **)&uri, 5) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
@@ -242,7 +242,7 @@ static result_t platform_temp_read(struct calvinsys_obj_t *obj, char **data, siz
 
 	*size = mp_sizeof_double(temp);
 	if (platform_mem_alloc((void **)data, *size) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
@@ -256,7 +256,7 @@ static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *d
 	calvinsys_obj_t *obj = NULL;
 
 	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
@@ -276,7 +276,7 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 	calvinsys_handler_t *handler = NULL;
 
 	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
@@ -309,18 +309,18 @@ void platform_init(void)
 	} while (err_code == NRF_ERROR_SOC_RAND_NOT_ENOUGH_VALUES);
 	srand(rnd_seed);
 
-	log("Platform initialized");
+	cc_log("Platform initialized");
 }
 
 bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 {
 	if (sd_app_evt_wait() != ERR_OK)
-		log_error("Failed to wait for event");
+		cc_log_error("Failed to wait for event");
 
 	if (node != NULL && node->transport_client != NULL && node->transport_client->state == TRANSPORT_ENABLED) {
 		if (transport_lwip_has_data(node->transport_client)) {
 			if (transport_handle_data(node, node->transport_client, node_handle_message) != CC_RESULT_SUCCESS) {
-				log_error("Failed to read data from transport");
+				cc_log_error("Failed to read data from transport");
 				node->transport_client->state = TRANSPORT_DISCONNECTED;
 				return;
 			}
@@ -334,7 +334,7 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 {
 	*buffer = malloc(size);
 	if (*buffer == NULL) {
-		log_error("Failed to allocate '%ld'", (unsigned long)size);
+		cc_log_error("Failed to allocate '%ld'", (unsigned long)size);
 		return CC_RESULT_FAIL;
 	}
 
@@ -355,7 +355,7 @@ int platform_random_vector_generate(void *ctx, unsigned char *buffer, size_t siz
 
 	err_code = nrf_drv_rng_bytes_available(&available);
 
-	log("Requested random numbers 0x%08lx, available 0x%08x",	size,	available);
+	cc_log("Requested random numbers 0x%08lx, available 0x%08x",	size,	available);
 
 	if (err_code == NRF_SUCCESS) {
 		length = MIN(size, available);

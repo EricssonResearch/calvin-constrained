@@ -27,7 +27,7 @@ result_t actor_temperature_init(actor_t **actor, list_t *attributes)
 
 	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.sensor.temperature", NULL, 0);
 	if (obj == NULL) {
-		log_error("Failed to open 'calvinsys.sensors.temperature'");
+		cc_log_error("Failed to open 'calvinsys.sensors.temperature'");
 		return CC_RESULT_FAIL;
 	}
 
@@ -58,7 +58,7 @@ bool actor_temperature_fire(struct actor_t *actor)
 			fifo_cancel_commit(inport->fifo);
 			platform_mem_free((void *)data);
 		} else
-			log_error("Failed to read temperature");
+			cc_log_error("Failed to read temperature");
 	}
 
 	return false;
