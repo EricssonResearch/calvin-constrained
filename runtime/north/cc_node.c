@@ -23,7 +23,6 @@
 #include "cc_transport.h"
 #include "cc_msgpack_helper.h"
 #include "../../msgpuck/msgpuck.h"
-#include "../../calvinsys/cc_calvinsys.h"
 #include "../south/platform/cc_platform.h"
 #ifdef CC_TLS_ENABLED
 #include "../../crypto/cc_crypto.h"
@@ -332,16 +331,18 @@ result_t node_handle_token(port_t *port, const char *data, const size_t size, ui
 	char *buffer = NULL;
 
 	if (port->actor->state == ACTOR_ENABLED) {
-		if (fifo_slots_available(&port->fifo, 1)) {
+		if (fifo_slots_available(port->fifo, 1)) {
 			if (platform_mem_alloc((void **)&buffer, size) != CC_RESULT_SUCCESS) {
 				log_error("Failed to allocate memory");
 				return CC_RESULT_FAIL;
 			}
 			memcpy(buffer, data, size);
-			if (fifo_com_write(&port->fifo, buffer, size, sequencenbr) == CC_RESULT_SUCCESS)
+			if (fifo_com_write(port->fifo, buffer, size, sequencenbr) == CC_RESULT_SUCCESS)
 				return CC_RESULT_SUCCESS;
-			else
+			else {
+				log_error("Failed to write to fifo");
 				platform_mem_free((void *)buffer);
+			}
 		} else
 			log("Token received but no slots available");
 	} else
@@ -356,9 +357,9 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 
 	if (port != NULL) {
 		if (reply_type == PORT_REPLY_TYPE_ACK) {
-			fifo_com_commit_read(&port->fifo, sequencenbr);
+			fifo_com_commit_read(port->fifo, sequencenbr);
 		} else if (reply_type == PORT_REPLY_TYPE_NACK) {
-			fifo_com_cancel_read(&port->fifo, sequencenbr);
+			fifo_com_cancel_read(port->fifo, sequencenbr);
 		} else if (reply_type == PORT_REPLY_TYPE_ABORT)
 			log_debug("TODO: handle ABORT");
 	}
@@ -490,15 +491,23 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 	node->storage_tunnel = NULL;
 	node->tunnels = NULL;
 	node->actors = NULL;
-	node->calvinsys = NULL;
 
 	if (platform_create(node) != CC_RESULT_SUCCESS) {
 		log_error("Failed to create platform object");
 		return CC_RESULT_FAIL;
 	}
 
-	if (platform_create_calvinsys(node) != CC_RESULT_SUCCESS) {
-		log_error("Failed to create calvinsys object");
+	if (platform_mem_alloc((void **)&node->calvinsys, sizeof(calvinsys_t)) != CC_RESULT_SUCCESS) {
+		log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
+
+	node->calvinsys->node = node;
+	node->calvinsys->capabilities = NULL;
+	node->calvinsys->handlers = NULL;
+
+	if (platform_create_calvinsys(&node->calvinsys) != CC_RESULT_SUCCESS) {
+		log_error("Failed to create calvinsys");
 		return CC_RESULT_FAIL;
 	}
 
@@ -521,7 +530,8 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 
 static void node_free(node_t *node)
 {
-	list_t *item = NULL, *tmp_item;
+	list_t *item = NULL, *tmp_item = NULL;
+	calvinsys_handler_t *handler = NULL;
 
 	item = node->actors;
 	while (item != NULL) {
@@ -559,12 +569,20 @@ static void node_free(node_t *node)
 	if (node->platform != NULL)
 		platform_mem_free((void *)node->platform);
 
-	item = node->calvinsys;
+	item = node->calvinsys->capabilities;
 	while (item != NULL) {
 		tmp_item = item;
 		item = item->next;
-		calvinsys_free_handler(node, tmp_item->id);
+		platform_mem_free((void *)tmp_item->id);
+		platform_mem_free((void *)tmp_item);
 	}
+
+	while (node->calvinsys->handlers != NULL) {
+		handler = node->calvinsys->handlers;
+		node->calvinsys->handlers = node->calvinsys->handlers->next;
+		calvinsys_delete_handler(handler);
+	}
+	platform_mem_free((void *)node->calvinsys);
 
 	platform_mem_free((void *)node);
 }

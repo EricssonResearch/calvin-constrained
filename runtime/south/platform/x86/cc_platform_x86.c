@@ -91,21 +91,18 @@ static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *d
 	return obj;
 }
 
-static result_t platform_create_calvinsys_temp(node_t *node)
+static calvinsys_handler_t *platform_create_temperature_handler(void)
 {
 	calvinsys_handler_t *handler = NULL;
 
-	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) != CC_RESULT_SUCCESS) {
+	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) == CC_RESULT_SUCCESS) {
+		handler->open = platform_temp_open;
+		handler->objects = NULL;
+		handler->next = NULL;
+	} else
 		log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
-	}
 
-	handler->open = platform_temp_open;
-	handler->objects = NULL;
-	handler->node = NULL;
-	calvinsys_register_handler(&node->calvinsys, "calvinsys.sensors.temperature", handler);
-
-	return CC_RESULT_SUCCESS;
+	return handler;
 }
 
 static bool platform_calvinsys_digitial_in_out_can_write(struct calvinsys_obj_t *obj)
@@ -181,32 +178,43 @@ static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handle
 	return obj;
 }
 
-static result_t platform_create_calvinsys_digitial_in_out(node_t *node)
+static calvinsys_handler_t *platform_create_digitial_in_out_handler(void)
 {
 	calvinsys_handler_t *handler = NULL;
 
-	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) != CC_RESULT_SUCCESS) {
+	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) == CC_RESULT_SUCCESS) {
+		handler->open = platform_calvinsys_digitial_in_out_open;
+		handler->objects = NULL;
+		handler->next = NULL;
+	} else
 		log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
-	}
 
-	handler->open = platform_calvinsys_digitial_in_out_open;
-	handler->objects = NULL;
-	handler->node = node;
-	calvinsys_register_handler(&node->calvinsys, "calvinsys.io.button", handler);
-	calvinsys_register_handler(&node->calvinsys, "calvinsys.io.led", handler);
-
-	return CC_RESULT_SUCCESS;
+	return handler;
 }
 
 // end of calvinsys functions
 
-result_t platform_create_calvinsys(node_t *node)
+result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 {
-	if (platform_create_calvinsys_temp(node) != CC_RESULT_SUCCESS)
+	calvinsys_handler_t *handler = NULL;
+
+	handler = platform_create_temperature_handler();
+	if (handler == NULL)
 		return CC_RESULT_FAIL;
 
-	if (platform_create_calvinsys_digitial_in_out(node) != CC_RESULT_SUCCESS)
+	calvinsys_add_handler(calvinsys, handler);
+	if (calvinsys_register_capability(*calvinsys, "calvinsys.sensor.temperature", handler) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
+
+	handler = platform_create_digitial_in_out_handler();
+	if (handler == NULL)
+		return CC_RESULT_FAIL;
+
+	calvinsys_add_handler(calvinsys, handler);
+	if (calvinsys_register_capability(*calvinsys, "calvinsys.io.led", handler) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
+
+	if (calvinsys_register_capability(*calvinsys, "calvinsys.io.button", handler) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	return CC_RESULT_SUCCESS;

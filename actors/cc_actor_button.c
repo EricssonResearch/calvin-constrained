@@ -48,9 +48,9 @@ bool actor_button_fire(struct actor_t *actor)
 	char *data = NULL;
 	size_t size = 0;
 
-	if (obj->can_read(obj) && fifo_slots_available(&outport->fifo, 1)) {
+	if (obj->can_read(obj) && fifo_slots_available(outport->fifo, 1)) {
 		if (obj->read(obj, &data, &size) == CC_RESULT_SUCCESS) {
-			if (fifo_write(&outport->fifo, data, size) == CC_RESULT_SUCCESS)
+			if (fifo_write(outport->fifo, data, size) == CC_RESULT_SUCCESS)
 				return true;
 			platform_mem_free((void *)data);
 		} else

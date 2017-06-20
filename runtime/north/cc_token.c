@@ -22,11 +22,17 @@
 
 void token_set_data(token_t *token, char *data, const size_t size)
 {
+	if (token->value != NULL) {
+		log_error("Token not freed");
+		platform_mem_free((void *)token->value);
+		token->value = NULL;
+	}
+
 	token->value = data;
 	token->size = size;
 }
 
-char *token_encode(char **buffer, token_t token, bool with_key)
+char *token_encode(char **buffer, token_t *token, bool with_key)
 {
 	if (with_key)
 		*buffer = encode_map(buffer, "token", 2);
@@ -34,8 +40,8 @@ char *token_encode(char **buffer, token_t token, bool with_key)
 		*buffer = mp_encode_map(*buffer, 2);
 
 	*buffer = encode_str(buffer, "type", "Token", strlen("Token"));
-	if (token.size != 0)
-		*buffer = encode_value(buffer, "data", token.value, token.size);
+	if (token->size != 0)
+		*buffer = encode_value(buffer, "data", token->value, token->size);
 	else
 		*buffer = encode_nil(buffer, "data");
 
@@ -44,7 +50,7 @@ char *token_encode(char **buffer, token_t token, bool with_key)
 
 void token_free(token_t *token)
 {
-	if (token->value != NULL && token->size != 0) {
+	if (token->value != NULL) {
 		platform_mem_free((void *)token->value);
 		token->value = NULL;
 		token->size = 0;

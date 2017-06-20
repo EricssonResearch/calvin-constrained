@@ -58,13 +58,13 @@ bool actor_identity_fire(struct actor_t *actor)
 	token_t *token = NULL;
 	port_t *inport = (port_t *)actor->in_ports->data, *outport = (port_t *)actor->out_ports->data;
 
-	if (fifo_tokens_available(&inport->fifo, 1) && fifo_slots_available(&outport->fifo, 1)) {
-		token = fifo_peek(&inport->fifo);
-		if (fifo_write(&outport->fifo, token->value, token->size) == CC_RESULT_SUCCESS) {
-			fifo_commit_read(&inport->fifo);
+	if (fifo_tokens_available(inport->fifo, 1) && fifo_slots_available(outport->fifo, 1)) {
+		token = fifo_peek(inport->fifo);
+		if (fifo_write(outport->fifo, token->value, token->size) == CC_RESULT_SUCCESS) {
+			fifo_commit_read(inport->fifo, false);
 			return true;
 		}
-		fifo_cancel_commit(&inport->fifo);
+		fifo_cancel_commit(inport->fifo);
 	}
 	return false;
 }

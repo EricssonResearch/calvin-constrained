@@ -320,9 +320,9 @@ result_t platform_create(struct node_t* node)
 	return CC_RESULT_SUCCESS;
 }
 
-result_t platform_create_calvinsys(struct node_t *node)
+result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 {
-	return calvinsys_ds18b20_create(node);
+	return calvinsys_ds18b20_create(calvinsys);
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)

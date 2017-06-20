@@ -15,58 +15,64 @@
  */
 #include <string.h>
 #include "../runtime/north/cc_common.h"
-#include "../runtime/north/cc_node.h"
+#include "../runtime/south/platform/cc_platform.h"
 #include "cc_calvinsys.h"
 
-result_t calvinsys_register_handler(list_t **calvinsys, const char *name, calvinsys_handler_t *handler)
+void calvinsys_add_handler(calvinsys_t **calvinsys, calvinsys_handler_t *handler)
 {
-	char *new_name = NULL;
+	calvinsys_handler_t *tmp_handler = NULL;
 
-	if (list_get(*calvinsys, name) != NULL) {
-		log_error("Calvinsys '%s' handler already registered", name);
+	handler->calvinsys = *calvinsys;
+
+	if ((*calvinsys)->handlers == NULL) {
+		(*calvinsys)->handlers = handler;
+	} else {
+		tmp_handler = (*calvinsys)->handlers;
+		while (tmp_handler->next != NULL)
+			tmp_handler = tmp_handler->next;
+		tmp_handler->next = handler;
+	}
+}
+
+void calvinsys_delete_handler(calvinsys_handler_t *handler)
+{
+	calvinsys_obj_t *obj = NULL;
+
+	while (handler->objects != NULL) {
+		obj = handler->objects;
+		handler->objects = handler->objects->next;
+		platform_mem_free((void *)obj);
+	}
+
+	platform_mem_free((void *)handler);
+}
+
+result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name, calvinsys_handler_t *handler)
+{
+	if (list_get(calvinsys->capabilities, name) != NULL) {
+		log_error("Capability '%s' already registered", name);
 		return CC_RESULT_FAIL;
 	}
 
-	if (platform_mem_alloc((void **)&new_name, strlen(name) + 1) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
-	}
-
-	strncpy(new_name, name, strlen(name) + 1);
-	handler->name = new_name;
-
-	if (list_add(calvinsys, new_name, handler, sizeof(calvinsys_handler_t *)) == CC_RESULT_SUCCESS) {
-		log("Calvinsys '%s' registered", name);
+	if (list_add_n(&calvinsys->capabilities, name, strlen(name), handler, sizeof(calvinsys_handler_t *)) == CC_RESULT_SUCCESS) {
+		log("Capability '%s' registered", name);
 		return CC_RESULT_SUCCESS;
 	}
 
 	return CC_RESULT_FAIL;
 }
 
-void calvinsys_free_handler(node_t *node, char *name)
+void calvinsys_delete_capabiltiy(calvinsys_t *calvinsys, const char *name)
 {
-	calvinsys_handler_t *handler = NULL;
-	calvinsys_obj_t *obj = NULL;
-
-	handler = (calvinsys_handler_t *)list_get(node->calvinsys, name);
-	if (handler != NULL) {
-		while (handler->objects != NULL) {
-			obj = handler->objects;
-			handler->objects = handler->objects->next;
-			platform_mem_free((void *)obj);
-		}
-		platform_mem_free((void *)handler->name);
-		platform_mem_free((void *)handler);
-		list_remove(&node->calvinsys, name);
-	}
+	list_remove(&calvinsys->capabilities, name);
 }
 
-calvinsys_obj_t *calvinsys_open(list_t *calvinsys, const char *name, char *data, size_t size)
+calvinsys_obj_t *calvinsys_open(calvinsys_t *calvinsys, const char *name, char *data, size_t size)
 {
 	calvinsys_handler_t *handler = NULL;
 	calvinsys_obj_t *obj = NULL;
 
-	handler = (calvinsys_handler_t *)list_get(calvinsys, name);
+	handler = (calvinsys_handler_t *)list_get(calvinsys->capabilities, name);
 	if (handler != NULL)
 		obj = handler->open(handler, data, size);
 
@@ -77,6 +83,6 @@ void calvinsys_close(calvinsys_obj_t *obj)
 {
 	if (obj->close != NULL)
 		obj->close(obj);
-	obj->handler->objects = NULL; // TODO: Handle multiple objects and rearrange list
+	obj->handler->objects = NULL; // TODO: Handle multiple objects
 	platform_mem_free((void *)obj);
 }

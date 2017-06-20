@@ -18,8 +18,6 @@
 
 #include "../runtime/north/cc_common.h"
 
-struct node_t;
-
 typedef struct calvinsys_obj_t {
 	bool (*can_write)(struct calvinsys_obj_t *obj);
 	result_t (*write)(struct calvinsys_obj_t *obj, char *data, size_t data_size);
@@ -34,13 +32,21 @@ typedef struct calvinsys_obj_t {
 typedef struct calvinsys_handler_t {
 	calvinsys_obj_t *(*open)(struct calvinsys_handler_t *handler, char *data, size_t len);
 	calvinsys_obj_t *objects;
-	struct node_t *node;
-	char *name;
+	struct calvinsys_handler_t *next;
+	struct calvinsys_t *calvinsys;
 } calvinsys_handler_t;
 
-result_t calvinsys_register_handler(list_t **calvinsys, const char *name, calvinsys_handler_t *handler);
-void calvinsys_free_handler(struct node_t *node, char *name);
-calvinsys_obj_t *calvinsys_open(list_t *calvinsys, const char *name, char *data, size_t size);
+typedef struct calvinsys_t {
+	list_t *capabilities;
+	calvinsys_handler_t *handlers;
+	struct node_t *node;
+} calvinsys_t;
+
+void calvinsys_add_handler(calvinsys_t **calvinsys, calvinsys_handler_t *handler);
+void calvinsys_delete_handler(calvinsys_handler_t *handler);
+result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name, calvinsys_handler_t *handler);
+void calvinsys_delete_capabiltiy(calvinsys_t *calvinsys, const char *name);
+calvinsys_obj_t *calvinsys_open(calvinsys_t *calvinsys, const char *name, char *data, size_t size);
 void calvinsys_close(calvinsys_obj_t *obj);
 
 #endif /* CALVINSYS_H */

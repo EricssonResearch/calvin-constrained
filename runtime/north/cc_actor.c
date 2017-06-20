@@ -175,7 +175,6 @@ result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 			actor->free_state = actor_types[i].free_state;
 			actor->fire = actor_types[i].fire_actor;
 			actor->get_managed_attributes = actor_types[i].get_managed_attributes;
-			log("Initing actor '%s'", type);
 			return CC_RESULT_SUCCESS;
 		}
 	}
@@ -479,7 +478,7 @@ void actor_free(node_t *node, actor_t *actor, bool remove_from_registry)
 	while (list != NULL) {
 		tmp_list = list;
 		list = list->next;
-		port_free(node, (port_t *)tmp_list->data);
+		port_free(node, (port_t *)tmp_list->data, remove_from_registry);
 		platform_mem_free((void *)tmp_list);
 	}
 
@@ -487,7 +486,7 @@ void actor_free(node_t *node, actor_t *actor, bool remove_from_registry)
 	while (list != NULL) {
 		tmp_list = list;
 		list = list->next;
-		port_free(node, (port_t *)tmp_list->data);
+		port_free(node, (port_t *)tmp_list->data, remove_from_registry);
 		platform_mem_free((void *)tmp_list);
 	}
 
@@ -698,24 +697,24 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, b
 						*buffer = encode_map(buffer, "queue", 7);
 						{
 							*buffer = encode_str(buffer, "queuetype", "fanout_fifo", strlen("fanout_fifo"));
-							*buffer = encode_uint(buffer, "write_pos", port->fifo.write_pos);
+							*buffer = encode_uint(buffer, "write_pos", port->fifo->write_pos);
 							*buffer = encode_array(buffer, "readers", 1);
 							{
 								*buffer = mp_encode_str(*buffer, port->id, strlen(port->id));
 							}
-							*buffer = encode_uint(buffer, "N", port->fifo.size);
+							*buffer = encode_uint(buffer, "N", port->fifo->size);
 							*buffer = encode_map(buffer, "tentative_read_pos", 1);
 							{
-								*buffer = encode_uint(buffer, port->id, port->fifo.tentative_read_pos);
+								*buffer = encode_uint(buffer, port->id, port->fifo->tentative_read_pos);
 							}
 							*buffer = encode_map(buffer, "read_pos", 1);
 							{
-								*buffer = encode_uint(buffer, port->id, port->fifo.read_pos);
+								*buffer = encode_uint(buffer, port->id, port->fifo->read_pos);
 							}
-							*buffer = encode_array(buffer, "fifo", port->fifo.size);
+							*buffer = encode_array(buffer, "fifo", port->fifo->size);
 							{
-								for (i_token = 0; i_token < port->fifo.size; i_token++)
-									*buffer = token_encode(buffer, port->fifo.tokens[i_token], false);
+								for (i_token = 0; i_token < port->fifo->size; i_token++)
+									*buffer = token_encode(buffer, &port->fifo->tokens[i_token], false);
 							}
 						}
 						*buffer = encode_map(buffer, "properties", 3);
@@ -742,24 +741,24 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, b
 						*buffer = encode_map(buffer, "queue", 7);
 						{
 							*buffer = encode_str(buffer, "queuetype", "fanout_fifo", 11);
-							*buffer = encode_uint(buffer, "write_pos", port->fifo.write_pos);
+							*buffer = encode_uint(buffer, "write_pos", port->fifo->write_pos);
 							*buffer = encode_array(buffer, "readers", 1);
 							{
 								*buffer = mp_encode_str(*buffer, port->peer_port_id, strlen(port->peer_port_id));
 							}
-							*buffer = encode_uint(buffer, "N", port->fifo.size);
+							*buffer = encode_uint(buffer, "N", port->fifo->size);
 							*buffer = encode_map(buffer, "tentative_read_pos", 1);
 							{
-								*buffer = encode_uint(buffer, port->peer_port_id, port->fifo.tentative_read_pos);
+								*buffer = encode_uint(buffer, port->peer_port_id, port->fifo->tentative_read_pos);
 							}
 							*buffer = encode_map(buffer, "read_pos", 1);
 							{
-								*buffer = encode_uint(buffer, port->peer_port_id, port->fifo.read_pos);
+								*buffer = encode_uint(buffer, port->peer_port_id, port->fifo->read_pos);
 							}
-							*buffer = encode_array(buffer, "fifo", port->fifo.size);
+							*buffer = encode_array(buffer, "fifo", port->fifo->size);
 							{
-								for (i_token = 0; i_token < port->fifo.size; i_token++)
-									*buffer = token_encode(buffer, port->fifo.tokens[i_token], false);
+								for (i_token = 0; i_token < port->fifo->size; i_token++)
+									*buffer = token_encode(buffer, &port->fifo->tokens[i_token], false);
 							}
 						}
 						*buffer = encode_map(buffer, "properties", 3);

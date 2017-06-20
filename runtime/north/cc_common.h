@@ -20,7 +20,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_TOKENS				5
 #define MAX_PENDING_MSGS	20
 #define STORAGE_TUNNEL		"storage"
 #define TOKEN_TUNNEL			"token"

@@ -51,13 +51,13 @@ typedef struct port_t {
 	struct port_t *peer_port;
 	tunnel_t *tunnel;
 	port_state_t state;
-	fifo_t fifo;
+	fifo_t *fifo;
 	struct actor_t *actor;
 } port_t;
 
 void port_set_state(port_t *port, port_state_t state);
 port_t *port_create(struct node_t *node, struct actor_t *actor, char *obj_port, char *obj_prev_connections, port_direction_t direction);
-void port_free(struct node_t *node, port_t *port);
+void port_free(struct node_t *node, port_t *port, bool remove_from_registry);
 char *port_get_peer_id(const struct node_t *node, port_t *port);
 port_t *port_get(struct node_t *node, const char *port_id, uint32_t port_id_len);
 port_t *port_get_from_peer_port_id(struct node_t *node, const char *peer_port_id, uint32_t peer_port_id_len);

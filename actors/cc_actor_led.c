@@ -46,13 +46,13 @@ bool actor_led_fire(struct actor_t *actor)
 	calvinsys_obj_t *obj = (calvinsys_obj_t *)actor->instance_state;
 	token_t *token = NULL;
 
-	if (fifo_tokens_available(&inport->fifo, 1)) {
-		token = fifo_peek(&inport->fifo);
+	if (fifo_tokens_available(inport->fifo, 1)) {
+		token = fifo_peek(inport->fifo);
 		if (obj->write(obj, token->value, token->size) == CC_RESULT_SUCCESS) {
-			fifo_commit_read(&inport->fifo);
+			fifo_commit_read(inport->fifo, true);
 			return true;
 		}
-		fifo_cancel_commit(&inport->fifo);
+		fifo_cancel_commit(inport->fifo);
 	}
 
 	return false;

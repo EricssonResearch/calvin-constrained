@@ -31,7 +31,7 @@ result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*ha
 result_t proto_send_tunnel_destroy(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, void*));
 result_t proto_send_port_connect(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*));
 result_t proto_send_port_disconnect(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*));
-result_t proto_send_token(const node_t *node, port_t *port, token_t token, uint32_t sequencenbr);
+result_t proto_send_token(const node_t *node, port_t *port, token_t *token, uint32_t sequencenbr);
 result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t sequencenbr, bool ack);
 result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*handler)(node_t*, char*, void*));
 result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*));

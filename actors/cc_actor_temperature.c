@@ -25,7 +25,7 @@ result_t actor_temperature_init(actor_t **actor, list_t *attributes)
 {
 	calvinsys_obj_t *obj = NULL;
 
-	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.sensors.temperature", NULL, 0);
+	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.sensor.temperature", NULL, 0);
 	if (obj == NULL) {
 		log_error("Failed to open 'calvinsys.sensors.temperature'");
 		return CC_RESULT_FAIL;
@@ -48,14 +48,14 @@ bool actor_temperature_fire(struct actor_t *actor)
 	char *data = NULL;
 	size_t size = 0;
 
-	if (obj->can_read(obj) && fifo_tokens_available(&inport->fifo, 1) && fifo_slots_available(&outport->fifo, 1)) {
+	if (obj->can_read(obj) && fifo_tokens_available(inport->fifo, 1) && fifo_slots_available(outport->fifo, 1)) {
 		if (obj->read(obj, &data, &size) == CC_RESULT_SUCCESS) {
-			fifo_peek(&inport->fifo);
-			if (fifo_write(&outport->fifo, data, size) == CC_RESULT_SUCCESS) {
-				fifo_commit_read(&inport->fifo);
+			fifo_peek(inport->fifo);
+			if (fifo_write(outport->fifo, data, size) == CC_RESULT_SUCCESS) {
+				fifo_commit_read(inport->fifo, true);
 				return true;
 			}
-			fifo_cancel_commit(&inport->fifo);
+			fifo_cancel_commit(inport->fifo);
 			platform_mem_free((void *)data);
 		} else
 			log_error("Failed to read temperature");

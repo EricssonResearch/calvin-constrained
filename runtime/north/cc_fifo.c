@@ -20,51 +20,60 @@
 #include "../south/platform/cc_platform.h"
 #include "../../msgpuck/msgpuck.h"
 
-result_t fifo_init(fifo_t *fifo, char *obj_fifo)
+fifo_t *fifo_init(char *obj_fifo)
 {
 	result_t result = CC_RESULT_SUCCESS;
+	fifo_t *fifo = NULL;
 	char *reader = NULL, *tmp_reader = NULL, *obj_read_pos = NULL, *obj_tokens = NULL, *obj_readers = NULL;
 	char *obj_token = NULL, *obj_tentative_read_pos = NULL, *obj_data = NULL, *queuetype = NULL, *r = obj_fifo;
+	char *data = NULL;
 	uint32_t i_token = 0, queuetype_len = 0, reader_len = 0, nbr_of_tokens = 0, size = 0;
+
+	if (platform_mem_alloc((void **)&fifo, sizeof(fifo_t)) != CC_RESULT_SUCCESS) {
+		log_error("Failed to allocate memory");
+		return NULL;
+	}
 
 	fifo->size = 0;
 	fifo->write_pos = 0;
 	fifo->read_pos = 0;
 	fifo->tentative_read_pos = 0;
-	for (i_token = 0; i_token < MAX_TOKENS; i_token++) {
+
+	if (decode_string_from_map(r, "queuetype", &queuetype, &queuetype_len) != CC_RESULT_SUCCESS)
+		return NULL;
+
+	if (strncmp("fanout_fifo", queuetype, queuetype_len) != 0) {
+		log_error("Queue type '%.*s' not supported", (int)queuetype_len, queuetype);
+		return NULL;
+	}
+
+	if (decode_uint_from_map(r, "N", &fifo->size) != CC_RESULT_SUCCESS)
+		return NULL;
+
+	if (platform_mem_alloc((void **)&fifo->tokens, sizeof(token_t) * fifo->size) != CC_RESULT_SUCCESS) {
+		log_error("Failed to allocate memory");
+		return NULL;
+	}
+	for (i_token = 0; i_token < fifo->size; i_token++) {
 		fifo->tokens[i_token].value = NULL;
 		fifo->tokens[i_token].size = 0;
 	}
 
-	if (decode_string_from_map(r, "queuetype", &queuetype, &queuetype_len) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
-
-	if (strncmp("fanout_fifo", queuetype, queuetype_len) != 0) {
-		log_error("Queue type '%.*s' not supported", (int)queuetype_len, queuetype);
-		return CC_RESULT_FAIL;
-	}
-
-	if (get_value_from_map(r, "readers", &obj_readers) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
-
-	if (decode_string_from_array(obj_readers, 0, &reader, &reader_len) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
-
-	if (decode_uint_from_map(r, "N", &fifo->size) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
-
 	if (decode_uint_from_map(r, "write_pos", &fifo->write_pos) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+		return NULL;
 
 	if (get_value_from_map(r, "tentative_read_pos", &obj_tentative_read_pos) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+		return NULL;
 
-	if (get_value_from_map(r, "read_pos", &obj_read_pos) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (get_value_from_map(r, "readers", &obj_readers) != CC_RESULT_SUCCESS)
+		return NULL;
+
+	if (decode_string_from_array(obj_readers, 0, &reader, &reader_len) != CC_RESULT_SUCCESS)
+		return NULL;
 
 	if (platform_mem_alloc((void **)&tmp_reader, reader_len + 1) != CC_RESULT_SUCCESS) {
 		log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return NULL;
 	}
 
 	strncpy(tmp_reader, reader, reader_len);
@@ -72,6 +81,9 @@ result_t fifo_init(fifo_t *fifo, char *obj_fifo)
 
 	if (result == CC_RESULT_SUCCESS)
 		result = decode_uint_from_map(obj_tentative_read_pos, tmp_reader, &fifo->tentative_read_pos);
+
+	if (get_value_from_map(r, "read_pos", &obj_read_pos) != CC_RESULT_SUCCESS)
+		return NULL;
 
 	if (result == CC_RESULT_SUCCESS)
 		result = decode_uint_from_map(obj_read_pos, tmp_reader, &fifo->read_pos);
@@ -91,33 +103,38 @@ result_t fifo_init(fifo_t *fifo, char *obj_fifo)
 
 			if (fifo->read_pos != fifo->tentative_read_pos || fifo->write_pos != fifo->read_pos) {
 				size = get_size_of_value(obj_data);
-				if (platform_mem_alloc((void **)&fifo->tokens[i_token].value, size) != CC_RESULT_SUCCESS) {
+				if (platform_mem_alloc((void **)&data, size) != CC_RESULT_SUCCESS) {
 					log_error("Failed to allocate memory");
 					result = CC_RESULT_FAIL;
 					break;
 				}
-				memcpy(fifo->tokens[i_token].value, obj_data, size);
-				fifo->tokens[i_token].size = size;
+				memcpy(data, obj_data, size);
+				token_set_data(&fifo->tokens[i_token], data, size);
 			}
 		}
 	}
 
-	if (result != CC_RESULT_SUCCESS)
-		fifo_free(fifo);
-
 	if (tmp_reader != NULL)
 		platform_mem_free((void *)tmp_reader);
 
-	return result;
+	if (result != CC_RESULT_SUCCESS)
+		return NULL;
+
+	return fifo;
 }
 
 void fifo_free(fifo_t *fifo)
 {
+	uint32_t i_token = 0;
+
+	for (i_token = 0; i_token < fifo->size; i_token++)
+		token_free(&fifo->tokens[i_token]);
+	platform_mem_free((void *)fifo->tokens);
 	fifo->size = 0;
 	fifo->write_pos = 0;
 	fifo->read_pos = 0;
 	fifo->tentative_read_pos = 0;
-	memset(fifo->tokens, 0, MAX_TOKENS * sizeof(token_t));
+	platform_mem_free((void *)fifo);
 }
 
 void fifo_cancel(fifo_t *fifo)
@@ -134,9 +151,18 @@ token_t *fifo_peek(fifo_t *fifo)
 	return &fifo->tokens[read_pos % fifo->size];
 }
 
-void fifo_commit_read(fifo_t *fifo)
+void fifo_commit_read(fifo_t *fifo, bool free_token)
 {
-	fifo->read_pos = fifo->tentative_read_pos;
+	if (fifo->read_pos < fifo->tentative_read_pos) {
+		if (free_token)
+			token_free(&fifo->tokens[fifo->read_pos % fifo->size]);
+		else {
+			fifo->tokens[fifo->read_pos % fifo->size].value = NULL;
+			fifo->tokens[fifo->read_pos % fifo->size].size = 0;
+		}
+		fifo->read_pos++;
+	} else
+		log_error("Invalid commit");
 }
 
 void fifo_cancel_commit(fifo_t *fifo)
@@ -187,17 +213,20 @@ result_t fifo_com_write(fifo_t *fifo, char *data, size_t size, uint32_t sequence
 
 void fifo_com_commit_read(fifo_t *fifo, uint32_t sequence_nbr)
 {
-	if ((sequence_nbr < fifo->tentative_read_pos) && (fifo->read_pos < fifo->tentative_read_pos)) {
-		while (fifo->read_pos <= sequence_nbr) {
-			token_free(&fifo->tokens[sequence_nbr % fifo->size]);
-			fifo->tokens[sequence_nbr % fifo->size].value = NULL;
-			fifo->tokens[sequence_nbr % fifo->size].size = 0;
-			fifo->read_pos += 1;
-		}
+	if (sequence_nbr >= fifo->tentative_read_pos) {
+		log_error("Invalid commit");
 		return;
 	}
 
-	log_error("Invalid commit");
+	if (fifo->read_pos < fifo->tentative_read_pos) {
+		if (sequence_nbr == fifo->read_pos) {
+			token_free(&fifo->tokens[fifo->read_pos % fifo->size]);
+			fifo->read_pos++;
+			return;
+		}
+	}
+
+	log_error("Unhandled commit");
 }
 
 void fifo_com_cancel_read(fifo_t *fifo, uint32_t sequence_nbr)

@@ -20,6 +20,7 @@
 #include "cc_common.h"
 #include "cc_port.h"
 #include "../south/platform/cc_platform.h"
+#include "../../calvinsys/cc_calvinsys.h"
 
 struct node_t;
 
@@ -46,7 +47,7 @@ typedef struct actor_t {
 	void (*will_migrate)(struct actor_t *actor);
 	void (*will_end)(struct actor_t *actor);
 	void (*did_migrate)(struct actor_t *actor);
-	list_t *calvinsys;
+	calvinsys_t *calvinsys;
 } actor_t;
 
 void actor_set_state(actor_t *actor, actor_state_t state);

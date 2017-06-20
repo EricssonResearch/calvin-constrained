@@ -271,7 +271,7 @@ static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *d
 	return obj;
 }
 
-static result_t platform_create_calvinsys_temp(node_t *node)
+result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 {
 	calvinsys_handler_t *handler = NULL;
 
@@ -282,17 +282,11 @@ static result_t platform_create_calvinsys_temp(node_t *node)
 
 	handler->open = platform_temp_open;
 	handler->objects = NULL;
-	calvinsys_register_handler(&node->calvinsys, "calvinsys.sensors.temperature", handler);
+	handler->next = NULL;
 
-	return CC_RESULT_SUCCESS;
-}
-
-result_t platform_create_calvinsys(node_t *node)
-{
-	if (platform_create_calvinsys_temp(node) != CC_RESULT_SUCCESS)
+	calvinsys_add_handler(calvinsys, handler);
+	if (calvinsys_register_capability(*calvinsys, "calvinsys.sensor.temperature", handler) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
-
-	// TODO: Add support for GPIO
 
 	return CC_RESULT_SUCCESS;
 }

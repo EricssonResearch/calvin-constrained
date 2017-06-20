@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include "../../north/cc_common.h"
+#include "../../../calvinsys/cc_calvinsys.h"
 
 struct node_t;
 struct transport_client_t;
@@ -58,7 +59,7 @@ result_t platform_create(struct node_t* node);
  *
  * Return: CC_RESULT_SUCCESS/CC_RESULT_FAILURE
  */
-result_t platform_create_calvinsys(struct node_t *node);
+result_t platform_create_calvinsys(calvinsys_t **calvinsys);
 
 /**
  * platform_mem_alloc() - Allocate requested memory.

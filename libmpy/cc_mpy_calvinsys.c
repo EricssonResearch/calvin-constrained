@@ -74,8 +74,11 @@ static mp_obj_t cc_mp_obj_read(mp_obj_t arg_obj)
 
 	if (mp_obj->obj != NULL) {
 		if (mp_obj->obj->read(mp_obj->obj, &data, &size) == CC_RESULT_SUCCESS) {
-			if (decode_to_mpy_obj(data, &value) == CC_RESULT_SUCCESS)
+			if (decode_to_mpy_obj(data, &value) == CC_RESULT_SUCCESS) {
+				platform_mem_free((void *)data);
 				return value;
+			}
+			platform_mem_free((void *)data);
 		}
 	}
 

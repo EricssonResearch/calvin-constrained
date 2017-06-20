@@ -50,6 +50,8 @@ bool mpy_port_init(uint32_t heap_size)
 		return false;
 	}
 
+	memset(heap, 0, heap_size);
+
 	mp_stack_set_limit(8192);
 	mp_stack_ctrl_init();
 	gc_init(heap, heap + heap_size);
@@ -68,7 +70,7 @@ STATIC mp_obj_t mpy_port_ccmp_tokens_available(mp_obj_t mp_actor, mp_obj_t mp_po
 
 	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
 	if (port != NULL)
-		result = fifo_tokens_available(&port->fifo, nbr_of_tokens);
+		result = fifo_tokens_available(port->fifo, nbr_of_tokens);
 	else
 		log_error("No port with name '%s'", port_name);
 
@@ -86,7 +88,7 @@ STATIC mp_obj_t mpy_port_ccmp_slots_available(mp_obj_t mp_actor, mp_obj_t mp_por
 
 	port = port_get_from_name(actor, port_name, PORT_DIRECTION_OUT);
 	if (port != NULL)
-		result = fifo_slots_available(&port->fifo, nbr_of_slots);
+		result = fifo_slots_available(port->fifo, nbr_of_slots);
 	else
 		log_error("No port with name '%s'", port_name);
 
@@ -104,7 +106,7 @@ STATIC mp_obj_t mpy_port_ccmp_peek_token(mp_obj_t mp_actor, mp_obj_t mp_port_nam
 
 	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
 	if (port != NULL) {
-		token = fifo_peek(&port->fifo);
+		token = fifo_peek(port->fifo);
 		if (decode_to_mpy_obj(token->value, &value) == CC_RESULT_SUCCESS)
 			return value;
 	}	else
@@ -123,7 +125,7 @@ STATIC mp_obj_t mpy_port_ccmp_peek_commit(mp_obj_t mp_actor, mp_obj_t mp_port_na
 
 	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
 	if (port != NULL) {
-		fifo_commit_read(&port->fifo);
+		fifo_commit_read(port->fifo, true);
 		value = true;
 	} else
 		log_error("No port with name '%s'", port_name);
@@ -137,14 +139,15 @@ STATIC mp_obj_t mpy_port_ccmp_write_token(mp_obj_t mp_actor, mp_obj_t mp_port_na
 	actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
 	const char *port_name = mp_obj_str_get_str(mp_port_name);
 	port_t *port = NULL;
-	token_t token;
+	char *value = NULL;
+	size_t size = 0;
 
 	port = port_get_from_name(actor, port_name, PORT_DIRECTION_OUT);
 	if (port != NULL) {
-		if (encode_from_mpy_obj(&token.value, &token.size, mp_value) == CC_RESULT_SUCCESS) {
-			if (fifo_write(&port->fifo, token.value, token.size) != CC_RESULT_SUCCESS) {
+		if (encode_from_mpy_obj(&value, &size, mp_value) == CC_RESULT_SUCCESS) {
+			if (fifo_write(port->fifo, value, size) != CC_RESULT_SUCCESS) {
 				log_error("Failed to write token to port '%s'", port_name);
-				token_free(&token);
+				platform_mem_free((void *)value);
 			}
 		}
 	} else
@@ -162,7 +165,7 @@ STATIC mp_obj_t mpy_port_ccmp_peek_cancel(mp_obj_t mp_actor, mp_obj_t mp_port_na
 
 	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
 	if (port != NULL)
-		fifo_cancel_commit(&port->fifo);
+		fifo_cancel_commit(port->fifo);
 	else
 		log_error("No port with name '%s'", port_name);
 

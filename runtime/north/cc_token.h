@@ -22,12 +22,12 @@
 #include "cc_common.h"
 
 typedef struct token_t {
-	char *value;		// Pointer to serialized token data
-	size_t size;		// Size of serialized token data
+	char *value;
+	size_t size;
 } token_t;
 
 void token_set_data(token_t *token, char *data, const size_t size);
-char *token_encode(char **buffer, token_t token, bool with_key);
+char *token_encode(char **buffer, token_t *token, bool with_key);
 void token_free(token_t *token);
 
 #endif /* TOKEN_H */

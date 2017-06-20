@@ -17,9 +17,10 @@
 #define CALVINSYS_DS18B20_H
 
 #include "../../../../../runtime/north/cc_common.h"
+#include "../../../../../calvinsys/cc_calvinsys.h"
 
 struct node_t;
 
-result_t calvinsys_ds18b20_create(struct node_t *node);
+result_t calvinsys_ds18b20_create(calvinsys_t **calvinsys);
 
 #endif /* CALVINSYS_DS18B20_H */

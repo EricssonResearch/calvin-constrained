@@ -27,7 +27,6 @@
 #include "../../../north/cc_proto.h"
 #include "../../../../msgpuck/msgpuck.h"
 #include "../../transport/fcm/cc_transport_fcm.h"
-#include "calvinsys/accelerometer.h"
 #include "../../../north/cc_msgpack_helper.h"
 #include "../../../../calvinsys/cc_calvinsys.h"
 
@@ -469,9 +468,9 @@ result_t platform_node_started(struct node_t *node)
 	return CC_RESULT_SUCCESS;
 }
 
-result_t platform_create_calvinsys(struct node_t *node)
+result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 {
-	android_platform_t* platform = (android_platform_t *)node->platform;
+	android_platform_t* platform = (android_platform_t *)*calvinsys->node->platform;
 
 	platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
 

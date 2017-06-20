@@ -23,6 +23,7 @@
 #include "cc_actor.h"
 #include "cc_port.h"
 #include "cc_link.h"
+#include "../../calvinsys/cc_calvinsys.h"
 #include "../south/platform/cc_platform.h"
 
 #define MAX_URIS 5
@@ -60,7 +61,7 @@ typedef struct node_t {
 	list_t *tunnels;
 	list_t *actors;
 	transport_client_t *transport_client;
-	list_t *calvinsys;
+	calvinsys_t *calvinsys;
 	char *proxy_uris[MAX_URIS];
 	bool (*fire_actors)(struct node_t *node);
 } node_t;

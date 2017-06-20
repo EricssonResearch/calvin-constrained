@@ -93,7 +93,7 @@ static calvinsys_obj_t *calvinsys_ds18b20_open(calvinsys_handler_t *handler, cha
 	return obj;
 }
 
-result_t calvinsys_ds18b20_create(node_t *node)
+result_t calvinsys_ds18b20_create(calvinsys_t **calvinsys)
 {
 	calvinsys_handler_t *handler = NULL;
 
@@ -104,8 +104,11 @@ result_t calvinsys_ds18b20_create(node_t *node)
 
 	handler->open = calvinsys_ds18b20_open;
 	handler->objects = NULL;
-	handler->node = NULL;
-	calvinsys_register_handler(&node->calvinsys, "calvinsys.sensors.temperature", handler);
+	handler->next = NULL;
+
+	calvinsys_add_handler(calvinsys, handler);
+	if (calvinsys_register_capability(*calvinsys, "calvinsys.sensor.temperature", handler) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 
 	return CC_RESULT_SUCCESS;
 }

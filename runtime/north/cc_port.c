@@ -222,9 +222,10 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 	strncpy(port->name, port_name, port_name_len);
 	strncpy(port->peer_port_id, peer_port_id, peer_port_id_len);
 
-	if (fifo_init(&port->fifo, obj_queue) != CC_RESULT_SUCCESS) {
+	port->fifo = fifo_init(obj_queue);
+	if (port->fifo ==  NULL) {
 		log_error("Failed to init fifo");
-		port_free(node, port);
+		port_free(node, port, false);
 		return NULL;
 	}
 
@@ -246,13 +247,13 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 		if (node->transport_client != NULL) {
 			if (proto_send_set_port(node, port, port_store_reply_handler) != CC_RESULT_SUCCESS) {
 				log_error("Failed to store port");
-				port_free(node, port);
+				port_free(node, port, false);
 				return NULL;
 			}
 
 			if (port_setup_connection(node, port, peer_id, peer_id_len) != CC_RESULT_SUCCESS) {
 				log_error("Failed setup connections");
-				port_free(node, port);
+				port_free(node, port, true);
 				return NULL;
 			}
 		}
@@ -263,17 +264,19 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 	return port;
 }
 
-void port_free(node_t *node, port_t *port)
+void port_free(node_t *node, port_t *port, bool remove_from_registry)
 {
 	log("Deleting port '%s'", port->id);
 
-	if (proto_send_remove_port(node, port, port_remove_reply_handler) != CC_RESULT_SUCCESS)
-		log_error("Failed to remove port '%s'", port->id);
+	if (remove_from_registry) {
+		if (proto_send_remove_port(node, port, port_remove_reply_handler) != CC_RESULT_SUCCESS)
+			log_error("Failed to remove port '%s'", port->id);
+	}
 
 	if (port->tunnel != NULL)
 		tunnel_remove_ref(node, port->tunnel);
 
-	fifo_free(&port->fifo);
+	fifo_free(port->fifo);
 
 	platform_mem_free((void *)port);
 }
@@ -406,7 +409,7 @@ result_t port_handle_disconnect(node_t *node, const char *port_id, uint32_t port
 		return CC_RESULT_FAIL;
 	}
 
-	fifo_cancel(&port->fifo);
+	fifo_cancel(port->fifo);
 	port_set_state(port, PORT_DISCONNECTED);
 	actor_port_disconnected(port->actor);
 
@@ -493,7 +496,7 @@ void port_disconnect(node_t *node, port_t *port)
 
 	port->peer_port = NULL;
 	port_set_state(port, PORT_DISCONNECTED);
-	fifo_cancel(&port->fifo);
+	fifo_cancel(port->fifo);
 }
 
 void port_transmit(node_t *node, port_t *port)
@@ -505,19 +508,19 @@ void port_transmit(node_t *node, port_t *port)
 		if (port->actor->state == ACTOR_ENABLED) {
 			if (port->direction == PORT_DIRECTION_OUT) {
 				// send/move token
-				if (fifo_tokens_available(&port->fifo, 1)) {
-					fifo_com_peek(&port->fifo, &token, &sequencenbr);
+				if (fifo_tokens_available(port->fifo, 1)) {
+					fifo_com_peek(port->fifo, &token, &sequencenbr);
 					if (port->tunnel != NULL) {
-						if (proto_send_token(node, port, *token, sequencenbr) != CC_RESULT_SUCCESS)
-							fifo_com_cancel_read(&port->fifo, sequencenbr);
+						if (proto_send_token(node, port, token, sequencenbr) != CC_RESULT_SUCCESS)
+							fifo_com_cancel_read(port->fifo, sequencenbr);
 					} else if (port->peer_port != NULL) {
-						if (fifo_write(&port->peer_port->fifo, token->value, token->size) == CC_RESULT_SUCCESS)
-							fifo_commit_read(&port->fifo);
+						if (fifo_write(port->peer_port->fifo, token->value, token->size) == CC_RESULT_SUCCESS)
+							fifo_commit_read(port->fifo, false);
 						else
-							fifo_cancel_commit(&port->fifo);
+							fifo_cancel_commit(port->fifo);
 					} else {
 						log_error("Port '%s' is enabled without a peer", port->name);
-						fifo_com_cancel_read(&port->fifo, sequencenbr);
+						fifo_com_cancel_read(port->fifo, sequencenbr);
 					}
 				}
 			}
