@@ -255,21 +255,17 @@ static bool platform_external_can_write(struct calvinsys_obj_t *obj)
 	return obj->handler->node->transport_client != NULL;
 }
 
-static result_t platform_external_write(struct calvinsys_obj_t *obj, char *cmd, size_t cmd_len, char *data, size_t data_size)
+static result_t platform_external_write(struct calvinsys_obj_t *obj, char *data, size_t data_size)
 {
-  char buffer[500], *buf = buffer + 6;
+	size_t buffer_size = data_size + mp_sizeof_map(3) + mp_sizeof_str(9) + mp_sizeof_str(strlen(obj->handler->name)) + mp_sizeof_str(7) + data_size;
+    char buffer[buffer_size], *buf = buffer + 6;
 
-  buf = mp_encode_map(buf, 3);
-	buf = encode_str(&buf, "calvinsys", obj->handler->name, strlen(obj->handler->name) + 1);
-  if (cmd != NULL)
-    buf = encode_str(&buf, "command", cmd, strlen(cmd) + 1);
-  else
-    buf = encode_nil(&buf, "command");
+    buf = mp_encode_map(buf, 3);
+    buf = encode_str(&buf, "calvinsys", obj->handler->name, strlen(obj->handler->name) + 1);
 	buf = encode_bin(&buf, "payload", data, data_size);
 
 	if (send_upstream_platform_message(obj->handler->node->transport_client, PLATFORM_ANDROID_EXTERNAL_CALVINSYS_PAYLOAD, buffer, buf - buffer) > 0)
-    return CC_RESULT_SUCCESS;
-
+        return CC_RESULT_SUCCESS;
   return CC_RESULT_FAIL;
 }
 
@@ -299,7 +295,7 @@ static result_t platform_external_read(struct calvinsys_obj_t *obj, char **data,
 
 static result_t platform_external_close(calvinsys_obj_t *obj)
 {
-	platform_android_external_state_t *state = (platform_android_external_state_t *)obj->state;
+  platform_android_external_state_t *state = (platform_android_external_state_t *)obj->state;
   char buffer[100];
   int len = strlen(obj->handler->name) + 6;
 

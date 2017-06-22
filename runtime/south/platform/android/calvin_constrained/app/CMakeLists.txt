@@ -32,8 +32,9 @@ add_library(
              ../../../../../../msgpuck/msgpuck.c
              ../../../../../../actors/cc_actor_identity.c
              ../../../../../../actors/cc_actor_button.c
-             ../../../../../../actors/cc_actor_gpioreader.c
-             ../../../../../../actors/cc_actor_gpiowriter.c
+             ../../../../../../actors/cc_actor_led.c
+             #../../../../../../actors/cc_actor_gpioreader.c
+             #../../../../../../actors/cc_actor_gpiowriter.c
              ../../../../../../actors/cc_actor_temperature.c
 )
 
@@ -44,7 +45,7 @@ find_library(
 
 target_link_libraries(
              calvin_constrained
-             micropython
+             #micropython
              ${log-lib}
 )
 
