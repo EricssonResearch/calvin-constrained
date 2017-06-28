@@ -28,6 +28,7 @@
 #include "../../../../msgpuck/msgpuck.h"
 #include "../../../north/cc_msgpack_helper.h"
 
+#define CC_CONFIG_FILE "calvinconstrained.config"
 
 void platform_print(const char *fmt, ...)
 {
@@ -312,7 +313,7 @@ void platform_write_node_state(node_t *node, char *buffer, size_t size)
 	FILE *fp = NULL;
 	int len = 0;
 
-	fp = fopen("calvinconstrained.config", "w+");
+	fp = fopen(CC_CONFIG_FILE, "w+");
 	if (fp != NULL) {
 		len = fwrite(buffer, 1, size, fp);
 		if (len != size)
@@ -321,14 +322,14 @@ void platform_write_node_state(node_t *node, char *buffer, size_t size)
 			log_debug("Wrote runtime state '%d' bytes", len);
 		fclose(fp);
 	} else
-		log("Failed to open calvinconstrained.config for writing");
+		log("Failed to open %s for writing", CC_CONFIG_FILE);
 }
 
 result_t platform_read_node_state(node_t *node, char buffer[], size_t size)
 {
 	FILE *fp = NULL;
 
-	fp = fopen("calvinconstrained.config", "r+");
+	fp = fopen(CC_CONFIG_FILE, "r+");
 	if (fp != NULL) {
 		fread(buffer, 1, size, fp);
 		fclose(fp);

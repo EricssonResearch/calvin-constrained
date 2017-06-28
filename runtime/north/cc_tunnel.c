@@ -78,7 +78,7 @@ static result_t tunnel_request_handler(node_t *node, char *data, void *msg_data)
 	strncpy(tunnel->id, tunnel_id, tunnel_id_len);
 
 	if (status == 200) {
-		log("Tunnel '%.*s' connected", (int)tunnel_id_len, tunnel_id);
+		log_debug("Tunnel '%.*s' connected", (int)tunnel_id_len, tunnel_id);
 		tunnel->state = TUNNEL_ENABLED;
 		return CC_RESULT_SUCCESS;
 	}
@@ -139,7 +139,7 @@ tunnel_t *tunnel_create(node_t *node, tunnel_type_t type, tunnel_state_t state, 
 
 	link_add_ref(link);
 
-	log("Tunnel created, id '%s' peer_id '%s'", tunnel->id, tunnel->link->peer_id);
+	log_debug("Tunnel created, id '%s' peer_id '%s'", tunnel->id, tunnel->link->peer_id);
 
 	return tunnel;
 }
@@ -179,7 +179,7 @@ tunnel_t *tunnel_deserialize(struct node_t *node, char *buffer)
 
 void tunnel_free(node_t *node, tunnel_t *tunnel)
 {
-	log("Deleting tunnel '%s'", tunnel->id);
+	log_debug("Deleting tunnel '%s'", tunnel->id);
 	list_remove(&node->tunnels, tunnel->id);
 	link_remove_ref(node, tunnel->link);
 	platform_mem_free((void *)tunnel);
@@ -198,7 +198,7 @@ void tunnel_remove_ref(node_t *node, tunnel_t *tunnel)
 		log_debug("Tunnel ref removed '%s' ref: %d", tunnel->id, tunnel->ref_count);
 		if (tunnel->ref_count == 0) {
 			if (proto_send_tunnel_destroy(node, tunnel, tunnel_destroy_handler) != CC_RESULT_SUCCESS)
-				log_error("Failed to destroy tunnel '%s'", tunnel->id);
+				log_debug("Failed to destroy tunnel '%s'", tunnel->id);
 			tunnel_free(node, tunnel);
 		}
 	}

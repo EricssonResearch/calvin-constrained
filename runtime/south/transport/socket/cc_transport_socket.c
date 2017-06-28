@@ -78,7 +78,7 @@ static result_t transport_socket_discover_location(char *location)
 	sockname.sin_port = htons(SSDP_PORT);
 	sockname.sin_addr.s_addr = inet_addr(SSDP_MULTICAST);
 
-	log("Sending ssdp request");
+	log_debug("Sending ssdp request");
 
 	ret = sendto(sock, buffer, strlen(buffer), 0, (struct sockaddr *) &sockname, sizeof(struct sockaddr_in));
 	if (ret != strlen(buffer)) {
@@ -89,8 +89,8 @@ static result_t transport_socket_discover_location(char *location)
 	FD_ZERO(&fds);
 	FD_SET(sock, &fds);
 
-	if (select(sock + 1, &fds, NULL, NULL, &tv) < 0) {
-		log_error("Failed to receive ssdp response");
+	if (select(sock + 1, &fds, NULL, NULL, &tv) <= 0) {
+		log_debug("No ssdp response");
 		return CC_RESULT_FAIL;
 	}
 
@@ -289,18 +289,19 @@ transport_client_t *transport_socket_create(node_t *node, char *uri)
 #ifdef CC_TRANSPORT_SOCKET_SSDP_ENABLED
 			if (strncmp(uri, "ssdp", 4) == 0) {
 				if (transport_socket_discover_proxy(discovery_result) == CC_RESULT_SUCCESS) {
-					log("Discovery response '%s'", discovery_result);
-					if (sscanf(discovery_result, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2)
+					log_debug("Discovery response '%s'", discovery_result);
+					if (sscanf(discovery_result, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2) {
+						strcpy(transport_client->uri, discovery_result);
 						return transport_client;
-					else
+					} else
 						log_error("Failed to parse uri '%s'", discovery_result);
-				} else
-					log_error("Discovery failed");
+				}
 			} else {
 #endif
-				if (sscanf(uri, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2)
+				if (sscanf(uri, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2) {
+					strcpy(transport_client->uri, uri);
 					return transport_client;
-				else
+				} else
 					log_error("Failed to parse uri '%s'", uri);
 #ifdef CC_TRANSPORT_SOCKET_SSDP_ENABLED
 			}

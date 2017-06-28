@@ -26,8 +26,6 @@
 #include "../../calvinsys/cc_calvinsys.h"
 #include "../south/platform/cc_platform.h"
 
-#define MAX_URIS 5
-
 typedef enum {
 	NODE_DO_START,
 	NODE_PENDING,
@@ -62,7 +60,7 @@ typedef struct node_t {
 	list_t *actors;
 	transport_client_t *transport_client;
 	calvinsys_t *calvinsys;
-	char *proxy_uris[MAX_URIS];
+	list_t *proxy_uris;
 	bool (*fire_actors)(struct node_t *node);
 } node_t;
 

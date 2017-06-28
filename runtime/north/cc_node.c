@@ -98,13 +98,14 @@ static result_t node_get_state(node_t *node)
 				node->state = (node_state_t)state;
 		}
 
-		if (decode_string_from_map(buffer, "proxy_uri", &value, &value_len) == CC_RESULT_SUCCESS) {
-			if (platform_mem_alloc((void **)&node->proxy_uris[0], value_len + 1) != CC_RESULT_SUCCESS) {
-				log_error("Failed to allocate memory");
-				return CC_RESULT_FAIL;
+		if (has_key(buffer, "proxy_uris")) {
+			if (get_value_from_map(buffer, "proxy_uris", &array_value) == CC_RESULT_SUCCESS) {
+				array_size = get_size_of_array(array_value);
+				for (i = 0; i < array_size; i++) {
+					if (decode_string_from_array(array_value, i, &value, &value_len) == CC_RESULT_SUCCESS)
+						list_add_n(&node->proxy_uris, value, value_len, NULL, 0);
+				}
 			}
-			strncpy(node->proxy_uris[0], value, value_len);
-			node->proxy_uris[0][value_len] = '\0';
 		}
 
 		if (has_key(buffer, "links")) {
@@ -171,10 +172,15 @@ void node_set_state(node_t *node)
 		tmp = encode_str(&tmp, "id", node->id, strlen(node->id));
 		tmp = encode_str(&tmp, "name", node->name, strlen(node->name));
 
-		if (node->transport_client != NULL)
-			tmp = encode_str(&tmp, "proxy_uri", node->transport_client->uri, strlen(node->transport_client->uri));
-		else
-			tmp = encode_str(&tmp, "proxy_uri", node->proxy_uris[0], strlen(node->proxy_uris[0]));
+		nbr_of_items = list_count(node->proxy_uris);
+		tmp = encode_array(&tmp, "proxy_uris", nbr_of_items);
+		{
+			item = node->proxy_uris;
+			while (item != NULL) {
+				tmp = mp_encode_str(tmp, item->id, strlen(item->id));
+				item = item->next;
+			}
+		}
 
 		nbr_of_items = list_count(node->links);
 		tmp = encode_array(&tmp, "links", nbr_of_items);
@@ -284,7 +290,7 @@ static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_dat
 	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
 		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
 			if (status == 200) {
-				log("Node started with proxy '%s'", node->transport_client->peer_id);
+				log("Connected to proxy with id '%s' and uri '%s'", node->transport_client->peer_id, node->transport_client->uri);
 				node->state = NODE_STARTED;
 				platform_node_started(node);
 			} else
@@ -385,17 +391,13 @@ static result_t node_setup(node_t *node, char *name)
 #ifdef CC_TLS_ENABLED
 	char domain[50];
 
-	if (crypto_get_node_info(domain, node->name, node->id) == CC_RESULT_SUCCESS) {
-		log("Node created from certificate, domain: '%s' id '%s' name '%s'", domain, node->id, node->name);
+	if (crypto_get_node_info(domain, node->name, node->id) == CC_RESULT_SUCCESS)
 		return CC_RESULT_SUCCESS;
-	}
 #endif
 
 #ifdef CC_STORAGE_ENABLED
-	if (node_get_state(node) == CC_RESULT_SUCCESS) {
-		log("Node created from state, id '%s' name '%s'", node->id, node->name);
+	if (node_get_state(node) == CC_RESULT_SUCCESS)
 		return CC_RESULT_SUCCESS;
-	}
 #endif
 
 	gen_uuid(node->id, NULL);
@@ -404,8 +406,6 @@ static result_t node_setup(node_t *node, char *name)
 		strncpy(node->name, name, strlen(name) + 1);
 	else
 		strncpy(node->name, "constrained", 12);
-
-	log("Node created, id '%s' name '%s'", node->id, node->name);
 
 	return CC_RESULT_SUCCESS;
 }
@@ -478,8 +478,8 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 
 result_t node_init(node_t *node, char *name, char *proxy_uris)
 {
-	int i = 0;
 	char *uri = NULL;
+	list_t *item = NULL;
 
 	node->state = NODE_DO_START;
 	node->fire_actors = fire_actors;
@@ -518,12 +518,35 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 
 	if (proxy_uris != NULL) {
 		uri = strtok(proxy_uris, " ");
-		while (uri != NULL && i < MAX_URIS) {
-			node->proxy_uris[i] = uri;
+		while (uri != NULL) {
+			list_add(&node->proxy_uris, uri, NULL, 0);
 			uri = strtok(NULL, " ");
-			i++;
 		}
 	}
+
+	log("Node initialized");
+	log("----------------------------------------");
+	log("Name: %s", node->name);
+	log("ID: %s", node->id);
+	log("Proxy URIs:");
+	if (node->proxy_uris != NULL) {
+		item = node->proxy_uris;
+		while (item != NULL) {
+			log(" %s", item->id);
+			item = item->next;
+		}
+	}
+	log("Capabilities:");
+	if (node->calvinsys != NULL) {
+		item = node->calvinsys->capabilities;
+		while (item != NULL) {
+			log(" %s", item->id);
+			item = item->next;
+		}
+	}
+	if (node->storage_dir != NULL)
+	log("Storage directory: %s", node->storage_dir);
+	log("----------------------------------------");
 
 	return CC_RESULT_SUCCESS;
 }
@@ -589,7 +612,7 @@ static void node_free(node_t *node)
 
 result_t node_run(node_t *node)
 {
-	int i = 0;
+	list_t *item = NULL;
 
 	if (node->fire_actors == NULL) {
 		log_error("No actor scheduler set");
@@ -597,34 +620,30 @@ result_t node_run(node_t *node)
 	}
 
 	while (node->state != NODE_STOP) {
-		for (i = 0; i < MAX_URIS && node->state != NODE_STOP; i++) {
-			if (node->proxy_uris[i] != NULL) {
-				node->state = NODE_DO_START;
-				if (node_connect_to_proxy(node, node->proxy_uris[i]) == CC_RESULT_SUCCESS) {
-					log("Connected to '%s'", node->proxy_uris[i]);
-					while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_ENABLED) {
-						if (node->state == NODE_STARTED)
-							node->fire_actors(node);
-							log_debug("Enterring platform_evt_wait");
+		item = node->proxy_uris;
+		while (item != NULL && node->state != NODE_STOP) {
+			node->state = NODE_DO_START;
+			if (node_connect_to_proxy(node, item->id) == CC_RESULT_SUCCESS) {
+				while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_ENABLED) {
+					if (node->state == NODE_STARTED)
+						node->fire_actors(node);
 #ifdef CC_DEEPSLEEP_ENABLED
-						if (!platform_evt_wait(node, CC_INACTIVITY_TIMEOUT)) {
-							log("Requesting sleep");
-							if (proto_send_node_setup(node, true, node_enter_sleep_reply_handler) == CC_RESULT_SUCCESS)
-								node->state = NODE_PENDING;
-						}
-#else
-						platform_evt_wait(node, 0);
-#endif
+					if (!platform_evt_wait(node, CC_INACTIVITY_TIMEOUT)) {
+						if (proto_send_node_setup(node, true, node_enter_sleep_reply_handler) == CC_RESULT_SUCCESS)
+							node->state = NODE_PENDING;
 					}
-					log("Disconnected from '%s'", node->proxy_uris[i]);
-				}
-
-				if (node->transport_client != NULL) {
-					node->transport_client->disconnect(node, node->transport_client);
-					node->transport_client->free(node->transport_client);
-					node->transport_client = NULL;
+#else
+					platform_evt_wait(node, 0);
+#endif
 				}
 			}
+
+			if (node->transport_client != NULL) {
+				node->transport_client->disconnect(node, node->transport_client);
+				node->transport_client->free(node->transport_client);
+				node->transport_client = NULL;
+			}
+			item = item->next;
 		}
 
 		if (node->state != NODE_STOP) {

@@ -46,15 +46,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (name == NULL) {
-		printf("Missing argument 'name'");
-		return EXIT_FAILURE;
-	}
-
-	if (proxy_uris == NULL) {
-		printf("Missing argument 'proxy_uris'");
-		return EXIT_FAILURE;
-	}
 #endif
 
 	if (api_runtime_init(&node, name, proxy_uris, "./") != CC_RESULT_SUCCESS)

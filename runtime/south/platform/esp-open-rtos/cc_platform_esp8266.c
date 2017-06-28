@@ -115,6 +115,8 @@ static result_t platform_esp_write_calvin_config(char *name, uint32_t name_len, 
 		return CC_RESULT_FAIL;
 	}
 
+	log("Configured with id '%s', name '%.*s' proxy uri '%.*s'", id, name_len, name, uri_len, uri);
+
 	return CC_RESULT_SUCCESS;
 }
 
@@ -164,11 +166,11 @@ static result_t platform_esp_start_ap_mode()
 		.ssid_len = strlen(CALVIN_ESP_AP_SSID),
 		.authmode = AUTH_WPA_WPA2_PSK,
 		.password = CALVIN_ESP_AP_PSK,
-		.max_connection = 3,
+		.max_connection = 1,
 		.beacon_interval = 100,
 	};
 
-	log("Starting in AP mode, listening for config on '172.16.0.1:5003'");
+	log("Waiting for config on '172.16.0.1:5003'");
 
 	sdk_wifi_set_opmode(SOFTAP_MODE);
 
@@ -456,7 +458,7 @@ void calvin_task(void *pvParameters)
 
 		log("Connected to AP\n");
 
-		if (api_runtime_init(&node, "esp8266", "ssdp", NULL) == CC_RESULT_SUCCESS)
+		if (api_runtime_init(&node, NULL, NULL, NULL) == CC_RESULT_SUCCESS)
 			api_runtime_start(node);
 
 		api_runtime_stop(node);

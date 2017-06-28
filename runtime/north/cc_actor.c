@@ -115,7 +115,7 @@ static result_t actor_migrate_reply_handler(node_t *node, char *data, void *msg_
 	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
 		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
 			if (status == 200) {
-				log("Actor '%s' migrated", (char *)msg_data);
+				log_debug("Actor '%s' migrated", (char *)msg_data);
 				actor_free(node, actor, false);
 			} else
 				log_error("Failed to migrate actor '%s'", (char *)msg_data);
@@ -135,7 +135,7 @@ static result_t actor_set_reply_handler(node_t *node, char *data, void *msg_data
 	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
 		if (decode_bool_from_map(value, "value", &status) == CC_RESULT_SUCCESS) {
 			if (status != true)
-				log("Failed to store actor '%s'", (char *)msg_data);
+				log_error("Failed to store actor '%s'", (char *)msg_data);
 			return CC_RESULT_SUCCESS;
 		}
 	}
@@ -452,7 +452,7 @@ actor_t *actor_create(node_t *node, char *root)
 	// attributes should now be handled by the instance
 	actor_free_managed(instance_attributes);
 
-	log("Actor '%s' created with id '%s' and type '%s'", actor->name, actor->id, actor->type);
+	log_debug("Actor '%s' created with id '%s' and type '%s'", actor->name, actor->id, actor->type);
 
 	return actor;
 }
@@ -461,7 +461,7 @@ void actor_free(node_t *node, actor_t *actor, bool remove_from_registry)
 {
 	list_t *list = NULL, *tmp_list = NULL;
 
-	log("Deleting actor '%s'", actor->name);
+	log_debug("Deleting actor '%s'", actor->name);
 
 	if (actor->will_end != NULL)
 		actor->will_end(actor);

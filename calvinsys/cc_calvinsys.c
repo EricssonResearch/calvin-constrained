@@ -54,10 +54,8 @@ result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name,
 		return CC_RESULT_FAIL;
 	}
 
-	if (list_add_n(&calvinsys->capabilities, name, strlen(name), handler, sizeof(calvinsys_handler_t *)) == CC_RESULT_SUCCESS) {
-		log("Capability '%s' registered", name);
+	if (list_add_n(&calvinsys->capabilities, name, strlen(name), handler, sizeof(calvinsys_handler_t *)) == CC_RESULT_SUCCESS)
 		return CC_RESULT_SUCCESS;
-	}
 
 	return CC_RESULT_FAIL;
 }

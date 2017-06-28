@@ -57,7 +57,7 @@ def setup_module(module):
     global output_file
 
     output_file = open("cc_stderr.log", "a")
-    constrained_process = subprocess.Popen("exec ./calvin_c -n 'constrained' -p 'calvinip://127.0.0.1:5000'", shell=True, stderr=output_file)
+    constrained_process = subprocess.Popen("exec ./calvin_c -n 'constrained' -p 'calvinip://127.0.0.1:5000 ssdp'", shell=True, stderr=output_file)
 
     request_handler = RequestHandler()
     rt1 = RT("http://127.0.0.1:5001")
@@ -637,7 +637,7 @@ def testDeepSleep():
 
     assert constrained_process.poll() is not None
 
-    constrained_process = subprocess.Popen("exec ./calvin_c -n 'constrained' -p 'calvinip://127.0.0.1:5000'", shell=True, stderr=output_file)
+    constrained_process = subprocess.Popen("exec ./calvin_c", shell=True, stderr=output_file)
 
     # verify data
     wait_for_tokens(request_handler,

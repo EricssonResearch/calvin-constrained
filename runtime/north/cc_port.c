@@ -139,7 +139,7 @@ static result_t port_store_reply_handler(node_t *node, char *data, void *msg_dat
 
 static result_t port_disconnect_reply_handler(node_t *node, char *data, void *msg_data)
 {
-	log("Port '%s' disconnected", msg_data);
+	log_debug("Port '%s' disconnected", msg_data);
 	return CC_RESULT_SUCCESS;
 }
 
@@ -259,14 +259,14 @@ port_t *port_create(node_t *node, actor_t *actor, char *obj_port, char *obj_prev
 		}
 	}
 
-	log("Created port '%s' with name '%s' and direction '%s'", port->id, port->name, port->direction == PORT_DIRECTION_IN ? "in" : "out");
+	log_debug("Created port '%s' with name '%s' and direction '%s'", port->id, port->name, port->direction == PORT_DIRECTION_IN ? "in" : "out");
 
 	return port;
 }
 
 void port_free(node_t *node, port_t *port, bool remove_from_registry)
 {
-	log("Deleting port '%s'", port->id);
+	log_debug("Deleting port '%s'", port->id);
 
 	if (remove_from_registry) {
 		if (proto_send_remove_port(node, port, port_remove_reply_handler) != CC_RESULT_SUCCESS)
@@ -394,7 +394,7 @@ result_t port_handle_connect(node_t *node, const char *port_id, uint32_t port_id
 	tunnel_add_ref(port->tunnel);
 	port_set_state(port, PORT_ENABLED);
 	actor_port_enabled(port->actor);
-	log("Port '%s' connected by remote", port->id);
+	log_debug("Port '%s' connected by remote", port->id);
 
 	return CC_RESULT_SUCCESS;
 }
@@ -418,7 +418,7 @@ result_t port_handle_disconnect(node_t *node, const char *port_id, uint32_t port
 		port->tunnel = NULL;
 	}
 
-	log("Port '%s' disconnected by remote", port->id);
+	log_debug("Port '%s' disconnected by remote", port->id);
 
 	return CC_RESULT_SUCCESS;
 }
@@ -454,7 +454,7 @@ static result_t port_setup_connection(node_t *node, port_t *port, char *peer_id,
 		port->tunnel = NULL;
 		peer_port->peer_port = port;
 		port_set_state(peer_port, PORT_ENABLED);
-		log("Port '%s' connected to local port '%s'", port->id, port->peer_port_id);
+		log_debug("Port '%s' connected to local port '%s'", port->id, port->peer_port_id);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -464,7 +464,7 @@ static result_t port_setup_connection(node_t *node, port_t *port, char *peer_id,
 		if (port->tunnel == NULL) {
 			port->tunnel = tunnel_create(node, TUNNEL_TYPE_TOKEN, TUNNEL_DISCONNECTED, peer_id, peer_id_len, NULL, 0);
 			if (port->tunnel == NULL) {
-				log("Failed to create a tunnel for port '%s'", port->id);
+				log_error("Failed to create a tunnel for port '%s'", port->id);
 				return CC_RESULT_FAIL;
 			}
 		}
@@ -476,7 +476,7 @@ static result_t port_setup_connection(node_t *node, port_t *port, char *peer_id,
 	// lookup peer
 	if (port->state == PORT_DISCONNECTED) {
 		if (proto_send_get_port(node, port->peer_port_id, port_get_peer_port_reply_handler, port->id) == CC_RESULT_SUCCESS) {
-			log("Doing peer lookup for port '%s' with peer port '%s'", port->id, port->peer_port_id);
+			log_debug("Doing peer lookup for port '%s' with peer port '%s'", port->id, port->peer_port_id);
 			port_set_state(port, PORT_PENDING);
 			return CC_RESULT_SUCCESS;
 		}

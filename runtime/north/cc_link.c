@@ -47,7 +47,7 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, boo
 		return NULL;
 	}
 
-	log("Link created, peer id '%s' is_proxy '%s'", link->peer_id, link->is_proxy ? "yes" : "no");
+	log_debug("Link created, peer id '%s' is_proxy '%s'", link->peer_id, link->is_proxy ? "yes" : "no");
 
 	return link;
 }
@@ -80,7 +80,7 @@ link_t *link_deserialize(node_t *node, char *buffer)
 
 void link_free(node_t *node, link_t *link)
 {
-	log("Deleting link to '%s'", link->peer_id);
+	log_debug("Deleting link to '%s'", link->peer_id);
 	list_remove(&node->links, link->peer_id);
 	platform_mem_free((void *)link);
 }
