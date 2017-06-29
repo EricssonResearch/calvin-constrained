@@ -212,7 +212,7 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 		return CC_RESULT_FAIL;
 
 	calvinsys_add_handler(calvinsys, handler);
-	if (calvinsys_register_capability(*calvinsys, "calvinsys.io.led", handler) != CC_RESULT_SUCCESS)
+	if (calvinsys_register_capability(*calvinsys, "calvinsys.io.light", handler) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	if (calvinsys_register_capability(*calvinsys, "calvinsys.io.button", handler) != CC_RESULT_SUCCESS)
@@ -228,16 +228,6 @@ void platform_init(void)
 
 result_t platform_create(node_t *node)
 {
-  node_attributes_t *attr;
-
-	if (platform_mem_alloc((void **)&attr, sizeof(node_attributes_t)) != CC_RESULT_SUCCESS)
-    log_error("Could not allocate memory for attributes");
-
-	attr->indexed_public_owner = NULL;
-  attr->indexed_public_node_name = NULL;
-  attr->indexed_public_address = NULL;
-  node->attributes = attr;
-
 	return CC_RESULT_SUCCESS;
 }
 

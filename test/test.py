@@ -57,7 +57,7 @@ def setup_module(module):
     global output_file
 
     output_file = open("cc_stderr.log", "a")
-    constrained_process = subprocess.Popen("exec ./calvin_c -n 'constrained' -p 'calvinip://127.0.0.1:5000 ssdp'", shell=True, stderr=output_file)
+    constrained_process = subprocess.Popen("exec ./calvin_c -a '{\"indexed_public\": {\"node_name\": {\"name\": \"constrained\"}}}' -p 'calvinip://127.0.0.1:5000 ssdp'", shell=True, stderr=output_file)
 
     request_handler = RequestHandler()
     rt1 = RT("http://127.0.0.1:5001")
@@ -366,9 +366,9 @@ def testTemperatureActor():
     script_name = "testTemperatureActor"
     script = """
     src : std.CountTimer(sleep=0.1)
-    temp : sensor.Temperature()
+    temp : sensor.TriggeredTemperature()
     snk : test.Sink(store_tokens=1, quiet=1)
-    src.integer > temp.measure
+    src.integer > temp.trigger
     temp.centigrade > snk.token
     """
 
@@ -463,7 +463,7 @@ def testButtonActor():
     # verify removal
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':btn'])
 
-def testLedActor():
+def testLightActor():
     assert rt1 is not None
     assert constrained_id is not None
 
@@ -471,10 +471,10 @@ def testLedActor():
     script = """
     src : std.CountTimer(sleep=0.1)
     zero : std.Constantify(constant=0)
-    led : io.Led()
+    led : io.Light()
 
     src.integer > zero.in
-    zero.out > led.state
+    zero.out > led.on
     """
 
     deploy_info = """

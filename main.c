@@ -23,20 +23,20 @@
 
 int main(int argc, char **argv)
 {
-	char *name = NULL, *proxy_uris = NULL;
+	char *attr = NULL, *proxy_uris = NULL;
 	node_t *node = NULL;
 #ifdef CC_GETOPT_ENABLED
 	int c = 0;
 	static struct option long_options[] = {
-		{"name", required_argument, NULL, 'n'},
+		{"attr", required_argument, NULL, 'a'},
 		{"proxy_uris", required_argument, NULL, 'p'},
 		{NULL, 0, NULL, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "n:p:", long_options, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "a:p:", long_options, NULL)) != -1) {
 		switch (c) {
-		case 'n':
-			name = optarg;
+		case 'a':
+			attr = optarg;
 			break;
 		case 'p':
 			proxy_uris = optarg;
@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 
 #endif
 
-	if (api_runtime_init(&node, name, proxy_uris, "./") != CC_RESULT_SUCCESS)
+	if (api_runtime_init(&node, attr, proxy_uris, "./") != CC_RESULT_SUCCESS)
 		return EXIT_FAILURE;
 
 	if (api_runtime_start(node) != CC_RESULT_SUCCESS)

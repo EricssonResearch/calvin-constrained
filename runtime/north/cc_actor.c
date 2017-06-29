@@ -60,7 +60,7 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		NULL
 	},
 	{
-		"io.Led",
+		"io.Light",
 		actor_led_init,
 		actor_led_set_state,
 		actor_led_free,
@@ -82,7 +82,7 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		NULL,
 	},
 	{
-		"sensor.Temperature",
+		"sensor.TriggeredTemperature",
 		actor_temperature_init,
 		actor_temperature_set_state,
 		actor_temperature_free,

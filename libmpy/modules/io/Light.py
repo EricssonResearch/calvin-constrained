@@ -17,34 +17,34 @@
 from calvin.actor.actor import Actor, condition, stateguard, calvinsys
 
 
-class Led(Actor):
+class Light(Actor):
 
     """
-    Set state of a LED (Light Emitting Diode)
+    Set state of a light (e.g. an LED or a lightbulb)
     Input:
-      state : 1/0 for on/off
+      on : true if light should be on, false if turned off
     """
 
     def init(self):
-        self.led = None
+        self.light= None
         self.setup()
 
     def setup(self):
-        self.led = calvinsys.open(self, "calvinsys.io.led")
+        self.light = calvinsys.open(self, "calvinsys.io.light")
 
     def will_migrate(self):
-        calvinsys.close(self.led)
+        calvinsys.close(self.light)
 
     def will_end(self):
-        calvinsys.close(self.led)
+        calvinsys.close(self.light)
 
     def did_migrate(self):
         self.setup()
 
-    @stateguard(lambda self: self.led and calvinsys.can_write(self.led))
-    @condition(action_input=("state",))
+    @stateguard(lambda self: self.light and calvinsys.can_write(self.light))
+    @condition(action_input=("on",))
     def set_state(self, state):
-        calvinsys.write(self.led, state)
+        calvinsys.write(self.light, 1 if state else 0)
 
     action_priority = (set_state, )
-    requires = ["calvinsys.io.led"]
+    requires = ["calvinsys.io.light"]

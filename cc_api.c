@@ -21,7 +21,7 @@
 #include "libmpy/cc_mpy_port.h"
 #endif
 
-result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char *storage_dir)
+result_t api_runtime_init(node_t **node, const char *attributes, const char *proxy_uris, const char *storage_dir)
 {
 	platform_init();
 
@@ -37,10 +37,8 @@ result_t api_runtime_init(node_t **node, char *name, char *proxy_uris, char *sto
 		return CC_RESULT_FAIL;
 	}
 	memset(*node, 0, sizeof(node_t));
-	(*node)->storage_dir = storage_dir;
-	(*node)->attributes = NULL;
 
-	return node_init(*node, name, proxy_uris);
+	return node_init(*node, attributes, proxy_uris, storage_dir);
 }
 
 result_t api_runtime_start(node_t *node)

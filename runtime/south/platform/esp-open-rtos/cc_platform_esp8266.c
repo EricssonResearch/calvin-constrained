@@ -82,14 +82,13 @@ static result_t platform_esp_start_station_mode()
 	return CC_RESULT_SUCCESS;
 }
 
-static result_t platform_esp_write_calvin_config(char *name, uint32_t name_len, char *uri, uint32_t uri_len)
+static result_t platform_esp_write_calvin_config(char *attributes, uint32_t attributes_len, char *proxy_uris, uint32_t proxy_uris_len)
 {
 	spiffs_file fd;
-	int res = 0;
-	char buffer[CALVIN_ESP_WIFI_CONFIG_BUFFER_SIZE];
+	int res = 0, start = 0, read_pos = 0, nbr_uris = 1;
+	char buffer[CALVIN_ESP_WIFI_CONFIG_BUFFER_SIZE], id[UUID_BUFFER_SIZE];
 	char *tmp = buffer;
 	size_t size = 0;
-	char id[UUID_BUFFER_SIZE];
 
 	fd = SPIFFS_open(&fs, CALVIN_ESP_RUNTIME_STATE_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	if (fd < 0) {
@@ -102,8 +101,26 @@ static result_t platform_esp_write_calvin_config(char *name, uint32_t name_len, 
 	tmp = mp_encode_map(tmp, 3);
 	{
 		tmp = encode_str(&tmp, "id", id, strlen(id));
-		tmp = encode_str(&tmp, "name", name, name_len);
-		tmp = encode_str(&tmp, "proxy_uri", uri, uri_len);
+		tmp = encode_str(&tmp, "attributes", attributes, attributes_len);
+
+		while (read_pos < proxy_uris_len) {
+			if (proxy_uris[read_pos] == ' ')
+				nbr_uris++;
+			read_pos++;
+		}
+		tmp = encode_array(&tmp, "proxy_uris", nbr_uris);
+		read_pos = 0;
+		while (read_pos < proxy_uris_len) {
+			if (proxy_uris[read_pos] == ' ') {
+				tmp = mp_encode_str(tmp, proxy_uris + start, read_pos - start);
+				start = read_pos + 1;
+			}
+			read_pos++;
+			if (read_pos == proxy_uris_len) {
+				tmp = mp_encode_str(tmp, proxy_uris + start, read_pos - start);
+				break;
+			}
+		}
 	}
 
 	size = tmp - buffer;
@@ -115,7 +132,7 @@ static result_t platform_esp_write_calvin_config(char *name, uint32_t name_len, 
 		return CC_RESULT_FAIL;
 	}
 
-	log("Configured with id '%s', name '%.*s' proxy uri '%.*s'", id, name_len, name, uri_len, uri);
+	log("Configured with id '%s' attributes '%.*s' proxy_uris '%.*s'", id, attributes_len, attributes, proxy_uris_len, proxy_uris);
 
 	return CC_RESULT_SUCCESS;
 }
@@ -157,7 +174,7 @@ static result_t platform_esp_start_ap_mode()
 	int sockfd = 0, newsockfd = 0, clilen = 0, len = 0;
 	struct sockaddr_in serv_addr, cli_addr;
 	char buffer[CALVIN_ESP_WIFI_RECV_CONFIG_BUFFER_SIZE];
-	char *name = NULL, *uri = NULL, *ssid = NULL, *password = NULL;
+	char *attributes = NULL, *uri = NULL, *ssid = NULL, *password = NULL;
 	struct ip_info ap_ip;
 	struct sdk_softap_config ap_config = {
 		.ssid = CALVIN_ESP_AP_SSID,
@@ -219,25 +236,25 @@ static result_t platform_esp_start_ap_mode()
 		return CC_RESULT_FAIL;
 	}
 
-	name = strstr(buffer, "\"name\": \"");
-	if (name == NULL) {
-		log_error("Failed to parse 'name' from configuration data");
+	attributes = strstr(buffer, "\"attributes\": ");
+	if (attributes == NULL) {
+		log_error("Failed to parse 'attributes' from '%s'", buffer);
 		close(newsockfd);
 		return CC_RESULT_FAIL;
 	}
-	name = name + 9;
+	attributes = attributes + 14;
 
-	uri = strstr(buffer, "\"proxy_uri\": \"");
+	uri = strstr(buffer, "\"proxy_uris\": \"");
 	if (uri == NULL) {
-		log_error("Failed to parse 'uri' from configuration data");
+		log_error("Failed to parse 'proxy_uris' from '%s'", buffer);
 		close(newsockfd);
 		return CC_RESULT_FAIL;
 	}
-	uri = uri + 14;
+	uri = uri + 15;
 
 	ssid = strstr(buffer, "\"ssid\": \"");
 	if (ssid == NULL) {
-		log_error("Failed to parse 'ssid' from configuration data");
+		log_error("Failed to parse 'ssid' from '%s'", buffer);
 		close(newsockfd);
 		return CC_RESULT_FAIL;
 	}
@@ -251,7 +268,8 @@ static result_t platform_esp_start_ap_mode()
 	}
  	password = password + 13;
 
-	if (platform_esp_write_calvin_config(name, strstr(name, "\"") - name, uri, strstr(uri, "\"") - uri) == CC_RESULT_SUCCESS) {
+	// TODO: Better attribute parsing needed
+	if (platform_esp_write_calvin_config(attributes, (strstr(attributes, "}}}") + 3) - attributes, uri, strstr(uri, "\"") - uri) == CC_RESULT_SUCCESS) {
 		if (platform_esp_write_wifi_config(ssid, strstr(ssid, "\"") - ssid, password, strstr(password, "\"") - password) == CC_RESULT_SUCCESS) {
 			write(newsockfd, "HTTP/1.0 200 OK\r\n", strlen("HTTP/1.0 200 OK\r\n"));
 			close(newsockfd);

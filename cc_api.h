@@ -19,12 +19,12 @@
 #include "runtime/north/cc_common.h"
 #include "runtime/north/cc_node.h"
 
-result_t api_runtime_init(node_t** node, char* name, char* proxy_uris, char* storage_dir);
-result_t api_runtime_start(node_t* node);
-result_t api_runtime_stop(node_t* node);
-result_t api_runtime_serialize_and_stop(node_t* node);
-result_t api_reconnect(node_t* node);
+result_t api_runtime_init(node_t **node, const char *attributes, const char *proxy_uris, const char *storage_dir);
+result_t api_runtime_start(node_t *node);
+result_t api_runtime_stop(node_t *node);
+result_t api_runtime_serialize_and_stop(node_t *node);
+result_t api_reconnect(node_t *node);
 #ifdef CC_STORAGE_ENABLED
-result_t api_clear_serialization_file(char* filedir);
+result_t api_clear_serialization_file(char *filedir);
 #endif
 #endif /* API_H */

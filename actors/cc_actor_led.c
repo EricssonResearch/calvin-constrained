@@ -24,9 +24,9 @@ result_t actor_led_init(actor_t **actor, list_t *attributes)
 {
 	calvinsys_obj_t *obj = NULL;
 
-	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.io.led", NULL, 0);
+	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.io.light", NULL, 0);
 	if (obj == NULL) {
-		log_error("Failed to open 'calvinsys.io.led'");
+		log_error("Failed to open 'calvinsys.io.light'");
 		return CC_RESULT_FAIL;
 	}
 

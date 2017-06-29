@@ -17,13 +17,12 @@
 from calvin.actor.actor import Actor, manage, stateguard, condition, calvinsys
 
 
-class Temperature(Actor):
+class TriggeredTemperature(Actor):
 
     """
-        Read temperature when told to
-
+    Read temperature when told to
     Inputs:
-        measure: Triggers a temperature reading
+        trigger: Triggers a temperature reading
     Outputs:
         centigrade: The measured temperature in centigrade
     """
@@ -37,13 +36,16 @@ class Temperature(Actor):
         self.temp = calvinsys.open(self, "calvinsys.sensor.temperature")
 
     def will_migrate(self):
-        pass
+        calvinsys.close(self.temp)
+
+    def will_end(self):
+        calvinsys.close(self.temp)
 
     def did_migrate(self):
         self.setup()
 
     @stateguard(lambda self: self.temp and calvinsys.can_read(self.temp))
-    @condition(['measure'], ['centigrade'])
+    @condition(['trigger'], ['centigrade'])
     def measure(self, _):
         return (calvinsys.read(self.temp),)
 

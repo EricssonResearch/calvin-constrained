@@ -76,11 +76,9 @@ result_t proto_send_join_request(const node_t *node, transport_client_t *transpo
 
 result_t proto_send_node_setup(node_t *node, bool will_sleep, result_t (*handler)(node_t*, char*, void*))
 {
-	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE], name[] = "name";
+	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 	list_t *capabilities = node->calvinsys->capabilities;
-	uint32_t nbr_of_capabilities = 0, nbr_of_attributes = 9;
-	int map_count = 0;
-	list_t *list;
+	uint32_t nbr_of_capabilities = 0, nbr_of_attributes = 8;
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -95,9 +93,6 @@ result_t proto_send_node_setup(node_t *node, bool will_sleep, result_t (*handler
 		capabilities = capabilities->next;
 	}
 
-	if (node->attributes != NULL)
-		nbr_of_attributes = nbr_of_attributes + 1;
-
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, nbr_of_attributes);
 	{
@@ -105,7 +100,10 @@ result_t proto_send_node_setup(node_t *node, bool will_sleep, result_t (*handler
 		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
 		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
 		w = encode_str(&w, "cmd", "PROXY_CONFIG", strlen("PROXY_CONFIG"));
-		w = encode_str(&w, "name", node->name, strlen(node->name));
+		if (node->attributes != NULL)
+			w = encode_str(&w, "attributes", node->attributes, strlen(node->attributes));
+		else
+			w = encode_nil(&w, "attributes");
 		w = encode_bool(&w, "will_sleep", will_sleep);
 		w = encode_array(&w, "capabilities", nbr_of_capabilities);
 		{
@@ -118,47 +116,6 @@ result_t proto_send_node_setup(node_t *node, bool will_sleep, result_t (*handler
 		}
 		w = encode_str(&w, "port_property_capability", "runtime.constrained.1", strlen("runtime.constrained.1"));
 		w = encode_bool(&w, "redeploy", 0);
-
-		if (node->attributes != NULL) {
-			if (list_get(node->attributes->indexed_public_node_name, "name") == NULL)
-				list_add_n(&(node->attributes)->indexed_public_node_name, name, strlen(name), node->name, strlen(node->name));
-			if (node->attributes->indexed_public_owner != NULL)
-				map_count++;
-			if (node->attributes->indexed_public_address != NULL)
-				map_count++;
-			if (node->attributes->indexed_public_node_name != NULL)
-				map_count++;
-			w = encode_map(&w, "attributes", 1);
-			w = encode_map(&w, "indexed_public", map_count);
-
-			if (node->attributes->indexed_public_owner != NULL) {
-				map_count = list_count(node->attributes->indexed_public_owner);
-				w = encode_map(&w, "public_owner", map_count);
-				list = node->attributes->indexed_public_owner;
-				while (list != NULL) {
-				  w = encode_str(&w, list->id, (const char *)list->data, list->data_len);
-				  list = list->next;
-				}
-			}
-			if (node->attributes->indexed_public_address != NULL) {
-				map_count = list_count(node->attributes->indexed_public_address);
-				w = encode_map(&w, "address", map_count);
-				list = node->attributes->indexed_public_address;
-				while (list != NULL) {
-					w = encode_str(&w, list->id, (const char *)list->data, list->data_len);
-					list = list->next;
-				}
-			}
-			if (node->attributes->indexed_public_node_name != NULL) {
-				map_count = list_count(node->attributes->indexed_public_node_name);
-				w = encode_map(&w, "node_name", map_count);
-				list = node->attributes->indexed_public_node_name;
-				while (list != NULL) {
-				  w = encode_str(&w, list->id, (const char *)list->data, list->data_len);
-				  list = list->next;
-				}
-			}
-		}
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
@@ -735,7 +692,7 @@ result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(nod
 
 	sprintf(key, "port-%s", port->id);
 
-	if (peer_id == NULL)
+	if (peer_id != NULL)
 		sprintf(data,
 			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%s\"}",
 			peer_id,

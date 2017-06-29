@@ -35,7 +35,7 @@ static void node_reset(node_t *node, bool remove_actors)
 	int i = 0;
 	list_t *tmp_list = NULL;
 
-	log("Resetting node");
+	log("Resetting runtime");
 
 	while (node->actors != NULL) {
 		tmp_list = node->actors;
@@ -86,12 +86,20 @@ static result_t node_get_state(node_t *node)
 		}
 		strncpy(node->id, value, value_len);
 
-		if (decode_string_from_map(buffer, "name", &value, &value_len) != CC_RESULT_SUCCESS) {
-			log_error("Failed to decode 'name'");
-			return CC_RESULT_FAIL;
+		if (has_key(buffer, "attributes")) {
+			if (decode_string_from_map(buffer, "attributes", &value, &value_len) != CC_RESULT_SUCCESS) {
+				log_error("Failed to decode 'attributes'");
+				return CC_RESULT_FAIL;
+			}
+
+			if (platform_mem_alloc((void **)&node->attributes, value_len + 1) != CC_RESULT_SUCCESS) {
+				log_error("Failed to allocate memory");
+				return CC_RESULT_FAIL;
+			}
+
+			strncpy(node->attributes, value, value_len);
+			node->attributes[value_len] = '\0';
 		}
-		strncpy(node->name, value, value_len);
-		node->name[value_len] = '\0';
 
 		if (has_key(buffer, "state")) {
 			if (decode_uint_from_map(buffer, "state", &state) == CC_RESULT_SUCCESS)
@@ -170,7 +178,7 @@ void node_set_state(node_t *node)
 	{
 		tmp = encode_uint(&tmp, "state", node->state);
 		tmp = encode_str(&tmp, "id", node->id, strlen(node->id));
-		tmp = encode_str(&tmp, "name", node->name, strlen(node->name));
+		tmp = encode_str(&tmp, "attributes", node->attributes, strlen(node->attributes));
 
 		nbr_of_items = list_count(node->proxy_uris);
 		tmp = encode_array(&tmp, "proxy_uris", nbr_of_items);
@@ -312,7 +320,7 @@ static result_t node_enter_sleep_reply_handler(node_t *node, char *data, void *m
 	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
 		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
 			if (status == 200) {
-				log("Node going to deep sleep");
+				log("Runtime going to deep sleep");
 #ifdef CC_STORAGE_ENABLED
 				node_set_state(node);
 #else
@@ -386,13 +394,13 @@ result_t node_handle_message(node_t *node, char *buffer, size_t len)
 	return CC_RESULT_FAIL;
 }
 
-static result_t node_setup(node_t *node, char *name)
+static result_t node_setup(node_t *node)
 {
 #ifdef CC_TLS_ENABLED
+	char name[50];
 	char domain[50];
 
-	if (crypto_get_node_info(domain, node->name, node->id) == CC_RESULT_SUCCESS)
-		return CC_RESULT_SUCCESS;
+	return crypto_get_node_info(domain, name, node->id);
 #endif
 
 #ifdef CC_STORAGE_ENABLED
@@ -401,11 +409,6 @@ static result_t node_setup(node_t *node, char *name)
 #endif
 
 	gen_uuid(node->id, NULL);
-
-	if (name != NULL)
-		strncpy(node->name, name, strlen(name) + 1);
-	else
-		strncpy(node->name, "constrained", 12);
 
 	return CC_RESULT_SUCCESS;
 }
@@ -476,9 +479,9 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 	return CC_RESULT_SUCCESS;
 }
 
-result_t node_init(node_t *node, char *name, char *proxy_uris)
+result_t node_init(node_t *node, const char *attributes, const char *proxy_uris, const char *storage_dir)
 {
-	char *uri = NULL;
+	char *uris = (char *)proxy_uris, *uri = NULL;
 	list_t *item = NULL;
 
 	node->state = NODE_DO_START;
@@ -486,11 +489,25 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 	node->transport_client = NULL;
 	node->proxy_link = NULL;
 	node->platform = NULL;
-	node->attributes = NULL;
 	node->links = NULL;
 	node->storage_tunnel = NULL;
 	node->tunnels = NULL;
 	node->actors = NULL;
+	if (attributes != NULL) {
+		if (platform_mem_alloc((void **)&node->attributes, strlen(attributes)) != CC_RESULT_SUCCESS) {
+			log_error("Failed to allocate memory");
+			return CC_RESULT_FAIL;
+		}
+		strcpy(node->attributes, attributes);
+	}
+
+	if (storage_dir != NULL) {
+		if (platform_mem_alloc((void **)&node->storage_dir, strlen(storage_dir)) != CC_RESULT_SUCCESS) {
+			log_error("Failed to allocate memory");
+			return CC_RESULT_FAIL;
+		}
+		strcpy(node->storage_dir, storage_dir);
+	}
 
 	if (platform_create(node) != CC_RESULT_SUCCESS) {
 		log_error("Failed to create platform object");
@@ -511,33 +528,34 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 		return CC_RESULT_FAIL;
 	}
 
-	if (node_setup(node, name) != CC_RESULT_SUCCESS) {
-		log_error("Failed to setup node");
+	if (node_setup(node) != CC_RESULT_SUCCESS) {
+		log_error("Failed to setup runtime");
 		return CC_RESULT_FAIL;
 	}
 
-	if (proxy_uris != NULL) {
-		uri = strtok(proxy_uris, " ");
+	if (uris != NULL) {
+		uri = strtok(uris, " ");
 		while (uri != NULL) {
 			list_add(&node->proxy_uris, uri, NULL, 0);
 			uri = strtok(NULL, " ");
 		}
 	}
 
-	log("Node initialized");
+	log("Runtime initialized");
 	log("----------------------------------------");
-	log("Name: %s", node->name);
 	log("ID: %s", node->id);
-	log("Proxy URIs:");
+	if (node->attributes != NULL)
+		log("Attributes: %s", node->attributes);
 	if (node->proxy_uris != NULL) {
+		log("Proxy URIs:");
 		item = node->proxy_uris;
 		while (item != NULL) {
 			log(" %s", item->id);
 			item = item->next;
 		}
 	}
-	log("Capabilities:");
 	if (node->calvinsys != NULL) {
+		log("Capabilities:");
 		item = node->calvinsys->capabilities;
 		while (item != NULL) {
 			log(" %s", item->id);
@@ -545,7 +563,11 @@ result_t node_init(node_t *node, char *name, char *proxy_uris)
 		}
 	}
 	if (node->storage_dir != NULL)
-	log("Storage directory: %s", node->storage_dir);
+		log("Storage directory: %s", node->storage_dir);
+#ifdef CC_DEEPSLEEP_ENABLED
+	log("Inactivity timeout: %d seconds", CC_INACTIVITY_TIMEOUT);
+	log("Sleep time: %d seconds", CC_SLEEP_TIME);
+#endif
 	log("----------------------------------------");
 
 	return CC_RESULT_SUCCESS;
@@ -579,16 +601,6 @@ static void node_free(node_t *node)
 
 	platform_stop(node);
 
-	if (node->attributes != NULL) {
-		item = node->attributes->indexed_public_node_name;
-		while (item != NULL) {
-			tmp_item = node->attributes->indexed_public_node_name;
-			item = item->next;
-			list_remove(&node->attributes->indexed_public_node_name, tmp_item->id);
-		}
-		platform_mem_free((void *)node->attributes);
-	}
-
 	if (node->platform != NULL)
 		platform_mem_free((void *)node->platform);
 
@@ -606,7 +618,10 @@ static void node_free(node_t *node)
 		calvinsys_delete_handler(handler);
 	}
 	platform_mem_free((void *)node->calvinsys);
-
+	if (node->attributes != NULL)
+		platform_mem_free((void *)node->attributes);
+	if (node->storage_dir != NULL)
+		platform_mem_free((void *)node->storage_dir);
 	platform_mem_free((void *)node);
 }
 
@@ -654,6 +669,6 @@ result_t node_run(node_t *node)
 
 	node_free(node);
 
-	log("Node stopped");
+	log("Runtime stopped");
 	return CC_RESULT_SUCCESS;
 }
