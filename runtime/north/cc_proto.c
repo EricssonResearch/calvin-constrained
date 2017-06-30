@@ -69,7 +69,7 @@ result_t proto_send_join_request(const node_t *node, transport_client_t *transpo
 	if (transport_send(transport_client, buffer, size + transport_client->prefix_len) == CC_RESULT_SUCCESS)
 		return CC_RESULT_SUCCESS;
 
-	log_error("Failed to send JOIN_REQUEST");
+	cc_log_error("Failed to send JOIN_REQUEST");
 
 	return CC_RESULT_FAIL;
 }
@@ -109,7 +109,7 @@ result_t proto_send_node_setup(node_t *node, bool will_sleep, result_t (*handler
 		{
 			capabilities = node->calvinsys->capabilities;
 			while (capabilities != NULL) {
-				log_debug("Setting capability %s", capabilities->id);
+				cc_log_debug("Setting capability %s", capabilities->id);
 				w = mp_encode_str(w, capabilities->id, strlen(capabilities->id));
 				capabilities = capabilities->next;
 			}
@@ -119,7 +119,7 @@ result_t proto_send_node_setup(node_t *node, bool will_sleep, result_t (*handler
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent PROXY_CONFIG");
+		cc_log_debug("Sent PROXY_CONFIG");
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
 		return CC_RESULT_SUCCESS;
 	}
@@ -153,7 +153,7 @@ result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*ha
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, tunnel);
-		log_debug("Sent TUNNEL_NEW with id '%s' to '%s'", tunnel->id, tunnel->link->peer_id);
+		cc_log_debug("Sent TUNNEL_NEW with id '%s' to '%s'", tunnel->id, tunnel->link->peer_id);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -184,7 +184,7 @@ result_t proto_send_tunnel_destroy(node_t *node, tunnel_t *tunnel, result_t (*ha
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, tunnel->id);
-		log_debug("Sent TUNNEL_DESTROY for tunnel '%s'", tunnel->id);
+		cc_log_debug("Sent TUNNEL_DESTROY for tunnel '%s'", tunnel->id);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -224,7 +224,7 @@ result_t proto_send_reply(const node_t *node, char *msg_uuid, uint32_t msg_uuid_
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
+		cc_log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -263,7 +263,7 @@ result_t proto_send_tunnel_new_reply(const node_t *node, char *msg_uuid, uint32_
 		}
 
 		if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-			log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
+			cc_log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
 			return CC_RESULT_SUCCESS;
 		}
 	}
@@ -304,7 +304,7 @@ result_t proto_send_route_request_reply(const node_t *node, char *msg_uuid, uint
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
+		cc_log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -344,7 +344,7 @@ result_t proto_send_port_connect_reply(const node_t *node, char *msg_uuid, uint3
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent REPLY reply for message '%.*s'", (int)msg_uuid_len, msg_uuid);
+		cc_log_debug("Sent REPLY reply for message '%.*s'", (int)msg_uuid_len, msg_uuid);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -388,7 +388,7 @@ result_t proto_send_port_disconnect_reply(const node_t *node, char *msg_uuid, ui
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
+		cc_log_debug("Sent REPLY for message '%.*s'", (int)msg_uuid_len, msg_uuid);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -424,7 +424,7 @@ result_t proto_send_token(const node_t *node, port_t *port, token_t *token, uint
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent TOKEN with sequencenbr '%ld'", (unsigned long)sequencenbr);
+		cc_log_debug("Sent TOKEN with sequencenbr '%ld'", (unsigned long)sequencenbr);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -440,7 +440,7 @@ result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t seque
 
 	peer_id = port_get_peer_id(node, port);
 	if (peer_id == NULL) {
-		log_error("Port has no peer");
+		cc_log_error("Port has no peer");
 		return CC_RESULT_FAIL;
 	}
 
@@ -462,11 +462,11 @@ result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t seque
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent TOKEN_REPLY for sequencenbr '%ld'", (unsigned long)sequencenbr);
+		cc_log_debug("Sent TOKEN_REPLY for sequencenbr '%ld'", (unsigned long)sequencenbr);
 		return CC_RESULT_SUCCESS;
 	}
 
-	log_error("Failed to send TOKEN_REPLY");
+	cc_log_error("Failed to send TOKEN_REPLY");
 
 	return CC_RESULT_FAIL;
 }
@@ -507,7 +507,7 @@ result_t proto_send_port_connect(node_t *node, port_t *port, result_t (*handler)
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent PORT_CONNECT for port '%s'", port->id);
+		cc_log_debug("Sent PORT_CONNECT for port '%s'", port->id);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, port->id);
 		return CC_RESULT_SUCCESS;
 	}
@@ -548,7 +548,7 @@ result_t proto_send_port_disconnect(node_t *node, port_t *port, result_t (*handl
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, port->id);
-		log_debug("Sent PORT_DISCONNECT for port '%s'", port->id);
+		cc_log_debug("Sent PORT_DISCONNECT for port '%s'", port->id);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -629,7 +629,7 @@ result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*han
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent SET '%s'", key);
+		cc_log_debug("Sent SET '%s'", key);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, (void *)actor->id);
 		return CC_RESULT_SUCCESS;
 	}
@@ -669,7 +669,7 @@ result_t proto_send_remove_actor(node_t *node, actor_t *actor, result_t (*handle
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
-		log_debug("Sent SET '%s' with nil", key);
+		cc_log_debug("Sent SET '%s' with nil", key);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -730,7 +730,7 @@ result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(nod
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent SET '%s'", key);
+		cc_log_debug("Sent SET '%s'", key);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, (void *)port->id);
 		return CC_RESULT_SUCCESS;
 	}
@@ -767,7 +767,7 @@ result_t proto_send_get_port(node_t *node, char *port_id, result_t (*handler)(no
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent GET '%s'", key);
+		cc_log_debug("Sent GET '%s'", key);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, msg_data);
 		return CC_RESULT_SUCCESS;
 	}
@@ -805,7 +805,7 @@ result_t proto_send_remove_port(node_t *node, port_t *port, result_t (*handler)(
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent SET '%s' with nil", key);
+		cc_log_debug("Sent SET '%s' with nil", key);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, port->id);
 		return CC_RESULT_SUCCESS;
 	}
@@ -836,7 +836,7 @@ result_t proto_send_actor_new(node_t *node, actor_t *actor, char *to_rt_uuid, ui
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		log_debug("Sent ACTOR_NEW to '%s'", actor->migrate_to);
+		cc_log_debug("Sent ACTOR_NEW to '%s'", actor->migrate_to);
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, actor->id);
 		return CC_RESULT_SUCCESS;
 	}
@@ -851,13 +851,13 @@ static result_t proto_parse_reply(node_t *node, char *root)
 	pending_msg_t pending_msg;
 	uint32_t len = 0;
 
-	log_debug("proto_parse_reply");
+	cc_log_debug("proto_parse_reply");
 
 	if (decode_string_from_map(r, "msg_uuid", &msg_uuid, &len) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	if (node_get_pending_msg(node, msg_uuid, len, &pending_msg) != CC_RESULT_SUCCESS) {
-		log_debug("No pending messge with id '%.*s'", (int)len, msg_uuid);
+		cc_log_debug("No pending messge with id '%.*s'", (int)len, msg_uuid);
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -894,7 +894,7 @@ static result_t proto_parse_token(node_t *node, char *root)
 
 	port = port_get(node, port_id, port_id_len);
 	if (port == NULL) {
-		log_error("No port with id '%.*s'", (int)port_id_len, port_id);
+		cc_log_error("No port with id '%.*s'", (int)port_id_len, port_id);
 		return CC_RESULT_FAIL;
 	}
 
@@ -908,7 +908,7 @@ static result_t proto_parse_token_reply(node_t *node, char *root)
 	char *value = NULL, *r = root, *port_id = NULL, *status = NULL;
 	uint32_t sequencenbr = 0, port_id_len = 0, status_len = 0;
 
-	log_debug("proto_parse_token_reply");
+	cc_log_debug("proto_parse_token_reply");
 
 	if (get_value_from_map(r, "value", &value) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
@@ -932,7 +932,7 @@ static result_t proto_parse_token_reply(node_t *node, char *root)
 		node_handle_token_reply(node, port_id, port_id_len, PORT_REPLY_TYPE_ABORT, sequencenbr);
 		return CC_RESULT_SUCCESS;
 	}
-	log_error("Unknown status '%s'", status);
+	cc_log_error("Unknown status '%s'", status);
 
 	return CC_RESULT_FAIL;
 }
@@ -966,11 +966,11 @@ static result_t proto_parse_tunnel_data(node_t *node, char *root)
 			return proto_parse_token_reply(node, root);
 		else if (strncmp(cmd, "TOKEN", 5) == 0)
 			return proto_parse_token(node, root);
-		log_error("Unhandled tunnel cmd '%.*s'", (int)cmd_len, cmd);
+		cc_log_error("Unhandled tunnel cmd '%.*s'", (int)cmd_len, cmd);
 		return CC_RESULT_FAIL;
 	}
 
-	log_error("Unknown message");
+	cc_log_error("Unknown message");
 	return CC_RESULT_FAIL;
 }
 
@@ -981,7 +981,7 @@ static result_t proto_parse_actor_new(node_t *node, char *root)
 	char *from_rt_uuid = NULL, *msg_uuid = NULL, *r = root;
 	uint32_t from_rt_uuid_len = 0, msg_uuid_len = 0;
 
-	log_debug("proto_parse_actor_new");
+	cc_log_debug("proto_parse_actor_new");
 
 	if (decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
@@ -991,7 +991,7 @@ static result_t proto_parse_actor_new(node_t *node, char *root)
 
 	actor = actor_create(node, root);
 	if (actor == NULL) {
-		log_error("Failed to create actor");
+		cc_log_error("Failed to create actor");
 		result = CC_RESULT_FAIL;
 	}
 
@@ -1024,7 +1024,7 @@ static result_t proto_parse_actor_migrate(node_t *node, char *root)
 			// TODO: Get correct rt to migrate to (not who sent the request)
 			result = actor_migrate(node, actor, from_rt_uuid, from_rt_uuid_len);
 		} else {
-			log_error("No actor with id '%s'", actor_id);
+			cc_log_error("No actor with id '%s'", actor_id);
 			result = CC_RESULT_FAIL;
 		}
 	}
@@ -1045,7 +1045,7 @@ static result_t proto_parse_app_destroy(node_t *node, char *root)
 	uint32_t i = 0, size = 0, from_rt_uuid_len = 0, msg_uuid_len = 0, actor_id_len = 0;
 	actor_t *actor = NULL;
 
-	log_debug("proto_parse_app_destroy");
+	cc_log_debug("proto_parse_app_destroy");
 
 	if (decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
@@ -1064,7 +1064,7 @@ static result_t proto_parse_app_destroy(node_t *node, char *root)
 			if (actor != NULL)
 				actor_free(node, actor, true);
 			else
-				log_error("No actor with '%.*s'", (int)actor_id_len, actor_id);
+				cc_log_error("No actor with '%.*s'", (int)actor_id_len, actor_id);
 		}
 	}
 
@@ -1082,7 +1082,7 @@ static result_t proto_parse_port_disconnect(node_t *node, char *root)
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL, *peer_port_id = NULL;
 	uint32_t from_rt_uuid_len = 0, msg_uuid_len = 0, peer_port_id_len = 0;
 
-	log_debug("proto_parse_port_disconnect");
+	cc_log_debug("proto_parse_port_disconnect");
 
 	if (decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
@@ -1110,7 +1110,7 @@ static result_t proto_parse_port_connect(node_t *node, char *root)
 	char *peer_port_id = NULL, *tunnel_id = NULL;
 	uint32_t peer_port_id_len = 0, tunnel_id_len = 0, from_rt_uuid_len = 0, msg_uuid_len = 0;
 
-	log_debug("proto_parse_port_connect");
+	cc_log_debug("proto_parse_port_connect");
 
 	if (decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
@@ -1142,7 +1142,7 @@ static result_t proto_parse_tunnel_new(node_t *node, char *root)
 	uint32_t from_rt_uuid_len = 0, msg_uuid_len = 0, type_len = 0, tunnel_id_len = 0;
 	link_t *link = NULL;
 
-	log_debug("proto_parse_tunnel_new");
+	cc_log_debug("proto_parse_tunnel_new");
 
 	if (decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
@@ -1157,14 +1157,14 @@ static result_t proto_parse_tunnel_new(node_t *node, char *root)
 		return CC_RESULT_FAIL;
 
 	if (strncmp(type, "token", strlen("token")) != 0) {
-		log_error("Unhandled tunnel type '%.*s'", type_len, type);
+		cc_log_error("Unhandled tunnel type '%.*s'", type_len, type);
 		result = CC_RESULT_FAIL;
 	} else {
 		link = link_get(node, from_rt_uuid, from_rt_uuid_len);
 		if (link == NULL) {
 			link = link_create(node, from_rt_uuid, from_rt_uuid_len, false);
 			if (link == NULL) {
-				log_error("Failed to create link for tunnel request from '%.*s'", from_rt_uuid_len, from_rt_uuid);
+				cc_log_error("Failed to create link for tunnel request from '%.*s'", from_rt_uuid_len, from_rt_uuid);
 				result = CC_RESULT_FAIL;
 			}
 		}
@@ -1190,13 +1190,13 @@ static result_t proto_handle_join_reply(node_t *node, char *buffer)
 
 	serializer = strstr(buffer, SERIALIZER);
 	if (serializer == NULL) {
-		log_error("Failed to parse JOIN_REPLY");
+		cc_log_error("Failed to parse JOIN_REPLY");
 		return CC_RESULT_FAIL;
 	}
 
 	id = strstr(buffer, "\"id\": \"");
 	if (id == NULL) {
-		log_error("Failed to parse JOIN_REPLY");
+		cc_log_error("Failed to parse JOIN_REPLY");
 		return CC_RESULT_FAIL;
 	}
 	id = id + 7;
@@ -1219,14 +1219,14 @@ result_t proto_parse_message(node_t *node, char *data)
 	if (decode_string_from_map(r, "cmd", &cmd, &cmd_len) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
-	log_debug("Received command '%.*s'", (int)cmd_len, cmd);
+	cc_log_debug("Received command '%.*s'", (int)cmd_len, cmd);
 
 	for (i = 0; i < NBR_OF_COMMANDS; i++) {
 		if (strncmp(cmd, command_handlers[i].command, cmd_len) == 0)
 			return command_handlers[i].handler(node, r);
 	}
 
-	log_error("Unhandled command '%.*s'", (int)cmd_len, cmd);
+	cc_log_error("Unhandled command '%.*s'", (int)cmd_len, cmd);
 
 	if (decode_string_from_map(r, "msg_uuid", &msg_uuid, &msg_uuid_len) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;

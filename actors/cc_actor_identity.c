@@ -30,7 +30,7 @@ result_t actor_identity_init(actor_t **actor, list_t *attributes)
 
 	data = (char *)list_get(attributes, "dump");
 	if (data == NULL) {
-		log_error("Failed to get attribute 'dump'");
+		cc_log_error("Failed to get attribute 'dump'");
 		return CC_RESULT_FAIL;
 	}
 
@@ -38,7 +38,7 @@ result_t actor_identity_init(actor_t **actor, list_t *attributes)
 		return CC_RESULT_FAIL;
 
 	if (platform_mem_alloc((void **)&state, sizeof(state_identity_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
@@ -84,21 +84,21 @@ result_t actor_identity_get_managed_attributes(actor_t *actor, list_t **attribut
 	state_identity_t *state = (state_identity_t *)actor->instance_state;
 
 	if (platform_mem_alloc((void **)&name, 5) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 	strncpy(name, "dump", 5);
 
 	size = mp_sizeof_bool(state->dump);
 	if (platform_mem_alloc((void **)&value, size) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
 	mp_encode_bool(value, state->dump);
 
 	if (list_add(attributes, name, value, size) != CC_RESULT_SUCCESS) {
-		log_error("Failed to add '%s' to managed list", name);
+		cc_log_error("Failed to add '%s' to managed list", name);
 		platform_mem_free(name);
 		platform_mem_free(value);
 		return CC_RESULT_FAIL;

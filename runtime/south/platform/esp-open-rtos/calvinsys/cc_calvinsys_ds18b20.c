@@ -40,7 +40,7 @@ static result_t calvinsys_ds18b20_read(struct calvinsys_obj_t *obj, char **data,
 
 	*size = mp_sizeof_float(temp);
 	if (platform_mem_alloc((void **)data, *size) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 	mp_encode_float(*data, temp);
@@ -61,7 +61,7 @@ static calvinsys_obj_t *calvinsys_ds18b20_open(calvinsys_handler_t *handler, cha
 	calvinsys_ds18b20_state_t *state = NULL;
 
 	if (platform_mem_alloc((void **)&state, sizeof(calvinsys_ds18b20_state_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
@@ -69,13 +69,13 @@ static calvinsys_obj_t *calvinsys_ds18b20_open(calvinsys_handler_t *handler, cha
 
 	sensor_count = ds18b20_scan_devices(CC_DS18B20_SENSOR_GPIO, &state->addr, 1);
 	if (sensor_count != 1) {
-		log_error("No sensor detected");
+		cc_log_error("No sensor detected");
 		platform_mem_free((void *)state);
 		return NULL;
 	}
 
 	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		platform_mem_free((void *)state);
 		return NULL;
 	}
@@ -98,7 +98,7 @@ result_t calvinsys_ds18b20_create(calvinsys_t **calvinsys)
 	calvinsys_handler_t *handler = NULL;
 
 	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 

@@ -30,7 +30,7 @@ fifo_t *fifo_init(char *obj_fifo)
 	uint32_t i_token = 0, queuetype_len = 0, reader_len = 0, nbr_of_tokens = 0, size = 0;
 
 	if (platform_mem_alloc((void **)&fifo, sizeof(fifo_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
@@ -43,7 +43,7 @@ fifo_t *fifo_init(char *obj_fifo)
 		return NULL;
 
 	if (strncmp("fanout_fifo", queuetype, queuetype_len) != 0) {
-		log_error("Queue type '%.*s' not supported", (int)queuetype_len, queuetype);
+		cc_log_error("Queue type '%.*s' not supported", (int)queuetype_len, queuetype);
 		return NULL;
 	}
 
@@ -51,7 +51,7 @@ fifo_t *fifo_init(char *obj_fifo)
 		return NULL;
 
 	if (platform_mem_alloc((void **)&fifo->tokens, sizeof(token_t) * fifo->size) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 	for (i_token = 0; i_token < fifo->size; i_token++) {
@@ -72,7 +72,7 @@ fifo_t *fifo_init(char *obj_fifo)
 		return NULL;
 
 	if (platform_mem_alloc((void **)&tmp_reader, reader_len + 1) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
@@ -104,7 +104,7 @@ fifo_t *fifo_init(char *obj_fifo)
 			if (fifo->read_pos != fifo->tentative_read_pos || fifo->write_pos != fifo->read_pos) {
 				size = get_size_of_value(obj_data);
 				if (platform_mem_alloc((void **)&data, size) != CC_RESULT_SUCCESS) {
-					log_error("Failed to allocate memory");
+					cc_log_error("Failed to allocate memory");
 					result = CC_RESULT_FAIL;
 					break;
 				}
@@ -162,7 +162,7 @@ void fifo_commit_read(fifo_t *fifo, bool free_token)
 		}
 		fifo->read_pos++;
 	} else
-		log_error("Invalid commit");
+		cc_log_error("Invalid commit");
 }
 
 void fifo_cancel_commit(fifo_t *fifo)
@@ -206,7 +206,7 @@ result_t fifo_com_write(fifo_t *fifo, char *data, size_t size, uint32_t sequence
 		return CC_RESULT_SUCCESS;
 	}
 
-	log_error("Unhandled token with sequencenbr '%ld' with write_pos '%ld'", (unsigned long)sequence_nbr, (unsigned long)fifo->write_pos);
+	cc_log_error("Unhandled token with sequencenbr '%ld' with write_pos '%ld'", (unsigned long)sequence_nbr, (unsigned long)fifo->write_pos);
 
 	return CC_RESULT_FAIL;
 }
@@ -214,7 +214,7 @@ result_t fifo_com_write(fifo_t *fifo, char *data, size_t size, uint32_t sequence
 void fifo_com_commit_read(fifo_t *fifo, uint32_t sequence_nbr)
 {
 	if (sequence_nbr >= fifo->tentative_read_pos) {
-		log_error("Invalid commit");
+		cc_log_error("Invalid commit");
 		return;
 	}
 
@@ -226,13 +226,13 @@ void fifo_com_commit_read(fifo_t *fifo, uint32_t sequence_nbr)
 		}
 	}
 
-	log_error("Unhandled commit");
+	cc_log_error("Unhandled commit");
 }
 
 void fifo_com_cancel_read(fifo_t *fifo, uint32_t sequence_nbr)
 {
 	if (sequence_nbr >= fifo->tentative_read_pos && sequence_nbr < fifo->read_pos) {
-		log_error("Invalid cancel");
+		cc_log_error("Invalid cancel");
 		return;
 	}
 	fifo->tentative_read_pos = sequence_nbr;

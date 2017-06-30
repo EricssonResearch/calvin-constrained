@@ -76,7 +76,7 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 
 			read = transport_recv(transport_client, rx_data, to_read);
 			if (read <= 0) {
-				log_error("Failed to read data from transport");
+				cc_log_error("Failed to read data from transport");
 				return CC_RESULT_FAIL;
 			}
 		}
@@ -96,7 +96,7 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 				return handler(node, rx_data + read_pos, msg_size);
 			} else if (msg_size > (read - read_pos)) {
 				if (platform_mem_alloc((void **)&transport_client->rx_buffer.buffer, msg_size) != CC_RESULT_SUCCESS) {
-					log_error("Failed to allocate memory");
+					cc_log_error("Failed to allocate memory");
 					return CC_RESULT_FAIL;
 				}
 
@@ -131,11 +131,11 @@ result_t transport_send(transport_client_t *transport_client, char *buffer, int 
 #ifdef CC_TLS_ENABLED
 	if (crypto_tls_send(transport_client, buffer, size) == size)
 		return CC_RESULT_SUCCESS;
-	log_error("Failed to send TLS data");
+	cc_log_error("Failed to send TLS data");
 #else
 	if (transport_client->send(transport_client, buffer, size) == size)
 		return CC_RESULT_SUCCESS;
-	log_error("Failed to send data");
+	cc_log_error("Failed to send data");
 #endif
 
 	return CC_RESULT_FAIL;
@@ -145,14 +145,14 @@ result_t transport_join(node_t *node, transport_client_t *transport_client)
 {
 #ifdef CC_TLS_ENABLED
 	if (crypto_tls_init(node->id, transport_client) != CC_RESULT_SUCCESS) {
-		log_error("Failed initialize TLS");
+		cc_log_error("Failed initialize TLS");
 		transport_client->disconnect(node, transport_client);
 		return CC_RESULT_FAIL;
 	}
 #endif
 
 	if (proto_send_join_request(node, transport_client, SERIALIZER) != CC_RESULT_SUCCESS) {
-		log_error("Failed to send join request");
+		cc_log_error("Failed to send join request");
 		return CC_RESULT_FAIL;
 	}
 
@@ -177,7 +177,7 @@ transport_client_t *transport_create(node_t *node, char *uri)
 		return transport_fcm_create(node, uri);
 #endif
 
-	log_error("No transport for '%s'", uri);
+	cc_log_error("No transport for '%s'", uri);
 
 	return NULL;
 }

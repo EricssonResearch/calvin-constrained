@@ -21,7 +21,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".CalvinService" />
+        <service android:name=".CalvinService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="ericsson.com.calvin.calvin_constrained.CalvinService"></action>
+            </intent-filter>
+        </service>
         <!-- FCM Services -->
         <service android:name=".CalvinFCMService">
             <intent-filter>

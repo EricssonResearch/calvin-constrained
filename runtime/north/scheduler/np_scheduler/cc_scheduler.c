@@ -30,7 +30,7 @@ bool fire_actors(node_t *node)
     actor = (actor_t *)actors->data;
     if (actor->state == ACTOR_ENABLED) {
       if (actor->fire(actor)) {
-        log("Fired '%s'", actor->name);
+        cc_log("Fired '%s'", actor->name);
         fired = true;
       }
     }

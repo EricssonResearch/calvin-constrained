@@ -61,7 +61,7 @@ static result_t _list_add(list_t **head, char *id, bool free_id, void *data, uin
 	list_t *new_item = NULL, *tmp = NULL;
 
 	if (platform_mem_alloc((void **)&new_item, sizeof(list_t)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
@@ -88,7 +88,7 @@ result_t list_add_n(list_t **head, const char *id, uint32_t len, void *data, uin
 	char *name = NULL;
 
 	if (platform_mem_alloc((void **)&name, sizeof(char) * (len + 1)) != CC_RESULT_SUCCESS) {
-		log_error("Failed to allocate memory");
+		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
