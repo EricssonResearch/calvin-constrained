@@ -106,7 +106,7 @@ static result_t node_get_state(node_t *node)
 				node->state = (node_state_t)state;
 		}
 
-		if (has_key(buffer, "proxy_uris")) {
+		if (has_key(buffer, "proxy_uris") && node->proxy_uris == NULL) {
 			if (get_value_from_map(buffer, "proxy_uris", &array_value) == CC_RESULT_SUCCESS) {
 				array_size = get_size_of_array(array_value);
 				for (i = 0; i < array_size; i++) {
