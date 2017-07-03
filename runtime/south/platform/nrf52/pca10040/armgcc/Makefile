@@ -97,9 +97,10 @@ $(abspath runtime/north/cc_token.c) \
 $(abspath runtime/north/cc_msgpack_helper.c) \
 $(abspath msgpuck/msgpuck.c) \
 $(abspath actors/cc_actor_identity.c) \
-$(abspath actors/cc_actor_led.c) \
+$(abspath actors/cc_actor_light.c) \
 $(abspath actors/cc_actor_button.c) \
 $(abspath actors/cc_actor_temperature.c) \
+$(abspath actors/cc_actor_soil_moisture.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/ble/common/ble_advdata.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/ble/common/ble_conn_params.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/ble/common/ble_srv_common.c) \

@@ -21,9 +21,10 @@
 #include "cc_fifo.h"
 #include "cc_token.h"
 #include "../../actors/cc_actor_identity.h"
-#include "../../actors/cc_actor_led.h"
+#include "../../actors/cc_actor_light.h"
 #include "../../actors/cc_actor_button.h"
 #include "../../actors/cc_actor_temperature.h"
+#include "../../actors/cc_actor_soil_moisture.h"
 #include "../south/platform/cc_platform.h"
 #include "cc_msgpack_helper.h"
 #include "../../msgpuck/msgpuck.h"
@@ -33,7 +34,7 @@
 #endif
 
 #ifndef CC_PYTHON_ENABLED
-#define NBR_OF_ACTOR_TYPES 4
+#define NBR_OF_ACTOR_TYPES 5
 
 struct actor_type_t {
 	char type[50];
@@ -61,10 +62,10 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 	},
 	{
 		"io.Light",
-		actor_led_init,
-		actor_led_set_state,
-		actor_led_free,
-		actor_led_fire,
+		actor_light_init,
+		actor_light_set_state,
+		actor_light_free,
+		actor_light_fire,
 		NULL,
 		NULL,
 		NULL,
@@ -87,6 +88,17 @@ const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
 		actor_temperature_set_state,
 		actor_temperature_free,
 		actor_temperature_fire,
+		NULL,
+		NULL,
+		NULL,
+		NULL
+	},
+	{
+		"sensor.TriggeredSoilMoisture",
+		actor_soil_moisture_init,
+		actor_soil_moisture_set_state,
+		actor_soil_moisture_free,
+		actor_soil_moisture_fire,
 		NULL,
 		NULL,
 		NULL,

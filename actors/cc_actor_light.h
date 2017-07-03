@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_LED_H
-#define ACTOR_LED_H
+#ifndef ACTOR_LIGHT_H
+#define ACTOR_LIGHT_H
 
 #include "../runtime/north/cc_actor.h"
 #include "../calvinsys/cc_calvinsys.h"
 
-result_t actor_led_init(actor_t **actor, list_t *attributes);
-result_t actor_led_set_state(actor_t **actor, list_t *attributes);
-bool actor_led_fire(actor_t *actor);
-void actor_led_free(actor_t *actor);
+result_t actor_light_init(actor_t **actor, list_t *attributes);
+result_t actor_light_set_state(actor_t **actor, list_t *attributes);
+bool actor_light_fire(actor_t *actor);
+void actor_light_free(actor_t *actor);
 
-#endif /* ACTOR_LED_H */
+#endif /* ACTOR_LIGHT_H */

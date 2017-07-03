@@ -15,19 +15,19 @@
  */
 #include <stdlib.h>
 #include <string.h>
-#include "cc_actor_button.h"
-#include "../runtime/north/cc_port.h"
+#include "cc_actor_soil_moisture.h"
+#include "../runtime/north/cc_fifo.h"
 #include "../runtime/north/cc_token.h"
-#include "../runtime/north/cc_msgpack_helper.h"
-#include "../msgpuck/msgpuck.h"
+#include "../runtime/north/cc_port.h"
+#include "../runtime/north/cc_common.h"
 
-result_t actor_button_init(actor_t **actor, list_t *attributes)
+result_t actor_soil_moisture_init(actor_t **actor, list_t *attributes)
 {
 	calvinsys_obj_t *obj = NULL;
 
-	obj = calvinsys_open((*actor)->calvinsys, "io.button", NULL, 0);
+	obj = calvinsys_open((*actor)->calvinsys, "io.soilmoisture", NULL, 0);
 	if (obj == NULL) {
-		cc_log_error("Failed to open 'io.button'");
+		cc_log_error("Failed to open 'io.soilmoisture'");
 		return CC_RESULT_FAIL;
 	}
 
@@ -36,31 +36,35 @@ result_t actor_button_init(actor_t **actor, list_t *attributes)
 	return CC_RESULT_SUCCESS;
 }
 
-result_t actor_button_set_state(actor_t **actor, list_t *attributes)
+result_t actor_soil_moisture_set_state(actor_t **actor, list_t *attributes)
 {
-	return actor_button_init(actor, attributes);
+	return actor_soil_moisture_init(actor, attributes);
 }
 
-bool actor_button_fire(struct actor_t *actor)
+bool actor_soil_moisture_fire(struct actor_t *actor)
 {
-	port_t *outport = (port_t *)actor->out_ports->data;
+	port_t *inport = (port_t *)actor->in_ports->data, *outport = (port_t *)actor->out_ports->data;
 	calvinsys_obj_t *obj = (calvinsys_obj_t *)actor->instance_state;
 	char *data = NULL;
 	size_t size = 0;
 
-	if (obj->can_read(obj) && fifo_slots_available(outport->fifo, 1)) {
+	if (obj->can_read(obj) && fifo_tokens_available(inport->fifo, 1) && fifo_slots_available(outport->fifo, 1)) {
 		if (obj->read(obj, &data, &size) == CC_RESULT_SUCCESS) {
-			if (fifo_write(outport->fifo, data, size) == CC_RESULT_SUCCESS)
+			fifo_peek(inport->fifo);
+			if (fifo_write(outport->fifo, data, size) == CC_RESULT_SUCCESS) {
+				fifo_commit_read(inport->fifo, true);
 				return true;
+			}
+			fifo_cancel_commit(inport->fifo);
 			platform_mem_free((void *)data);
 		} else
-			cc_log_error("Failed to read button state");
+			cc_log_error("Failed to read value");
 	}
 
 	return false;
 }
 
-void actor_button_free(actor_t *actor)
+void actor_soil_moisture_free(actor_t *actor)
 {
 	calvinsys_close((calvinsys_obj_t *)actor->instance_state);
 }

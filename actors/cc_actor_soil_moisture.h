@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef CALVINSYS_DS18B20_H
-#define CALVINSYS_DS18B20_H
+#ifndef ACTOR_SOIL_HUMIDITY_H
+#define ACTOR_SOIL_HUMIDITY_H
 
-#include "../../../../../runtime/north/cc_common.h"
-#include "../../../../../calvinsys/cc_calvinsys.h"
+#include "../runtime/north/cc_actor.h"
+#include "../calvinsys/cc_calvinsys.h"
 
-struct node_t;
+result_t actor_soil_moisture_init(actor_t **actor, list_t *attributes);
+result_t actor_soil_moisture_set_state(actor_t **actor, list_t *attributes);
+bool actor_soil_moisture_fire(actor_t *actor);
+void actor_soil_moisture_free(actor_t *actor);
 
-result_t calvinsys_ds18b20_create(calvinsys_t **calvinsys, const char *name);
-
-#endif /* CALVINSYS_DS18B20_H */
+#endif /* ACTOR_SOIL_HUMIDITY_H */

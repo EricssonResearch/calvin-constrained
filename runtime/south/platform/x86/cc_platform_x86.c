@@ -204,7 +204,7 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 		return CC_RESULT_FAIL;
 
 	calvinsys_add_handler(calvinsys, handler);
-	if (calvinsys_register_capability(*calvinsys, "calvinsys.sensor.temperature", handler) != CC_RESULT_SUCCESS)
+  	if (calvinsys_register_capability(*calvinsys, "io.temperature", handler) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	handler = platform_create_digitial_in_out_handler();
@@ -212,10 +212,10 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 		return CC_RESULT_FAIL;
 
 	calvinsys_add_handler(calvinsys, handler);
-	if (calvinsys_register_capability(*calvinsys, "calvinsys.io.light", handler) != CC_RESULT_SUCCESS)
+	if (calvinsys_register_capability(*calvinsys, "io.light", handler) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
-	if (calvinsys_register_capability(*calvinsys, "calvinsys.io.button", handler) != CC_RESULT_SUCCESS)
+	if (calvinsys_register_capability(*calvinsys, "io.button", handler) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	return CC_RESULT_SUCCESS;

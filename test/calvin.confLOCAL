@@ -1,5 +1,24 @@
 {
   "global": {
     "storage_type": "local"
+  },
+  "calvinsys": {
+    "capabilities": [
+      {
+        "name": "io.temperature",
+        "module": "mock.MockInput",
+        "attributes": {"data": []}
+      },
+      {
+        "name": "io.button",
+        "module": "mock.MockInput",
+        "attributes": {"data": []}
+      },
+      {
+        "name": "io.light",
+        "module": "mock.MockOutput",
+        "attributes": {}
+      }
+    ]
   }
 }

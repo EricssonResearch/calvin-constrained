@@ -211,18 +211,7 @@ void platform_print(const char *fmt, ...)
 
 result_t platform_create(node_t *node)
 {
-	char *uri = NULL;
-
-	if (platform_mem_alloc((void **)&uri, 5) != CC_RESULT_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
-	}
-
-	strncpy(uri, "lwip", 4);
-	uri[4] = '\0';
-	node->proxy_uris[0] = uri;
-
-	return CC_RESULT_SUCCESS;
+	return list_add_n(&node->proxy_uris, "lwip", 4, NULL, 0);
 }
 
 static bool platform_temp_can_read(struct calvinsys_obj_t *obj)
@@ -285,7 +274,7 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 	handler->next = NULL;
 
 	calvinsys_add_handler(calvinsys, handler);
-	if (calvinsys_register_capability(*calvinsys, "calvinsys.sensor.temperature", handler) != CC_RESULT_SUCCESS)
+	if (calvinsys_register_capability(*calvinsys, "io.temperature", handler) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	return CC_RESULT_SUCCESS;

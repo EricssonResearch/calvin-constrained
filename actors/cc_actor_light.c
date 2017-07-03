@@ -15,18 +15,18 @@
  */
 #include <stdlib.h>
 #include <string.h>
-#include "cc_actor_led.h"
+#include "cc_actor_light.h"
 #include "../runtime/north/cc_msgpack_helper.h"
 #include "../runtime/north/cc_fifo.h"
 #include "../msgpuck/msgpuck.h"
 
-result_t actor_led_init(actor_t **actor, list_t *attributes)
+result_t actor_light_init(actor_t **actor, list_t *attributes)
 {
 	calvinsys_obj_t *obj = NULL;
 
-	obj = calvinsys_open((*actor)->calvinsys, "calvinsys.io.light", NULL, 0);
+	obj = calvinsys_open((*actor)->calvinsys, "io.light", NULL, 0);
 	if (obj == NULL) {
-		cc_log_error("Failed to open 'calvinsys.io.light'");
+		cc_log_error("Failed to open 'io.light'");
 		return CC_RESULT_FAIL;
 	}
 
@@ -35,12 +35,12 @@ result_t actor_led_init(actor_t **actor, list_t *attributes)
 	return CC_RESULT_SUCCESS;
 }
 
-result_t actor_led_set_state(actor_t **actor, list_t *attributes)
+result_t actor_light_set_state(actor_t **actor, list_t *attributes)
 {
-	return actor_led_init(actor, attributes);
+	return actor_light_init(actor, attributes);
 }
 
-bool actor_led_fire(struct actor_t *actor)
+bool actor_light_fire(struct actor_t *actor)
 {
 	port_t *inport = (port_t *)actor->in_ports->data;
 	calvinsys_obj_t *obj = (calvinsys_obj_t *)actor->instance_state;
@@ -58,7 +58,7 @@ bool actor_led_fire(struct actor_t *actor)
 	return false;
 }
 
-void actor_led_free(actor_t *actor)
+void actor_light_free(actor_t *actor)
 {
 	calvinsys_close((calvinsys_obj_t *)actor->instance_state);
 }

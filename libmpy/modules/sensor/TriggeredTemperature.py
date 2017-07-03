@@ -33,7 +33,7 @@ class TriggeredTemperature(Actor):
         self.setup()
 
     def setup(self):
-        self.temp = calvinsys.open(self, "calvinsys.sensor.temperature")
+        self.temp = calvinsys.open(self, "io.temperature")
 
     def will_migrate(self):
         calvinsys.close(self.temp)
@@ -50,4 +50,4 @@ class TriggeredTemperature(Actor):
         return (calvinsys.read(self.temp),)
 
     action_priority = (measure,)
-    requires =  ['calvinsys.sensor.temperature']
+    requires =  ['io.temperature']

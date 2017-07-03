@@ -30,6 +30,7 @@
 #include "../../transport/socket/cc_transport_socket.h"
 #include "../../../../runtime/north/cc_msgpack_helper.c"
 #include "calvinsys/cc_calvinsys_ds18b20.h"
+#include "calvinsys/cc_calvinsys_yl69.h"
 
 #define CALVIN_ESP_RUNTIME_STATE_FILE		"cc_state.conf"
 #define CALVIN_ESP_WIFI_CONFIG_FILE		"cc_wifi.conf"
@@ -132,7 +133,7 @@ static result_t platform_esp_write_calvin_config(char *attributes, uint32_t attr
 		return CC_RESULT_FAIL;
 	}
 
-	log("Configured with id '%s' attributes '%.*s' proxy_uris '%.*s'", id, attributes_len, attributes, proxy_uris_len, proxy_uris);
+	cc_log("Configured with id '%s' attributes '%.*s' proxy_uris '%.*s'", id, attributes_len, attributes, proxy_uris_len, proxy_uris);
 
 	return CC_RESULT_SUCCESS;
 }
@@ -342,7 +343,17 @@ result_t platform_create(struct node_t* node)
 
 result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 {
-	return calvinsys_ds18b20_create(calvinsys);
+	if (calvinsys_ds18b20_create(calvinsys, "io.temperature") != CC_RESULT_SUCCESS) {
+		cc_log_error("Failed to create 'io.temperature'");
+		return CC_RESULT_FAIL;
+	}
+
+	if (calvinsys_yl69_create(calvinsys, "io.soil_moisture") != CC_RESULT_SUCCESS) {
+		cc_log_error("Failed to create 'io.soil_moisture'");
+		return CC_RESULT_FAIL;
+	}
+
+	return CC_RESULT_SUCCESS;
 }
 
 result_t platform_mem_alloc(void **buffer, uint32_t size)
