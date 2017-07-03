@@ -50,6 +50,7 @@ typedef struct node_t {
 	list_t *links;
 	tunnel_t *storage_tunnel;
 	list_t *tunnels;
+	list_t *actor_types;
 	list_t *actors;
 	transport_client_t *transport_client;
 	calvinsys_t *calvinsys;

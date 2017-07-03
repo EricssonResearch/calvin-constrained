@@ -10,6 +10,7 @@ endif
 CFLAGS += -DCC_GETOPT_ENABLED
 CFLAGS += -DCC_TRANSPORT_SOCKET -DCC_TRANSPORT_SOCKET_SSDP_ENABLED
 CFLAGS += -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_INACTIVITY_TIMEOUT=5 -DCC_SLEEP_TIME=60 -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
+CFLAGS += -DCC_ACTOR_IDENTIY -DCC_ACTOR_BUTTON -DCC_ACTOR_LIGHT -DCC_ACTOR_SOIL_MOISTURE -DCC_ACTOR_TEMPERATURE
 
 C_SOURCE_FILES += \
 runtime/south/platform/x86/cc_platform_x86.c \
@@ -23,6 +24,7 @@ runtime/north/cc_transport.c \
 runtime/south/transport/socket/cc_transport_socket.c \
 runtime/north/cc_tunnel.c \
 runtime/north/cc_link.c \
+runtime/north/cc_actor_store.c \
 runtime/north/cc_actor.c \
 runtime/north/cc_port.c \
 runtime/north/cc_fifo.c \

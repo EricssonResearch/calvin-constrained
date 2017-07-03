@@ -51,7 +51,6 @@ typedef struct actor_t {
 } actor_t;
 
 void actor_set_state(actor_t *actor, actor_state_t state);
-result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len);
 actor_t *actor_create(struct node_t *node, char *root);
 void actor_free(struct node_t *node, actor_t *actor, bool remove_from_registry);
 actor_t *actor_get(struct node_t *node, const char *actor_id, uint32_t actor_id_len);

@@ -90,6 +90,7 @@ $(abspath runtime/north/cc_proto.c) \
 $(abspath runtime/south/transport/lwip/cc_transport_lwip.c) \
 $(abspath runtime/north/cc_transport.c) \
 $(abspath runtime/north/cc_tunnel.c) \
+$(abspath runtime/north/cc_actor_store.c) \
 $(abspath runtime/north/cc_actor.c) \
 $(abspath runtime/north/cc_port.c) \
 $(abspath runtime/north/cc_fifo.c) \
@@ -97,10 +98,7 @@ $(abspath runtime/north/cc_token.c) \
 $(abspath runtime/north/cc_msgpack_helper.c) \
 $(abspath msgpuck/msgpuck.c) \
 $(abspath actors/cc_actor_identity.c) \
-$(abspath actors/cc_actor_light.c) \
-$(abspath actors/cc_actor_button.c) \
 $(abspath actors/cc_actor_temperature.c) \
-$(abspath actors/cc_actor_soil_moisture.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/ble/common/ble_advdata.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/ble/common/ble_conn_params.c) \
 $(abspath $(NORDIC_SDK_PATH)/components/ble/common/ble_srv_common.c) \
@@ -172,6 +170,7 @@ OUTPUT_BINARY_DIRECTORY = $(OBJECT_DIRECTORY)
 BUILD_DIRECTORIES := $(sort $(OBJECT_DIRECTORY) $(OUTPUT_BINARY_DIRECTORY) $(LISTING_DIRECTORY) )
 
 CFLAGS += -DCC_TRANSPORT_LWIP
+CFLAGS += -DCC_ACTOR_IDENTIY -DCC_ACTOR_TEMPERATURE
 
 CFLAGS += -D__HEAP_SIZE=6144
 CFLAGS += -DSWI_DISABLE0

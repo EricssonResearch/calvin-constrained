@@ -18,6 +18,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "cc_node.h"
+#include "cc_actor_store.h"
 #include "scheduler/cc_scheduler.h"
 #include "cc_proto.h"
 #include "cc_transport.h"
@@ -522,11 +523,20 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 	node->calvinsys->node = node;
 	node->calvinsys->capabilities = NULL;
 	node->calvinsys->handlers = NULL;
+	node->actor_types = NULL;
 
 	if (platform_create_calvinsys(&node->calvinsys) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to create calvinsys");
 		return CC_RESULT_FAIL;
 	}
+
+#ifndef CC_PYTHON_ENABLED
+	if (actor_store_init(&node->actor_types) != CC_RESULT_SUCCESS) {
+		cc_log_error("Failed to create actor types");
+		return CC_RESULT_FAIL;
+	}
+#endif
+
 	if (node_setup(node) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to setup runtime");
 		return CC_RESULT_FAIL;
@@ -556,6 +566,14 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 	if (node->calvinsys != NULL) {
 		cc_log("Capabilities:");
 		item = node->calvinsys->capabilities;
+		while (item != NULL) {
+			cc_log(" %s", item->id);
+			item = item->next;
+		}
+	}
+	if (node->actor_types != NULL) {
+		cc_log("Actor types:");
+		item = node->actor_types;
 		while (item != NULL) {
 			cc_log(" %s", item->id);
 			item = item->next;

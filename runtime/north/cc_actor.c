@@ -18,93 +18,15 @@
 #include <unistd.h>
 #include "cc_node.h"
 #include "cc_actor.h"
+#include "cc_actor_store.h"
 #include "cc_fifo.h"
 #include "cc_token.h"
-#include "../../actors/cc_actor_identity.h"
-#include "../../actors/cc_actor_light.h"
-#include "../../actors/cc_actor_button.h"
-#include "../../actors/cc_actor_temperature.h"
-#include "../../actors/cc_actor_soil_moisture.h"
 #include "../south/platform/cc_platform.h"
 #include "cc_msgpack_helper.h"
 #include "../../msgpuck/msgpuck.h"
 #include "cc_proto.h"
 #ifdef CC_PYTHON_ENABLED
 #include "../../actors/cc_actor_mpy.h"
-#endif
-
-#ifndef CC_PYTHON_ENABLED
-#define NBR_OF_ACTOR_TYPES 5
-
-struct actor_type_t {
-	char type[50];
-	result_t (*init)(actor_t **actor, list_t *attributes);
-	result_t (*set_state)(actor_t **actor, list_t *attributes);
-	void (*free_state)(actor_t *actor);
-	bool (*fire_actor)(actor_t *actor);
-	result_t (*get_managed_attributes)(actor_t *actor, list_t **attributes);
-	void (*will_migrate)(actor_t *actor);
-	void (*will_end)(actor_t *actor);
-	void (*did_migrate)(actor_t *actor);
-};
-
-const struct actor_type_t actor_types[NBR_OF_ACTOR_TYPES] = {
-	{
-		"std.Identity",
-		actor_identity_init,
-		actor_identity_set_state,
-		actor_identity_free,
-		actor_identity_fire,
-		actor_identity_get_managed_attributes,
-		NULL,
-		NULL,
-		NULL
-	},
-	{
-		"io.Light",
-		actor_light_init,
-		actor_light_set_state,
-		actor_light_free,
-		actor_light_fire,
-		NULL,
-		NULL,
-		NULL,
-		NULL
-	},
-	{
-		"io.Button",
-		actor_button_init,
-		actor_button_set_state,
-		actor_button_free,
-		actor_button_fire,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-	},
-	{
-		"sensor.TriggeredTemperature",
-		actor_temperature_init,
-		actor_temperature_set_state,
-		actor_temperature_free,
-		actor_temperature_fire,
-		NULL,
-		NULL,
-		NULL,
-		NULL
-	},
-	{
-		"sensor.TriggeredSoilMoisture",
-		actor_soil_moisture_init,
-		actor_soil_moisture_set_state,
-		actor_soil_moisture_free,
-		actor_soil_moisture_fire,
-		NULL,
-		NULL,
-		NULL,
-		NULL
-	}
-};
 #endif
 
 static result_t actor_remove_reply_handler(node_t *node, char *data, void *msg_data)
@@ -162,7 +84,7 @@ void actor_set_state(actor_t *actor, actor_state_t state)
 	actor->state = state;
 }
 
-result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
+static result_t actor_init_from_type(node_t *node, actor_t *actor, char *type, uint32_t type_len)
 {
 	strncpy(actor->type, type, type_len);
 	actor->state = ACTOR_PENDING;
@@ -178,17 +100,18 @@ result_t actor_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	if (actor_mpy_init_from_type(actor, actor->type, type_len) == CC_RESULT_SUCCESS)
 		return CC_RESULT_SUCCESS;
 #else
-	int i = 0;
+	actor_type_t *actor_type = (actor_type_t *)list_get(node->actor_types, type);
 
-	for (i = 0; i < NBR_OF_ACTOR_TYPES; i++) {
-		if (strncmp(type, actor_types[i].type, type_len) == 0) {
-			actor->init = actor_types[i].init;
-			actor->set_state = actor_types[i].set_state;
-			actor->free_state = actor_types[i].free_state;
-			actor->fire = actor_types[i].fire_actor;
-			actor->get_managed_attributes = actor_types[i].get_managed_attributes;
-			return CC_RESULT_SUCCESS;
-		}
+	if (actor_type != NULL) {
+		actor->init = actor_type->init;
+		actor->set_state = actor_type->set_state;
+		actor->free_state = actor_type->free_state;
+		actor->fire = actor_type->fire_actor;
+		actor->get_managed_attributes = actor_type->get_managed_attributes;
+		actor->will_migrate = actor_type->will_migrate;
+		actor->will_end = actor_type->will_end;
+		actor->did_migrate = actor_type->did_migrate;
+		return CC_RESULT_SUCCESS;
 	}
 #endif
 
@@ -363,7 +286,7 @@ actor_t *actor_create(node_t *node, char *root)
 		return NULL;
 	}
 
-	if (actor_init_from_type(actor, type, type_len) != CC_RESULT_SUCCESS) {
+	if (actor_init_from_type(node, actor, type, type_len) != CC_RESULT_SUCCESS) {
 		actor_free(node, actor, false);
 		return NULL;
 	}
