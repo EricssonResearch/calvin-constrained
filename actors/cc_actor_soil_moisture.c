@@ -16,12 +16,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cc_actor_soil_moisture.h"
+#include "../runtime/north/cc_actor_store.h"
 #include "../runtime/north/cc_fifo.h"
 #include "../runtime/north/cc_token.h"
 #include "../runtime/north/cc_port.h"
 #include "../runtime/north/cc_common.h"
 
-result_t actor_soil_moisture_init(actor_t **actor, list_t *attributes)
+static result_t actor_soil_moisture_init(actor_t **actor, list_t *attributes)
 {
 	calvinsys_obj_t *obj = NULL;
 
@@ -36,12 +37,12 @@ result_t actor_soil_moisture_init(actor_t **actor, list_t *attributes)
 	return CC_RESULT_SUCCESS;
 }
 
-result_t actor_soil_moisture_set_state(actor_t **actor, list_t *attributes)
+static result_t actor_soil_moisture_set_state(actor_t **actor, list_t *attributes)
 {
 	return actor_soil_moisture_init(actor, attributes);
 }
 
-bool actor_soil_moisture_fire(struct actor_t *actor)
+static bool actor_soil_moisture_fire(struct actor_t *actor)
 {
 	port_t *inport = (port_t *)actor->in_ports->data, *outport = (port_t *)actor->out_ports->data;
 	calvinsys_obj_t *obj = (calvinsys_obj_t *)actor->instance_state;
@@ -64,7 +65,28 @@ bool actor_soil_moisture_fire(struct actor_t *actor)
 	return false;
 }
 
-void actor_soil_moisture_free(actor_t *actor)
+static void actor_soil_moisture_free(actor_t *actor)
 {
 	calvinsys_close((calvinsys_obj_t *)actor->instance_state);
+}
+
+result_t actor_soil_moisture_register(list_t **actor_types)
+{
+	actor_type_t *type = NULL;
+
+	if (platform_mem_alloc((void **)&type, sizeof(actor_type_t)) != CC_RESULT_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
+
+	type->init = actor_soil_moisture_init;
+	type->set_state = actor_soil_moisture_set_state;
+	type->free_state = actor_soil_moisture_free;
+	type->fire_actor = actor_soil_moisture_fire;
+	type->get_managed_attributes = NULL;
+	type->will_migrate = NULL;
+	type->will_end = NULL;
+	type->did_migrate = NULL;
+
+	return list_add_n(actor_types, "io.TriggeredSoilMoisture", 24, type, sizeof(actor_type_t *));
 }

@@ -31,8 +31,6 @@ typedef struct actor_type_t {
 	void (*did_migrate)(actor_t *actor);
 } actor_type_t;
 
-#ifndef CC_PYTHON_ENABLED
 result_t actor_store_init(list_t **actor_types);
-#endif
 
 #endif /* ACTOR_STORE_H */

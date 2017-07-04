@@ -96,6 +96,7 @@ $(abspath runtime/north/cc_proto.c) \
 $(abspath runtime/north/cc_transport.c) \
 $(abspath runtime/south/transport/lwip/cc_transport_lwip.c) \
 $(abspath runtime/north/cc_tunnel.c) \
+$(abspath runtime/north/cc_actor_store.c) \
 $(abspath runtime/north/cc_actor.c) \
 $(abspath runtime/north/cc_port.c) \
 $(abspath runtime/north/cc_fifo.c) \

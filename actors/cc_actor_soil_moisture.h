@@ -17,11 +17,7 @@
 #define ACTOR_SOIL_HUMIDITY_H
 
 #include "../runtime/north/cc_actor.h"
-#include "../calvinsys/cc_calvinsys.h"
 
-result_t actor_soil_moisture_init(actor_t **actor, list_t *attributes);
-result_t actor_soil_moisture_set_state(actor_t **actor, list_t *attributes);
-bool actor_soil_moisture_fire(actor_t *actor);
-void actor_soil_moisture_free(actor_t *actor);
+result_t actor_soil_moisture_register(list_t **actor_types);
 
 #endif /* ACTOR_SOIL_HUMIDITY_H */

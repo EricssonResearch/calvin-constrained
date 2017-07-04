@@ -18,14 +18,6 @@
 
 #include "../runtime/north/cc_actor.h"
 
-typedef struct state_identity_t {
-	bool dump;
-} state_identity_t;
-
-result_t actor_identity_init(actor_t **actor, list_t *attributes);
-result_t actor_identity_set_state(actor_t **actor, list_t *attributes);
-bool actor_identity_fire(actor_t *actor);
-void actor_identity_free(actor_t *actor);
-result_t actor_identity_get_managed_attributes(actor_t *actor, list_t **attributes);
+result_t actor_identity_register(list_t **actor_types);
 
 #endif /* ACTOR_IDENTITY_H */

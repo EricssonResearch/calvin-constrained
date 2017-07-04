@@ -17,11 +17,7 @@
 #define ACTOR_LIGHT_H
 
 #include "../runtime/north/cc_actor.h"
-#include "../calvinsys/cc_calvinsys.h"
 
-result_t actor_light_init(actor_t **actor, list_t *attributes);
-result_t actor_light_set_state(actor_t **actor, list_t *attributes);
-bool actor_light_fire(actor_t *actor);
-void actor_light_free(actor_t *actor);
+result_t actor_light_register(list_t **actor_types);
 
 #endif /* ACTOR_LIGHT_H */

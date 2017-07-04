@@ -28,6 +28,7 @@ runtime/north/cc_transport.c \
 runtime/south/transport/socket/cc_transport_socket.c \
 runtime/north/cc_tunnel.c \
 runtime/north/cc_link.c \
+runtime/north/cc_actor_store.c \
 runtime/north/cc_actor.c \
 runtime/north/cc_port.c \
 runtime/north/cc_fifo.c \

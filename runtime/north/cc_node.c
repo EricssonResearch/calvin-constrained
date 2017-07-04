@@ -530,12 +530,10 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 		return CC_RESULT_FAIL;
 	}
 
-#ifndef CC_PYTHON_ENABLED
 	if (actor_store_init(&node->actor_types) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to create actor types");
 		return CC_RESULT_FAIL;
 	}
-#endif
 
 	if (node_setup(node) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to setup runtime");

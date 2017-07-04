@@ -86,6 +86,8 @@ void actor_set_state(actor_t *actor, actor_state_t state)
 
 static result_t actor_init_from_type(node_t *node, actor_t *actor, char *type, uint32_t type_len)
 {
+	actor_type_t *actor_type = NULL;
+
 	strncpy(actor->type, type, type_len);
 	actor->state = ACTOR_PENDING;
 	actor->in_ports = NULL;
@@ -96,12 +98,7 @@ static result_t actor_init_from_type(node_t *node, actor_t *actor, char *type, u
 	actor->will_end = NULL;
 	actor->did_migrate = NULL;
 
-#ifdef CC_PYTHON_ENABLED
-	if (actor_mpy_init_from_type(actor, actor->type, type_len) == CC_RESULT_SUCCESS)
-		return CC_RESULT_SUCCESS;
-#else
-	actor_type_t *actor_type = (actor_type_t *)list_get(node->actor_types, type);
-
+	actor_type = (actor_type_t *)list_get(node->actor_types, type);
 	if (actor_type != NULL) {
 		actor->init = actor_type->init;
 		actor->set_state = actor_type->set_state;
@@ -113,6 +110,10 @@ static result_t actor_init_from_type(node_t *node, actor_t *actor, char *type, u
 		actor->did_migrate = actor_type->did_migrate;
 		return CC_RESULT_SUCCESS;
 	}
+
+#ifdef CC_PYTHON_ENABLED
+	if (actor_mpy_init_from_type(actor, actor->type, type_len) == CC_RESULT_SUCCESS)
+		return CC_RESULT_SUCCESS;
 #endif
 
 	cc_log_error("Actor type '%.*s' not supported", (int)type_len, type);

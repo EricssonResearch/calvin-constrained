@@ -32,100 +32,28 @@
 
 result_t actor_store_init(list_t **actor_types)
 {
-  actor_type_t *type = NULL;
-
 #ifdef CC_ACTOR_BUTTON
-  if (platform_mem_alloc((void **)&type, sizeof(actor_type_t)) != CC_RESULT_SUCCESS) {
-    cc_log_error("Failed to allocate memory");
-    return CC_RESULT_FAIL;
-  }
-
-  type->init = actor_button_init;
-  type->set_state = actor_button_set_state;
-  type->free_state = actor_button_free;
-  type->fire_actor = actor_button_fire;
-  type->get_managed_attributes = NULL;
-  type->will_migrate = NULL;
-  type->will_end = NULL;
-  type->did_migrate = NULL;
-
-  if (list_add_n(actor_types, "io.Button", 9, type, sizeof(actor_type_t *)) != CC_RESULT_SUCCESS)
+  if (actor_button_register(actor_types) != CC_RESULT_SUCCESS)
     return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_IDENTIY
-  if (platform_mem_alloc((void **)&type, sizeof(actor_type_t)) != CC_RESULT_SUCCESS) {
-    cc_log_error("Failed to allocate memory");
-    return CC_RESULT_FAIL;
-  }
-
-  type->init = actor_identity_init;
-  type->set_state = actor_identity_set_state;
-  type->free_state = actor_identity_free;
-  type->fire_actor = actor_identity_fire;
-  type->get_managed_attributes = actor_identity_get_managed_attributes;
-  type->will_migrate = NULL;
-  type->will_end = NULL;
-  type->did_migrate = NULL;
-
-  if (list_add_n(actor_types, "std.Identity", 12, type, sizeof(actor_type_t *)) != CC_RESULT_SUCCESS)
+  if (actor_identity_register(actor_types) != CC_RESULT_SUCCESS)
     return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_LIGHT
-  if (platform_mem_alloc((void **)&type, sizeof(actor_type_t)) != CC_RESULT_SUCCESS) {
-    cc_log_error("Failed to allocate memory");
-    return CC_RESULT_FAIL;
-  }
-
-  type->init = actor_light_init;
-  type->set_state = actor_light_set_state;
-  type->free_state = actor_light_free;
-  type->fire_actor = actor_light_fire;
-  type->get_managed_attributes = NULL;
-  type->will_migrate = NULL;
-  type->will_end = NULL;
-  type->did_migrate = NULL;
-
-  if (list_add_n(actor_types, "io.Light", 8, type, sizeof(actor_type_t *)) != CC_RESULT_SUCCESS)
+  if (actor_light_register(actor_types) != CC_RESULT_SUCCESS)
     return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_SOIL_MOISTURE
-  if (platform_mem_alloc((void **)&type, sizeof(actor_type_t)) != CC_RESULT_SUCCESS) {
-    cc_log_error("Failed to allocate memory");
-    return CC_RESULT_FAIL;
-  }
-
-  type->init = actor_soil_moisture_init;
-  type->set_state = actor_soil_moisture_set_state;
-  type->free_state = actor_soil_moisture_free;
-  type->fire_actor = actor_soil_moisture_fire;
-  type->get_managed_attributes = NULL;
-  type->will_migrate = NULL;
-  type->will_end = NULL;
-  type->did_migrate = NULL;
-
-  if (list_add_n(actor_types, "io.TriggeredSoilMoisture", 24, type, sizeof(actor_type_t *)) != CC_RESULT_SUCCESS)
+  if (actor_soil_moisture_register(actor_types) != CC_RESULT_SUCCESS)
     return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_TEMPERATURE
-  if (platform_mem_alloc((void **)&type, sizeof(actor_type_t)) != CC_RESULT_SUCCESS) {
-    cc_log_error("Failed to allocate memory");
-    return CC_RESULT_FAIL;
-  }
-
-  type->init = actor_temperature_init;
-  type->set_state = actor_temperature_set_state;
-  type->free_state = actor_temperature_free;
-  type->fire_actor = actor_temperature_fire;
-  type->get_managed_attributes = NULL;
-  type->will_migrate = NULL;
-  type->will_end = NULL;
-  type->did_migrate = NULL;
-
-  if (list_add_n(actor_types, "sensor.TriggeredTemperature", 27, type, sizeof(actor_type_t *)) != CC_RESULT_SUCCESS)
+  if (actor_temperature_register(actor_types) != CC_RESULT_SUCCESS)
     return CC_RESULT_FAIL;
 #endif
 

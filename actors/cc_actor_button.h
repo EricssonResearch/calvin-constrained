@@ -16,12 +16,8 @@
 #ifndef ACTOR_BUTTON_H
 #define ACTOR_BUTTON_H
 
-#include "../runtime/north/cc_actor.h"
-#include "../calvinsys/cc_calvinsys.h"
+#include "../runtime/north/cc_common.h"
 
-result_t actor_button_init(actor_t **actor, list_t *attributes);
-result_t actor_button_set_state(actor_t **actor, list_t *attributes);
-bool actor_button_fire(actor_t *actor);
-void actor_button_free(actor_t *actor);
+result_t actor_button_register(list_t **actor_types);
 
 #endif /* ACTOR_BUTTON_H */

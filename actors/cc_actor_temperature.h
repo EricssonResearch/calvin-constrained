@@ -17,11 +17,7 @@
 #define ACTOR_TEMPERATURE_H
 
 #include "../runtime/north/cc_actor.h"
-#include "../calvinsys/cc_calvinsys.h"
 
-result_t actor_temperature_init(actor_t **actor, list_t *attributes);
-result_t actor_temperature_set_state(actor_t **actor, list_t *attributes);
-bool actor_temperature_fire(actor_t *actor);
-void actor_temperature_free(actor_t *actor);
+result_t actor_temperature_register(list_t **actor_types);
 
 #endif /* ACTOR_TEMPERATURE_H */
