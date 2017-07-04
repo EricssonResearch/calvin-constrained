@@ -269,16 +269,22 @@ class CalvinRuntime implements Runnable {
     private final String LOG_TAG = "Calvin runtime thread";
     Calvin calvin;
     CalvinMessageHandler[] messageHandlers;
+    Object threadLock;
 
-    public CalvinRuntime(Calvin calvin, CalvinMessageHandler[] messageHandlers){
+    public CalvinRuntime(Calvin calvin, CalvinMessageHandler[] messageHandlers, Object threadLock){
         this.calvin = calvin;
         this.messageHandlers = messageHandlers;
+        this.threadLock = threadLock;
     }
 
     @Override
     public void run() {
-        calvin.runtimeStart(calvin.node);
-        Log.d(LOG_TAG, "Calvin runtime thread finshed");
+        synchronized (threadLock) {
+            calvin.setupCalvinAndInit(calvin.proxyUris, calvin.name, calvin.storageDir);
+            threadLock.notify();
+            calvin.runtimeStart(calvin.node);
+            Log.d(LOG_TAG, "Calvin runtime thread finshed");
+        }
     }
 }
 
@@ -293,6 +299,7 @@ class CalvinDataListenThread implements Runnable{
     private CalvinRuntime rt;
     private CalvinService calvinService;
     private Thread calvinThread;
+    Object thread_lock = new Object();
 
     CalvinMessageHandler[] initMessageHandlers() {
         // Create all message handlers here
@@ -414,7 +421,7 @@ class CalvinDataListenThread implements Runnable{
         this.calvin = calvin;
         this.messageHandlers = this.initMessageHandlers();
         this.calvinService = service;
-        calvin.setupCalvinAndInit(calvin.proxyUris, calvin.name, calvin.storageDir);
+        //calvin.setupCalvinAndInit(calvin.proxyUris, calvin.name, calvin.storageDir);
     }
 
     public static int get_message_length(byte[] data) {
@@ -432,10 +439,18 @@ class CalvinDataListenThread implements Runnable{
         while(true) {
             Log.d(LOG_TAG, "listening for new writes");
             if(!rtStarted) {
-                rt = new CalvinRuntime(calvin, initMessageHandlers());
+                rt = new CalvinRuntime(calvin, initMessageHandlers(), thread_lock);
                 calvinThread = new Thread(rt);
-                calvinThread.start();
                 rtStarted = true;
+
+                synchronized (thread_lock) {
+                    try {
+                        calvinThread.start();
+                        thread_lock.wait();
+                    } catch (InterruptedException e) {
+                        Log.e(LOG_TAG, "Could not call wait for calvin runtime to init and create node");
+                    }
+                }
             }
 
             byte[] raw_data = calvin.readUpstreamData(calvin.node);

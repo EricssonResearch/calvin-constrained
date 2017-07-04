@@ -29,6 +29,7 @@ android {
                 cFlags "-DCC_GETOPT_ENABLED"
                 cFlags "-DCC_PLATFORM_ANDROID"
                 cFlags "-DCC_DEBUG"
+                cFlags "-DCC_SLEEP_TIME=30"
                 cFlags "--std=gnu99"
             }
         }

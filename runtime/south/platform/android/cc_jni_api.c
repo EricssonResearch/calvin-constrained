@@ -57,7 +57,7 @@ JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin
 	android_platform_t *platform = (android_platform_t *)node->platform;
 	size_t size;
 
-  memset(&buffer, 0, TRANSPORT_RX_BUFFER_SIZE);
+	memset(&buffer, 0, TRANSPORT_RX_BUFFER_SIZE);
 	if (platform->read_upstream(node, buffer, TRANSPORT_RX_BUFFER_SIZE) == CC_RESULT_SUCCESS) {
 		size = transport_get_message_len(buffer);
 		data = (*env)->NewByteArray(env, size + 7);

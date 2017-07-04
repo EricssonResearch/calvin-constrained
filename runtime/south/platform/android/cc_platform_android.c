@@ -247,19 +247,19 @@ static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_dat
 
 static bool platform_external_can_write(struct calvinsys_obj_t *obj)
 {
-	return obj->handler->node->transport_client != NULL;
+	return obj->handler->calvinsys->node->transport_client != NULL;
 }
 
 static result_t platform_external_write(struct calvinsys_obj_t *obj, char *data, size_t data_size)
 {
-	size_t buffer_size = data_size + mp_sizeof_map(3) + mp_sizeof_str(9) + mp_sizeof_str(strlen(obj->handler->name)) + mp_sizeof_str(7) + data_size;
+	size_t buffer_size = data_size + mp_sizeof_map(3) + mp_sizeof_str(9) + mp_sizeof_str(strlen(obj->handler->capability_name)) + mp_sizeof_str(7) + data_size;
     char buffer[buffer_size], *buf = buffer + 6;
 
     buf = mp_encode_map(buf, 3);
-    buf = encode_str(&buf, "calvinsys", obj->handler->name, strlen(obj->handler->name) + 1);
+    buf = encode_str(&buf, "calvinsys", obj->handler->capability_name, strlen(obj->handler->capability_name) + 1);
 	buf = encode_bin(&buf, "payload", data, data_size);
 
-	if (send_upstream_platform_message(obj->handler->node->transport_client, PLATFORM_ANDROID_EXTERNAL_CALVINSYS_PAYLOAD, buffer, buf - buffer) > 0)
+	if (send_upstream_platform_message(obj->handler->calvinsys->node->transport_client, PLATFORM_ANDROID_EXTERNAL_CALVINSYS_PAYLOAD, buffer, buf - buffer) > 0)
         return CC_RESULT_SUCCESS;
   return CC_RESULT_FAIL;
 }
@@ -292,10 +292,10 @@ static result_t platform_external_close(calvinsys_obj_t *obj)
 {
   platform_android_external_state_t *state = (platform_android_external_state_t *)obj->state;
   char buffer[100];
-  int len = strlen(obj->handler->name) + 6;
+  int len = strlen(obj->handler->capability_name) + 6;
 
-  strcpy(buffer + 6, obj->handler->name);
-  if (send_upstream_platform_message(obj->handler->node->transport_client, PLATFORM_ANDROID_DESTROY_EXTERNAL_CALVINSYS, buffer, len) > 0) {
+  strcpy(buffer + 6, obj->handler->capability_name);
+  if (send_upstream_platform_message(obj->handler->calvinsys->node->transport_client, PLATFORM_ANDROID_DESTROY_EXTERNAL_CALVINSYS, buffer, len) > 0) {
     if (state->data != NULL)
   		platform_mem_free((void *)state->data);
   	platform_mem_free((void *)state);
@@ -305,12 +305,12 @@ static result_t platform_external_close(calvinsys_obj_t *obj)
   return CC_RESULT_FAIL;
 }
 
-static calvinsys_obj_t *platform_external_open(calvinsys_handler_t *handler, char *data, size_t len)
+static calvinsys_obj_t *platform_external_open(calvinsys_handler_t *handler, char *data, size_t len, u_int id)
 {
   calvinsys_obj_t *obj = NULL;
   platform_android_external_state_t *state = NULL;
   char buffer[100];
-  int buffer_len = strlen(handler->name) + 6;
+  int buffer_len = strlen(handler->capability_name) + 6;
 
   if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
     cc_log_error("Failed to allocate memory");
@@ -333,8 +333,8 @@ static calvinsys_obj_t *platform_external_open(calvinsys_handler_t *handler, cha
   obj->handler = handler;
   obj->state = state;
 
-  strcpy(buffer + 6, handler->name);
-  if (send_upstream_platform_message(handler->node->transport_client, PLATFORM_ANDROID_INIT_EXTERNAL_CALVINSYS, buffer, buffer_len) > 0)
+  strcpy(buffer + 6, handler->capability_name);
+  if (send_upstream_platform_message(handler->calvinsys->node->transport_client, PLATFORM_ANDROID_INIT_EXTERNAL_CALVINSYS, buffer, buffer_len) > 0)
     return obj;
 
   platform_mem_free((void *)state);
@@ -354,9 +354,11 @@ static result_t platform_register_external_calvinsys(node_t *node, char *data, s
 
 	handler->open = platform_external_open;
 	handler->objects = NULL;
-	handler->node = node;
+	handler->calvinsys->node = node;
 
-  if (calvinsys_register_handler(&node->calvinsys, data, handler) == CC_RESULT_SUCCESS)
+	calvinsys_add_handler(&node->calvinsys, handler);
+
+  if (calvinsys_register_capability(node->calvinsys, data, handler) == CC_RESULT_SUCCESS)
     return proto_send_node_setup(node, false, node_setup_reply_handler);
 
   return CC_RESULT_FAIL;
@@ -367,7 +369,7 @@ static result_t platform_handle_external_calvinsys_data(node_t *node, char *data
 	char *name = NULL, *payload = NULL;
 	int name_len, payload_len;
 	calvinsys_handler_t *handler = NULL;
-  platform_android_external_state_t *state = NULL;
+	platform_android_external_state_t *state = NULL;
 
 	if (decode_string_from_map(data, "calvinsys", &name, &name_len) != CC_RESULT_SUCCESS) {
 		cc_log_error("Could not parse calvinsys key.");
@@ -379,7 +381,7 @@ static result_t platform_handle_external_calvinsys_data(node_t *node, char *data
 		return CC_RESULT_FAIL;
 	}
 
-	handler = (calvinsys_handler_t *)list_get(node->calvinsys, name);
+	handler = (calvinsys_handler_t *) list_get(node->calvinsys->capabilities, name);
 	if (handler == NULL) {
 		cc_log_error("Could not find calvinsys '%s'", name);
 		return CC_RESULT_FAIL;
@@ -404,7 +406,7 @@ result_t platform_create(node_t *node)
 {
 	//TODO: Create looper here
 	android_platform_t *platform = NULL;
-	node_attributes_t *attr = NULL;
+	//node_attributes_t *attr = NULL;
 
 	if (platform_mem_alloc((void **)&platform, sizeof(android_platform_t)) != CC_RESULT_SUCCESS) {
 		cc_log_error("Could not allocate memory for platform object.");
@@ -427,17 +429,6 @@ result_t platform_create(node_t *node)
 	    ((android_platform_t *)node->platform)->upstream_platform_fd[1],
 	    ((android_platform_t *)node->platform)->downstream_platform_fd[0],
 	    ((android_platform_t *)node->platform)->downstream_platform_fd[1]);
-
-	if (platform_mem_alloc((void **)&attr, sizeof(node_attributes_t)) != CC_RESULT_SUCCESS) {
-		cc_log_error("Could not allocate memory for attributes");
-		platform_mem_free(platform);
-		return CC_RESULT_FAIL;
-	}
-
-	attr->indexed_public_owner = NULL;
-	attr->indexed_public_node_name = NULL;
-	attr->indexed_public_address = NULL;
-	node->attributes = attr;
 
 	return CC_RESULT_SUCCESS;
 }

@@ -16,6 +16,8 @@
 #ifndef CALVINSYS_H
 #define CALVINSYS_H
 
+#define CC_NOT_OPENED -1
+
 #include "../runtime/north/cc_common.h"
 
 typedef struct calvinsys_obj_t {
@@ -26,14 +28,16 @@ typedef struct calvinsys_obj_t {
 	result_t (*close)(struct calvinsys_obj_t *obj);
 	struct calvinsys_handler_t *handler;
 	void *state;
+	u_int id;
 	struct calvinsys_obj_t *next;
 } calvinsys_obj_t;
 
 typedef struct calvinsys_handler_t {
-	calvinsys_obj_t *(*open)(struct calvinsys_handler_t *handler, char *data, size_t len, void *state);
+	calvinsys_obj_t *(*open)(struct calvinsys_handler_t *handler, char *data, size_t len, void* state, u_int id);
 	calvinsys_obj_t *objects;
 	struct calvinsys_handler_t *next;
 	struct calvinsys_t *calvinsys;
+	char* capability_name;
 } calvinsys_handler_t;
 
 typedef struct calvinsys_capability_t {
@@ -44,6 +48,7 @@ typedef struct calvinsys_capability_t {
 typedef struct calvinsys_t {
 	list_t *capabilities;
 	calvinsys_handler_t *handlers;
+	u_int next_id;
 	struct node_t *node;
 } calvinsys_t;
 

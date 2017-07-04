@@ -64,8 +64,13 @@ result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name,
 	capability->handler = handler;
 	capability->state = state;
 
-	if (list_add_n(&calvinsys->capabilities, name, strlen(name), capability, sizeof(calvinsys_capability_t)) == CC_RESULT_SUCCESS)
+	if (list_add_n(&calvinsys->capabilities, name, strlen(name), capability, sizeof(calvinsys_capability_t)) == CC_RESULT_SUCCESS) {
+		list_t* head = calvinsys->capabilities;
+		while(head->next != NULL)
+			head = head->next;
+		handler->capability_name = head->id;
 		return CC_RESULT_SUCCESS;
+	}
 
 	return CC_RESULT_FAIL;
 }
@@ -86,9 +91,11 @@ calvinsys_obj_t *calvinsys_open(calvinsys_t *calvinsys, const char *name, char *
 	calvinsys_capability_t *capability = NULL;
 
 	capability = (calvinsys_capability_t *)list_get(calvinsys->capabilities, name);
-	if (capability != NULL)
-		return capability->handler->open(capability->handler, data, size, capability->state);
-
+	if (capability != NULL) {
+		calvinsys_obj_t* result = capability->handler->open(capability->handler, data, size, capability->state, calvinsys->next_id);
+		result->id = calvinsys->next_id ++;
+		return result;
+	}
 	return NULL;
 }
 
