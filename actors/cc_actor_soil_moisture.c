@@ -88,5 +88,5 @@ result_t actor_soil_moisture_register(list_t **actor_types)
 	type->will_end = NULL;
 	type->did_migrate = NULL;
 
-	return list_add_n(actor_types, "io.TriggeredSoilMoisture", 24, type, sizeof(actor_type_t *));
+	return list_add_n(actor_types, "sensor.TriggeredSoilMoisture", 28, type, sizeof(actor_type_t *));
 }
