@@ -274,7 +274,7 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 	handler->next = NULL;
 
 	calvinsys_add_handler(calvinsys, handler);
-	if (calvinsys_register_capability(*calvinsys, "io.temperature", handler) != CC_RESULT_SUCCESS)
+	if (calvinsys_register_capability(*calvinsys, "io.temperature", handler, NULL) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	return CC_RESULT_SUCCESS;

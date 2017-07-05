@@ -30,6 +30,16 @@
 
 #define CC_CONFIG_FILE "calvinconstrained.config"
 
+typedef enum {
+	CC_GPIO_IN,
+	CC_GPIO_OUT
+} calvinsys_gpio_direction;
+
+typedef struct calvinsys_gpio_state_t {
+	int pin;
+	calvinsys_gpio_direction direction;
+} calvinsys_gpio_state_t;
+
 void platform_print(const char *fmt, ...)
 {
 	va_list args;
@@ -70,7 +80,7 @@ static result_t platform_temp_read(struct calvinsys_obj_t *obj, char **data, siz
 	return CC_RESULT_SUCCESS;
 }
 
-static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *data, size_t len)
+static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *data, size_t len, void *state)
 {
 	calvinsys_obj_t *obj = NULL;
 
@@ -155,9 +165,19 @@ static result_t platform_calvinsys_digitial_in_out_close(struct calvinsys_obj_t 
 	return CC_RESULT_SUCCESS;
 }
 
-static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handler_t *handler, char *data, size_t len)
+static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handler_t *handler, char *data, size_t len, void *state)
 {
 	calvinsys_obj_t *obj = NULL;
+	calvinsys_gpio_state_t *gpio_state = (calvinsys_gpio_state_t *)state;
+
+	if (gpio_state->direction == CC_GPIO_IN)
+		cc_log("Opening pin '%d' as input", gpio_state->pin);
+	else if(gpio_state->direction == CC_GPIO_OUT)
+		cc_log("Opening pin '%d' as output", gpio_state->pin);
+	else {
+		cc_log_error("Unknown direction");
+		return NULL;
+	}
 
 	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
@@ -173,8 +193,6 @@ static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handle
 	obj->state = NULL;
 	obj->next = NULL;
 	handler->objects = obj; // assume only one object
-
-	cc_log("Opened digitial in/out");
 
 	return obj;
 }
@@ -198,13 +216,14 @@ static calvinsys_handler_t *platform_create_digitial_in_out_handler(void)
 result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 {
 	calvinsys_handler_t *handler = NULL;
+	calvinsys_gpio_state_t *state_light = NULL, *state_button = NULL;
 
 	handler = platform_create_temperature_handler();
 	if (handler == NULL)
 		return CC_RESULT_FAIL;
 
 	calvinsys_add_handler(calvinsys, handler);
-  	if (calvinsys_register_capability(*calvinsys, "io.temperature", handler) != CC_RESULT_SUCCESS)
+  if (calvinsys_register_capability(*calvinsys, "io.temperature", handler, NULL) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	handler = platform_create_digitial_in_out_handler();
@@ -212,10 +231,27 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 		return CC_RESULT_FAIL;
 
 	calvinsys_add_handler(calvinsys, handler);
-	if (calvinsys_register_capability(*calvinsys, "io.light", handler) != CC_RESULT_SUCCESS)
+
+	if (platform_mem_alloc((void **)&state_light, sizeof(calvinsys_gpio_state_t)) != CC_RESULT_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
+
+	state_light->pin = 1;
+	state_light->direction = CC_GPIO_OUT;
+
+	if (calvinsys_register_capability(*calvinsys, "io.light", handler, state_light) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
-	if (calvinsys_register_capability(*calvinsys, "io.button", handler) != CC_RESULT_SUCCESS)
+	if (platform_mem_alloc((void **)&state_button, sizeof(calvinsys_gpio_state_t)) != CC_RESULT_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
+
+	state_button->pin = 2;
+	state_button->direction = CC_GPIO_IN;
+
+	if (calvinsys_register_capability(*calvinsys, "io.button", handler, state_button) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	return CC_RESULT_SUCCESS;

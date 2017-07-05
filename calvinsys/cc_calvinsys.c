@@ -47,14 +47,24 @@ void calvinsys_delete_handler(calvinsys_handler_t *handler)
 	platform_mem_free((void *)handler);
 }
 
-result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name, calvinsys_handler_t *handler)
+result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name, calvinsys_handler_t *handler, void *state)
 {
+	calvinsys_capability_t *capability = NULL;
+
 	if (list_get(calvinsys->capabilities, name) != NULL) {
 		cc_log_error("Capability '%s' already registered", name);
 		return CC_RESULT_FAIL;
 	}
 
-	if (list_add_n(&calvinsys->capabilities, name, strlen(name), handler, sizeof(calvinsys_handler_t *)) == CC_RESULT_SUCCESS)
+	if (platform_mem_alloc((void **)&capability, sizeof(calvinsys_capability_t)) != CC_RESULT_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
+
+	capability->handler = handler;
+	capability->state = state;
+
+	if (list_add_n(&calvinsys->capabilities, name, strlen(name), capability, sizeof(calvinsys_capability_t)) == CC_RESULT_SUCCESS)
 		return CC_RESULT_SUCCESS;
 
 	return CC_RESULT_FAIL;
@@ -62,19 +72,24 @@ result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name,
 
 void calvinsys_delete_capabiltiy(calvinsys_t *calvinsys, const char *name)
 {
-	list_remove(&calvinsys->capabilities, name);
+	calvinsys_capability_t *capability = NULL;
+
+	capability = (calvinsys_capability_t *)list_get(calvinsys->capabilities, name);
+	if (capability != NULL) {
+		platform_mem_free(capability->state);
+		list_remove(&calvinsys->capabilities, name);
+	}
 }
 
 calvinsys_obj_t *calvinsys_open(calvinsys_t *calvinsys, const char *name, char *data, size_t size)
 {
-	calvinsys_handler_t *handler = NULL;
-	calvinsys_obj_t *obj = NULL;
+	calvinsys_capability_t *capability = NULL;
 
-	handler = (calvinsys_handler_t *)list_get(calvinsys->capabilities, name);
-	if (handler != NULL)
-		obj = handler->open(handler, data, size);
+	capability = (calvinsys_capability_t *)list_get(calvinsys->capabilities, name);
+	if (capability != NULL)
+		return capability->handler->open(capability->handler, data, size, capability->state);
 
-	return obj;
+	return NULL;
 }
 
 void calvinsys_close(calvinsys_obj_t *obj)

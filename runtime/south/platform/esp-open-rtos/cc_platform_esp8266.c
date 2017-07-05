@@ -32,12 +32,12 @@
 #include "calvinsys/cc_calvinsys_ds18b20.h"
 #include "calvinsys/cc_calvinsys_yl69.h"
 
-#define CALVIN_ESP_RUNTIME_STATE_FILE		"cc_state.conf"
-#define CALVIN_ESP_WIFI_CONFIG_FILE		"cc_wifi.conf"
-#define CALVIN_ESP_WIFI_CONFIG_BUFFER_SIZE	200
+#define CALVIN_ESP_RUNTIME_STATE_FILE						"cc_state.conf"
+#define CALVIN_ESP_WIFI_CONFIG_FILE							"cc_wifi.conf"
+#define CALVIN_ESP_WIFI_CONFIG_BUFFER_SIZE			200
 #define CALVIN_ESP_WIFI_RECV_CONFIG_BUFFER_SIZE	600
-#define CALVIN_ESP_AP_SSID			"calvin-esp"
-#define CALVIN_ESP_AP_PSK			"calvin-esp"
+#define CALVIN_ESP_AP_SSID											"calvin-esp"
+#define CALVIN_ESP_AP_PSK												"calvin-esp"
 
 static result_t platform_esp_start_station_mode()
 {
@@ -348,7 +348,7 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 		return CC_RESULT_FAIL;
 	}
 
-	if (calvinsys_yl69_create(calvinsys, "io.soil_moisture") != CC_RESULT_SUCCESS) {
+	if (calvinsys_yl69_create(calvinsys, "io.soilmoisture") != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to create 'io.soil_moisture'");
 		return CC_RESULT_FAIL;
 	}

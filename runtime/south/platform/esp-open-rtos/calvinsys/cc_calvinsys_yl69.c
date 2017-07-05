@@ -48,7 +48,7 @@ static result_t calvinsys_yl69_close(struct calvinsys_obj_t *obj)
 	return CC_RESULT_SUCCESS;
 }
 
-static calvinsys_obj_t *calvinsys_yl69_open(calvinsys_handler_t *handler, char *data, size_t len)
+static calvinsys_obj_t *calvinsys_yl69_open(calvinsys_handler_t *handler, char *data, size_t len, void *state)
 {
 	calvinsys_obj_t *obj = NULL;
 
@@ -84,7 +84,7 @@ result_t calvinsys_yl69_create(calvinsys_t **calvinsys, const char *name)
 	handler->next = NULL;
 
 	calvinsys_add_handler(calvinsys, handler);
-	if (calvinsys_register_capability(*calvinsys, name, handler) != CC_RESULT_SUCCESS)
+	if (calvinsys_register_capability(*calvinsys, name, handler, NULL) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	return CC_RESULT_SUCCESS;

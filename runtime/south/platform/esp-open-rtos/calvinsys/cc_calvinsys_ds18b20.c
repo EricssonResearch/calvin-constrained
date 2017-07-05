@@ -54,29 +54,29 @@ static result_t calvinsys_ds18b20_close(struct calvinsys_obj_t *obj)
 	return CC_RESULT_SUCCESS;
 }
 
-static calvinsys_obj_t *calvinsys_ds18b20_open(calvinsys_handler_t *handler, char *data, size_t len)
+static calvinsys_obj_t *calvinsys_ds18b20_open(calvinsys_handler_t *handler, char *data, size_t len, void *state)
 {
 	calvinsys_obj_t *obj = NULL;
 	int sensor_count = 0;
-	calvinsys_ds18b20_state_t *state = NULL;
+	calvinsys_ds18b20_state_t *ds18b20_state = NULL;
 
-	if (platform_mem_alloc((void **)&state, sizeof(calvinsys_ds18b20_state_t)) != CC_RESULT_SUCCESS) {
+	if (platform_mem_alloc((void **)&ds18b20_state, sizeof(calvinsys_ds18b20_state_t)) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
 	gpio_set_pullup(CC_DS18B20_SENSOR_GPIO, true, true);
 
-	sensor_count = ds18b20_scan_devices(CC_DS18B20_SENSOR_GPIO, &state->addr, 1);
+	sensor_count = ds18b20_scan_devices(CC_DS18B20_SENSOR_GPIO, &ds18b20_state->addr, 1);
 	if (sensor_count != 1) {
 		cc_log_error("No sensor detected");
-		platform_mem_free((void *)state);
+		platform_mem_free((void *)ds18b20_state);
 		return NULL;
 	}
 
 	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		platform_mem_free((void *)state);
+		platform_mem_free((void *)ds18b20_state);
 		return NULL;
 	}
 
@@ -87,7 +87,7 @@ static calvinsys_obj_t *calvinsys_ds18b20_open(calvinsys_handler_t *handler, cha
 	obj->close = calvinsys_ds18b20_close;
 	obj->handler = handler;
 	obj->next = NULL;
-	obj->state = state;
+	obj->state = ds18b20_state;
 	handler->objects = obj; // assume only one object
 
 	return obj;
@@ -107,7 +107,7 @@ result_t calvinsys_ds18b20_create(calvinsys_t **calvinsys, const char *name)
 	handler->next = NULL;
 
 	calvinsys_add_handler(calvinsys, handler);
-	if (calvinsys_register_capability(*calvinsys, name, handler) != CC_RESULT_SUCCESS)
+	if (calvinsys_register_capability(*calvinsys, name, handler, NULL) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	return CC_RESULT_SUCCESS;
