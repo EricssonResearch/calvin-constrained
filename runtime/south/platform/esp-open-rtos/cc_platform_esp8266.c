@@ -31,6 +31,7 @@
 #include "../../../../runtime/north/cc_msgpack_helper.c"
 #include "calvinsys/cc_calvinsys_ds18b20.h"
 #include "calvinsys/cc_calvinsys_yl69.h"
+#include "calvinsys/cc_calvinsys_gpio.h"
 
 #define CALVIN_ESP_RUNTIME_STATE_FILE						"cc_state.conf"
 #define CALVIN_ESP_WIFI_CONFIG_FILE							"cc_wifi.conf"
@@ -343,6 +344,9 @@ result_t platform_create(struct node_t* node)
 
 result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 {
+	calvinsys_handler_t *handler = NULL;
+	calvinsys_gpio_state_t *state_light = NULL;
+
 	if (calvinsys_ds18b20_create(calvinsys, "io.temperature") != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to create 'io.temperature'");
 		return CC_RESULT_FAIL;
@@ -352,6 +356,23 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 		cc_log_error("Failed to create 'io.soil_moisture'");
 		return CC_RESULT_FAIL;
 	}
+
+	handler = calvinsys_gpio_create_handler(calvinsys);
+	if (handler == NULL) {
+		cc_log_error("Failed to create gpio handler");
+		return CC_RESULT_FAIL;
+	}
+
+	if (platform_mem_alloc((void **)&state_light, sizeof(calvinsys_gpio_state_t)) != CC_RESULT_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
+
+	state_light->pin = 2;
+	state_light->direction = CC_GPIO_OUT;
+
+	if (calvinsys_register_capability(*calvinsys, "io.light", handler, state_light) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 
 	return CC_RESULT_SUCCESS;
 }
