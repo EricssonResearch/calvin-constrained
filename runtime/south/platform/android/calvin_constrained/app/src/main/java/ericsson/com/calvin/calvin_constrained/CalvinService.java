@@ -79,7 +79,7 @@ public class CalvinService extends Service {
                     sys.outgoing = message.replyTo;
                     sys.uid = message.sendingUid;
                     clients.put(sys.name, sys);
-
+                    Log.d(LOG_TAG, "Will register calvinsys natively");
                     calvin.registerExternalCalvinsys(calvin.node, name);
 
                     // Send reply message
@@ -227,7 +227,8 @@ public class CalvinService extends Service {
         String name = intentData.getString("rt_name", "Calvin Android");
         String proxy_uris = intentData.getString("rt_uris", "ssdp");
         String storageDir = getFilesDir().getAbsolutePath();
-        calvin = new Calvin(name, proxy_uris, storageDir);
+
+        calvin = new Calvin(CalvinAttributes.getAttributes(name).toJson(), proxy_uris, storageDir);
 
         // Register intent filter for the br
         br = new CalvinBroadcastReceiver(calvin);
@@ -280,7 +281,7 @@ class CalvinRuntime implements Runnable {
     @Override
     public void run() {
         synchronized (threadLock) {
-            calvin.setupCalvinAndInit(calvin.proxyUris, calvin.name, calvin.storageDir);
+            calvin.setupCalvinAndInit(calvin.proxyUris, calvin.attributes, calvin.storageDir);
             threadLock.notify();
             calvin.runtimeStart(calvin.node);
             Log.d(LOG_TAG, "Calvin runtime thread finshed");
