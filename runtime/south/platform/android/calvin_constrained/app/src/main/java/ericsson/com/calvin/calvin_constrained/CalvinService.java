@@ -17,6 +17,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.RemoteMessage;
 
 import org.msgpack.core.MessageBufferPacker;
+import org.msgpack.core.MessageFormat;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 import org.msgpack.value.MapValue;
@@ -28,6 +29,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 
 /**
  * Created by alexander on 2017-01-31.
@@ -129,7 +132,7 @@ public class CalvinService extends Service {
         }
     }
 
-    synchronized public boolean sendInitExternalCalvinsys(String name) {
+    synchronized public boolean sendOpenExternalCalvinsys(String name, int id) {
         Log.d(LOG_TAG, "Send init to external calvinsys: " + name);
         ExternalCalvinSys sys = clients.get(name);
         if (sys == null) {
@@ -263,6 +266,10 @@ public class CalvinService extends Service {
     }
 }
 
+class CalvinThreadLock {
+    public volatile boolean done = false;
+}
+
 /**
  * The thread that runs the Calvin runtime.
  */
@@ -270,22 +277,28 @@ class CalvinRuntime implements Runnable {
     private final String LOG_TAG = "Calvin runtime thread";
     Calvin calvin;
     CalvinMessageHandler[] messageHandlers;
-    Object threadLock;
+    CyclicBarrier cb;
 
-    public CalvinRuntime(Calvin calvin, CalvinMessageHandler[] messageHandlers, Object threadLock){
+    public CalvinRuntime(Calvin calvin, CalvinMessageHandler[] messageHandlers, CyclicBarrier cb){
         this.calvin = calvin;
         this.messageHandlers = messageHandlers;
-        this.threadLock = threadLock;
+        this.cb = cb;
     }
 
     @Override
     public void run() {
-        synchronized (threadLock) {
-            calvin.setupCalvinAndInit(calvin.proxyUris, calvin.attributes, calvin.storageDir);
-            threadLock.notify();
-            calvin.runtimeStart(calvin.node);
-            Log.d(LOG_TAG, "Calvin runtime thread finshed");
+        calvin.setupCalvinAndInit(calvin.proxyUris, calvin.attributes, calvin.storageDir);
+        try {
+            cb.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (BrokenBarrierException e) {
+            e.printStackTrace();
         }
+        Log.d(LOG_TAG, "Runtime will start!");
+
+        calvin.runtimeStart(calvin.node);
+        Log.d(LOG_TAG, "Calvin runtime thread finshed");
     }
 }
 
@@ -300,7 +313,6 @@ class CalvinDataListenThread implements Runnable{
     private CalvinRuntime rt;
     private CalvinService calvinService;
     private Thread calvinThread;
-    Object thread_lock = new Object();
 
     CalvinMessageHandler[] initMessageHandlers() {
         // Create all message handlers here
@@ -379,13 +391,39 @@ class CalvinDataListenThread implements Runnable{
 
             @Override
             public String getCommand() {
-                return CalvinMessageHandler.INIT_EXTERNAL_CALVINSYS;
+                return CalvinMessageHandler.OPEN_EXTERNAL_CALVINSYS;
             }
 
             @Override
             public void handleData(byte[] data) {
-                String name = new String(data);
-                if(!calvinService.sendInitExternalCalvinsys(name)) {
+                Log.d(LOG_TAG, "Got message to open external calvinsys");
+                String name = null;
+                int id = -1;
+                try {
+                    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(data);
+                    MapValue mv = (MapValue) unpacker.unpackValue();
+                    Set<Map.Entry<Value, Value>> entries = mv.entrySet();
+                    for(Map.Entry<Value, Value> entry : entries) {
+                        if(entry.getKey().getValueType() == ValueType.STRING) {
+                            switch (entry.getKey().asStringValue().asString()) {
+                                case "id":
+                                    id = entry.getValue().asIntegerValue().asInt();
+                                    break;
+                                case "name":
+                                    name = entry.getValue().asStringValue().asString();
+                                    break;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(LOG_TAG, "Error when unpacking msgpack when opening calvinsys: " + e.toString());
+                }
+
+                Log.d(LOG_TAG, "Open calvinsys, unpacked values: name "+ name +", id:"+ id);
+
+                if (name == null || id == -1) {
+                    Log.e(LOG_TAG, "Could not unpack id and name when opening calvinsys");
+                } else if (!calvinService.sendOpenExternalCalvinsys(name, id)) {
                     Log.e(LOG_TAG, "Could not sent init to external calvinsys");
                 }
             }
@@ -440,25 +478,30 @@ class CalvinDataListenThread implements Runnable{
         while(true) {
             Log.d(LOG_TAG, "listening for new writes");
             if(!rtStarted) {
-                rt = new CalvinRuntime(calvin, initMessageHandlers(), thread_lock);
+                CyclicBarrier cb = new CyclicBarrier(2);
+
+                rt = new CalvinRuntime(calvin, initMessageHandlers(), cb);
                 calvinThread = new Thread(rt);
                 rtStarted = true;
-
-                synchronized (thread_lock) {
-                    try {
-                        calvinThread.start();
-                        thread_lock.wait();
-                    } catch (InterruptedException e) {
-                        Log.e(LOG_TAG, "Could not call wait for calvin runtime to init and create node");
-                    }
+                calvinThread.start();
+                try {
+                    cb.await();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (BrokenBarrierException e) {
+                    e.printStackTrace();
                 }
+
             }
+
+            Log.d(LOG_TAG, "Data listen thread started!");
 
             byte[] raw_data = calvin.readUpstreamData(calvin.node);
             if (raw_data == null) {
               Log.e(LOG_TAG, "Failed read upstream data");
             } else {
-              int size = get_message_length(raw_data);
+                Log.d(LOG_TAG, "Got message on pipe, lets parse it!");
+               int size = get_message_length(raw_data);
 
               byte[] cmd = Arrays.copyOfRange(raw_data, 4, 6);
               String cmd_string = new String(cmd);
