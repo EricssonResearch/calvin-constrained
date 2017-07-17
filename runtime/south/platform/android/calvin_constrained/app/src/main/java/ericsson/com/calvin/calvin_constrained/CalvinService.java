@@ -105,20 +105,24 @@ public class CalvinService extends Service {
         String sysName = data.getString("calvinsys");
         String command = data.getString("command");
         byte[] payload = data.getByteArray("payload");
+        int id = data.getInt("id");
+
         if (sysName == null || command == null) {
             Log.e(LOG_TAG, "Error when sending data to sys handler. The calvinsys must contain the name of the registered sys.");
             return;
         }
         MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
         try {
-            // TODO: Future work, instead of getting a msgpack coded data object, parse it to/from a Bundle
-            packer.packMapHeader(3);
+            packer.packMapHeader(4);
 
             packer.packString("calvinsys");
             packer.packString(sysName+"\0");
 
             packer.packString("command");
             packer.packString(command+"\0");
+
+            packer.packString("id");
+            packer.packInt(id);
 
             packer.packString("payload");
             packer.packBinaryHeader(payload.length);
@@ -139,7 +143,12 @@ public class CalvinService extends Service {
             Log.d(LOG_TAG, "calvinsys not found");
             return false;
         }
+
         Message pack = Message.obtain(null, INIT_CALVINSYS);
+        Bundle data = new Bundle();
+        data.putInt("id", id);
+        pack.setData(data);
+
         try {
             sys.outgoing.send(pack);
         } catch (RemoteException e) {
@@ -167,45 +176,24 @@ public class CalvinService extends Service {
     }
 
     synchronized void sendPayloadExternalCalvinsys(byte[] data) {
-        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(data);
-        try {
-            Bundle bundle = new Bundle();
-            if(unpacker.hasNext()) {
-                Value v = unpacker.unpackValue();
-				if(v.getValueType() == ValueType.MAP) {
-                        MapValue map = v.asMapValue();
-                        Set<Map.Entry<Value, Value>> mapSet = map.entrySet();
-                        for(Map.Entry<Value, Value> e : mapSet) {
-                            if (e.getKey().getValueType() == ValueType.STRING) {
-                                ValueType a = e.getValue().getValueType();
-                                String key = e.getKey().asStringValue().asString();
-                                if(a == ValueType.STRING && key.startsWith("command")) {
-                                    String value = e.getValue().asStringValue().asString();
-                                    bundle.putString(key, value.substring(0, value.length()-1));
-                                }else if(a == ValueType.STRING && key.startsWith("calvinsys")) {
-                                    String value = e.getValue().asStringValue().asString();
-                                    bundle.putString(key, value.substring(0, value.length()-1));
-                                } else if(a == ValueType.BINARY && key.startsWith("payload")) {
-                                    byte[] value = e.getValue().asBinaryValue().asByteArray();
-                                    bundle.putByteArray(key, value);
-                                }
-                            } else {
-                                Log.e(LOG_TAG, "Found non string key in map, ignoring");
-                            }
-                        }
-                } else {
-                    Log.e(LOG_TAG, "Was not map");
-                }
-			} else {
-                Log.e(LOG_TAG, "Did not find any data in msgpack...");
-            }
+        Map<String, Value> map = CalvinCommon.msgpackDecodeMap(data);
 
-            Message msg = Message.obtain(null, 3, 0, 0);
-            msg.setData(bundle);
-            ExternalCalvinSys sys = clients.get(bundle.getString("calvinsys"));
+        Bundle bundle = new Bundle();
+        bundle.putInt("id", map.get("id").asIntegerValue().asInt());
+        bundle.putByteArray("payload", map.get("payload").asBinaryValue().asByteArray());
+        bundle.putString("calvinsys", map.get("calvinsys").asStringValue().asString());
+
+        Message msg = Message.obtain(null, 3, 0, 0);
+        msg.setData(bundle);
+        ExternalCalvinSys sys = clients.get(bundle.getString("calvinsys"));
+        if(sys == null) {
+            Log.e(LOG_TAG, "No such calvinsys: "+bundle.getString("calvinsys")+" registered. Registered calvinsys are: ");
+            for(String key : clients.keySet())
+                Log.e(LOG_TAG, key);
+            return;
+        }
+        try {
             sys.outgoing.send(msg);
-        } catch (IOException e) {
-            e.printStackTrace();
         } catch (RemoteException e) {
             e.printStackTrace();
         }
@@ -227,6 +215,11 @@ public class CalvinService extends Service {
         if (intent != null)
             intentData = intent.getExtras();
         this.runtimeHasStopped = false;
+        if (intentData == null) {
+            Log.e(LOG_TAG, "no data with intent, cannot start runtime!");
+            return START_STICKY;
+        }
+
         String name = intentData.getString("rt_name", "Calvin Android");
         String proxy_uris = intentData.getString("rt_uris", "ssdp");
         String storageDir = getFilesDir().getAbsolutePath();
@@ -296,7 +289,6 @@ class CalvinRuntime implements Runnable {
             e.printStackTrace();
         }
         Log.d(LOG_TAG, "Runtime will start!");
-
         calvin.runtimeStart(calvin.node);
         Log.d(LOG_TAG, "Calvin runtime thread finshed");
     }

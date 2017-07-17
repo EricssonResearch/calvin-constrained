@@ -37,14 +37,14 @@ void *get_ptr_from_jlong(jlong ptr_value)
 	return ptr;
 }
 
-JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeInit(JNIEnv *env, jobject this, jstring j_proxy_uris, jstring j_name, jstring j_storage_dir)
+JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeInit(JNIEnv *env, jobject this, jstring j_proxy_uris, jstring j_attributes, jstring j_storage_dir)
 {
 	node_t *node = NULL;
 	char *storage_dir = (char *)(*env)->GetStringUTFChars(env, j_storage_dir, 0);
 	char *proxy_uris = (char *)(*env)->GetStringUTFChars(env, j_proxy_uris, 0);
-	char *name = (char *)(*env)->GetStringUTFChars(env, j_name, 0);
+	char *attributes = (char *)(*env)->GetStringUTFChars(env, j_attributes, 0);
 
-	api_runtime_init(&node, name, proxy_uris, storage_dir);
+	api_runtime_init(&node, attributes, proxy_uris, storage_dir);
 
 	return get_jlong_from_pointer(node);
 }
@@ -63,7 +63,6 @@ JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin
 		data = (*env)->NewByteArray(env, size + 7);
 		(*env)->SetByteArrayRegion(env, data, 0, size + 7, buffer);
 	}
-
   return data;
 }
 

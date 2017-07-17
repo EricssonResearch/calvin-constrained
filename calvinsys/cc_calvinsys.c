@@ -106,3 +106,32 @@ void calvinsys_close(calvinsys_obj_t *obj)
 	obj->handler->objects = NULL; // TODO: Handle multiple objects
 	platform_mem_free((void *)obj);
 }
+
+result_t get_obj_by_id(calvinsys_obj_t** obj, calvinsys_handler_t* handler, uint32_t id)
+{
+	calvinsys_obj_t* tmp = handler->objects;
+
+	while(tmp != NULL) {
+		if (tmp->id == id){
+			*obj = tmp;
+			return CC_RESULT_SUCCESS;
+		}
+		tmp = tmp->next;
+	}
+	return CC_RESULT_FAIL;
+}
+
+result_t add_object_to_handler(calvinsys_obj_t* obj, calvinsys_handler_t* handler)
+{
+	calvinsys_obj_t* tmp = handler->objects;
+	if(tmp == NULL) {
+		handler->objects = obj;
+		return CC_RESULT_SUCCESS;
+	}
+
+	while(tmp->next != NULL)
+		tmp = tmp->next;
+	tmp->next = obj;
+
+	return CC_RESULT_SUCCESS;
+}

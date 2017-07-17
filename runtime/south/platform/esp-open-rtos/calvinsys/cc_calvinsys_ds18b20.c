@@ -54,7 +54,7 @@ static result_t calvinsys_ds18b20_close(struct calvinsys_obj_t *obj)
 	return CC_RESULT_SUCCESS;
 }
 
-static calvinsys_obj_t *calvinsys_ds18b20_open(calvinsys_handler_t *handler, char *data, size_t len, void *state)
+static calvinsys_obj_t *calvinsys_ds18b20_open(calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id)
 {
 	calvinsys_obj_t *obj = NULL;
 	int sensor_count = 0;

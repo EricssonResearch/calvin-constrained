@@ -523,6 +523,7 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 	node->calvinsys->node = node;
 	node->calvinsys->capabilities = NULL;
 	node->calvinsys->handlers = NULL;
+	node->calvinsys->next_id = 1;
 	node->actor_types = NULL;
 
 	if (platform_create_calvinsys(&node->calvinsys) != CC_RESULT_SUCCESS) {
@@ -663,7 +664,7 @@ result_t node_run(node_t *node)
 							node->state = NODE_PENDING;
 					}
 #else
-					platform_evt_wait(node, 0);
+					platform_evt_wait(node, 1);
 #endif
 				}
 			}

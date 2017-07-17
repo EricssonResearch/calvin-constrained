@@ -80,7 +80,7 @@ static result_t platform_temp_read(struct calvinsys_obj_t *obj, char **data, siz
 	return CC_RESULT_SUCCESS;
 }
 
-static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *data, size_t len, void *state)
+static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id)
 {
 	calvinsys_obj_t *obj = NULL;
 
@@ -165,7 +165,7 @@ static result_t platform_calvinsys_digitial_in_out_close(struct calvinsys_obj_t 
 	return CC_RESULT_SUCCESS;
 }
 
-static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handler_t *handler, char *data, size_t len, void *state)
+static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id)
 {
 	calvinsys_obj_t *obj = NULL;
 	calvinsys_gpio_state_t *gpio_state = (calvinsys_gpio_state_t *)state;
