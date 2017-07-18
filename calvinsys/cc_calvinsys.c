@@ -18,6 +18,21 @@
 #include "../runtime/south/platform/cc_platform.h"
 #include "cc_calvinsys.h"
 
+static result_t calvinsys_add_object_to_handler(calvinsys_obj_t* obj, calvinsys_handler_t* handler)
+{
+	calvinsys_obj_t* tmp = handler->objects;
+	if(tmp == NULL) {
+		handler->objects = obj;
+		return CC_RESULT_SUCCESS;
+	}
+
+	while(tmp->next != NULL)
+		tmp = tmp->next;
+	tmp->next = obj;
+
+	return CC_RESULT_SUCCESS;
+}
+
 void calvinsys_add_handler(calvinsys_t **calvinsys, calvinsys_handler_t *handler)
 {
 	calvinsys_handler_t *tmp_handler = NULL;
@@ -65,9 +80,6 @@ result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name,
 	capability->state = state;
 
 	if (list_add_n(&calvinsys->capabilities, name, strlen(name), capability, sizeof(calvinsys_capability_t)) == CC_RESULT_SUCCESS) {
-		list_t* head = calvinsys->capabilities;
-		while(head->next != NULL)
-			head = head->next;
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -121,19 +133,4 @@ result_t calvinsys_get_obj_by_id(calvinsys_obj_t** obj, calvinsys_handler_t* han
 		tmp = tmp->next;
 	}
 	return CC_RESULT_FAIL;
-}
-
-result_t calvinsys_add_object_to_handler(calvinsys_obj_t* obj, calvinsys_handler_t* handler)
-{
-	calvinsys_obj_t* tmp = handler->objects;
-	if(tmp == NULL) {
-		handler->objects = obj;
-		return CC_RESULT_SUCCESS;
-	}
-
-	while(tmp->next != NULL)
-		tmp = tmp->next;
-	tmp->next = obj;
-
-	return CC_RESULT_SUCCESS;
 }
