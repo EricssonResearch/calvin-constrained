@@ -664,7 +664,7 @@ result_t node_run(node_t *node)
 							node->state = NODE_PENDING;
 					}
 #else
-					platform_evt_wait(node, 1);
+					platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
 #endif
 				}
 			}

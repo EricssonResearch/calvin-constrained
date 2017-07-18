@@ -16,8 +16,6 @@
 #ifndef CALVINSYS_H
 #define CALVINSYS_H
 
-#define CC_NOT_OPENED -1
-
 #include "../runtime/north/cc_common.h"
 
 typedef struct calvinsys_obj_t {
@@ -33,11 +31,10 @@ typedef struct calvinsys_obj_t {
 } calvinsys_obj_t;
 
 typedef struct calvinsys_handler_t {
-	calvinsys_obj_t *(*open)(struct calvinsys_handler_t *handler, char *data, size_t len, void* state, uint32_t id);
+	calvinsys_obj_t *(*open)(struct calvinsys_handler_t *handler, char *data, size_t len, void* state, uint32_t id, const char* capability_name);
 	calvinsys_obj_t *objects;
 	struct calvinsys_handler_t *next;
 	struct calvinsys_t *calvinsys;
-	char* capability_name;
 } calvinsys_handler_t;
 
 typedef struct calvinsys_capability_t {
@@ -58,7 +55,7 @@ result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name,
 void calvinsys_delete_capabiltiy(calvinsys_t *calvinsys, const char *name);
 calvinsys_obj_t *calvinsys_open(calvinsys_t *calvinsys, const char *name, char *data, size_t size);
 void calvinsys_close(calvinsys_obj_t *obj);
-result_t get_obj_by_id(calvinsys_obj_t** obj, calvinsys_handler_t* handler, uint32_t id);
-result_t add_object_to_handler(calvinsys_obj_t* obj, calvinsys_handler_t* handler);
+result_t calvinsys_get_obj_by_id(calvinsys_obj_t** obj, calvinsys_handler_t* handler, uint32_t id);
+result_t calvinsys_add_object_to_handler(calvinsys_obj_t* obj, calvinsys_handler_t* handler);
 
 #endif /* CALVINSYS_H */

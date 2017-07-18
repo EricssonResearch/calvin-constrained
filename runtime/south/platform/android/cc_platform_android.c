@@ -17,6 +17,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <android/log.h>
+#include <platform/android/calvinsys/cc_accelerometer.h>
 #include "../../../../cc_api.h"
 #include "cc_platform_android.h"
 #include "../../transport/socket/cc_transport_socket.h"
@@ -25,6 +26,7 @@
 #include "../../transport/fcm/cc_transport_fcm.h"
 #include "../../../north/cc_msgpack_helper.h"
 #include "../cc_platform.h"
+#include "../../../../actors/cc_actor_accelerometer.h"
 
 static result_t command_transport_connected(node_t* node, char* payload_data, size_t size);
 static result_t command_rt_stop(node_t* node, char* payload_data, size_t size);
@@ -207,7 +209,10 @@ bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 		return false;
 	}
 
-	int poll_result = ALooper_pollOnce(-1, NULL, NULL, NULL);
+	if (timeout_seconds == CC_INDEFINITELY_TIMEOUT)
+		timeout_seconds = -1;
+
+	int poll_result = ALooper_pollOnce(timeout_seconds, NULL, NULL, NULL);
 	if (poll_result == ALOOPER_POLL_CALLBACK || poll_result == ALOOPER_POLL_TIMEOUT) {
 		return true;
 	}
@@ -269,7 +274,6 @@ static result_t platform_external_write(struct calvinsys_obj_t *obj, char *data,
 
     w = mp_encode_map(w, 3);
 	w = encode_uint(&w, "id", obj->id);
-    w = encode_str(&w, "calvinsys", obj->handler->capability_name, strlen(obj->handler->capability_name));
 	w = encode_bin(&w, "payload", data, data_size);
 
 	if (send_upstream_platform_message(obj->handler->calvinsys->node, PLATFORM_ANDROID_EXTERNAL_CALVINSYS_PAYLOAD, buffer, w - buffer) > 0)
@@ -308,7 +312,6 @@ static result_t platform_external_close(calvinsys_obj_t *obj)
 
 	w = buffer+6;
 	w = mp_encode_map(w, 2);
-	w = encode_str(&w, "name", obj->handler->capability_name, strlen(obj->handler->capability_name));
 	w = encode_uint(&w, "id", obj->id);
 
   if (send_upstream_platform_message(obj->handler->calvinsys->node, PLATFORM_ANDROID_DESTROY_EXTERNAL_CALVINSYS, buffer, w-buffer) > 0) {
@@ -321,7 +324,7 @@ static result_t platform_external_close(calvinsys_obj_t *obj)
   return CC_RESULT_FAIL;
 }
 
-static calvinsys_obj_t *platform_external_open(calvinsys_handler_t *handler, char *data, size_t len, void* handler_state, uint32_t id)
+static calvinsys_obj_t *platform_external_open(calvinsys_handler_t *handler, char *data, size_t len, void* handler_state, uint32_t id, const char* capability_name)
 {
 	calvinsys_obj_t *obj = NULL;
 	platform_android_external_state_t *state = NULL;
@@ -352,15 +355,13 @@ static calvinsys_obj_t *platform_external_open(calvinsys_handler_t *handler, cha
 	obj->state = state;
 	obj->id = id;
 
-	add_object_to_handler(obj, handler);
-
 	if(handler->objects == NULL)
 		cc_log_error("Did not add object to handler!");
 
     // Give it its ID
 	w = buffer + 6;
 	w = mp_encode_map(w, 2);
-	w = encode_str(&w, "name", handler->capability_name, strlen(handler->capability_name));
+	w = encode_str(&w, "name", capability_name, strlen(capability_name));
 	w = encode_uint(&w, "id", id);
 
 	if (send_upstream_platform_message(handler->calvinsys->node, PLATFORM_ANDROID_OPEN_EXTERNAL_CALVINSYS, buffer, w-buffer) > 0)
@@ -393,7 +394,6 @@ static result_t platform_register_external_calvinsys(node_t *node, char *data, s
 	handler->open = platform_external_open;
 	handler->objects = NULL;
 	handler->next = NULL;
-	handler->capability_name = name;
 
 	calvinsys_add_handler(&node->calvinsys, handler);
 	handler->calvinsys->node = node;
@@ -434,7 +434,7 @@ static result_t platform_handle_external_calvinsys_data(node_t *node, char *data
 		return CC_RESULT_FAIL;
 	}
 
-	if (get_obj_by_id(&object, handler, id) != CC_RESULT_SUCCESS) {
+	if (calvinsys_get_obj_by_id(&object, handler, id) != CC_RESULT_SUCCESS) {
 		cc_log_error("Could not find calvinsys object for that handler");
 		return CC_RESULT_FAIL;
 	}
@@ -506,6 +506,7 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 	android_platform_t* platform = (android_platform_t *)(*calvinsys)->node->platform;
 
 	platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
+
 	return CC_RESULT_SUCCESS;
 }
 

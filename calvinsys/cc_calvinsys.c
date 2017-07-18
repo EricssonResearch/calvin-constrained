@@ -68,7 +68,6 @@ result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name,
 		list_t* head = calvinsys->capabilities;
 		while(head->next != NULL)
 			head = head->next;
-		handler->capability_name = head->id;
 		return CC_RESULT_SUCCESS;
 	}
 
@@ -92,8 +91,11 @@ calvinsys_obj_t *calvinsys_open(calvinsys_t *calvinsys, const char *name, char *
 
 	capability = (calvinsys_capability_t *)list_get(calvinsys->capabilities, name);
 	if (capability != NULL) {
-		calvinsys_obj_t* result = capability->handler->open(capability->handler, data, size, capability->state, calvinsys->next_id);
-		result->id = calvinsys->next_id ++;
+		calvinsys_obj_t* result = capability->handler->open(capability->handler, data, size, capability->state, calvinsys->next_id, name);
+		if (result != NULL) {
+			result->id = calvinsys->next_id++;
+			calvinsys_add_object_to_handler(result, capability->handler);
+		}
 		return result;
 	}
 	return NULL;
@@ -107,7 +109,7 @@ void calvinsys_close(calvinsys_obj_t *obj)
 	platform_mem_free((void *)obj);
 }
 
-result_t get_obj_by_id(calvinsys_obj_t** obj, calvinsys_handler_t* handler, uint32_t id)
+result_t calvinsys_get_obj_by_id(calvinsys_obj_t** obj, calvinsys_handler_t* handler, uint32_t id)
 {
 	calvinsys_obj_t* tmp = handler->objects;
 
@@ -121,7 +123,7 @@ result_t get_obj_by_id(calvinsys_obj_t** obj, calvinsys_handler_t* handler, uint
 	return CC_RESULT_FAIL;
 }
 
-result_t add_object_to_handler(calvinsys_obj_t* obj, calvinsys_handler_t* handler)
+result_t calvinsys_add_object_to_handler(calvinsys_obj_t* obj, calvinsys_handler_t* handler)
 {
 	calvinsys_obj_t* tmp = handler->objects;
 	if(tmp == NULL) {
