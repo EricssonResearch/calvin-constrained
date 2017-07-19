@@ -32,6 +32,10 @@
 #ifdef CC_ACTOR_CAMERA
 #include "../../actors/cc_actor_camera.h"
 #endif
+#ifdef CC_ACTOR_ACCELEROMETER
+#include "../../actors/cc_actor_accelerometer.h"
+#endif
+
 result_t actor_store_init(list_t **actor_types)
 {
 #ifdef CC_ACTOR_BUTTON
@@ -64,5 +68,9 @@ result_t actor_store_init(list_t **actor_types)
     return CC_RESULT_FAIL;
 #endif
 
+#ifdef CC_ACTOR_ACCELEROMETER
+  if (actor_accelerometer_register(actor_types) != CC_RESULT_SUCCESS)
+    return CC_RESULT_FAIL;
+#endif
   return CC_RESULT_SUCCESS;
 }

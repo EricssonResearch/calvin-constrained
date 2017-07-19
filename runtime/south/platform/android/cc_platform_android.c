@@ -184,11 +184,9 @@ void platform_deepsleep(node_t *node)
 bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 {
 	android_platform_t *platform = (android_platform_t*)node->platform;
-	int status = 0;
-	int platform_trigger_id = 2, socket_transport_trigger_id = 3;
 
 	// Add FD for FCM and platform communications
-	if (ALooper_addFd(platform->looper, ((android_platform_t*) node->platform)->downstream_platform_fd[0], platform_trigger_id, ALOOPER_EVENT_INPUT, &platform_android_fcm_fd_handler, node) != 1) {
+	if (ALooper_addFd(platform->looper, ((android_platform_t*) node->platform)->downstream_platform_fd[0], ALOOPER_POLL_CALLBACK, ALOOPER_EVENT_INPUT, &platform_android_fcm_fd_handler, node) != 1) {
 		cc_log_error("Could not add fd to looper, looper: %p", platform->looper);
 		sleep(5);
 	}
@@ -198,7 +196,7 @@ bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 		if (node->transport_client->transport_type == TRANSPORT_SOCKET_TYPE) {
 			if (ALooper_addFd(platform->looper,
 			                  ((transport_socket_client_t *) node->transport_client->client_state)->fd,
-			                  socket_transport_trigger_id, ALOOPER_EVENT_INPUT,
+			                  ALOOPER_POLL_CALLBACK, ALOOPER_EVENT_INPUT,
 			                  &platform_android_socket_fd_handler, node) != 1) {
 				cc_log_error("Could not add socket fd");
 				sleep(5);
@@ -209,10 +207,7 @@ bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 		return false;
 	}
 
-	if (timeout_seconds == CC_INDEFINITELY_TIMEOUT)
-		timeout_seconds = -1;
-
-	int poll_result = ALooper_pollOnce(timeout_seconds, NULL, NULL, NULL);
+	int poll_result = ALooper_pollOnce(timeout_seconds == CC_INDEFINITELY_TIMEOUT ? -1 : timeout_seconds, NULL, NULL, NULL);
 	if (poll_result == ALOOPER_POLL_CALLBACK || poll_result == ALOOPER_POLL_TIMEOUT) {
 		return true;
 	}
@@ -300,7 +295,7 @@ static result_t platform_external_read(struct calvinsys_obj_t *obj, char **data,
         return CC_RESULT_SUCCESS;
 	}
 
-	cc_log("No data available");
+	cc_log_error("No data available");
 
 	return CC_RESULT_FAIL;
 }
@@ -341,8 +336,6 @@ static calvinsys_obj_t *platform_external_open(calvinsys_handler_t *handler, cha
 		platform_mem_free((void *)obj);
 		return NULL;
 	}
-
-	cc_log_debug("open on handler: %p", handler);
 
 	state->data = NULL;
 	state->data_size = 0;
@@ -506,6 +499,11 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 	android_platform_t* platform = (android_platform_t *)(*calvinsys)->node->platform;
 
 	platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
+
+	if (calvinsys_accelerometer_create(calvinsys, "sensor.accelerometer") != CC_RESULT_SUCCESS) {
+		cc_log_error("Could not create sensor accelerometer calvinsys");
+		return CC_RESULT_FAIL;
+	}
 
 	return CC_RESULT_SUCCESS;
 }

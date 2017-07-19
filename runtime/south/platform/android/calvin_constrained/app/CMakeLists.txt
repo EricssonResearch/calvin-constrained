@@ -11,7 +11,7 @@ add_library(
              ../../../../../../main.c
              ../../../../../../runtime/south/platform/android/cc_platform_android.c
              ../../../../../../runtime/south/platform/android/cc_jni_api.c
-             #../../../../../../runtime/south/platform/android/calvinsys/accelerometer.c
+             ../../../../../../runtime/south/platform/android/calvinsys/cc_accelerometer.c
              ../../../../../../main.c
              ../../../../../../calvinsys/cc_calvinsys.c
              ../../../../../../cc_api.c
@@ -33,6 +33,7 @@ add_library(
              ../../../../../../actors/cc_actor_identity.c
              ../../../../../../actors/cc_actor_button.c
              ../../../../../../actors/cc_actor_camera.c
+             ../../../../../../actors/cc_actor_accelerometer.c
              ../../../../../../runtime/north/cc_actor_store.c
              ../../../../../../actors/cc_actor_temperature.c
 )
