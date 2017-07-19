@@ -56,6 +56,5 @@ void calvinsys_delete_capabiltiy(calvinsys_t *calvinsys, const char *name);
 calvinsys_obj_t *calvinsys_open(calvinsys_t *calvinsys, const char *name, char *data, size_t size);
 void calvinsys_close(calvinsys_obj_t *obj);
 result_t calvinsys_get_obj_by_id(calvinsys_obj_t** obj, calvinsys_handler_t* handler, uint32_t id);
-result_t calvinsys_add_object_to_handler(calvinsys_obj_t* obj, calvinsys_handler_t* handler);
 
 #endif /* CALVINSYS_H */
