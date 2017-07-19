@@ -19,6 +19,7 @@
 #include <android/log.h>
 #include <platform/android/calvinsys/cc_accelerometer.h>
 #include <platform/android/calvinsys/cc_gyroscope.h>
+#include <platform/android/calvinsys/cc_pressure.h>
 #include "../../../../cc_api.h"
 #include "cc_platform_android.h"
 #include "../../transport/socket/cc_transport_socket.h"
@@ -495,8 +496,41 @@ result_t platform_node_started(struct node_t *node)
 	return CC_RESULT_SUCCESS;
 }
 
+static result_t init_sensor_by_type(ASensor* sensor, calvinsys_t** calvinsys)
+{
+	const char* type = ASensor_getStringType(sensor);
+	if (strcmp(type, "android.sensor.pressure") == 0) {
+		if (calvinsys_pressure_create(calvinsys, "sensor.pressure") != CC_RESULT_SUCCESS) {
+			cc_log_error("Could not create sensor %s calvinsys", type);
+			return CC_RESULT_FAIL;
+		}
+	}
+	return CC_RESULT_SUCCESS;
+}
+
+ASensor* get_sensor_by_name(const char* name)
+{
+	ASensorManager* mgr;
+	ASensorList sensor_list;
+	int i, sensor_count;
+
+	mgr = ASensorManager_getInstance();
+	sensor_count = ASensorManager_getSensorList(mgr, &sensor_list);
+
+	for(i = 0; i < sensor_count; i++) {
+		const char* type = ASensor_getStringType(sensor_list[i]);
+		if(strcmp(type, name))
+			return (ASensor*) sensor_list[i];
+	}
+	return NULL;
+}
+
 result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 {
+	ASensorManager* mgr;
+	ASensorList sensor_list;
+	int i, sensor_count;
+
 	android_platform_t* platform = (android_platform_t *)(*calvinsys)->node->platform;
 
 	platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
@@ -509,6 +543,14 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 	if (calvinsys_gyroscope_create(calvinsys, "sensor.gyroscope") != CC_RESULT_SUCCESS) {
 		cc_log_error("Could not create sensor gyroscope calvinsys");
 		return CC_RESULT_FAIL;
+	}
+
+	// Find other sensors that does not have a ASENSOR_TYPE_* definition in the NDK
+	mgr = ASensorManager_getInstance();
+	sensor_count = ASensorManager_getSensorList(mgr, &sensor_list);
+
+	for(i = 0; i < sensor_count; i++) {
+		init_sensor_by_type((ASensor*) sensor_list[i], calvinsys);
 	}
 
 	return CC_RESULT_SUCCESS;

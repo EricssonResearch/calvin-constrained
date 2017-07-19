@@ -59,4 +59,6 @@ typedef struct android_sensor_data_t {
 	size_t data_size;
 } android_sensor_data_t;
 
+ASensor* get_sensor_by_name(const char* name);
+
 #endif
