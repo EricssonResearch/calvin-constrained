@@ -20,6 +20,7 @@
 #include <platform/android/calvinsys/cc_accelerometer.h>
 #include <platform/android/calvinsys/cc_gyroscope.h>
 #include <platform/android/calvinsys/cc_pressure.h>
+#include <platform/android/calvinsys/cc_pickupgesture.h>
 #include "../../../../cc_api.h"
 #include "cc_platform_android.h"
 #include "../../transport/socket/cc_transport_socket.h"
@@ -499,8 +500,15 @@ result_t platform_node_started(struct node_t *node)
 static result_t init_sensor_by_type(ASensor* sensor, calvinsys_t** calvinsys)
 {
 	const char* type = ASensor_getStringType(sensor);
+	bool wakeup = ASensor_isWakeUpSensor(sensor);
+	cc_log("Sensor %s found. Is wakeup?: %d", type, wakeup);
 	if (strcmp(type, "android.sensor.pressure") == 0) {
 		if (calvinsys_pressure_create(calvinsys, "sensor.pressure") != CC_RESULT_SUCCESS) {
+			cc_log_error("Could not create sensor %s calvinsys", type);
+			return CC_RESULT_FAIL;
+		}
+	} else if(strcmp(type, "android.sensor.pick_up_gesture") == 0) {
+		if (calvinsys_pickupgesture_create(calvinsys, "sensor.pickupgesture") != CC_RESULT_SUCCESS) {
 			cc_log_error("Could not create sensor %s calvinsys", type);
 			return CC_RESULT_FAIL;
 		}
@@ -519,7 +527,7 @@ ASensor* get_sensor_by_name(const char* name)
 
 	for(i = 0; i < sensor_count; i++) {
 		const char* type = ASensor_getStringType(sensor_list[i]);
-		if(strcmp(type, name))
+		if(strcmp(type, name) == 0)
 			return (ASensor*) sensor_list[i];
 	}
 	return NULL;

@@ -14,6 +14,7 @@ add_library(
              ../../../../../../runtime/south/platform/android/calvinsys/cc_accelerometer.c
              ../../../../../../runtime/south/platform/android/calvinsys/cc_gyroscope.c
              ../../../../../../runtime/south/platform/android/calvinsys/cc_pressure.c
+             ../../../../../../runtime/south/platform/android/calvinsys/cc_pickupgesture.c
              ../../../../../../main.c
              ../../../../../../calvinsys/cc_calvinsys.c
              ../../../../../../cc_api.c
@@ -38,6 +39,7 @@ add_library(
              ../../../../../../actors/cc_actor_accelerometer.c
              ../../../../../../actors/cc_actor_gyroscope.c
              ../../../../../../actors/cc_actor_pressure.c
+             ../../../../../../actors/cc_actor_pickupgesture.c
              ../../../../../../runtime/north/cc_actor_store.c
              ../../../../../../actors/cc_actor_temperature.c
 )
