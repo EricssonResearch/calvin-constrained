@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <android/log.h>
 #include <platform/android/calvinsys/cc_accelerometer.h>
+#include <platform/android/calvinsys/cc_gyroscope.h>
 #include "../../../../cc_api.h"
 #include "cc_platform_android.h"
 #include "../../transport/socket/cc_transport_socket.h"
@@ -502,6 +503,11 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 
 	if (calvinsys_accelerometer_create(calvinsys, "sensor.accelerometer") != CC_RESULT_SUCCESS) {
 		cc_log_error("Could not create sensor accelerometer calvinsys");
+		return CC_RESULT_FAIL;
+	}
+
+	if (calvinsys_gyroscope_create(calvinsys, "sensor.gyroscope") != CC_RESULT_SUCCESS) {
+		cc_log_error("Could not create sensor gyroscope calvinsys");
 		return CC_RESULT_FAIL;
 	}
 

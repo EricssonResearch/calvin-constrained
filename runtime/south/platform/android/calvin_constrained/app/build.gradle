@@ -30,8 +30,11 @@ android {
                 cFlags "-DCC_PLATFORM_ANDROID"
                 cFlags "-DCC_DEBUG"
                 cFlags "-DCC_ACTOR_IDENTITY"
+                cFlags "-DCC_ACTOR_ACCELEROMETER"
+                cFlags "-DCC_ACTOR_GYROSCOPE"
                 cFlags "-DCC_ACTOR_BUTTON"
                 cFlags "-DCC_ACTOR_CAMERA"
+                cFlags "-Wno-deprecated-declarations"
                 cFlags "--std=gnu99"
             }
         }
