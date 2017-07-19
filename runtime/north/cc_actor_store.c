@@ -17,7 +17,7 @@
 #ifdef CC_ACTOR_BUTTON
 #include "../../actors/cc_actor_button.h"
 #endif
-#ifdef CC_ACTOR_IDENTIY
+#ifdef CC_ACTOR_IDENTITY
 #include "../../actors/cc_actor_identity.h"
 #endif
 #ifdef CC_ACTOR_LIGHT
@@ -29,7 +29,9 @@
 #ifdef CC_ACTOR_TEMPERATURE
 #include "../../actors/cc_actor_temperature.h"
 #endif
-
+#ifdef CC_ACTOR_CAMERA
+#include "../../actors/cc_actor_camera.h"
+#endif
 result_t actor_store_init(list_t **actor_types)
 {
 #ifdef CC_ACTOR_BUTTON
@@ -37,7 +39,7 @@ result_t actor_store_init(list_t **actor_types)
     return CC_RESULT_FAIL;
 #endif
 
-#ifdef CC_ACTOR_IDENTIY
+#ifdef CC_ACTOR_IDENTITY
   if (actor_identity_register(actor_types) != CC_RESULT_SUCCESS)
     return CC_RESULT_FAIL;
 #endif
@@ -54,6 +56,11 @@ result_t actor_store_init(list_t **actor_types)
 
 #ifdef CC_ACTOR_TEMPERATURE
   if (actor_temperature_register(actor_types) != CC_RESULT_SUCCESS)
+    return CC_RESULT_FAIL;
+#endif
+
+#ifdef CC_ACTOR_CAMERA
+  if (actor_camera_register(actor_types) != CC_RESULT_SUCCESS)
     return CC_RESULT_FAIL;
 #endif
 

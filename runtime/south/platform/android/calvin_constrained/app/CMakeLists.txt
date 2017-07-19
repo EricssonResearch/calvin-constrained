@@ -32,9 +32,8 @@ add_library(
              ../../../../../../msgpuck/msgpuck.c
              ../../../../../../actors/cc_actor_identity.c
              ../../../../../../actors/cc_actor_button.c
-             ../../../../../../actors/cc_actor_led.c
-             #../../../../../../actors/cc_actor_gpioreader.c
-             #../../../../../../actors/cc_actor_gpiowriter.c
+             ../../../../../../actors/cc_actor_camera.c
+             ../../../../../../runtime/north/cc_actor_store.c
              ../../../../../../actors/cc_actor_temperature.c
 )
 

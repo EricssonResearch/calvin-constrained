@@ -34,7 +34,7 @@ static result_t transport_fcm_connect(node_t *node, transport_client_t *transpor
 	char buffer[TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE];
 
 	if (((android_platform_t *)node->platform)->send_upstream_platform_message(
-			transport_client,
+			node,
 			PLATFORM_ANDROID_FCM_CONNECT,
 			buffer,
 			TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE) > 0) {
@@ -55,7 +55,7 @@ static int transport_fcm_send(transport_client_t *transport_client, char *data, 
 	cc_log("transport_fcm_send");
 
 	return ((android_platform_t *)fcm_client->node->platform)->send_upstream_platform_message(
-		transport_client,
+			fcm_client->node,
 		PLATFORM_ANDROID_RUNTIME_CALVIN_MSG,
 		data,
 		size);

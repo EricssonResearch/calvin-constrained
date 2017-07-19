@@ -26,6 +26,8 @@
 #include "../../calvinsys/cc_calvinsys.h"
 #include "../south/platform/cc_platform.h"
 
+#define CC_INDEFINITELY_TIMEOUT 0
+
 typedef enum {
 	NODE_DO_START,
 	NODE_PENDING,

@@ -19,8 +19,8 @@ android {
                 cFlags "-I"+ projectDir + "/../../../../"
                 cFlags "-Werror"
                 cFlags "-g"
-                cFlags "-DCC_DEEPSLEEP_ENABLED"
-                cFlags "-DCC_INACTIVITY_TIMEOUT=30"
+                cFlags "-DCC_INACTIVITY_TIMEOUT=60"
+                cFlags "-DCC_SLEEP_TIME=10"
                 cFlags "-DCC_STORAGE_ENABLED"
                 cFlags "-DCC_RUNTIME_STATE_BUFFER_SIZE=10000"
                 cFlags "-DCC_TRANSPORT_SOCKET"
@@ -29,6 +29,9 @@ android {
                 cFlags "-DCC_GETOPT_ENABLED"
                 cFlags "-DCC_PLATFORM_ANDROID"
                 cFlags "-DCC_DEBUG"
+                cFlags "-DCC_ACTOR_IDENTITY"
+                cFlags "-DCC_ACTOR_BUTTON"
+                cFlags "-DCC_ACTOR_CAMERA"
                 cFlags "--std=gnu99"
             }
         }
@@ -82,6 +85,7 @@ dependencies {
     compile 'com.android.support:appcompat-v7:25.3.1'
     compile 'com.google.firebase:firebase-messaging:10.0.1'
     compile 'org.msgpack:msgpack-core:0.8.12'
+    compile 'com.google.code.gson:gson:2.2.4'
     testCompile 'junit:junit:4.12'
 }
 apply plugin: 'com.google.gms.google-services'

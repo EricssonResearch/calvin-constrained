@@ -17,6 +17,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.RemoteMessage;
 
 import org.msgpack.core.MessageBufferPacker;
+import org.msgpack.core.MessageFormat;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 import org.msgpack.value.MapValue;
@@ -28,6 +29,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 
 /**
  * Created by alexander on 2017-01-31.
@@ -79,7 +82,7 @@ public class CalvinService extends Service {
                     sys.outgoing = message.replyTo;
                     sys.uid = message.sendingUid;
                     clients.put(sys.name, sys);
-
+                    Log.d(LOG_TAG, "Will register calvinsys natively");
                     calvin.registerExternalCalvinsys(calvin.node, name);
 
                     // Send reply message
@@ -102,20 +105,24 @@ public class CalvinService extends Service {
         String sysName = data.getString("calvinsys");
         String command = data.getString("command");
         byte[] payload = data.getByteArray("payload");
+        int id = data.getInt("id");
+
         if (sysName == null || command == null) {
             Log.e(LOG_TAG, "Error when sending data to sys handler. The calvinsys must contain the name of the registered sys.");
             return;
         }
         MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
         try {
-            // TODO: Future work, instead of getting a msgpack coded data object, parse it to/from a Bundle
-            packer.packMapHeader(3);
+            packer.packMapHeader(4);
 
             packer.packString("calvinsys");
             packer.packString(sysName+"\0");
 
             packer.packString("command");
             packer.packString(command+"\0");
+
+            packer.packString("id");
+            packer.packInt(id);
 
             packer.packString("payload");
             packer.packBinaryHeader(payload.length);
@@ -129,14 +136,19 @@ public class CalvinService extends Service {
         }
     }
 
-    synchronized public boolean sendInitExternalCalvinsys(String name) {
+    synchronized public boolean sendOpenExternalCalvinsys(String name, int id) {
         Log.d(LOG_TAG, "Send init to external calvinsys: " + name);
         ExternalCalvinSys sys = clients.get(name);
         if (sys == null) {
             Log.d(LOG_TAG, "calvinsys not found");
             return false;
         }
+
         Message pack = Message.obtain(null, INIT_CALVINSYS);
+        Bundle data = new Bundle();
+        data.putInt("id", id);
+        pack.setData(data);
+
         try {
             sys.outgoing.send(pack);
         } catch (RemoteException e) {
@@ -164,45 +176,24 @@ public class CalvinService extends Service {
     }
 
     synchronized void sendPayloadExternalCalvinsys(byte[] data) {
-        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(data);
-        try {
-            Bundle bundle = new Bundle();
-            if(unpacker.hasNext()) {
-                Value v = unpacker.unpackValue();
-				if(v.getValueType() == ValueType.MAP) {
-                        MapValue map = v.asMapValue();
-                        Set<Map.Entry<Value, Value>> mapSet = map.entrySet();
-                        for(Map.Entry<Value, Value> e : mapSet) {
-                            if (e.getKey().getValueType() == ValueType.STRING) {
-                                ValueType a = e.getValue().getValueType();
-                                String key = e.getKey().asStringValue().asString();
-                                if(a == ValueType.STRING && key.startsWith("command")) {
-                                    String value = e.getValue().asStringValue().asString();
-                                    bundle.putString(key, value.substring(0, value.length()-1));
-                                }else if(a == ValueType.STRING && key.startsWith("calvinsys")) {
-                                    String value = e.getValue().asStringValue().asString();
-                                    bundle.putString(key, value.substring(0, value.length()-1));
-                                } else if(a == ValueType.BINARY && key.startsWith("payload")) {
-                                    byte[] value = e.getValue().asBinaryValue().asByteArray();
-                                    bundle.putByteArray(key, value);
-                                }
-                            } else {
-                                Log.e(LOG_TAG, "Found non string key in map, ignoring");
-                            }
-                        }
-                } else {
-                    Log.e(LOG_TAG, "Was not map");
-                }
-			} else {
-                Log.e(LOG_TAG, "Did not find any data in msgpack...");
-            }
+        Map<String, Value> map = CalvinCommon.msgpackDecodeMap(data);
 
-            Message msg = Message.obtain(null, 3, 0, 0);
-            msg.setData(bundle);
-            ExternalCalvinSys sys = clients.get(bundle.getString("calvinsys"));
+        Bundle bundle = new Bundle();
+        bundle.putInt("id", map.get("id").asIntegerValue().asInt());
+        bundle.putByteArray("payload", map.get("payload").asBinaryValue().asByteArray());
+        bundle.putString("calvinsys", map.get("calvinsys").asStringValue().asString());
+
+        Message msg = Message.obtain(null, 3, 0, 0);
+        msg.setData(bundle);
+        ExternalCalvinSys sys = clients.get(bundle.getString("calvinsys"));
+        if(sys == null) {
+            Log.e(LOG_TAG, "No such calvinsys: "+bundle.getString("calvinsys")+" registered. Registered calvinsys are: ");
+            for(String key : clients.keySet())
+                Log.e(LOG_TAG, key);
+            return;
+        }
+        try {
             sys.outgoing.send(msg);
-        } catch (IOException e) {
-            e.printStackTrace();
         } catch (RemoteException e) {
             e.printStackTrace();
         }
@@ -224,10 +215,16 @@ public class CalvinService extends Service {
         if (intent != null)
             intentData = intent.getExtras();
         this.runtimeHasStopped = false;
+        if (intentData == null) {
+            Log.e(LOG_TAG, "no data with intent, cannot start runtime!");
+            return START_STICKY;
+        }
+
         String name = intentData.getString("rt_name", "Calvin Android");
         String proxy_uris = intentData.getString("rt_uris", "ssdp");
         String storageDir = getFilesDir().getAbsolutePath();
-        calvin = new Calvin(name, proxy_uris, storageDir);
+
+        calvin = new Calvin(CalvinAttributes.getAttributes(name).toJson(), proxy_uris, storageDir);
 
         // Register intent filter for the br
         br = new CalvinBroadcastReceiver(calvin);
@@ -262,6 +259,10 @@ public class CalvinService extends Service {
     }
 }
 
+class CalvinThreadLock {
+    public volatile boolean done = false;
+}
+
 /**
  * The thread that runs the Calvin runtime.
  */
@@ -269,14 +270,25 @@ class CalvinRuntime implements Runnable {
     private final String LOG_TAG = "Calvin runtime thread";
     Calvin calvin;
     CalvinMessageHandler[] messageHandlers;
+    CyclicBarrier cb;
 
-    public CalvinRuntime(Calvin calvin, CalvinMessageHandler[] messageHandlers){
+    public CalvinRuntime(Calvin calvin, CalvinMessageHandler[] messageHandlers, CyclicBarrier cb){
         this.calvin = calvin;
         this.messageHandlers = messageHandlers;
+        this.cb = cb;
     }
 
     @Override
     public void run() {
+        calvin.setupCalvinAndInit(calvin.proxyUris, calvin.attributes, calvin.storageDir);
+        try {
+            cb.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (BrokenBarrierException e) {
+            e.printStackTrace();
+        }
+        Log.d(LOG_TAG, "Runtime will start!");
         calvin.runtimeStart(calvin.node);
         Log.d(LOG_TAG, "Calvin runtime thread finshed");
     }
@@ -371,13 +383,39 @@ class CalvinDataListenThread implements Runnable{
 
             @Override
             public String getCommand() {
-                return CalvinMessageHandler.INIT_EXTERNAL_CALVINSYS;
+                return CalvinMessageHandler.OPEN_EXTERNAL_CALVINSYS;
             }
 
             @Override
             public void handleData(byte[] data) {
-                String name = new String(data);
-                if(!calvinService.sendInitExternalCalvinsys(name)) {
+                Log.d(LOG_TAG, "Got message to open external calvinsys");
+                String name = null;
+                int id = -1;
+                try {
+                    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(data);
+                    MapValue mv = (MapValue) unpacker.unpackValue();
+                    Set<Map.Entry<Value, Value>> entries = mv.entrySet();
+                    for(Map.Entry<Value, Value> entry : entries) {
+                        if(entry.getKey().getValueType() == ValueType.STRING) {
+                            switch (entry.getKey().asStringValue().asString()) {
+                                case "id":
+                                    id = entry.getValue().asIntegerValue().asInt();
+                                    break;
+                                case "name":
+                                    name = entry.getValue().asStringValue().asString();
+                                    break;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(LOG_TAG, "Error when unpacking msgpack when opening calvinsys: " + e.toString());
+                }
+
+                Log.d(LOG_TAG, "Open calvinsys, unpacked values: name "+ name +", id:"+ id);
+
+                if (name == null || id == -1) {
+                    Log.e(LOG_TAG, "Could not unpack id and name when opening calvinsys");
+                } else if (!calvinService.sendOpenExternalCalvinsys(name, id)) {
                     Log.e(LOG_TAG, "Could not sent init to external calvinsys");
                 }
             }
@@ -414,7 +452,7 @@ class CalvinDataListenThread implements Runnable{
         this.calvin = calvin;
         this.messageHandlers = this.initMessageHandlers();
         this.calvinService = service;
-        calvin.setupCalvinAndInit(calvin.proxyUris, calvin.name, calvin.storageDir);
+        //calvin.setupCalvinAndInit(calvin.proxyUris, calvin.name, calvin.storageDir);
     }
 
     public static int get_message_length(byte[] data) {
@@ -432,17 +470,30 @@ class CalvinDataListenThread implements Runnable{
         while(true) {
             Log.d(LOG_TAG, "listening for new writes");
             if(!rtStarted) {
-                rt = new CalvinRuntime(calvin, initMessageHandlers());
+                CyclicBarrier cb = new CyclicBarrier(2);
+
+                rt = new CalvinRuntime(calvin, initMessageHandlers(), cb);
                 calvinThread = new Thread(rt);
-                calvinThread.start();
                 rtStarted = true;
+                calvinThread.start();
+                try {
+                    cb.await();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (BrokenBarrierException e) {
+                    e.printStackTrace();
+                }
+
             }
+
+            Log.d(LOG_TAG, "Data listen thread started!");
 
             byte[] raw_data = calvin.readUpstreamData(calvin.node);
             if (raw_data == null) {
               Log.e(LOG_TAG, "Failed read upstream data");
             } else {
-              int size = get_message_length(raw_data);
+                Log.d(LOG_TAG, "Got message on pipe, lets parse it!");
+               int size = get_message_length(raw_data);
 
               byte[] cmd = Arrays.copyOfRange(raw_data, 4, 6);
               String cmd_string = new String(cmd);

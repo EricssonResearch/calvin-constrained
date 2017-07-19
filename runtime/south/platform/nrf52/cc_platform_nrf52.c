@@ -240,7 +240,7 @@ static result_t platform_temp_read(struct calvinsys_obj_t *obj, char **data, siz
 	return CC_RESULT_SUCCESS;
 }
 
-static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *data, size_t len)
+static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *data, size_t len, unsigned int id)
 {
 	calvinsys_obj_t *obj = NULL;
 

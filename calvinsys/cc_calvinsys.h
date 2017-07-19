@@ -26,11 +26,12 @@ typedef struct calvinsys_obj_t {
 	result_t (*close)(struct calvinsys_obj_t *obj);
 	struct calvinsys_handler_t *handler;
 	void *state;
+	uint32_t id;
 	struct calvinsys_obj_t *next;
 } calvinsys_obj_t;
 
 typedef struct calvinsys_handler_t {
-	calvinsys_obj_t *(*open)(struct calvinsys_handler_t *handler, char *data, size_t len, void *state);
+	calvinsys_obj_t *(*open)(struct calvinsys_handler_t *handler, char *data, size_t len, void* state, uint32_t id, const char* capability_name);
 	calvinsys_obj_t *objects;
 	struct calvinsys_handler_t *next;
 	struct calvinsys_t *calvinsys;
@@ -44,6 +45,7 @@ typedef struct calvinsys_capability_t {
 typedef struct calvinsys_t {
 	list_t *capabilities;
 	calvinsys_handler_t *handlers;
+	uint32_t next_id;
 	struct node_t *node;
 } calvinsys_t;
 
@@ -53,5 +55,6 @@ result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name,
 void calvinsys_delete_capabiltiy(calvinsys_t *calvinsys, const char *name);
 calvinsys_obj_t *calvinsys_open(calvinsys_t *calvinsys, const char *name, char *data, size_t size);
 void calvinsys_close(calvinsys_obj_t *obj);
+result_t calvinsys_get_obj_by_id(calvinsys_obj_t** obj, calvinsys_handler_t* handler, uint32_t id);
 
 #endif /* CALVINSYS_H */

@@ -22,7 +22,7 @@ public class Calvin {
     public long node = 0;
     private long msg_counter = 1;
     public boolean runtimeSerialize = false;
-    public String name, proxyUris, storageDir;
+    public String proxyUris, storageDir, attributes;
     public Queue<byte[]> downstreamQueue;
     public Queue<RemoteMessage> upsreamFCMQueue;
     public STATE nodeState;
@@ -41,12 +41,12 @@ public class Calvin {
 
 	/**
 	 * Create a Calvin object that binds Java to the native methods
-     * @param name The name of the runtime to start
+     * @param attributes Json of the attributes for the runtime
      * @param proxyUris A comma separated list of proxy uris
      * @param storageDir The directory to use for storage when serializing the runtime
      */
-    public Calvin(String name, String proxyUris, String storageDir) {
-        this.name = name;
+    public Calvin(String attributes, String proxyUris, String storageDir) {
+        this.attributes = attributes;
         this.proxyUris = proxyUris;
         this.storageDir = storageDir;
         this.runtimeSerialize = false;
@@ -94,12 +94,12 @@ public class Calvin {
 
 	/**
      * Setup Calvin, create a reference to the node and initiate the runtime.
-     * @param name The name of the runtime to start
+     * @param attributes The attributes of the runtime to start
      * @param proxyUris A list of comma separated proxy uris.
      * @param storageDir The directory to use for storage when serializing the runtime
      */
-    public void setupCalvinAndInit(String name, String proxyUris, String storageDir) {
-        this.node = this.runtimeInit(name, proxyUris, storageDir);
+    public void setupCalvinAndInit(String attributes, String proxyUris, String storageDir) {
+        this.node = this.runtimeInit(attributes, proxyUris, storageDir);
     }
 
 	/**

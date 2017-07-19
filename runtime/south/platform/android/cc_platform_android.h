@@ -29,7 +29,7 @@
 #define PLATFORM_ANDROID_RUNTIME_TRIGGER_RECONNECT		"RC"
 #define PLATFORM_ANDROID_REGISTER_EXTERNAL_CALVINSYS	"CS"
 #define PLATFORM_ANDROID_DESTROY_EXTERNAL_CALVINSYS		"CD"
-#define PLATFORM_ANDROID_INIT_EXTERNAL_CALVINSYS			"CI"
+#define PLATFORM_ANDROID_OPEN_EXTERNAL_CALVINSYS			"CI"
 #define PLATFORM_ANDROID_EXTERNAL_CALVINSYS_PAYLOAD		"CP"
 #define PLATFORM_ANDROID_NBR_OF_COMMANDS							7
 #define PLATFORM_ANDROID_UNACTIVITY_TIMEOUT						300
@@ -38,7 +38,7 @@ typedef struct android_platform_t {
 	int upstream_platform_fd[2]; // read end [0], write end [1]
 	int downstream_platform_fd[2];
 	ALooper *looper;
-	int (*send_upstream_platform_message)(const struct transport_client_t *transport_client, char *cmd, char *data, size_t data_size);
+	int (*send_upstream_platform_message)(const struct node_t *node, char *cmd, char *data, size_t data_size);
 	result_t (*send_downstream_platform_message)(const struct node_t *node, char *data, size_t data_size);
 	result_t (*read_upstream)(const struct node_t *node, char *buffer, size_t size);
 } android_platform_t;
