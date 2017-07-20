@@ -34,6 +34,9 @@
 #define PLATFORM_ANDROID_NBR_OF_COMMANDS							7
 #define PLATFORM_ANDROID_UNACTIVITY_TIMEOUT						300
 
+#define CC_ANDROID_LOOPER_CALLBACK_RESULT_CONTINUE 1
+#define CC_ANDROID_LOOPER_CALLBACK_RESULT_UNREGISTER 0
+
 typedef struct android_platform_t {
 	int upstream_platform_fd[2]; // read end [0], write end [1]
 	int downstream_platform_fd[2];
@@ -55,5 +58,7 @@ typedef struct android_sensor_data_t {
 	char *data;
 	size_t data_size;
 } android_sensor_data_t;
+
+ASensor* get_sensor_by_name(const char* name);
 
 #endif

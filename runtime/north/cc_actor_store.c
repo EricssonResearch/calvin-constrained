@@ -32,6 +32,22 @@
 #ifdef CC_ACTOR_CAMERA
 #include "../../actors/cc_actor_camera.h"
 #endif
+#ifdef CC_ACTOR_ACCELEROMETER
+#include "../../actors/cc_actor_accelerometer.h"
+#endif
+#ifdef CC_ACTOR_GYROSCOPE
+#include "../../actors/cc_actor_gyroscope.h"
+#endif
+#ifdef CC_ACTOR_PRESSURE
+#include "../../actors/cc_actor_pressure.h"
+#endif
+#ifdef CC_ACTOR_PICKUPGESTURE
+#include "../../actors/cc_actor_pickupgesture.h"
+#endif
+#ifdef CC_ACTOR_STEPCOUNTER
+#include "../../actors/cc_actor_stepcounter.h"
+#endif
+
 result_t actor_store_init(list_t **actor_types)
 {
 #ifdef CC_ACTOR_BUTTON
@@ -64,5 +80,29 @@ result_t actor_store_init(list_t **actor_types)
     return CC_RESULT_FAIL;
 #endif
 
+#ifdef CC_ACTOR_ACCELEROMETER
+  if (actor_accelerometer_register(actor_types) != CC_RESULT_SUCCESS)
+    return CC_RESULT_FAIL;
+#endif
+
+#ifdef CC_ACTOR_GYROSCOPE
+  if (actor_gyroscope_register(actor_types) != CC_RESULT_SUCCESS)
+    return CC_RESULT_FAIL;
+#endif
+
+#ifdef CC_ACTOR_PRESSURE
+	if (actor_pressure_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
+#endif
+
+#ifdef CC_ACTOR_PICKUPGESTURE
+	if (actor_pickupgesture_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
+#endif
+
+#ifdef CC_ACTOR_STEPCOUNTER
+	if (actor_stepcounter_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
+#endif
   return CC_RESULT_SUCCESS;
 }
