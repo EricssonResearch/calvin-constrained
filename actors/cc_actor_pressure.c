@@ -61,7 +61,7 @@ static bool actor_pressure_fire(actor_t* actor)
 
 static void actor_pressure_free(actor_t* actor)
 {
-	cc_log_error("pressure close");
+	cc_log("pressure close");
 	calvinsys_close((calvinsys_obj_t *)actor->instance_state);
 }
 

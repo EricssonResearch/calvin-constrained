@@ -79,8 +79,9 @@ static bool actor_stepcounter_fire(actor_t* actor)
 
 static void actor_stepcounter_free(actor_t* actor)
 {
-	cc_log_error("stepcounter close");
-	calvinsys_close((calvinsys_obj_t *)actor->instance_state);
+	cc_log("stepcounter close");
+	calvinsys_close(((actor_stepcounter_state_t*)actor->instance_state)->calvinsys_stepcounter);
+	platform_mem_free(actor->instance_state);
 }
 
 result_t actor_stepcounter_register(list_t **actor_types)

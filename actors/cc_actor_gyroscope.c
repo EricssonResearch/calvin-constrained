@@ -63,7 +63,7 @@ static bool actor_gyroscope_fire(actor_t* actor)
 
 static void actor_gyroscope_free(actor_t* actor)
 {
-	cc_log_error("gyroscope close");
+	cc_log("gyroscope close");
 	calvinsys_close((calvinsys_obj_t *)actor->instance_state);
 }
 

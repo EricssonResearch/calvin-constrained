@@ -58,7 +58,7 @@ static bool actor_pickupgesture_fire(actor_t* actor)
 
 static void actor_pickupgesture_free(actor_t* actor)
 {
-	cc_log_error("pickupgesture close");
+	cc_log("pickupgesture close");
 	calvinsys_close((calvinsys_obj_t *)actor->instance_state);
 }
 

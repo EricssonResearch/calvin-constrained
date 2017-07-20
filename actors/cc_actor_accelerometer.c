@@ -63,7 +63,7 @@ static bool actor_accelerometer_fire(actor_t* actor)
 
 static void actor_accelerometer_free(actor_t* actor)
 {
-	cc_log_error("accelerometer close");
+	cc_log("accelerometer close");
 	calvinsys_close((calvinsys_obj_t *)actor->instance_state);
 }
 
