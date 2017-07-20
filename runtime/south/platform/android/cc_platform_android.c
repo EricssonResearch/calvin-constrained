@@ -21,6 +21,7 @@
 #include <platform/android/calvinsys/cc_gyroscope.h>
 #include <platform/android/calvinsys/cc_pressure.h>
 #include <platform/android/calvinsys/cc_pickupgesture.h>
+#include <platform/android/calvinsys/cc_stepcounter.h>
 #include "../../../../cc_api.h"
 #include "cc_platform_android.h"
 #include "../../transport/socket/cc_transport_socket.h"
@@ -509,6 +510,11 @@ static result_t init_sensor_by_type(ASensor* sensor, calvinsys_t** calvinsys)
 		}
 	} else if(strcmp(type, "android.sensor.pick_up_gesture") == 0) {
 		if (calvinsys_pickupgesture_create(calvinsys, "sensor.pickupgesture") != CC_RESULT_SUCCESS) {
+			cc_log_error("Could not create sensor %s calvinsys", type);
+			return CC_RESULT_FAIL;
+		}
+	} else if(strcmp(type, "android.sensor.step_counter") == 0) {
+		if (calvinsys_stepcounter_create(calvinsys, "sensor.stepcounter") != CC_RESULT_SUCCESS) {
 			cc_log_error("Could not create sensor %s calvinsys", type);
 			return CC_RESULT_FAIL;
 		}

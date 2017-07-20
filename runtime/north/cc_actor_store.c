@@ -44,6 +44,9 @@
 #ifdef CC_ACTOR_PICKUPGESTURE
 #include "../../actors/cc_actor_pickupgesture.h"
 #endif
+#ifdef CC_ACTOR_STEPCOUNTER
+#include "../../actors/cc_actor_stepcounter.h"
+#endif
 
 result_t actor_store_init(list_t **actor_types)
 {
@@ -94,6 +97,11 @@ result_t actor_store_init(list_t **actor_types)
 
 #ifdef CC_ACTOR_PICKUPGESTURE
 	if (actor_pickupgesture_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
+#endif
+
+#ifdef CC_ACTOR_STEPCOUNTER
+	if (actor_stepcounter_register(actor_types) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 #endif
   return CC_RESULT_SUCCESS;
