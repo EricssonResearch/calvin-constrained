@@ -33,14 +33,14 @@
 #include "calvinsys/cc_calvinsys_yl69.h"
 #include "calvinsys/cc_calvinsys_gpio.h"
 
-#define CALVIN_ESP_RUNTIME_STATE_FILE						"cc_state.conf"
-#define CALVIN_ESP_WIFI_CONFIG_FILE							"cc_wifi.conf"
-#define CALVIN_ESP_WIFI_CONFIG_BUFFER_SIZE			200
+#define CALVIN_ESP_RUNTIME_STATE_FILE		"cc_state.conf"
+#define CALVIN_ESP_WIFI_CONFIG_FILE		"cc_wifi.conf"
+#define CALVIN_ESP_WIFI_CONFIG_BUFFER_SIZE	200
 #define CALVIN_ESP_WIFI_RECV_CONFIG_BUFFER_SIZE	600
-#define CALVIN_ESP_AP_SSID											"calvin-esp"
-#define CALVIN_ESP_AP_PSK												"calvin-esp"
+#define CALVIN_ESP_AP_SSID			"calvin-esp"
+#define CALVIN_ESP_AP_PSK			"calvin-esp"
 
-static result_t platform_esp_start_station_mode()
+static result_t platform_esp_start_station_mode(void)
 {
 	spiffs_file fd;
 	char buffer[CALVIN_ESP_WIFI_CONFIG_BUFFER_SIZE], *ssid = NULL, *password = NULL;
@@ -171,13 +171,14 @@ static result_t platform_esp_write_wifi_config(char *ssid, uint32_t ssid_len, ch
 	return CC_RESULT_SUCCESS;
 }
 
-static result_t platform_esp_start_ap_mode()
+static result_t platform_esp_start_ap_mode(void)
 {
 	int sockfd = 0, newsockfd = 0, clilen = 0, len = 0;
 	struct sockaddr_in serv_addr, cli_addr;
 	char buffer[CALVIN_ESP_WIFI_RECV_CONFIG_BUFFER_SIZE];
 	char *attributes = NULL, *uri = NULL, *ssid = NULL, *password = NULL;
 	struct ip_info ap_ip;
+	ip_addr_t first_client_ip;
 	struct sdk_softap_config ap_config = {
 		.ssid = CALVIN_ESP_AP_SSID,
 		.ssid_hidden = 0,
@@ -200,7 +201,6 @@ static result_t platform_esp_start_ap_mode()
 	sdk_wifi_set_ip_info(1, &ap_ip);
 	sdk_wifi_softap_set_config(&ap_config);
 
-	ip_addr_t first_client_ip;
 	IP4_ADDR(&first_client_ip, 172, 16, 0, 2);
 	dhcpserver_start(&first_client_ip, 4);
 
@@ -268,7 +268,7 @@ static result_t platform_esp_start_ap_mode()
 		close(newsockfd);
 		return CC_RESULT_FAIL;
 	}
- 	password = password + 13;
+	password = password + 13;
 
 	// TODO: Better attribute parsing needed
 	if (platform_esp_write_calvin_config(attributes, (strstr(attributes, "}}}") + 3) - attributes, uri, strstr(uri, "\"") - uri) == CC_RESULT_SUCCESS) {
@@ -311,13 +311,13 @@ void platform_init(void)
 	}
 
 	if (SPIFFS_stat(&fs, CALVIN_ESP_WIFI_CONFIG_FILE, &s) != SPIFFS_OK) {
-			if (platform_esp_start_ap_mode() == CC_RESULT_SUCCESS) {
-				cc_log("Restarting");
-				sdk_system_restart();
-				return;
-			}
-			cc_log("Removing WiFi config");
-			SPIFFS_remove(&fs, CALVIN_ESP_WIFI_CONFIG_FILE);
+		if (platform_esp_start_ap_mode() == CC_RESULT_SUCCESS) {
+			cc_log("Restarting");
+			sdk_system_restart();
+			return;
+		}
+		cc_log("Removing WiFi config");
+		SPIFFS_remove(&fs, CALVIN_ESP_WIFI_CONFIG_FILE);
 	}
 
 	if (platform_esp_start_station_mode() != CC_RESULT_SUCCESS) {
@@ -330,13 +330,14 @@ void platform_init(void)
 void platform_print(const char *fmt, ...)
 {
 	va_list args;
+
 	va_start(args, fmt);
 	vfprintf(stdout, fmt, args);
 	fprintf(stdout, "\n");
 	va_end(args);
 }
 
-result_t platform_create(struct node_t* node)
+result_t platform_create(struct node_t *node)
 {
 	node->platform = NULL;
 	return CC_RESULT_SUCCESS;
@@ -439,17 +440,17 @@ bool platform_evt_wait(struct node_t *node, uint32_t timeout_seconds)
 	return false;
 }
 
-result_t platform_stop(struct node_t* node)
+result_t platform_stop(struct node_t *node)
 {
 	return CC_RESULT_SUCCESS;
 }
 
-result_t platform_node_started(struct node_t* node)
+result_t platform_node_started(struct node_t *node)
 {
 	return CC_RESULT_SUCCESS;
 }
 
-void platform_write_node_state(struct node_t* node, char *buffer, size_t size)
+void platform_write_node_state(struct node_t *node, char *buffer, size_t size)
 {
 	spiffs_file fd = SPIFFS_open(&fs, CALVIN_ESP_RUNTIME_STATE_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	int res = 0;
@@ -461,9 +462,10 @@ void platform_write_node_state(struct node_t* node, char *buffer, size_t size)
 	SPIFFS_close(&fs, fd);
 }
 
-result_t platform_read_node_state(struct node_t* node, char buffer[], size_t size)
+result_t platform_read_node_state(struct node_t *node, char buffer[], size_t size)
 {
 	spiffs_file fd = SPIFFS_open(&fs, CALVIN_ESP_RUNTIME_STATE_FILE, SPIFFS_RDONLY, 0);
+
 	if (fd < 0) {
 		cc_log_error("Error opening file");
 		return CC_RESULT_FAIL;

@@ -18,15 +18,16 @@
 #include "../runtime/south/platform/cc_platform.h"
 #include "cc_calvinsys.h"
 
-static result_t calvinsys_add_object_to_handler(calvinsys_obj_t* obj, calvinsys_handler_t* handler)
+static result_t calvinsys_add_object_to_handler(calvinsys_obj_t *obj, calvinsys_handler_t *handler)
 {
-	calvinsys_obj_t* tmp = handler->objects;
-	if(tmp == NULL) {
+	calvinsys_obj_t *tmp = handler->objects;
+
+	if (tmp == NULL) {
 		handler->objects = obj;
 		return CC_RESULT_SUCCESS;
 	}
 
-	while(tmp->next != NULL)
+	while (tmp->next != NULL)
 		tmp = tmp->next;
 	tmp->next = obj;
 
@@ -79,9 +80,8 @@ result_t calvinsys_register_capability(calvinsys_t *calvinsys, const char *name,
 	capability->handler = handler;
 	capability->state = state;
 
-	if (list_add_n(&calvinsys->capabilities, name, strlen(name), capability, sizeof(calvinsys_capability_t)) == CC_RESULT_SUCCESS) {
+	if (list_add_n(&calvinsys->capabilities, name, strlen(name), capability, sizeof(calvinsys_capability_t)) == CC_RESULT_SUCCESS)
 		return CC_RESULT_SUCCESS;
-	}
 
 	return CC_RESULT_FAIL;
 }
@@ -100,10 +100,11 @@ void calvinsys_delete_capabiltiy(calvinsys_t *calvinsys, const char *name)
 calvinsys_obj_t *calvinsys_open(calvinsys_t *calvinsys, const char *name, char *data, size_t size)
 {
 	calvinsys_capability_t *capability = NULL;
+	calvinsys_obj_t *result = NULL;
 
 	capability = (calvinsys_capability_t *)list_get(calvinsys->capabilities, name);
 	if (capability != NULL) {
-		calvinsys_obj_t* result = capability->handler->open(capability->handler, data, size, capability->state, calvinsys->next_id, name);
+		result = capability->handler->open(capability->handler, data, size, capability->state, calvinsys->next_id, name);
 		if (result != NULL) {
 			result->id = calvinsys->next_id++;
 			calvinsys_add_object_to_handler(result, capability->handler);
@@ -121,12 +122,12 @@ void calvinsys_close(calvinsys_obj_t *obj)
 	platform_mem_free((void *)obj);
 }
 
-result_t calvinsys_get_obj_by_id(calvinsys_obj_t** obj, calvinsys_handler_t* handler, uint32_t id)
+result_t calvinsys_get_obj_by_id(calvinsys_obj_t **obj, calvinsys_handler_t *handler, uint32_t id)
 {
-	calvinsys_obj_t* tmp = handler->objects;
+	calvinsys_obj_t *tmp = handler->objects;
 
-	while(tmp != NULL) {
-		if (tmp->id == id){
+	while (tmp != NULL) {
+		if (tmp->id == id) {
 			*obj = tmp;
 			return CC_RESULT_SUCCESS;
 		}

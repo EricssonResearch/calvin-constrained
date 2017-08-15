@@ -68,7 +68,7 @@ typedef struct transport_buffer_t {
  */
 typedef struct transport_client_t {
 	transport_type_t transport_type;
-  char uri[100];
+	char uri[100];
 	char peer_id[UUID_BUFFER_SIZE];
 	volatile transport_state_t state;
 	transport_buffer_t rx_buffer; // used to assemble fragmented messages
@@ -80,7 +80,7 @@ typedef struct transport_client_t {
 	result_t (*connect)(struct node_t *node, struct transport_client_t *transport_client);
 	int (*send)(struct transport_client_t *transport_client, char *buffer, size_t size);
 	int (*recv)(struct transport_client_t *transport_client, char *buffer, size_t size);
-	void (*disconnect)(struct node_t* node, struct transport_client_t *transport_client);
+	void (*disconnect)(struct node_t *node, struct transport_client_t *transport_client);
 	void (*free)(struct transport_client_t *transport_client);
 } transport_client_t;
 

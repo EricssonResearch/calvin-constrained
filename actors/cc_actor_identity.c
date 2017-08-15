@@ -117,18 +117,17 @@ result_t actor_identity_register(list_t **actor_types)
 	actor_type_t *type = NULL;
 
 	if (platform_mem_alloc((void **)&type, sizeof(actor_type_t)) != CC_RESULT_SUCCESS) {
-    cc_log_error("Failed to allocate memory");
-    return CC_RESULT_FAIL;
-  }
+		cc_log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
 
-  type->init = actor_identity_init;
-  type->set_state = actor_identity_set_state;
-  type->free_state = actor_identity_free;
-  type->fire_actor = actor_identity_fire;
-  type->get_managed_attributes = actor_identity_get_managed_attributes;
-  type->will_migrate = NULL;
-  type->will_end = NULL;
-  type->did_migrate = NULL;
-
-  return list_add_n(actor_types, "std.Identity", 12, type, sizeof(actor_type_t *));
+	type->init = actor_identity_init;
+	type->set_state = actor_identity_set_state;
+	type->free_state = actor_identity_free;
+	type->fire_actor = actor_identity_fire;
+	type->get_managed_attributes = actor_identity_get_managed_attributes;
+	type->will_migrate = NULL;
+	type->will_end = NULL;
+	type->did_migrate = NULL;
+	return list_add_n(actor_types, "std.Identity", 12, type, sizeof(actor_type_t *));
 }

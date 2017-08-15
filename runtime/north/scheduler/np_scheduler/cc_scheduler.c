@@ -21,34 +21,35 @@
  */
 bool fire_actors(node_t *node)
 {
-  bool fired = false;
-  list_t *actors = NULL, *ports = NULL;
-  actor_t *actor = NULL;
+	bool fired = false;
+	list_t *actors = NULL, *ports = NULL;
+	actor_t *actor = NULL;
 
-  actors = node->actors;
-  while (actors != NULL) {
-    actor = (actor_t *)actors->data;
-    if (actor->state == ACTOR_ENABLED) {
-      if (actor->fire(actor)) {
-        cc_log("Fired '%s'", actor->name);
-        fired = true;
-      }
-    }
+	actors = node->actors;
+	while (actors != NULL) {
+		actor = (actor_t *)actors->data;
+		if (actor->state == ACTOR_ENABLED) {
+			if (actor->fire(actor)) {
+				cc_log("Fired '%s'", actor->name);
+				fired = true;
+			}
+		}
 
-    // handle pending in-ports
-    ports = actor->in_ports;
-    while (ports != NULL) {
-      port_transmit(node, (port_t *)ports->data);
-      ports = ports->next;
-    }
+		// handle pending in-ports
+		ports = actor->in_ports;
+		while (ports != NULL) {
+			port_transmit(node, (port_t *)ports->data);
+			ports = ports->next;
+		}
 
-    // handle pending out-port and send tokens
-    ports = actor->out_ports;
-    while (ports != NULL) {
-      port_transmit(node, (port_t *)ports->data);
-      ports = ports->next;
-    }
-    actors = actors->next;
-  }
-  return fired;
+		// handle pending out-port and send tokens
+		ports = actor->out_ports;
+		while (ports != NULL) {
+			port_transmit(node, (port_t *)ports->data);
+			ports = ports->next;
+		}
+		actors = actors->next;
+	}
+
+	return fired;
 }

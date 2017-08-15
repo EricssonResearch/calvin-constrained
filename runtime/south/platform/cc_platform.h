@@ -48,7 +48,7 @@ void platform_print(const char *fmt, ...);
  *
  * Return: CC_RESULT_SUCCESS/CC_RESULT_FAILURE
  */
-result_t platform_create(struct node_t* node);
+result_t platform_create(struct node_t *node);
 
 /**
  * platform_create_calvinsys() - Create calvinsys objects.
@@ -106,7 +106,7 @@ bool platform_evt_wait(struct node_t *node, uint32_t timeout_seconds);
  *
  * Return: CC_RESULT_SUCCESS/CC_RESULT_FAILURE
  */
-result_t platform_stop(struct node_t* node);
+result_t platform_stop(struct node_t *node);
 
 /**
  * platform_node_started() - Called when the node has started
@@ -114,7 +114,7 @@ result_t platform_stop(struct node_t* node);
  *
  * Return: CC_RESULT_SUCCESS/CC_RESULT_FAILURE
  */
-result_t platform_node_started(struct node_t* node);
+result_t platform_node_started(struct node_t *node);
 
 #ifdef CC_DEEPSLEEP_ENABLED
 /**
@@ -130,7 +130,7 @@ void platform_deepsleep(struct node_t *node);
  * @buffer the serialized data to write
  * @size the size of the serialized dat
  */
-void platform_write_node_state(struct node_t* node, char *buffer, size_t size);
+void platform_write_node_state(struct node_t *node, char *buffer, size_t size);
 
 /**
  * platform_read_node_state() - Read serialized node state from persistent media.
@@ -139,7 +139,7 @@ void platform_write_node_state(struct node_t* node, char *buffer, size_t size);
  *
  * Return: SUCCESS/FAILURE
  */
-result_t platform_read_node_state(struct node_t* node, char buffer[], size_t size);
+result_t platform_read_node_state(struct node_t *node, char buffer[], size_t size);
 #endif
 
 #ifdef MBEDTLS_NO_PLATFORM_ENTROPY

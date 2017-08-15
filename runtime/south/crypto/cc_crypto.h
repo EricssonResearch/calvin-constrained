@@ -28,13 +28,13 @@ struct transport_client_t;
 
 typedef struct crypto_t {
 #ifndef MBEDTLS_NO_PLATFORM_ENTROPY
-  mbedtls_entropy_context entropy;
-  mbedtls_ctr_drbg_context ctr_drbg;
+	mbedtls_entropy_context entropy;
+	mbedtls_ctr_drbg_context ctr_drbg;
 #endif
-  mbedtls_ssl_context ssl;
-  mbedtls_ssl_config conf;
-  mbedtls_x509_crt cacert;
-  mbedtls_pk_context private_key;
+	mbedtls_ssl_context ssl;
+	mbedtls_ssl_config conf;
+	mbedtls_x509_crt cacert;
+	mbedtls_pk_context private_key;
 } crypto_t;
 
 result_t crypto_get_node_info(char domain[], char name[], char id[]);

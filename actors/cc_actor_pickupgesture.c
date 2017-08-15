@@ -36,19 +36,18 @@ static result_t actor_pickupgesture_set_state(actor_t **actor, list_t *attribute
 	return actor_pickupgesture_init(actor, attributes);
 }
 
-static bool actor_pickupgesture_fire(actor_t* actor)
+static bool actor_pickupgesture_fire(actor_t *actor)
 {
 	port_t *outport = (port_t *)actor->out_ports->data;
 	calvinsys_obj_t *obj = (calvinsys_obj_t *)actor->instance_state;
 	char *data = NULL;
 	size_t size = 0;
+
 	if (obj->can_read(obj) && fifo_slots_available(outport->fifo, 1)) {
 		if (obj->read(obj, &data, &size) == CC_RESULT_SUCCESS) {
-			if (fifo_write(outport->fifo, data, size) == CC_RESULT_SUCCESS) {
+			if (fifo_write(outport->fifo, data, size) == CC_RESULT_SUCCESS)
 				return true;
-			} else {
-				cc_log_error("Could not write to ouport");
-			}
+			cc_log_error("Could not write to ouport");
 			platform_mem_free((void *)data);
 		} else
 			cc_log_error("Failed to read value");
@@ -56,7 +55,7 @@ static bool actor_pickupgesture_fire(actor_t* actor)
 	return false;
 }
 
-static void actor_pickupgesture_free(actor_t* actor)
+static void actor_pickupgesture_free(actor_t *actor)
 {
 	cc_log("pickupgesture close");
 	calvinsys_close((calvinsys_obj_t *)actor->instance_state);

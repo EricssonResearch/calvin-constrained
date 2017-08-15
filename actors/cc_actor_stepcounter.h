@@ -19,8 +19,8 @@
 #include "../runtime/north/cc_common.h"
 
 typedef struct actor_stepcounter_state_t {
-	calvinsys_obj_t* calvinsys_stepcounter;
-	char* stepcount;
+	calvinsys_obj_t *calvinsys_stepcounter;
+	char *stepcount;
 	size_t stepcount_size;
 } actor_stepcounter_state_t;
 

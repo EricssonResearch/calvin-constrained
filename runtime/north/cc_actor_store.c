@@ -51,43 +51,43 @@
 result_t actor_store_init(list_t **actor_types)
 {
 #ifdef CC_ACTOR_BUTTON
-  if (actor_button_register(actor_types) != CC_RESULT_SUCCESS)
-    return CC_RESULT_FAIL;
+	if (actor_button_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_IDENTITY
-  if (actor_identity_register(actor_types) != CC_RESULT_SUCCESS)
-    return CC_RESULT_FAIL;
+	if (actor_identity_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_LIGHT
-  if (actor_light_register(actor_types) != CC_RESULT_SUCCESS)
-    return CC_RESULT_FAIL;
+	if (actor_light_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_SOIL_MOISTURE
-  if (actor_soil_moisture_register(actor_types) != CC_RESULT_SUCCESS)
-    return CC_RESULT_FAIL;
+	if (actor_soil_moisture_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_TEMPERATURE
-  if (actor_temperature_register(actor_types) != CC_RESULT_SUCCESS)
-    return CC_RESULT_FAIL;
+	if (actor_temperature_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_CAMERA
-  if (actor_camera_register(actor_types) != CC_RESULT_SUCCESS)
-    return CC_RESULT_FAIL;
+	if (actor_camera_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_ACCELEROMETER
-  if (actor_accelerometer_register(actor_types) != CC_RESULT_SUCCESS)
-    return CC_RESULT_FAIL;
+	if (actor_accelerometer_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_GYROSCOPE
-  if (actor_gyroscope_register(actor_types) != CC_RESULT_SUCCESS)
-    return CC_RESULT_FAIL;
+	if (actor_gyroscope_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
 #endif
 
 #ifdef CC_ACTOR_PRESSURE
@@ -104,5 +104,6 @@ result_t actor_store_init(list_t **actor_types)
 	if (actor_stepcounter_register(actor_types) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 #endif
-  return CC_RESULT_SUCCESS;
+
+	return CC_RESULT_SUCCESS;
 }

@@ -54,12 +54,12 @@ static result_t calvinsys_gpio_close(struct calvinsys_obj_t *obj)
 	return CC_RESULT_SUCCESS;
 }
 
-static calvinsys_obj_t *calvinsys_gpio_open(calvinsys_handler_t *handler, char *data, size_t len, void *state)
+static calvinsys_obj_t *calvinsys_gpio_open(calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
 {
 	calvinsys_obj_t *obj = NULL;
 	calvinsys_gpio_state_t *gpio_state = (calvinsys_gpio_state_t *)state;
 
-	if(gpio_state->direction == CC_GPIO_OUT)
+	if (gpio_state->direction == CC_GPIO_OUT)
 		gpio_enable(gpio_state->pin, GPIO_OUTPUT);
 	else {
 		cc_log_error("Unsupported direction");

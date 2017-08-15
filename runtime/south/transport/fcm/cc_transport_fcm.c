@@ -50,7 +50,7 @@ static result_t transport_fcm_connect(node_t *node, transport_client_t *transpor
 
 static int transport_fcm_send(transport_client_t *transport_client, char *data, size_t size)
 {
-  transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
+	transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
 
 	cc_log("transport_fcm_send");
 
@@ -63,10 +63,10 @@ static int transport_fcm_send(transport_client_t *transport_client, char *data, 
 
 static int transport_fcm_recv(transport_client_t *transport_client, char *buffer, size_t size)
 {
-  transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
+	transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
 
 	cc_log("transport_fcm_recv");
-	return read(((android_platform_t*)fcm_client->node->platform)->downstream_platform_fd[0], buffer, size);
+	return read(((android_platform_t *)fcm_client->node->platform)->downstream_platform_fd[0], buffer, size);
 }
 
 static void transport_fcm_disconnect(node_t *node, transport_client_t *transport_client)

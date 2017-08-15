@@ -43,6 +43,7 @@ typedef struct calvinsys_gpio_state_t {
 void platform_print(const char *fmt, ...)
 {
 	va_list args;
+
 	va_start(args, fmt);
 	vfprintf(stdout, fmt, args);
 	fprintf(stdout, "\n");
@@ -51,7 +52,7 @@ void platform_print(const char *fmt, ...)
 
 result_t platform_stop(node_t *node)
 {
-  return CC_RESULT_SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 result_t platform_node_started(struct node_t *node)
@@ -171,7 +172,7 @@ static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handle
 
 	if (gpio_state->direction == CC_GPIO_IN)
 		cc_log("Opening pin '%d' as input", gpio_state->pin);
-	else if(gpio_state->direction == CC_GPIO_OUT)
+	else if (gpio_state->direction == CC_GPIO_OUT)
 		cc_log("Opening pin '%d' as output", gpio_state->pin);
 	else {
 		cc_log_error("Unknown direction");
@@ -221,7 +222,7 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 		return CC_RESULT_FAIL;
 
 	calvinsys_add_handler(calvinsys, handler);
-  if (calvinsys_register_capability(*calvinsys, "io.temperature", handler, NULL) != CC_RESULT_SUCCESS)
+	if (calvinsys_register_capability(*calvinsys, "io.temperature", handler, NULL) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	handler = platform_create_digitial_in_out_handler();
@@ -311,12 +312,13 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 
 void *platform_mem_calloc(size_t nitems, size_t size)
 {
-  void *ptr = NULL;
-  if (platform_mem_alloc(&ptr, nitems * size) != CC_RESULT_SUCCESS)
-    return NULL;
+	void *ptr = NULL;
 
-  memset(ptr, 0, nitems * size);
-  return ptr;
+	if (platform_mem_alloc(&ptr, nitems * size) != CC_RESULT_SUCCESS)
+		return NULL;
+
+	memset(ptr, 0, nitems * size);
+	return ptr;
 }
 
 void platform_mem_free(void *buffer)

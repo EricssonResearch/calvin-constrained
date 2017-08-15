@@ -27,7 +27,7 @@ static bool calvinsys_yl69_can_read(struct calvinsys_obj_t *obj)
 
 static result_t calvinsys_yl69_read(struct calvinsys_obj_t *obj, char **data, size_t *size)
 {
-  uint16_t adc_value = sdk_system_adc_read();
+	uint16_t adc_value = sdk_system_adc_read();
 	float humidity = 1024 - adc_value;
 
 	humidity = humidity / 1024;
@@ -48,7 +48,7 @@ static result_t calvinsys_yl69_close(struct calvinsys_obj_t *obj)
 	return CC_RESULT_SUCCESS;
 }
 
-static calvinsys_obj_t *calvinsys_yl69_open(calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id)
+static calvinsys_obj_t *calvinsys_yl69_open(calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
 {
 	calvinsys_obj_t *obj = NULL;
 

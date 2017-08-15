@@ -23,7 +23,7 @@
 
 typedef struct cc_mp_calvinsys_obj_t {
 	mp_obj_base_t base;
-  calvinsys_obj_t *obj;
+	calvinsys_obj_t *obj;
 } cc_mp_calvinsys_obj_t;
 
 static mp_obj_t cc_mp_obj_can_write(mp_obj_t arg_obj)
@@ -121,8 +121,8 @@ static mp_obj_t cc_mp_calvinsys_open(size_t n_args, const mp_obj_t *args, mp_map
 		obj = calvinsys_open(actor->calvinsys, name, NULL, 0);
 
 	if (obj == NULL) {
-	  cc_log_error("Failed to open object");
-	  return mp_const_none;
+		cc_log_error("Failed to open object");
+		return mp_const_none;
 	}
 
 	cc_mp_calvinsys_obj = m_new_obj(cc_mp_calvinsys_obj_t);

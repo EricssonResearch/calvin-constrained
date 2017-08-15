@@ -141,7 +141,7 @@ static result_t node_get_state(node_t *node)
 					if (get_value_from_array(array_value, i, &value) == CC_RESULT_SUCCESS) {
 						tunnel = tunnel_deserialize(node, value);
 						if (tunnel == NULL)
-						 	cc_log_error("Failed to decode tunnel");
+							cc_log_error("Failed to decode tunnel");
 						else {
 							if (tunnel->type == TUNNEL_TYPE_STORAGE)
 								node->storage_tunnel = tunnel;
@@ -354,10 +354,8 @@ result_t node_handle_token(port_t *port, const char *data, const size_t size, ui
 			memcpy(buffer, data, size);
 			if (fifo_com_write(port->fifo, buffer, size, sequencenbr) == CC_RESULT_SUCCESS)
 				return CC_RESULT_SUCCESS;
-			else {
-				cc_log_error("Failed to write to fifo");
-				platform_mem_free((void *)buffer);
-			}
+			cc_log_error("Failed to write to fifo");
+			platform_mem_free((void *)buffer);
 		} else
 			cc_log("Token received but no slots available");
 	} else
@@ -371,11 +369,11 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 	port_t *port = port_get(node, port_id, port_id_len);
 
 	if (port != NULL) {
-		if (reply_type == PORT_REPLY_TYPE_ACK) {
+		if (reply_type == PORT_REPLY_TYPE_ACK)
 			fifo_com_commit_read(port->fifo, sequencenbr);
-		} else if (reply_type == PORT_REPLY_TYPE_NACK) {
+		else if (reply_type == PORT_REPLY_TYPE_NACK)
 			fifo_com_cancel_read(port->fifo, sequencenbr);
-		} else if (reply_type == PORT_REPLY_TYPE_ABORT)
+		else if (reply_type == PORT_REPLY_TYPE_ABORT)
 			cc_log_debug("TODO: handle ABORT");
 	}
 }

@@ -293,16 +293,16 @@ transport_client_t *transport_socket_create(node_t *node, char *uri)
 					if (sscanf(discovery_result, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2) {
 						strcpy(transport_client->uri, discovery_result);
 						return transport_client;
-					} else
-						cc_log_error("Failed to parse uri '%s'", discovery_result);
+					}
+					cc_log_error("Failed to parse uri '%s'", discovery_result);
 				}
 			} else {
 #endif
 				if (sscanf(uri, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2) {
 					strcpy(transport_client->uri, uri);
 					return transport_client;
-				} else
-					cc_log_error("Failed to parse uri '%s'", uri);
+				}
+				cc_log_error("Failed to parse uri '%s'", uri);
 #ifdef CC_TRANSPORT_SOCKET_SSDP_ENABLED
 			}
 #endif

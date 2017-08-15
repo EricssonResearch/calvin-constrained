@@ -20,7 +20,7 @@
 static result_t actor_stepcounter_init(actor_t **actor, list_t *attributes)
 {
 	calvinsys_obj_t *obj = NULL;
-	actor_stepcounter_state_t* instance_state;
+	actor_stepcounter_state_t *instance_state = NULL;
 
 	obj = calvinsys_open((*actor)->calvinsys, "sensor.stepcounter", NULL, 0);
 	if (obj == NULL) {
@@ -28,7 +28,7 @@ static result_t actor_stepcounter_init(actor_t **actor, list_t *attributes)
 		return CC_RESULT_FAIL;
 	}
 
-	if (platform_mem_alloc((void**) &instance_state, sizeof(actor_stepcounter_state_t)) != CC_RESULT_SUCCESS) {
+	if (platform_mem_alloc((void **)&instance_state, sizeof(actor_stepcounter_state_t)) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to allocate memory for actor stepcounter state.");
 		obj->close(obj);
 		return CC_RESULT_FAIL;
@@ -47,15 +47,15 @@ static result_t actor_stepcounter_set_state(actor_t **actor, list_t *attributes)
 	return actor_stepcounter_init(actor, attributes);
 }
 
-static bool actor_stepcounter_fire(actor_t* actor)
+static bool actor_stepcounter_fire(actor_t *actor)
 {
 	port_t *inport = (port_t *)actor->in_ports->data, *outport = (port_t *)actor->out_ports->data;
-	actor_stepcounter_state_t* instance_state = (actor_stepcounter_state_t*)actor->instance_state;
+	actor_stepcounter_state_t *instance_state = (actor_stepcounter_state_t *)actor->instance_state;
 	calvinsys_obj_t *obj = instance_state->calvinsys_stepcounter;
-
 	char *data = NULL;
 	size_t size = 0;
-	if(obj->can_read(obj)) {
+
+	if (obj->can_read(obj)) {
 		if (obj->read(obj, &data, &size) == CC_RESULT_SUCCESS) {
 			instance_state->stepcount = data;
 			instance_state->stepcount_size = size;
@@ -67,9 +67,8 @@ static bool actor_stepcounter_fire(actor_t* actor)
 		if (fifo_write(outport->fifo, instance_state->stepcount, instance_state->stepcount_size) == CC_RESULT_SUCCESS) {
 			fifo_commit_read(inport->fifo, true);
 			return true;
-		} else {
-			cc_log_error("Could not write to ouport");
 		}
+		cc_log_error("Could not write to ouport");
 		fifo_cancel_commit(inport->fifo);
 	} else {
 		cc_log_error("could not read from stepcounter");
@@ -77,10 +76,10 @@ static bool actor_stepcounter_fire(actor_t* actor)
 	return false;
 }
 
-static void actor_stepcounter_free(actor_t* actor)
+static void actor_stepcounter_free(actor_t *actor)
 {
 	cc_log("stepcounter close");
-	calvinsys_close(((actor_stepcounter_state_t*)actor->instance_state)->calvinsys_stepcounter);
+	calvinsys_close(((actor_stepcounter_state_t *)actor->instance_state)->calvinsys_stepcounter);
 	platform_mem_free(actor->instance_state);
 }
 

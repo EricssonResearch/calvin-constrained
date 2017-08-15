@@ -32,17 +32,17 @@
 #include "../cc_platform.h"
 #include "../../../../actors/cc_actor_accelerometer.h"
 
-static result_t command_transport_connected(node_t* node, char* payload_data, size_t size);
-static result_t command_rt_stop(node_t* node, char* payload_data, size_t size);
-static result_t command_calvin_msg(node_t* node, char* payload_data, size_t size);
-static result_t platform_serialize_and_stop(node_t* node, char* payload_data, size_t size);
-static result_t platform_trigger_reconnect(node_t* node, char* payload_data, size_t size);
-static result_t platform_register_external_calvinsys(node_t* node, char* payload_data, size_t size);
-static result_t platform_handle_external_calvinsys_data(node_t* node, char* payload_data, size_t size);
+static result_t command_transport_connected(node_t *node, char *payload_data, size_t size);
+static result_t command_rt_stop(node_t *node, char *payload_data, size_t size);
+static result_t command_calvin_msg(node_t *node, char *payload_data, size_t size);
+static result_t platform_serialize_and_stop(node_t *node, char *payload_data, size_t size);
+static result_t platform_trigger_reconnect(node_t *node, char *payload_data, size_t size);
+static result_t platform_register_external_calvinsys(node_t *node, char *payload_data, size_t size);
+static result_t platform_handle_external_calvinsys_data(node_t *node, char *payload_data, size_t size);
 
 struct platform_command_handler_t platform_command_handlers[PLATFORM_ANDROID_NBR_OF_COMMANDS] = {
-  {PLATFORM_ANDROID_CONNECT_REPLY, command_transport_connected},
-  {PLATFORM_ANDROID_RUNTIME_STOP, command_rt_stop},
+	{PLATFORM_ANDROID_CONNECT_REPLY, command_transport_connected},
+	{PLATFORM_ANDROID_RUNTIME_STOP, command_rt_stop},
 	{PLATFORM_ANDROID_RUNTIME_CALVIN_MSG, command_calvin_msg},
 	{PLATFORM_ANDROID_RUNTIME_SERIALIZE_AND_STOP, platform_serialize_and_stop},
 	{PLATFORM_ANDROID_RUNTIME_TRIGGER_RECONNECT, platform_trigger_reconnect},
@@ -57,36 +57,38 @@ typedef struct platform_android_external_state_t {
 
 static int send_upstream_platform_message(const node_t *node, char *cmd, char *data, size_t data_size)
 {
-  int res = 0;
+	int res = 0;
 
-    transport_set_length_prefix(data, data_size - TRANSPORT_LEN_PREFIX_SIZE);
-    memcpy(data + TRANSPORT_LEN_PREFIX_SIZE, cmd, PLATFORM_ANDROID_COMMAND_SIZE); // set 2 byte command type
+	transport_set_length_prefix(data, data_size - TRANSPORT_LEN_PREFIX_SIZE);
+	memcpy(data + TRANSPORT_LEN_PREFIX_SIZE, cmd, PLATFORM_ANDROID_COMMAND_SIZE); // set 2 byte command type
 	res = write(((android_platform_t *)node->platform)->upstream_platform_fd[1], data, data_size);
 	if (res == data_size) {
-        cc_log_debug("Wrote upstream message of size '%d'", res);
-        return res;
+		cc_log_debug("Wrote upstream message of size '%d'", res);
+		return res;
 	}
-    cc_log_error("Could not write upstream message of size '%d', res '%d'", data_size, res);
+
+	cc_log_error("Could not write upstream message of size '%d', res '%d'", data_size, res);
+
 	return res;
 }
 
 static result_t send_downstream_platform_message(const node_t *node, char *data, size_t data_size)
 {
-  int res = 0;
+	int res = 0;
 
-  res = write(((android_platform_t*)node->platform)->downstream_platform_fd[1], data, data_size);
-  if (res > 0) {
-    cc_log_debug("Wrote downstream message with size %d", data_size);
-    return CC_RESULT_SUCCESS;
-  }
+	res = write(((android_platform_t *)node->platform)->downstream_platform_fd[1], data, data_size);
+	if (res > 0) {
+		cc_log_debug("Wrote downstream message with size %d", data_size);
+		return CC_RESULT_SUCCESS;
+	}
 
-  cc_log_error("Could not write downstream message, result: %d", res);
-  return CC_RESULT_FAIL;
+	cc_log_error("Could not write downstream message, result: %d", res);
+	return CC_RESULT_FAIL;
 }
 
 static result_t read_upstream(const node_t *node, char *buffer, size_t size)
 {
-	int bytes_read = 0, status = 0, fd = ((android_platform_t*)node->platform)->upstream_platform_fd[0];
+	int bytes_read = 0, status = 0, fd = ((android_platform_t *)node->platform)->upstream_platform_fd[0];
 	unsigned int datasize = 0;
 	fd_set set;
 
@@ -96,18 +98,18 @@ static result_t read_upstream(const node_t *node, char *buffer, size_t size)
 	status = select(fd + 1, &set, NULL, NULL, NULL);
 	if (status > 0) {
 		bytes_read = read(fd, buffer, TRANSPORT_LEN_PREFIX_SIZE);
-    if (bytes_read < TRANSPORT_LEN_PREFIX_SIZE) {
-      cc_log_error("Failed to read message size '%d'", bytes_read);
-      return CC_RESULT_FAIL;
-    }
+		if (bytes_read < TRANSPORT_LEN_PREFIX_SIZE) {
+			cc_log_error("Failed to read message size '%d'", bytes_read);
+			return CC_RESULT_FAIL;
+		}
 
-    datasize = transport_get_message_len(buffer);
+		datasize = transport_get_message_len(buffer);
 		if (datasize > size - TRANSPORT_LEN_PREFIX_SIZE) {
 			cc_log_error("Error when reading upstream data, read buffer '%d' < message '%d'.", size, datasize);
-      return CC_RESULT_FAIL;
-    }
+			return CC_RESULT_FAIL;
+		}
 
-    bytes_read = read(fd, buffer + TRANSPORT_LEN_PREFIX_SIZE, datasize);
+		bytes_read = read(fd, buffer + TRANSPORT_LEN_PREFIX_SIZE, datasize);
 		if (bytes_read != datasize) {
 			cc_log_error("Error when reading from pipe, expected '%d', got '%d'", datasize, bytes_read);
 			return CC_RESULT_FAIL;
@@ -120,7 +122,7 @@ static result_t read_upstream(const node_t *node, char *buffer, size_t size)
 	return CC_RESULT_SUCCESS;
 }
 
-static result_t handle_platform_call(node_t* node, int fd)
+static result_t handle_platform_call(node_t *node, int fd)
 {
 	char size_buffer[4];
 	size_t total_msg_size;
@@ -145,9 +147,10 @@ static result_t handle_platform_call(node_t* node, int fd)
 	return CC_RESULT_FAIL;
 }
 
-static result_t platform_android_handle_data(node_t* node, transport_client_t *transport_client)
+static result_t platform_android_handle_data(node_t *node, transport_client_t *transport_client)
 {
-	result_t result = handle_platform_call(node, ((android_platform_t*) node->platform)->downstream_platform_fd[0]);
+	result_t result = handle_platform_call(node, ((android_platform_t *)node->platform)->downstream_platform_fd[0]);
+
 	if (result != CC_RESULT_SUCCESS)
 		cc_log_error("fcm_handle platform call failed");
 	return result;
@@ -155,14 +158,14 @@ static result_t platform_android_handle_data(node_t* node, transport_client_t *t
 
 static result_t platform_android_handle_socket_data(node_t *node, transport_client_t *transport_client)
 {
-  return transport_handle_data(node, transport_client, node_handle_message);
+	return transport_handle_data(node, transport_client, node_handle_message);
 }
 
 static int platform_android_fcm_fd_handler(int fd, int events, void *data)
 {
 	node_t *node = (node_t *)data;
 
-  if (platform_android_handle_data(node, node->transport_client) != CC_RESULT_SUCCESS)
+	if (platform_android_handle_data(node, node->transport_client) != CC_RESULT_SUCCESS)
 		cc_log_error("Error when handling data");
 
 	return 1; // Always return 1, since 0  will unregister the FD in the looper
@@ -172,7 +175,7 @@ static int platform_android_socket_fd_handler(int fd, int events, void *data)
 {
 	node_t *node = (node_t *)data;
 
-  if (platform_android_handle_socket_data(node, node->transport_client) != CC_RESULT_SUCCESS)
+	if (platform_android_handle_socket_data(node, node->transport_client) != CC_RESULT_SUCCESS)
 		cc_log_error("Error when handling socket data");
 
 	return 1; // Always return 1, since 0  will unregister the FD in the looper
@@ -187,10 +190,11 @@ void platform_deepsleep(node_t *node)
 
 bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 {
-	android_platform_t *platform = (android_platform_t*)node->platform;
+	android_platform_t *platform = (android_platform_t *)node->platform;
+	int poll_result;
 
 	// Add FD for FCM and platform communications
-	if (ALooper_addFd(platform->looper, ((android_platform_t*) node->platform)->downstream_platform_fd[0], ALOOPER_POLL_CALLBACK, ALOOPER_EVENT_INPUT, &platform_android_fcm_fd_handler, node) != 1) {
+	if (ALooper_addFd(platform->looper, ((android_platform_t *) node->platform)->downstream_platform_fd[0], ALOOPER_POLL_CALLBACK, ALOOPER_EVENT_INPUT, &platform_android_fcm_fd_handler, node) != 1) {
 		cc_log_error("Could not add fd to looper, looper: %p", platform->looper);
 		sleep(5);
 	}
@@ -199,9 +203,9 @@ bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 	if (node->transport_client != NULL && (node->transport_client->state == TRANSPORT_PENDING || node->transport_client->state == TRANSPORT_ENABLED)) {
 		if (node->transport_client->transport_type == TRANSPORT_SOCKET_TYPE) {
 			if (ALooper_addFd(platform->looper,
-			                  ((transport_socket_client_t *) node->transport_client->client_state)->fd,
-			                  ALOOPER_POLL_CALLBACK, ALOOPER_EVENT_INPUT,
-			                  &platform_android_socket_fd_handler, node) != 1) {
+				((transport_socket_client_t *)node->transport_client->client_state)->fd,
+				ALOOPER_POLL_CALLBACK, ALOOPER_EVENT_INPUT,
+				&platform_android_socket_fd_handler, node) != 1) {
 				cc_log_error("Could not add socket fd");
 				sleep(5);
 			}
@@ -211,12 +215,11 @@ bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 		return false;
 	}
 
-	int poll_result = ALooper_pollOnce(timeout_seconds == CC_INDEFINITELY_TIMEOUT ? -1 : timeout_seconds, NULL, NULL, NULL);
-	if (poll_result == ALOOPER_POLL_CALLBACK || poll_result == ALOOPER_POLL_TIMEOUT) {
+	poll_result = ALooper_pollOnce(timeout_seconds == CC_INDEFINITELY_TIMEOUT ? -1 : timeout_seconds, NULL, NULL, NULL);
+	if (poll_result == ALOOPER_POLL_CALLBACK || poll_result == ALOOPER_POLL_TIMEOUT)
 		return true;
-	}
 
-    return false;
+	return false;
 }
 
 void platform_print(const char *fmt, ...)
@@ -230,30 +233,30 @@ void platform_print(const char *fmt, ...)
 
 static result_t command_calvin_msg(node_t *node, char *payload_data, size_t size)
 {
-  unsigned int len = transport_get_message_len(payload_data);
+	unsigned int len = transport_get_message_len(payload_data);
 
-  return node_handle_message(node, payload_data + 4, len);
+	return node_handle_message(node, payload_data + 4, len);
 }
 
 static result_t command_transport_connected(node_t *node, char *data, size_t size)
 {
-  node->transport_client->state = TRANSPORT_CONNECTED;
+	node->transport_client->state = TRANSPORT_CONNECTED;
 	return CC_RESULT_SUCCESS;
 }
 
 static result_t command_rt_stop(node_t *node, char *payload_data, size_t size)
 {
-  return api_runtime_stop(node);
+	return api_runtime_stop(node);
 }
 
 static result_t platform_serialize_and_stop(node_t *node, char *data, size_t size)
 {
-  return api_runtime_serialize_and_stop(node);
+	return api_runtime_serialize_and_stop(node);
 }
 
 static result_t platform_trigger_reconnect(node_t *node, char *data, size_t size)
 {
-  return api_reconnect(node);
+	return api_reconnect(node);
 }
 
 static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_data)
@@ -269,15 +272,16 @@ static bool platform_external_can_write(struct calvinsys_obj_t *obj)
 
 static result_t platform_external_write(struct calvinsys_obj_t *obj, char *data, size_t data_size)
 {
-    char buffer[500+data_size], *w = buffer + 6;
+	char buffer[500+data_size], *w = buffer + 6;
 
-    w = mp_encode_map(w, 3);
+	w = mp_encode_map(w, 3);
 	w = encode_uint(&w, "id", obj->id);
 	w = encode_bin(&w, "payload", data, data_size);
 
 	if (send_upstream_platform_message(obj->handler->calvinsys->node, PLATFORM_ANDROID_EXTERNAL_CALVINSYS_PAYLOAD, buffer, w - buffer) > 0)
-        return CC_RESULT_SUCCESS;
-  return CC_RESULT_FAIL;
+		return CC_RESULT_SUCCESS;
+
+	return CC_RESULT_FAIL;
 }
 
 static bool platform_external_can_read(struct calvinsys_obj_t *obj)
@@ -294,9 +298,9 @@ static result_t platform_external_read(struct calvinsys_obj_t *obj, char **data,
 	if (state->data != NULL && state->data_size > 0) {
 		*data = state->data;
 		*size = state->data_size;
-        state->data = NULL;
-        state->data_size = 0;
-        return CC_RESULT_SUCCESS;
+		state->data = NULL;
+		state->data_size = 0;
+		return CC_RESULT_SUCCESS;
 	}
 
 	cc_log_error("No data available");
@@ -306,28 +310,29 @@ static result_t platform_external_read(struct calvinsys_obj_t *obj, char **data,
 
 static result_t platform_external_close(calvinsys_obj_t *obj)
 {
-  platform_android_external_state_t *state = (platform_android_external_state_t *)obj->state;
-  char buffer[500], *w;
+	platform_android_external_state_t *state = (platform_android_external_state_t *)obj->state;
+	char buffer[500], *w;
 
 	w = buffer+6;
 	w = mp_encode_map(w, 2);
 	w = encode_uint(&w, "id", obj->id);
 
-  if (send_upstream_platform_message(obj->handler->calvinsys->node, PLATFORM_ANDROID_DESTROY_EXTERNAL_CALVINSYS, buffer, w-buffer) > 0) {
-    if (state->data != NULL)
-  		platform_mem_free((void *)state->data);
-  	platform_mem_free((void *)state);
-    return CC_RESULT_SUCCESS;
-  }
+	if (send_upstream_platform_message(obj->handler->calvinsys->node, PLATFORM_ANDROID_DESTROY_EXTERNAL_CALVINSYS, buffer, w-buffer) > 0) {
+		if (state->data != NULL)
+			platform_mem_free((void *)state->data);
+		platform_mem_free((void *)state);
+		return CC_RESULT_SUCCESS;
+	}
 
-  return CC_RESULT_FAIL;
+	return CC_RESULT_FAIL;
 }
 
-static calvinsys_obj_t *platform_external_open(calvinsys_handler_t *handler, char *data, size_t len, void* handler_state, uint32_t id, const char* capability_name)
+static calvinsys_obj_t *platform_external_open(calvinsys_handler_t *handler, char *data, size_t len, void *handler_state, uint32_t id, const char *capability_name)
 {
 	calvinsys_obj_t *obj = NULL;
 	platform_android_external_state_t *state = NULL;
 	char buffer[500], *w = NULL;
+
 	memset(buffer, 0, 500);
 
 	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
@@ -352,10 +357,10 @@ static calvinsys_obj_t *platform_external_open(calvinsys_handler_t *handler, cha
 	obj->state = state;
 	obj->id = id;
 
-	if(handler->objects == NULL)
+	if (handler->objects == NULL)
 		cc_log_error("Did not add object to handler!");
 
-    // Give it its ID
+	// Give it its ID
 	w = buffer + 6;
 	w = mp_encode_map(w, 2);
 	w = encode_str(&w, "name", capability_name, strlen(capability_name));
@@ -367,24 +372,26 @@ static calvinsys_obj_t *platform_external_open(calvinsys_handler_t *handler, cha
 	platform_mem_free((void *)state);
 	platform_mem_free((void *)obj);
 
-    return NULL;
+	return NULL;
 }
 
 // TODO: Add functionality to let third party apps unregister their capability. However, what do we do with the actors that depend on that calvinsys?
 static result_t platform_register_external_calvinsys(node_t *node, char *data, size_t data_size)
 {
-    calvinsys_handler_t *handler = NULL;
-	char* name;
+	calvinsys_handler_t *handler = NULL;
+	char *name;
+
 	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
 
-	if(platform_mem_alloc((void **)&name, data_size+1) != CC_RESULT_SUCCESS) {
+	if (platform_mem_alloc((void **)&name, data_size + 1) != CC_RESULT_SUCCESS) {
 		cc_log_error("Could not allocate memory for the name of the calvinsys");
 		platform_mem_free(handler);
 		return CC_RESULT_FAIL;
 	}
+
 	memset(name, 0, data_size+1); // Add null char at the end of the name
 	memcpy(name, data, data_size);
 
@@ -396,10 +403,10 @@ static result_t platform_register_external_calvinsys(node_t *node, char *data, s
 	handler->calvinsys->node = node;
 
 	// TODO: Send reply to third party app, reply false if capability already is registered
-    if (calvinsys_register_capability(node->calvinsys, name, handler, NULL) == CC_RESULT_SUCCESS)
-        return proto_send_node_setup(node, false, node_setup_reply_handler);
+	if (calvinsys_register_capability(node->calvinsys, name, handler, NULL) == CC_RESULT_SUCCESS)
+		return proto_send_node_setup(node, false, node_setup_reply_handler);
 
-  return CC_RESULT_FAIL;
+	return CC_RESULT_FAIL;
 }
 
 static result_t platform_handle_external_calvinsys_data(node_t *node, char *data, size_t size)
@@ -408,7 +415,7 @@ static result_t platform_handle_external_calvinsys_data(node_t *node, char *data
 	int name_len, payload_len, id;
 	calvinsys_handler_t *handler = NULL;
 	platform_android_external_state_t *state = NULL;
-	calvinsys_obj_t* object = NULL;
+	calvinsys_obj_t *object = NULL;
 
 	if (decode_string_from_map(data, "calvinsys", &name, &name_len) != CC_RESULT_SUCCESS) {
 		cc_log_error("Could not parse calvinsys key.");
@@ -425,7 +432,7 @@ static result_t platform_handle_external_calvinsys_data(node_t *node, char *data
 		return CC_RESULT_FAIL;
 	}
 
-	handler = ((calvinsys_capability_t*) list_get(node->calvinsys->capabilities, name))->handler;
+	handler = ((calvinsys_capability_t *) list_get(node->calvinsys->capabilities, name))->handler;
 	if (handler == NULL) {
 		cc_log_error("Could not find calvinsys '%s'", name);
 		return CC_RESULT_FAIL;
@@ -436,15 +443,15 @@ static result_t platform_handle_external_calvinsys_data(node_t *node, char *data
 		return CC_RESULT_FAIL;
 	}
 
-    state = object->state;
+	state = object->state;
 
-    if (state->data != NULL)
-        platform_mem_free((void *)state->data);
+	if (state->data != NULL)
+		platform_mem_free((void *)state->data);
 
-    if (platform_mem_alloc((void **)&state->data, payload_len) != CC_RESULT_SUCCESS) {
-        cc_log_error("Failed to allocate memory");
-        return CC_RESULT_FAIL;
-    }
+	if (platform_mem_alloc((void **)&state->data, payload_len) != CC_RESULT_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
 
 	memcpy(state->data, payload, payload_len);
 	state->data_size = payload_len;
@@ -473,7 +480,7 @@ result_t platform_create(node_t *node)
 		return CC_RESULT_FAIL;
 	}
 
-	cc_log("platform fd up; %d %d, down: %d %d", ((android_platform_t*) node->platform)->upstream_platform_fd[0],
+	cc_log("platform fd up; %d %d, down: %d %d", ((android_platform_t *)node->platform)->upstream_platform_fd[0],
 	    ((android_platform_t *)node->platform)->upstream_platform_fd[1],
 	    ((android_platform_t *)node->platform)->downstream_platform_fd[0],
 	    ((android_platform_t *)node->platform)->downstream_platform_fd[1]);
@@ -490,7 +497,7 @@ result_t platform_node_started(struct node_t *node)
 	memset(buffer + 3, 2 & 0xFF, 1);
 	memcpy(buffer + 4, PLATFORM_ANDROID_RUNTIME_STARTED, 2);
 
-	if (write(((android_platform_t*)node->platform)->upstream_platform_fd[1], buffer, 6) < 0) {
+	if (write(((android_platform_t *)node->platform)->upstream_platform_fd[1], buffer, 6) < 0) {
 		cc_log_error("Failed to write rt started command");
 		return CC_RESULT_FAIL;
 	}
@@ -498,54 +505,59 @@ result_t platform_node_started(struct node_t *node)
 	return CC_RESULT_SUCCESS;
 }
 
-static result_t init_sensor_by_type(ASensor* sensor, calvinsys_t** calvinsys)
+static result_t init_sensor_by_type(ASensor *sensor, calvinsys_t **calvinsys)
 {
-	const char* type = ASensor_getStringType(sensor);
+	const char *type = ASensor_getStringType(sensor);
 	bool wakeup = ASensor_isWakeUpSensor(sensor);
+
 	cc_log("Sensor %s found. Is wakeup?: %d", type, wakeup);
+
 	if (strcmp(type, "android.sensor.pressure") == 0) {
 		if (calvinsys_pressure_create(calvinsys, "sensor.pressure") != CC_RESULT_SUCCESS) {
 			cc_log_error("Could not create sensor %s calvinsys", type);
 			return CC_RESULT_FAIL;
 		}
-	} else if(strcmp(type, "android.sensor.pick_up_gesture") == 0) {
+	} else if (strcmp(type, "android.sensor.pick_up_gesture") == 0) {
 		if (calvinsys_pickupgesture_create(calvinsys, "sensor.pickupgesture") != CC_RESULT_SUCCESS) {
 			cc_log_error("Could not create sensor %s calvinsys", type);
 			return CC_RESULT_FAIL;
 		}
-	} else if(strcmp(type, "android.sensor.step_counter") == 0) {
+	} else if (strcmp(type, "android.sensor.step_counter") == 0) {
 		if (calvinsys_stepcounter_create(calvinsys, "sensor.stepcounter") != CC_RESULT_SUCCESS) {
 			cc_log_error("Could not create sensor %s calvinsys", type);
 			return CC_RESULT_FAIL;
 		}
 	}
+
 	return CC_RESULT_SUCCESS;
 }
 
-ASensor* get_sensor_by_name(const char* name)
+ASensor *get_sensor_by_name(const char *name)
 {
-	ASensorManager* mgr;
+	ASensorManager *mgr;
 	ASensorList sensor_list;
 	int i, sensor_count;
 
 	mgr = ASensorManager_getInstance();
 	sensor_count = ASensorManager_getSensorList(mgr, &sensor_list);
 
-	for(i = 0; i < sensor_count; i++) {
-		const char* type = ASensor_getStringType(sensor_list[i]);
-		if(strcmp(type, name) == 0)
-			return (ASensor*) sensor_list[i];
+	for (i = 0; i < sensor_count; i++) {
+		const char *type = ASensor_getStringType(sensor_list[i]);
+
+		if (strcmp(type, name) == 0)
+			return (ASensor *)sensor_list[i];
 	}
+
 	return NULL;
 }
 
 result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 {
-	ASensorManager* mgr;
+	ASensorManager *mgr;
 	ASensorList sensor_list;
 	int i, sensor_count;
 
-	android_platform_t* platform = (android_platform_t *)(*calvinsys)->node->platform;
+	android_platform_t *platform = (android_platform_t *)(*calvinsys)->node->platform;
 
 	platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
 
@@ -563,9 +575,8 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 	mgr = ASensorManager_getInstance();
 	sensor_count = ASensorManager_getSensorList(mgr, &sensor_list);
 
-	for(i = 0; i < sensor_count; i++) {
-		init_sensor_by_type((ASensor*) sensor_list[i], calvinsys);
-	}
+	for (i = 0; i < sensor_count; i++)
+		init_sensor_by_type((ASensor *)sensor_list[i], calvinsys);
 
 	return CC_RESULT_SUCCESS;
 }
@@ -606,12 +617,13 @@ result_t platform_mem_alloc(void **buffer, uint32_t size)
 
 void *platform_mem_calloc(size_t nitems, size_t size)
 {
-  void *ptr = NULL;
-  if (platform_mem_alloc(&ptr, nitems * size) != CC_RESULT_SUCCESS)
-    return NULL;
+	void *ptr = NULL;
 
-  memset(ptr, 0, nitems * size);
-  return ptr;
+	if (platform_mem_alloc(&ptr, nitems * size) != CC_RESULT_SUCCESS)
+		return NULL;
+
+	memset(ptr, 0, nitems * size);
+	return ptr;
 }
 
 void platform_mem_free(void *buffer)

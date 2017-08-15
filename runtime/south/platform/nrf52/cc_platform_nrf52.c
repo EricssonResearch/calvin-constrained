@@ -144,13 +144,13 @@ static void platform_nrf_start_calvin_connect_timer(void)
 {
 	uint32_t err_code;
 
-  err_code = app_timer_start(m_calvin_connect_timer_id, APP_CALVIN_CONNECT_DELAY, NULL);
-  APP_ERROR_CHECK(err_code);
+	err_code = app_timer_start(m_calvin_connect_timer_id, APP_CALVIN_CONNECT_DELAY, NULL);
+	APP_ERROR_CHECK(err_code);
 }
 
 static void platform_nrf_calvin_connect_callback(void *p_context)
 {
-  UNUSED_VARIABLE(p_context);
+	UNUSED_VARIABLE(p_context);
 	transport_client_t *transport_client = transport_lwip_get_client();
 
 	transport_client->state = TRANSPORT_INTERFACE_UP;
@@ -162,9 +162,7 @@ static void platform_nrf_timers_init(void)
 	uint32_t err_code;
 
 	// Create and start lwip timer
-	err_code = app_timer_create(&m_lwip_timer_id,
-															APP_TIMER_MODE_REPEATED,
-															platform_nrf_lwip_timer_callback);
+	err_code = app_timer_create(&m_lwip_timer_id, APP_TIMER_MODE_REPEATED, platform_nrf_lwip_timer_callback);
 	APP_ERROR_CHECK(err_code);
 	err_code = app_timer_start(m_lwip_timer_id, LWIP_SYS_TIMER_INTERVAL, NULL);
 	APP_ERROR_CHECK(err_code);
@@ -192,7 +190,7 @@ void nrf_driver_interface_down(void)
 
 result_t platform_stop(node_t *node)
 {
-    return CC_RESULT_SUCCESS;
+	return CC_RESULT_SUCCESS;
 }
 
 result_t platform_node_started(struct node_t *node)
@@ -203,6 +201,7 @@ result_t platform_node_started(struct node_t *node)
 void platform_print(const char *fmt, ...)
 {
 	va_list args;
+
 	va_start(args, fmt);
 	vfprintf(stderr, fmt, args);
 	fprintf(stderr, "\r\n");

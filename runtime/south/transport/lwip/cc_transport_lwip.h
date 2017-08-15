@@ -22,15 +22,15 @@
 struct node_t;
 
 typedef struct transport_lwip_rx_buffer_t {
-  char buffer[TRANSPORT_RX_BUFFER_SIZE];
-  size_t size;
+	char buffer[TRANSPORT_RX_BUFFER_SIZE];
+	size_t size;
 } transport_lwip_rx_buffer_t;
 
 typedef struct transport_lwip_client_t {
-  char mac[40];
+	char mac[40];
 	struct tcp_pcb *tcp_port;
 	struct node_t *node;
-  transport_lwip_rx_buffer_t rx_buffer;
+	transport_lwip_rx_buffer_t rx_buffer;
 } transport_lwip_client_t;
 
 transport_client_t *transport_lwip_get_client(void);
