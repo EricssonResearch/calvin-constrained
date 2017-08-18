@@ -513,17 +513,17 @@ static result_t init_sensor_by_type(ASensor *sensor, calvinsys_t **calvinsys)
 	cc_log("Sensor %s found. Is wakeup?: %d", type, wakeup);
 
 	if (strcmp(type, "android.sensor.pressure") == 0) {
-		if (calvinsys_pressure_create(calvinsys, "sensor.pressure") != CC_RESULT_SUCCESS) {
+		if (calvinsys_pressure_create(calvinsys, "io.pressure") != CC_RESULT_SUCCESS) {
 			cc_log_error("Could not create sensor %s calvinsys", type);
 			return CC_RESULT_FAIL;
 		}
-	} else if (strcmp(type, "android.sensor.pick_up_gesture") == 0) {
-		if (calvinsys_pickupgesture_create(calvinsys, "sensor.pickupgesture") != CC_RESULT_SUCCESS) {
+	} else if(strcmp(type, "android.sensor.pick_up_gesture") == 0) {
+		if (calvinsys_pickupgesture_create(calvinsys, "io.pickupgesture") != CC_RESULT_SUCCESS) {
 			cc_log_error("Could not create sensor %s calvinsys", type);
 			return CC_RESULT_FAIL;
 		}
-	} else if (strcmp(type, "android.sensor.step_counter") == 0) {
-		if (calvinsys_stepcounter_create(calvinsys, "sensor.stepcounter") != CC_RESULT_SUCCESS) {
+	} else if(strcmp(type, "android.sensor.step_counter") == 0) {
+		if (calvinsys_stepcounter_create(calvinsys, "io.stepcounter") != CC_RESULT_SUCCESS) {
 			cc_log_error("Could not create sensor %s calvinsys", type);
 			return CC_RESULT_FAIL;
 		}
@@ -561,12 +561,12 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 
 	platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
 
-	if (calvinsys_accelerometer_create(calvinsys, "sensor.accelerometer") != CC_RESULT_SUCCESS) {
+	if (calvinsys_accelerometer_create(calvinsys, "io.accelerometer") != CC_RESULT_SUCCESS) {
 		cc_log_error("Could not create sensor accelerometer calvinsys");
 		return CC_RESULT_FAIL;
 	}
 
-	if (calvinsys_gyroscope_create(calvinsys, "sensor.gyroscope") != CC_RESULT_SUCCESS) {
+	if (calvinsys_gyroscope_create(calvinsys, "io.gyroscope") != CC_RESULT_SUCCESS) {
 		cc_log_error("Could not create sensor gyroscope calvinsys");
 		return CC_RESULT_FAIL;
 	}
