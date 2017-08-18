@@ -20,9 +20,9 @@ static result_t actor_gyroscope_init(actor_t **actor, list_t *attributes)
 {
 	calvinsys_obj_t *obj = NULL;
 
-	obj = calvinsys_open((*actor)->calvinsys, "sensor.gyroscope", NULL, 0);
+	obj = calvinsys_open((*actor)->calvinsys, "io.gyroscope", NULL, 0);
 	if (obj == NULL) {
-		cc_log_error("Failed to open 'sensor.gyroscope'");
+		cc_log_error("Failed to open 'io.gyroscope'");
 		return CC_RESULT_FAIL;
 	}
 

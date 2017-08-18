@@ -20,9 +20,9 @@ static result_t actor_pressure_init(actor_t **actor, list_t *attributes)
 {
 	calvinsys_obj_t *obj = NULL;
 
-	obj = calvinsys_open((*actor)->calvinsys, "sensor.pressure", NULL, 0);
+	obj = calvinsys_open((*actor)->calvinsys, "io.pressure", NULL, 0);
 	if (obj == NULL) {
-		cc_log_error("Failed to open 'sensor.pressure'");
+		cc_log_error("Failed to open 'io.pressure'");
 		return CC_RESULT_FAIL;
 	}
 
