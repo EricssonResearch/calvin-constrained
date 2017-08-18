@@ -9,7 +9,7 @@ CFLAGS += -DPARSE_ARGS
 #CFLAGS += -DLWM2M_HTTP_CLIENT
 
 C_SOURCE_FILES += \
-platform/android/platform_android.c \
+platform/android/cc_platform_android.c \
 main.c \
 common.c \
 node.c \
