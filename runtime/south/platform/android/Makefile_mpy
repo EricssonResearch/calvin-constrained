@@ -13,7 +13,7 @@ CFLAGS += -fPIE -pie -fPIC -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropyth
 EXT_SRC_C = $(addprefix libmpy/, calvin_mpy_port.c calvin_mpy_gpiohandler.c calvin_mpy_environmental.c)
 
 C_SOURCE_FILES += \
-platform/android/platform_android.c \
+platform/android/cc_platform_android.c \
 main.c \
 common.c \
 scheduler.c \

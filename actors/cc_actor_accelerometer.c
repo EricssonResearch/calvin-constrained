@@ -20,9 +20,9 @@ static result_t actor_accelerometer_init(actor_t **actor, list_t *attributes)
 {
 	calvinsys_obj_t *obj = NULL;
 
-	obj = calvinsys_open((*actor)->calvinsys, "sensor.accelerometer", NULL, 0);
+	obj = calvinsys_open((*actor)->calvinsys, "io.accelerometer", NULL, 0);
 	if (obj == NULL) {
-		cc_log_error("Failed to open 'sensor.accelerometer'");
+		cc_log_error("Failed to open 'io.accelerometer'");
 		return CC_RESULT_FAIL;
 	}
 

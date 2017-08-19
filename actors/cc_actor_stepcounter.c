@@ -22,9 +22,9 @@ static result_t actor_stepcounter_init(actor_t **actor, list_t *attributes)
 	calvinsys_obj_t *obj = NULL;
 	actor_stepcounter_state_t *instance_state = NULL;
 
-	obj = calvinsys_open((*actor)->calvinsys, "sensor.stepcounter", NULL, 0);
+	obj = calvinsys_open((*actor)->calvinsys, "io.stepcounter", NULL, 0);
 	if (obj == NULL) {
-		cc_log_error("Failed to open 'sensor.stepcounter'");
+		cc_log_error("Failed to open 'io.stepcounter'");
 		return CC_RESULT_FAIL;
 	}
 
