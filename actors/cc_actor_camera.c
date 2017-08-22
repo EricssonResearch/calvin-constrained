@@ -43,9 +43,8 @@ static bool actor_camera_fire(struct actor_t *actor)
 		calvinsys_obj_t *camera = (calvinsys_obj_t *)actor->instance_state;
 		port_t *inport = (port_t *)actor->in_ports->data, *outport = (port_t *)actor->out_ports->data;
 
-		token_t* in_token = NULL;
 		if(camera != NULL && fifo_tokens_available(inport->fifo, 1)) {
-			in_token = fifo_peek(inport->fifo);
+			fifo_peek(inport->fifo);
 			if (camera->write(camera, "trigger", 7) != CC_RESULT_SUCCESS) {
 				return false;
 			} else {
@@ -53,8 +52,8 @@ static bool actor_camera_fire(struct actor_t *actor)
 				return true;
 			}
 		} else if (camera != NULL && camera->can_read(camera) == true) {
-			char* sys_data, *image;
-			size_t sys_data_size, image_size;
+			char* sys_data;
+			size_t sys_data_size;
 			camera->read(camera, &sys_data, &sys_data_size);
 			cc_log_debug("Read data from camera sys with size %d!", sys_data_size);
 			if (fifo_slots_available(outport->fifo, 1)) {
