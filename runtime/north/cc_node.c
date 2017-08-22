@@ -582,6 +582,14 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 	cc_log("Inactivity timeout: %d seconds", CC_INACTIVITY_TIMEOUT);
 	cc_log("Sleep time: %d seconds", CC_SLEEP_TIME);
 #endif
+	if (node->actors != NULL) {
+		cc_log("Actors:");
+		item = node->actors;
+		while (item != NULL) {
+			cc_log(" %s %s", ((actor_t *)item->data)->name, item->id);
+			item = item->next;
+		}
+	}
 	cc_log("----------------------------------------");
 
 	return CC_RESULT_SUCCESS;
