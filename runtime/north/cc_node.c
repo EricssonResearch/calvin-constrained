@@ -650,9 +650,6 @@ static void node_free(node_t *node)
 result_t node_run(node_t *node)
 {
 	list_t *item = NULL;
-#ifdef CC_DEEPSLEEP_ENABLED
-	bool do_sleep = false;
-#endif
 
 	if (node->fire_actors == NULL) {
 		cc_log_error("No actor scheduler set");
@@ -660,27 +657,23 @@ result_t node_run(node_t *node)
 	}
 
 	while (node->state != NODE_STOP) {
-#ifdef CC_DEEPSLEEP_ENABLED
-		do_sleep = true;
-#endif
 		item = node->proxy_uris;
 		while (item != NULL && node->state != NODE_STOP) {
 			node->state = NODE_DO_START;
 			if (node_connect_to_proxy(node, item->id) == CC_RESULT_SUCCESS) {
-#ifdef CC_DEEPSLEEP_ENABLED
-				do_sleep = false;
-#endif
 				while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_ENABLED) {
 					if (node->state == NODE_STARTED)
 						node->fire_actors(node);
 #ifdef CC_DEEPSLEEP_ENABLED
-					if (!platform_evt_wait(node, CC_INACTIVITY_TIMEOUT)) {
-						if (proto_send_node_setup(node, true, node_enter_sleep_reply_handler) == CC_RESULT_SUCCESS)
-							node->state = NODE_PENDING;
+					if (node->actors != NULL) {
+						if (!platform_evt_wait(node, CC_INACTIVITY_TIMEOUT)) {
+							if (proto_send_node_setup(node, true, node_enter_sleep_reply_handler) == CC_RESULT_SUCCESS)
+								node->state = NODE_PENDING;
+						}
+						continue;
 					}
-#else
-					platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
 #endif
+					platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
 				}
 			}
 
@@ -694,13 +687,14 @@ result_t node_run(node_t *node)
 
 		if (node->state != NODE_STOP) {
 #ifdef CC_DEEPSLEEP_ENABLED
-			if (do_sleep) {
+			if (node->actors != NULL) {
 				cc_log("No proxy found, enterring sleep");
+				node->state = NODE_STOP;
 				platform_deepsleep(node);
+				break;
 			}
-#else
-			platform_evt_wait(node, 5);
 #endif
+			platform_evt_wait(node, 5);
 		}
 	}
 
