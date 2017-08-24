@@ -10,6 +10,7 @@ import android.content.pm.PackageManager;
 import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.support.v4.app.ActivityCompat;
@@ -23,11 +24,15 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
@@ -126,6 +131,7 @@ public class MainActivity extends AppCompatActivity {
 
         wifi.startScan();
         spinner.setVisibility(View.VISIBLE);
+        textScanning.setText(("Scanning"));
         textScanning.setVisibility(View.VISIBLE);
     }
 
@@ -145,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED)
                 doScan();
             else
-                Log.e(TAG, "No permission");
+                showMessage("No permission");
         }
     }
 
@@ -160,14 +166,16 @@ public class MainActivity extends AppCompatActivity {
 
             if (WifiManager.SCAN_RESULTS_AVAILABLE_ACTION.equals(action)) {
                 List<ScanResult> wifiScanList = wifi.getScanResults();
-                if (wifiScanList.size() > 0) {
-                    connectWifi();
-                    return;
+                for(int x = 0; x < wifiScanList.size(); x++) {
+                    if (wifiScanList.get(x).SSID.equals((ESP_SSID))) {
+                        connectWifi();
+                        return;
+                    }
                 }
             }
 
+            showMessage("No AP found");
             spinner.setVisibility(View.GONE);
-            textScanning.setVisibility(View.GONE);
         }
     }
 
@@ -179,18 +187,22 @@ public class MainActivity extends AppCompatActivity {
             if(action.equals(WifiManager.NETWORK_STATE_CHANGED_ACTION)){
                 NetworkInfo info = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO);
                 if (info.isConnected()) {
-                    Log.d(TAG, "WiFi connected");
-                    unregisterReceiver(this);
-                    spinner.setVisibility(View.GONE);
-                    textScanning.setVisibility(View.GONE);
-                    showConfig();
+                    WifiManager wifi = (WifiManager)getSystemService(Context.WIFI_SERVICE);
+                    WifiInfo connInfo = wifi.getConnectionInfo();
+                    if (ESP_SSID.equals(connInfo.getSSID()) || ("\"" + ESP_SSID + "\"").equals(connInfo.getSSID())) {
+                        showConfig();
+                        unregisterReceiver(this);
+                    } else {
+                        showMessage("Connected, but incorrect AP " + connInfo.getSSID());
+                    }
                 }
             }
         }
-
     }
 
     private void connectWifi() {
+        textScanning.setText("Connecting");
+
         WifiManager wifi = (WifiManager)getSystemService(Context.WIFI_SERVICE);
 
         BroadcastReceiver broadcastReceiver = new WifiConnectReceiver();
@@ -218,6 +230,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showConfig() {
+        spinner.setVisibility(View.GONE);
+        textScanning.setVisibility(View.GONE);
         dialog.show();
     }
 
@@ -225,23 +239,41 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void run() {
             try {
-                Log.d(TAG, "Posting config data: " + postData);
                 InetAddress serverAddr = InetAddress.getByName("172.16.0.1");
                 Socket socket = new Socket(serverAddr, 80);
-                OutputStreamWriter stream = new OutputStreamWriter(socket.getOutputStream());
-                stream.write(postData);
-                stream.flush();
+                OutputStreamWriter out = new OutputStreamWriter(socket.getOutputStream());
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                out.write(postData);
+                out.flush();
+                String data;
+                while ((data = in.readLine()) != null) {
+                    if (data.contains("200 OK")) {
+                        showMessage("Runtime configured");
+                    } else if (data.contains(("500 Internal Server Error"))) {
+                        showMessage("Internal Server Error");
+                    }
+                }
                 socket.close();
-                Log.d(TAG, "Config data written");
-            } catch (UnknownHostException e1){
-                e1.printStackTrace();
-            } catch (IOException e1) {
-                e1.printStackTrace();
+            } catch (UnknownHostException e){
+                e.printStackTrace();
+            } catch (SocketException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
 
     private void sendPost() {
         new Thread(new ClientThread()).start();
+    }
+
+    private void showMessage(final String data) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(MainActivity.this, data, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 }

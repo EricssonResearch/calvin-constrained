@@ -420,7 +420,7 @@ static result_t platform_esp_get_config(void)
 		} else
 			cc_log_error("Failed to write runtime config");
 
-		write(newsockfd, "HTTP/1.0 500 OK\r\n", strlen("HTTP/1.0 500 OK\r\n"));
+		write(newsockfd, "HTTP/1.0 500 Internal Server Error\r\n", strlen("HTTP/1.0 500 Internal Server Error\r\n"));
 		close(newsockfd);
 	}
 }
