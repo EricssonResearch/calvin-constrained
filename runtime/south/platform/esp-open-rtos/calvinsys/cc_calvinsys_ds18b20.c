@@ -20,7 +20,7 @@
 #include "../../../../../msgpuck/msgpuck.h"
 #include "ds18b20/ds18b20.h"
 
-#define CC_DS18B20_SENSOR_GPIO 13
+#define CC_DS18B20_SENSOR_GPIO 5
 
 typedef struct calvinsys_ds18b20_state_t {
 	ds18b20_addr_t addr;
