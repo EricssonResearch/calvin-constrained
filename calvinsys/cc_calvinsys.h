@@ -24,9 +24,9 @@ typedef struct calvinsys_obj_t {
 	bool (*can_read)(struct calvinsys_obj_t *obj);
 	result_t (*read)(struct calvinsys_obj_t *obj, char **data, size_t *data_size);
 	result_t (*close)(struct calvinsys_obj_t *obj);
-	struct calvinsys_handler_t *handler;
 	void *state;
 	uint32_t id;
+	struct calvinsys_handler_t *handler;
 	struct calvinsys_obj_t *next;
 } calvinsys_obj_t;
 

@@ -300,7 +300,7 @@ static result_t actor_mpy_get_managed_attributes(actor_t *actor, list_t **attrib
 		q_attr = qstr_from_strn((const char *)name, len);
 		mp_load_method(state->actor_class_instance, q_attr, mpy_attr);
 		if (mpy_attr[0] == MP_OBJ_NULL) {
-			cc_log("Unknown managed attribute");
+			cc_log_debug("Unknown managed attribute");
 			continue;
 		}
 

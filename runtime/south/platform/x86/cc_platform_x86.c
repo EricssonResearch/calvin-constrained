@@ -81,6 +81,16 @@ static result_t platform_temp_read(struct calvinsys_obj_t *obj, char **data, siz
 	return CC_RESULT_SUCCESS;
 }
 
+static bool platform_calvinsys_temp_can_write(struct calvinsys_obj_t *obj)
+{
+	return true;
+}
+
+static result_t platform_calvinsys_temp_write(struct calvinsys_obj_t *obj, char *data, size_t size)
+{
+	return CC_RESULT_SUCCESS;
+}
+
 static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
 {
 	calvinsys_obj_t *obj = NULL;
@@ -90,8 +100,8 @@ static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *d
 		return NULL;
 	}
 
-	obj->can_write = NULL;
-	obj->write = NULL;
+	obj->can_write = platform_calvinsys_temp_can_write;
+	obj->write = platform_calvinsys_temp_write;
 	obj->can_read = platform_temp_can_read;
 	obj->read = platform_temp_read;
 	obj->close = NULL;
@@ -326,8 +336,17 @@ void platform_mem_free(void *buffer)
 	free(buffer);
 }
 
+uint32_t platform_get_seconds(node_t *node)
+{
+	struct timeval value;
+
+	gettimeofday(&value, NULL);
+
+	return value.tv_sec;
+}
+
 #ifdef CC_DEEPSLEEP_ENABLED
-void platform_deepsleep(node_t *node)
+void platform_deepsleep(node_t *node, uint32_t time)
 {
 	cc_log("Going to deepsleep state, runtime will stop!");
 }

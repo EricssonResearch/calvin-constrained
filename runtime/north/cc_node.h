@@ -57,6 +57,9 @@ typedef struct node_t {
 	transport_client_t *transport_client;
 	calvinsys_t *calvinsys;
 	list_t *proxy_uris;
+#ifdef CC_STORAGE_ENABLED
+	uint32_t time_to_sleep;
+#endif
 	bool (*fire_actors)(struct node_t *node);
 } node_t;
 

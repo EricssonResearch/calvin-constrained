@@ -34,10 +34,12 @@
 #include "calvinsys/cc_calvinsys_gpio.h"
 
 #define CALVIN_ESP_RUNTIME_STATE_FILE	"cc_state.conf"
-#define CALVIN_ESP_WIFI_CONFIG_FILE	"cc_wifi.conf"
-#define CALVIN_ESP_BUFFER_SIZE		1024
-#define CALVIN_ESP_AP_SSID		"calvin-esp"
-#define CALVIN_ESP_AP_PSK		"calvin-esp"
+#define CALVIN_ESP_WIFI_CONFIG_FILE		"cc_wifi.conf"
+#define CALVIN_ESP_BUFFER_SIZE				1024
+#define CALVIN_ESP_AP_SSID						"calvin-esp"
+#define CALVIN_ESP_AP_PSK							"calvin-esp"
+#define CALVIN_ESP_WIFI_STATUS_PIN		2
+#define CALVIN_ESP_RESET_PIN					4
 
 
 static result_t platform_esp_write_calvin_config(char *attributes, uint32_t attributes_len, char *proxy_uris, uint32_t proxy_uris_len)
@@ -182,7 +184,7 @@ result_t platform_create_calvinsys(calvinsys_t **calvinsys)
 		return CC_RESULT_FAIL;
 	}
 
-	state_light->pin = 2;
+	state_light->pin = 4;
 	state_light->direction = CC_GPIO_OUT;
 
 	if (calvinsys_register_capability(*calvinsys, "io.light", handler, state_light) != CC_RESULT_SUCCESS)
@@ -291,17 +293,21 @@ result_t platform_read_node_state(struct node_t *node, char buffer[], size_t siz
 }
 
 #ifdef CC_DEEPSLEEP_ENABLED
-void platform_deepsleep(node_t *node)
+void platform_deepsleep(node_t *node, uint32_t time)
 {
-	cc_log("Enterring system deep sleep for '%d' seconds", CC_SLEEP_TIME);
-	sdk_system_deep_sleep(CC_SLEEP_TIME * 1000 * 1000);
+	cc_log("Enterring system deep sleep for '%d' seconds", time);
+	sdk_system_deep_sleep(time * 1000 * 1000);
 	vTaskDelay(1000 / portTICK_PERIOD_MS);
-	cc_log("----------- Should not come here --------------");
 }
 #endif
 
 void platform_init(void)
 {
+}
+
+uint32_t platform_get_seconds(node_t *node)
+{
+	return node->time_to_sleep + (sdk_system_get_time() / 1000000);
 }
 
 static result_t platform_esp_get_config(void)
@@ -468,7 +474,7 @@ static result_t platform_esp_start_station_mode(void)
 	sdk_wifi_station_set_config(&config);
 	sdk_wifi_station_connect();
 
-	retries = 20;
+	retries = 60;
 	while (retries--) {
 		cc_log("Waiting for connection to AP (retries %d)", retries);
 		status = sdk_wifi_station_get_connect_status();
@@ -495,6 +501,7 @@ void calvin_task(void *pvParameters)
 {
 	node_t *node = NULL;
 	spiffs_stat s;
+	bool startAP = false;
 
 	uart_set_baud(0, 115200);
 
@@ -505,10 +512,11 @@ void calvin_task(void *pvParameters)
 	cc_log("%20s: %u Mbytes", "Flash size", sdk_flashchip.chip_size / 1024 / 1024);
 	cc_log("----------------------------------------");
 
-	// Set led to indicate wifi status.
-#ifdef CC_USE_WIFI_STATUS_LED
-	sdk_wifi_status_led_install(2, PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
-#endif
+	// Set led to indicate wifi status
+	sdk_wifi_status_led_install(CALVIN_ESP_WIFI_STATUS_PIN, PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
+
+	// reset config pin
+	gpio_enable(CALVIN_ESP_RESET_PIN, GPIO_INPUT);
 
 	esp_spiffs_init();
 	cc_log("Mounting filesystem");
@@ -518,7 +526,7 @@ void calvin_task(void *pvParameters)
 		if (SPIFFS_format(&fs) == SPIFFS_OK)
 			cc_log("Filesystem formatted");
 		else {
-			cc_log_error("Failed to format filesystem, restarting");
+			cc_log_error("Failed to format filesystem %i, restarting", SPIFFS_errno(&fs));
 			sdk_system_restart();
 			return;
 		}
@@ -530,8 +538,18 @@ void calvin_task(void *pvParameters)
 		}
 	}
 
+	if (gpio_read(CALVIN_ESP_RESET_PIN) == 1) {
+		cc_log("Forcing AP mode");
+		startAP = true;
+	}
+
 	if (SPIFFS_stat(&fs, CALVIN_ESP_WIFI_CONFIG_FILE, &s) != SPIFFS_OK) {
 		cc_log("No WiFi config found");
+		startAP = true;
+	}
+
+	if (startAP) {
+		cc_log("Starting in AP mode");
 		if (platform_esp_get_config() != CC_RESULT_SUCCESS) {
 			cc_log("Failed to get config, restarting");
 			SPIFFS_remove(&fs, CALVIN_ESP_WIFI_CONFIG_FILE);

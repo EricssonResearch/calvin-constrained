@@ -74,11 +74,11 @@ result_t proto_send_join_request(const node_t *node, transport_client_t *transpo
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_node_setup(node_t *node, bool will_sleep, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 	list_t *capabilities = node->calvinsys->capabilities;
-	uint32_t nbr_of_capabilities = 0, nbr_of_attributes = 8;
+	uint32_t nbr_of_capabilities = 0, nbr_of_attributes = 7;
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -104,7 +104,6 @@ result_t proto_send_node_setup(node_t *node, bool will_sleep, result_t (*handler
 			w = encode_str(&w, "attributes", node->attributes, strlen(node->attributes));
 		else
 			w = encode_nil(&w, "attributes");
-		w = encode_bool(&w, "will_sleep", will_sleep);
 		w = encode_array(&w, "capabilities", nbr_of_capabilities);
 		{
 			capabilities = node->calvinsys->capabilities;
@@ -120,6 +119,37 @@ result_t proto_send_node_setup(node_t *node, bool will_sleep, result_t (*handler
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		cc_log_debug("Sent PROXY_CONFIG");
+		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
+		return CC_RESULT_SUCCESS;
+	}
+
+	return CC_RESULT_FAIL;
+}
+
+result_t proto_send_sleep_request(node_t *node, uint32_t seconds_to_sleep, result_t (*handler)(node_t*, char*, void*))
+{
+	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
+
+	if (node->transport_client == NULL)
+		return CC_RESULT_FAIL;
+
+	if (!node_can_add_pending_msg(node))
+		return CC_RESULT_PENDING;
+
+	gen_uuid(msg_uuid, "MSGID_");
+
+	w = buffer + node->transport_client->prefix_len;
+	w = mp_encode_map(w, 5);
+	{
+		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
+		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
+		w = encode_str(&w, "cmd", "SLEEP_REQUEST", 13);
+		w = encode_uint(&w, "seconds_to_sleep", seconds_to_sleep);
+	}
+
+	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
+		cc_log_debug("Sent SLEEP_REQUEST");
 		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
 		return CC_RESULT_SUCCESS;
 	}

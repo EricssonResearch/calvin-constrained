@@ -404,7 +404,7 @@ static result_t platform_register_external_calvinsys(node_t *node, char *data, s
 
 	// TODO: Send reply to third party app, reply false if capability already is registered
 	if (calvinsys_register_capability(node->calvinsys, name, handler, NULL) == CC_RESULT_SUCCESS)
-		return proto_send_node_setup(node, false, node_setup_reply_handler);
+		return proto_send_node_setup(node, node_setup_reply_handler);
 
 	return CC_RESULT_FAIL;
 }
@@ -629,6 +629,15 @@ void *platform_mem_calloc(size_t nitems, size_t size)
 void platform_mem_free(void *buffer)
 {
 	free(buffer);
+}
+
+uint32_t platform_get_seconds(node_t *node)
+{
+	struct timeval value;
+
+	gettimeofday(&value, NULL);
+
+	return value.tv_sec;
 }
 
 #ifdef CC_STORAGE_ENABLED

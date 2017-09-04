@@ -81,6 +81,7 @@ $(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/uart/nrf_drv_uart.c) \
 $(abspath main.c) \
 $(abspath cc_api.c) \
 $(abspath calvinsys/cc_calvinsys.c) \
+$(abspath calvinsys/common/cc_calvinsys_timer.c) \
 $(abspath runtime/south/platform/nrf52/cc_platform_nrf52.c) \
 $(abspath runtime/north/cc_common.c) \
 $(abspath runtime/north/scheduler/np_scheduler/cc_scheduler.c) \

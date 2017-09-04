@@ -16,49 +16,41 @@
 
 from calvin.actor.actor import Actor, manage, condition, stateguard, calvinsys
 
-class TriggeredTemperature(Actor):
+class Temperature(Actor):
 
     """
-    Measure temperature.
-
-    Inputs:
-        trigger : any token triggers meausurement
+    Measure temperature. Takes the frequency of measurements, in Hz, as input.
 
     Outputs:
         centigrade :  temperature, in centigrade
     """
 
-    @manage([])
-    def init(self):
+    @manage(['frequency'])
+    def init(self, frequency):
+        self.frequency = frequency
         self.setup()
 
     def setup(self):
         self._temperature = calvinsys.open(self, "io.temperature")
-
-    def teardown(self):
-        if self._temperature:
-            calvinsys.close(self._temperature)
-        self._temperature = None
+        self._timer = calvinsys.open(self, "sys.timer.once", timeout=(int)(1.0/self.frequency))
 
     def will_migrate(self):
-        self.teardown()
+        calvinsys.close(self._temperature)
+        calvinsys.close(self._timer)
 
     def did_migrate(self):
         self.setup()
 
     def will_end(self):
-        self.teardown()
+        calvinsys.close(self._temperature)
+        calvinsys.close(self._timer)
 
-    @stateguard(lambda self: calvinsys.can_read(self._temperature))
+    @stateguard(lambda self: self._timer and calvinsys.can_read(self._timer))
     @condition([], ['centigrade'])
     def read_measurement(self):
-        temperature = calvinsys.read(self._temperature)
-        return (temperature,)
+        calvinsys.read(self._timer)
+        calvinsys.write(self._timer, True)
+        return (calvinsys.read(self._temperature),)
 
-    @stateguard(lambda self: calvinsys.can_write(self._temperature))
-    @condition(['trigger'], [])
-    def trigger_measurement(self, _):
-        calvinsys.write(self._temperature, True)
-
-    action_priority = (read_measurement, trigger_measurement)
-    requires =  ['io.temperature']
+    action_priority = (read_measurement, )
+    requires =  ['io.temperature', 'sys.timer.once']

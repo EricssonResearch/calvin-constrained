@@ -365,22 +365,14 @@ def testTemperatureActor():
 
     script_name = "testTemperatureActor"
     script = """
-    src : std.CountTimer(sleep=0.1)
-    temp : sensor.TriggeredTemperature()
+    temp : sensor.Temperature(frequency=1)
     snk : test.Sink(store_tokens=1, quiet=1)
-    src.integer > temp.trigger
     temp.centigrade > snk.token
     """
 
     deploy_info = """
     {
         "requirements": {
-            "src": [
-                {
-                  "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
-                    "type": "+"
-               }],
             "temp": [
                 {
                   "op": "node_attr_match",
@@ -418,50 +410,6 @@ def testTemperatureActor():
 
     # verify removal
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':temp'])
-
-def testButtonActor():
-    assert rt1 is not None
-    assert constrained_id is not None
-
-    script_name = "testButton"
-    script = """
-    btn : io.Button()
-    snk : test.Sink(store_tokens=1, quiet=1)
-    btn.state > snk.token
-    """
-
-    deploy_info = """
-    {
-        "requirements": {
-            "btn": [
-                {
-                  "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
-                    "type": "+"
-               }],
-            "snk": [
-                {
-                    "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
-                    "type": "+"
-                }]
-        }
-    }
-    """
-    resp = request_handler.deploy_application(rt1,
-                                              script_name,
-                                              script,
-                                              deploy_info=json.loads(deploy_info))
-
-    # verify actor placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':btn'], constrained_id)
-
-
-    # delete application
-    request_handler.delete_application(rt1, resp['application_id'])
-
-    # verify removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':btn'])
 
 def testLightActor():
     assert rt1 is not None
@@ -585,14 +533,14 @@ def testLocalConnections():
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id1'])
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id2'])
 
-def testDeepSleep():
+def testSleepWithoutTimers():
     global constrained_process
     assert rt1 is not None
     assert constrained_id is not None
 
-    script_name = "testDataAndDestruction"
+    script_name = "testSleepWithoutTimers"
     script = """
-    src : std.CountTimer(sleep=10)
+    src : std.CountTimer(sleep=4)
     id : std.Identity()
     snk : test.Sink(store_tokens=1, quiet=1)
     src.integer > id.token
@@ -632,8 +580,8 @@ def testDeepSleep():
     # verify placement
     assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
 
-    # wait for src firing
-    time.sleep(10)
+    # wait for constrained enterring sleep
+    constrained_process.wait()
 
     assert constrained_process.poll() is not None
 
@@ -652,3 +600,61 @@ def testDeepSleep():
 
     # verify actor removal
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id'])
+
+def testSleepWithTimer():
+    global constrained_process
+    assert rt1 is not None
+    assert constrained_id is not None
+
+    script_name = "testSleepWithTimer"
+    script = """
+    temp : sensor.Temperature(frequency=0.25)
+    snk : test.Sink(store_tokens=1, quiet=1)
+    temp.centigrade > snk.token
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "temp": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                    "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "type": "+"
+                }]
+        }
+    }
+    """
+
+    resp = request_handler.deploy_application(rt1,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+
+    # verify placement
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':temp'], constrained_id)
+
+    # wait for constrained enterring sleep
+    constrained_process.wait()
+
+    constrained_process = subprocess.Popen("exec ./calvin_c", shell=True, stderr=output_file)
+
+    # verify data
+    wait_for_tokens(request_handler,
+                    rt1,
+                    resp['actor_map'][script_name + ':snk'], 2, 10)
+    actual = request_handler.report(rt1,
+                                    resp['actor_map'][script_name + ':snk'])
+    assert len(actual) >= 2
+
+    # remove app
+    request_handler.delete_application(rt1, resp['application_id'])
+
+    # verify actor removal
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':temp'])

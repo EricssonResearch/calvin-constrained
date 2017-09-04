@@ -1,10 +1,14 @@
 PROGRAM ?= calvin-esp
 SDK_PATH ?= /home/qfrksvn/Source/esp-open-rtos
-EXTRA_CFLAGS ?= -DCC_TRANSPORT_SOCKET -DCC_TRANSPORT_SOCKET_SSDP_ENABLED -DCC_LWIP_SOCKET -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_INACTIVITY_TIMEOUT=30 -DCC_SLEEP_TIME=10 -DCC_RUNTIME_STATE_BUFFER_SIZE=4000 -DCC_ACTOR_IDENTITY -DCC_ACTOR_SOIL_MOISTURE -DCC_ACTOR_TEMPERATURE -DCC_ACTOR_LIGHT -DCC_USE_WIFI_STATUS_LED
-PROGRAM_SRC_DIR ?= . runtime/south/platform/esp-open-rtos runtime/south/platform/esp-open-rtos/calvinsys runtime/south/transport/socket runtime/north runtime/north/scheduler/np_scheduler actors msgpuck calvinsys
+EXTRA_CFLAGS ?= -DCC_TRANSPORT_SOCKET -DCC_TRANSPORT_SOCKET_SSDP_ENABLED -DCC_LWIP_SOCKET -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_INACTIVITY_TIMEOUT=1 -DCC_SLEEP_TIME=30 -DCC_RUNTIME_STATE_BUFFER_SIZE=4000 -DCC_ACTOR_IDENTITY -DCC_ACTOR_SOIL_MOISTURE -DCC_ACTOR_TEMPERATURE -DCC_ACTOR_LIGHT -DCC_ACTOR_TEMPERATURE_TAGGED
+PROGRAM_SRC_DIR ?= . runtime/south/platform/esp-open-rtos runtime/south/platform/esp-open-rtos/calvinsys runtime/south/transport/socket runtime/north runtime/north/scheduler/np_scheduler actors msgpuck calvinsys calvinsys/common
 
 # spiffs
 EXTRA_COMPONENTS+=extras/spiffs extras/dhcpserver
+# 1MB config
+#FLASH_SIZE = 8
+#SPIFFS_BASE_ADDR = 0x6b000
+# 4 MB config
 FLASH_SIZE ?= 32
 SPIFFS_BASE_ADDR ?= 0x200000
 SPIFFS_SIZE ?= 0x010000

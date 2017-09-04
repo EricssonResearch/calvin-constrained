@@ -57,7 +57,8 @@ void calvinsys_delete_handler(calvinsys_handler_t *handler)
 	while (handler->objects != NULL) {
 		obj = handler->objects;
 		handler->objects = handler->objects->next;
-		platform_mem_free((void *)obj);
+		if (obj != NULL)
+			platform_mem_free((void *)obj);
 	}
 
 	platform_mem_free((void *)handler);
@@ -107,6 +108,8 @@ calvinsys_obj_t *calvinsys_open(calvinsys_t *calvinsys, const char *name, char *
 		result = capability->handler->open(capability->handler, data, size, capability->state, calvinsys->next_id, name);
 		if (result != NULL) {
 			result->id = calvinsys->next_id++;
+			result->handler = capability->handler;
+			result->next = NULL;
 			calvinsys_add_object_to_handler(result, capability->handler);
 		}
 		return result;

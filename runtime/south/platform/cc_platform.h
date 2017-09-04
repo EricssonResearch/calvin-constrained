@@ -116,12 +116,20 @@ result_t platform_stop(struct node_t *node);
  */
 result_t platform_node_started(struct node_t *node);
 
+/**
+ * platform_node_get_seconds() - Get seconds since start
+ *
+ * Return: Seconds since start
+ */
+uint32_t platform_get_seconds(struct node_t *node);
+
 #ifdef CC_DEEPSLEEP_ENABLED
 /**
  * platform_deepsleep() - Enter platform deep sleep state.
  * @node the node
+ * @time time to sleep
  */
-void platform_deepsleep(struct node_t *node);
+void platform_deepsleep(struct node_t *node, uint32_t time);
 #endif
 
 #ifdef CC_STORAGE_ENABLED

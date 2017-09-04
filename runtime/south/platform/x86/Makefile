@@ -9,7 +9,7 @@ CFLAGS += -lrt
 endif
 CFLAGS += -DCC_GETOPT_ENABLED
 CFLAGS += -DCC_TRANSPORT_SOCKET -DCC_TRANSPORT_SOCKET_SSDP_ENABLED
-CFLAGS += -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_INACTIVITY_TIMEOUT=5 -DCC_SLEEP_TIME=60 -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
+CFLAGS += -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=60 -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
 CFLAGS += -DCC_ACTOR_IDENTITY -DCC_ACTOR_BUTTON -DCC_ACTOR_LIGHT -DCC_ACTOR_SOIL_MOISTURE -DCC_ACTOR_TEMPERATURE
 
 C_SOURCE_FILES += \
@@ -32,6 +32,8 @@ runtime/north/cc_token.c \
 runtime/north/cc_msgpack_helper.c \
 msgpuck/msgpuck.c \
 calvinsys/cc_calvinsys.c \
+calvinsys/common/cc_calvinsys_attribute.c \
+calvinsys/common/cc_calvinsys_timer.c \
 actors/cc_actor_identity.c \
 actors/cc_actor_light.c \
 actors/cc_actor_button.c \

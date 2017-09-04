@@ -28,48 +28,12 @@
 #ifdef CC_TLS_ENABLED
 #include "../../crypto/cc_crypto.h"
 #endif
+#include "../../calvinsys/common/cc_calvinsys_timer.h"
 
-#define CC_RECONNECT_TIMEOUT 5
-
-static void node_reset(node_t *node, bool remove_actors)
-{
-	int i = 0;
-	list_t *tmp_list = NULL;
-
-	cc_log("Resetting runtime");
-
-	while (node->actors != NULL) {
-		tmp_list = node->actors;
-		node->actors = node->actors->next;
-		if (remove_actors)
-			actor_free(node, (actor_t *)tmp_list->data, true);
-		else
-			actor_disconnect(node, (actor_t *)tmp_list->data);
-	}
-	if (remove_actors)
-		node->actors = NULL;
-
-	while (node->tunnels != NULL) {
-		tmp_list = node->tunnels;
-		node->tunnels = node->tunnels->next;
-		tunnel_free(node, (tunnel_t *)tmp_list->data);
-	}
-	node->tunnels = NULL;
-	node->storage_tunnel = NULL;
-
-	while (node->links != NULL) {
-		tmp_list = node->links;
-		node->links = node->links->next;
-		link_free(node, (link_t *)tmp_list->data);
-	}
-	node->links = NULL;
-	node->proxy_link = NULL;
-
-	for (i = 0; i < MAX_PENDING_MSGS; i++) {
-		node->pending_msgs[i].handler = NULL;
-		node->pending_msgs[i].msg_data = NULL;
-	}
-}
+#define CC_RECONNECT_TIMEOUT	5
+#ifndef CC_INACTIVITY_TIMEOUT
+#define CC_INACTIVITY_TIMEOUT	1
+#endif
 
 #ifdef CC_STORAGE_ENABLED
 static result_t node_get_state(node_t *node)
@@ -86,6 +50,11 @@ static result_t node_get_state(node_t *node)
 			return CC_RESULT_FAIL;
 		}
 		strncpy(node->id, value, value_len);
+
+		if (has_key(buffer, "time_to_sleep")) {
+			if (decode_uint_from_map(buffer, "time_to_sleep", &node->time_to_sleep) != CC_RESULT_SUCCESS)
+				cc_log_error("Failed to decode 'time_to_sleep'");
+		}
 
 		if (has_key(buffer, "attributes")) {
 			if (decode_string_from_map(buffer, "attributes", &value, &value_len) != CC_RESULT_SUCCESS) {
@@ -175,11 +144,12 @@ void node_set_state(node_t *node)
 	int nbr_of_items = 0;
 	list_t *item = NULL;
 
-	tmp = mp_encode_map(tmp, 8);
+	tmp = mp_encode_map(tmp, 9);
 	{
 		tmp = encode_uint(&tmp, "state", node->state);
 		tmp = encode_str(&tmp, "id", node->id, strlen(node->id));
 		tmp = encode_str(&tmp, "attributes", node->attributes, strlen(node->attributes));
+		tmp = encode_uint(&tmp, "time_to_sleep", node->time_to_sleep);
 
 		nbr_of_items = list_count(node->proxy_uris);
 		tmp = encode_array(&tmp, "proxy_uris", nbr_of_items);
@@ -226,6 +196,64 @@ void node_set_state(node_t *node)
 	platform_write_node_state(node, buffer, tmp - buffer);
 }
 #endif
+
+static void node_reset(node_t *node, bool remove_actors)
+{
+	int i = 0;
+	list_t *tmp_list = NULL;
+	calvinsys_handler_t *handler = NULL;
+	calvinsys_obj_t *object = NULL, *tmp_obj = NULL;
+
+	cc_log("Resetting runtime");
+
+	while (node->actors != NULL) {
+		tmp_list = node->actors;
+		node->actors = node->actors->next;
+		if (remove_actors)
+			actor_free(node, (actor_t *)tmp_list->data, true);
+		else
+			actor_disconnect(node, (actor_t *)tmp_list->data);
+	}
+	if (remove_actors)
+		node->actors = NULL;
+
+	while (node->tunnels != NULL) {
+		tmp_list = node->tunnels;
+		node->tunnels = node->tunnels->next;
+		tunnel_free(node, (tunnel_t *)tmp_list->data);
+	}
+	node->tunnels = NULL;
+	node->storage_tunnel = NULL;
+
+	while (node->links != NULL) {
+		tmp_list = node->links;
+		node->links = node->links->next;
+		link_free(node, (link_t *)tmp_list->data);
+	}
+	node->links = NULL;
+	node->proxy_link = NULL;
+
+	for (i = 0; i < MAX_PENDING_MSGS; i++) {
+		node->pending_msgs[i].handler = NULL;
+		node->pending_msgs[i].msg_data = NULL;
+	}
+
+	if (node->calvinsys != NULL) {
+		handler = node->calvinsys->handlers;
+		while (handler != NULL) {
+			object = handler->objects;
+			if (object != NULL) {
+				platform_mem_free((void *)tmp_obj);
+			}
+			handler->objects = NULL;
+			handler = handler->next;
+		}
+	}
+
+#ifdef CC_STORAGE_ENABLED
+	node_set_state(node);
+#endif
+}
 
 result_t node_add_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_len, result_t (*handler)(node_t *node, char *data, void *msg_data), void *msg_data)
 {
@@ -315,28 +343,35 @@ static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_dat
 #ifdef CC_DEEPSLEEP_ENABLED
 static result_t node_enter_sleep_reply_handler(node_t *node, char *data, void *msg_data)
 {
-	uint32_t status;
+	uint32_t status = 0, time_to_sleep = 0;
 	char *value = NULL;
 
 	if (get_value_from_map(data, "value", &value) == CC_RESULT_SUCCESS) {
 		if (decode_uint_from_map(value, "status", &status) == CC_RESULT_SUCCESS) {
 			if (status == 200) {
-				cc_log("Runtime going to deep sleep");
+				if (calvinsys_timer_get_next_timeout(node, &time_to_sleep) == CC_RESULT_SUCCESS) {
+					if (time_to_sleep <= CC_INACTIVITY_TIMEOUT) {
+						cc_log("Sleep requested but timer about to trigger");
+						return CC_RESULT_SUCCESS;
+					}
+				} else
+					time_to_sleep = CC_SLEEP_TIME;
+				cc_log("Enterring sleep");
 #ifdef CC_STORAGE_ENABLED
+				node->time_to_sleep = time_to_sleep;
 				node_set_state(node);
 #else
-				// TODO: Move actors to proxy while sleeping and when notifying proxy
-				// of wake up, move actors back
+				// TODO: Migrate actors before enterring sleep
 #endif
 				node->state = NODE_STOP;
-				platform_deepsleep(node);
+				platform_deepsleep(node, time_to_sleep);
 			} else
 				cc_log_error("Failed to request sleep");
 			return CC_RESULT_SUCCESS;
 		}
 	}
 
-	cc_log_error("Failed to decode PROXY_CONFIG reply for enterring deep sleep");
+	cc_log_error("Failed to decode SLEEP_REQUEST reply");
 	return CC_RESULT_FAIL;
 }
 #endif
@@ -464,7 +499,7 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 		tunnel_add_ref(node->storage_tunnel);
 	}
 
-	if (proto_send_node_setup(node, false, node_setup_reply_handler) != CC_RESULT_SUCCESS)
+	if (proto_send_node_setup(node, node_setup_reply_handler) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
 	while (node->state != NODE_STARTED && node->state != NODE_STOP)
@@ -492,8 +527,12 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 	node->storage_tunnel = NULL;
 	node->tunnels = NULL;
 	node->actors = NULL;
+#ifdef CC_STORAGE_ENABLED
+	node->time_to_sleep = 0;
+#endif
+
 	if (attributes != NULL) {
-		if (platform_mem_alloc((void **)&node->attributes, strlen(attributes)) != CC_RESULT_SUCCESS) {
+		if (platform_mem_alloc((void **)&node->attributes, strlen(attributes) + 1) != CC_RESULT_SUCCESS) {
 			cc_log_error("Failed to allocate memory");
 			return CC_RESULT_FAIL;
 		}
@@ -501,7 +540,7 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 	}
 
 	if (storage_dir != NULL) {
-		if (platform_mem_alloc((void **)&node->storage_dir, strlen(storage_dir)) != CC_RESULT_SUCCESS) {
+		if (platform_mem_alloc((void **)&node->storage_dir, strlen(storage_dir) + 1) != CC_RESULT_SUCCESS) {
 			cc_log_error("Failed to allocate memory");
 			return CC_RESULT_FAIL;
 		}
@@ -529,6 +568,9 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 		return CC_RESULT_FAIL;
 	}
 
+	if (calvinsys_timer_create(&node->calvinsys) != CC_RESULT_SUCCESS)
+		cc_log_error("Failed to create calvinsys 'timer'");
+
 	if (actor_store_init(&node->actor_types) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to create actor types");
 		return CC_RESULT_FAIL;
@@ -539,7 +581,7 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 		return CC_RESULT_FAIL;
 	}
 
-	if (uris != NULL) {
+	if (node->proxy_uris == NULL && uris != NULL) {
 		uri = strtok(uris, " ");
 		while (uri != NULL) {
 			list_add(&node->proxy_uris, uri, NULL, 0);
@@ -590,6 +632,11 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 			item = item->next;
 		}
 	}
+#ifdef CC_STORAGE_ENABLED
+	if (node->time_to_sleep != 0) {
+		cc_log("Was sleeping for '%ld's", node->time_to_sleep);
+	}
+#endif
 	cc_log("----------------------------------------");
 
 	return CC_RESULT_SUCCESS;
@@ -650,6 +697,9 @@ static void node_free(node_t *node)
 result_t node_run(node_t *node)
 {
 	list_t *item = NULL;
+#ifdef CC_DEEPSLEEP_ENABLED
+	uint32_t next_timer_timeout = 0;
+#endif
 
 	if (node->fire_actors == NULL) {
 		cc_log_error("No actor scheduler set");
@@ -662,18 +712,30 @@ result_t node_run(node_t *node)
 			node->state = NODE_DO_START;
 			if (node_connect_to_proxy(node, item->id) == CC_RESULT_SUCCESS) {
 				while (node->state != NODE_STOP && node->transport_client->state == TRANSPORT_ENABLED) {
-					if (node->state == NODE_STARTED)
-						node->fire_actors(node);
-#ifdef CC_DEEPSLEEP_ENABLED
-					if (node->actors != NULL) {
-						if (!platform_evt_wait(node, CC_INACTIVITY_TIMEOUT)) {
-							if (proto_send_node_setup(node, true, node_enter_sleep_reply_handler) == CC_RESULT_SUCCESS)
-								node->state = NODE_PENDING;
-						}
+					if (node->state != NODE_STARTED || node->actors == NULL) {
+						platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
 						continue;
 					}
+
+					if (node->fire_actors(node))
+						continue;
+
+					if (!platform_evt_wait(node, CC_INACTIVITY_TIMEOUT)) {
+#ifdef CC_DEEPSLEEP_ENABLED
+						if (calvinsys_timer_get_next_timeout(node, &next_timer_timeout) == CC_RESULT_SUCCESS) {
+							if (next_timer_timeout > CC_INACTIVITY_TIMEOUT) {
+								cc_log("Requesting sleep for %d seconds", next_timer_timeout);
+								if (proto_send_sleep_request(node, next_timer_timeout, node_enter_sleep_reply_handler) != CC_RESULT_SUCCESS)
+									cc_log_error("Failed send sleep request");
+							}
+						} else {
+							// no timers active
+							cc_log("Requesting sleep for %d seconds", CC_SLEEP_TIME);
+							if (proto_send_sleep_request(node, CC_SLEEP_TIME, node_enter_sleep_reply_handler) != CC_RESULT_SUCCESS)
+								cc_log_error("Failed send sleep request");
+						}
 #endif
-					platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
+					}
 				}
 			}
 
@@ -684,18 +746,7 @@ result_t node_run(node_t *node)
 			}
 			item = item->next;
 		}
-
-		if (node->state != NODE_STOP) {
-#ifdef CC_DEEPSLEEP_ENABLED
-			if (node->actors != NULL) {
-				cc_log("No proxy found, enterring sleep");
-				node->state = NODE_STOP;
-				platform_deepsleep(node);
-				break;
-			}
-#endif
-			platform_evt_wait(node, 5);
-		}
+		platform_evt_wait(node, CC_RECONNECT_TIMEOUT);
 	}
 
 	node_free(node);

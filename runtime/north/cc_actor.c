@@ -98,7 +98,7 @@ static result_t actor_init_from_type(node_t *node, actor_t *actor, char *type, u
 	actor->will_end = NULL;
 	actor->did_migrate = NULL;
 
-	actor_type = (actor_type_t *)list_get(node->actor_types, type);
+	actor_type = (actor_type_t *)list_get_n(node->actor_types, type, type_len);
 	if (actor_type != NULL) {
 		actor->init = actor_type->init;
 		actor->set_state = actor_type->set_state;
@@ -388,7 +388,7 @@ actor_t *actor_create(node_t *node, char *root)
 	// attributes should now be handled by the instance
 	actor_free_managed(instance_attributes);
 
-	cc_log_debug("Actor '%s' created with id '%s' and type '%s'", actor->name, actor->id, actor->type);
+	cc_log("Actor '%s' created with id '%s' of type '%s'", actor->name, actor->id, actor->type);
 
 	return actor;
 }
@@ -397,7 +397,7 @@ void actor_free(node_t *node, actor_t *actor, bool remove_from_registry)
 {
 	list_t *list = NULL, *tmp_list = NULL;
 
-	cc_log_debug("Deleting actor '%s'", actor->name);
+	cc_log("Deleting actor with id '%s'", actor->id);
 
 	if (actor->will_end != NULL)
 		actor->will_end(actor);

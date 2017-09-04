@@ -334,6 +334,12 @@ void platform_mem_free(void *buffer)
 	free(buffer);
 }
 
+uint32_t platform_get_seconds(node_t *node)
+{
+ // TODO: Implement
+ return 0;
+}
+
 #ifdef CC_TLS_ENABLED
 int platform_random_vector_generate(void *ctx, unsigned char *buffer, size_t size)
 {

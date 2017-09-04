@@ -82,7 +82,7 @@ public class CalvinService extends Service {
                     sys.outgoing = message.replyTo;
                     sys.uid = message.sendingUid;
                     clients.put(sys.name, sys);
-                    Log.d(LOG_TAG, "Will register calvinsys natively");
+                    Log.d(LOG_TAG, "Will register " + name + "calvinsys natively");
                     calvin.registerExternalCalvinsys(calvin.node, name);
 
                     // Send reply message
