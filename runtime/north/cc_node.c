@@ -51,10 +51,12 @@ static result_t node_get_state(node_t *node)
 		}
 		strncpy(node->id, value, value_len);
 
-		if (has_key(buffer, "time_to_sleep")) {
-			if (decode_uint_from_map(buffer, "time_to_sleep", &node->time_to_sleep) != CC_RESULT_SUCCESS)
-				cc_log_error("Failed to decode 'time_to_sleep'");
+#ifdef CC_TRACK_TIME
+		if (has_key(buffer, "seconds")) {
+			if (decode_uint_from_map(buffer, "seconds", &node->seconds) != CC_RESULT_SUCCESS)
+				cc_log_error("Failed to decode 'seconds'");
 		}
+#endif
 
 		if (has_key(buffer, "attributes")) {
 			if (decode_string_from_map(buffer, "attributes", &value, &value_len) != CC_RESULT_SUCCESS) {
@@ -141,15 +143,21 @@ void node_set_state(node_t *node)
 {
 	char buffer[CC_RUNTIME_STATE_BUFFER_SIZE];
 	char *tmp = buffer;
-	int nbr_of_items = 0;
+#ifdef CC_TRACK_TIME
+	int nbr_of_items = 9;
+#else
+	int nbr_of_items = 8;
+#endif
 	list_t *item = NULL;
 
-	tmp = mp_encode_map(tmp, 9);
+	tmp = mp_encode_map(tmp, nbr_of_items);
 	{
 		tmp = encode_uint(&tmp, "state", node->state);
 		tmp = encode_str(&tmp, "id", node->id, strlen(node->id));
 		tmp = encode_str(&tmp, "attributes", node->attributes, strlen(node->attributes));
-		tmp = encode_uint(&tmp, "time_to_sleep", node->time_to_sleep);
+#ifdef CC_TRACK_TIME
+		tmp = encode_uint(&tmp, "seconds", platform_get_seconds(node) + node->seconds_of_sleep);
+#endif
 
 		nbr_of_items = list_count(node->proxy_uris);
 		tmp = encode_array(&tmp, "proxy_uris", nbr_of_items);
@@ -249,6 +257,11 @@ static void node_reset(node_t *node, bool remove_actors)
 			handler = handler->next;
 		}
 	}
+
+#ifdef CC_TRACK_TIME
+	node->seconds = 0;
+	node->seconds_of_sleep = 0;
+#endif
 
 #ifdef CC_STORAGE_ENABLED
 	node_set_state(node);
@@ -357,8 +370,10 @@ static result_t node_enter_sleep_reply_handler(node_t *node, char *data, void *m
 				} else
 					time_to_sleep = CC_SLEEP_TIME;
 				cc_log("Enterring sleep");
+#ifdef CC_TRACK_TIME
+				node->seconds_of_sleep = time_to_sleep;
+#endif
 #ifdef CC_STORAGE_ENABLED
-				node->time_to_sleep = time_to_sleep;
 				node_set_state(node);
 #else
 				// TODO: Migrate actors before enterring sleep
@@ -527,8 +542,9 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 	node->storage_tunnel = NULL;
 	node->tunnels = NULL;
 	node->actors = NULL;
-#ifdef CC_STORAGE_ENABLED
-	node->time_to_sleep = 0;
+#ifdef CC_TRACK_TIME
+	node->seconds = 0;
+	node->seconds_of_sleep = 0;
 #endif
 
 	if (attributes != NULL) {
@@ -632,10 +648,8 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 			item = item->next;
 		}
 	}
-#ifdef CC_STORAGE_ENABLED
-	if (node->time_to_sleep != 0) {
-		cc_log("Was sleeping for '%ld's", node->time_to_sleep);
-	}
+#ifdef CC_TRACK_TIME
+	cc_log("Time: '%ld's", node->seconds);
 #endif
 	cc_log("----------------------------------------");
 
@@ -724,7 +738,7 @@ result_t node_run(node_t *node)
 #ifdef CC_DEEPSLEEP_ENABLED
 						if (calvinsys_timer_get_next_timeout(node, &next_timer_timeout) == CC_RESULT_SUCCESS) {
 							if (next_timer_timeout > CC_INACTIVITY_TIMEOUT) {
-								cc_log("Requesting sleep for %d seconds", next_timer_timeout);
+								cc_log("Requesting sleep for %ld seconds", next_timer_timeout);
 								if (proto_send_sleep_request(node, next_timer_timeout, node_enter_sleep_reply_handler) != CC_RESULT_SUCCESS)
 									cc_log_error("Failed send sleep request");
 							}

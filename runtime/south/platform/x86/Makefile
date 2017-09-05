@@ -32,7 +32,6 @@ runtime/north/cc_token.c \
 runtime/north/cc_msgpack_helper.c \
 msgpuck/msgpuck.c \
 calvinsys/cc_calvinsys.c \
-calvinsys/common/cc_calvinsys_attribute.c \
 calvinsys/common/cc_calvinsys_timer.c \
 actors/cc_actor_identity.c \
 actors/cc_actor_light.c \

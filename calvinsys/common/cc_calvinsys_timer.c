@@ -25,7 +25,7 @@ static bool calvinsys_timer_can_read(struct calvinsys_obj_t *obj)
 	calvinsys_timer_t *timer = (calvinsys_timer_t *)obj->state;
 	uint32_t now = platform_get_seconds(obj->handler->calvinsys->node);
 
-  if (timer->active && (now - timer->last_triggered) >= timer->timeout)
+  if (timer->active && (timer->last_triggered == 0 || (now - timer->last_triggered) >= timer->timeout))
 		return true;
 
 	return false;
@@ -164,7 +164,10 @@ result_t calvinsys_timer_get_next_timeout(node_t *node, uint32_t *timeout)
 		while (timer_obj != NULL) {
 			state = (calvinsys_timer_t *)timer_obj->state;
 			if (state->active) {
-				diff = ((calvinsys_timer_t *)timer_obj->state)->timeout - (now - ((calvinsys_timer_t *)timer_obj->state)->last_triggered);
+				if (((calvinsys_timer_t *)timer_obj->state)->last_triggered == 0)
+					diff = 0;
+				else
+					diff = ((calvinsys_timer_t *)timer_obj->state)->timeout - (now - ((calvinsys_timer_t *)timer_obj->state)->last_triggered);
 				if (first) {
 					*timeout = diff;
 					first = false;

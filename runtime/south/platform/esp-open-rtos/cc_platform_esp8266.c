@@ -295,7 +295,6 @@ result_t platform_read_node_state(struct node_t *node, char buffer[], size_t siz
 #ifdef CC_DEEPSLEEP_ENABLED
 void platform_deepsleep(node_t *node, uint32_t time)
 {
-	cc_log("Enterring system deep sleep for '%d' seconds", time);
 	sdk_system_deep_sleep(time * 1000 * 1000);
 	vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
@@ -307,7 +306,7 @@ void platform_init(void)
 
 uint32_t platform_get_seconds(node_t *node)
 {
-	return node->time_to_sleep + (sdk_system_get_time() / 1000000);
+	return node->seconds + (sdk_system_get_time() / 1000000);
 }
 
 static result_t platform_esp_get_config(void)

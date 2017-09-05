@@ -35,7 +35,6 @@ runtime/north/cc_fifo.c \
 runtime/north/cc_token.c \
 calvinsys/cc_calvinsys.c \
 calvinsys/common/cc_calvinsys_timer.c \
-calvinsys/common/cc_calvinsys_attribute.c \
 runtime/north/cc_msgpack_helper.c \
 msgpuck/msgpuck.c \
 actors/cc_actor_mpy.c \
