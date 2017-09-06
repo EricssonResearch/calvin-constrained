@@ -152,6 +152,8 @@ static void actor_temperature_free(actor_t *actor)
 
 	calvinsys_close(state->temperature);
 	calvinsys_close(state->timer);
+
+	platform_mem_free((void *)state);
 }
 
 static result_t actor_temperature_add_last_triggered(calvinsys_obj_t *obj, list_t **attributes)

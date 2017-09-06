@@ -93,7 +93,8 @@ void calvinsys_delete_capabiltiy(calvinsys_t *calvinsys, const char *name)
 
 	capability = (calvinsys_capability_t *)list_get(calvinsys->capabilities, name);
 	if (capability != NULL) {
-		platform_mem_free(capability->state);
+		if (capability->state != NULL)
+			platform_mem_free(capability->state);
 		list_remove(&calvinsys->capabilities, name);
 	}
 }

@@ -58,7 +58,7 @@ static result_t node_get_state(node_t *node)
 		}
 #endif
 
-		if (has_key(buffer, "attributes")) {
+		if (node->attributes == NULL && has_key(buffer, "attributes")) {
 			if (decode_string_from_map(buffer, "attributes", &value, &value_len) != CC_RESULT_SUCCESS) {
 				cc_log_error("Failed to decode 'attributes'");
 				return CC_RESULT_FAIL;
@@ -378,6 +378,8 @@ static result_t node_enter_sleep_reply_handler(node_t *node, char *data, void *m
 #else
 				// TODO: Migrate actors before enterring sleep
 #endif
+				if (node->transport_client != NULL)
+					node->transport_client->disconnect(node, node->transport_client);
 				node->state = NODE_STOP;
 				platform_deepsleep(node, time_to_sleep);
 			} else
@@ -600,7 +602,7 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 	if (node->proxy_uris == NULL && uris != NULL) {
 		uri = strtok(uris, " ");
 		while (uri != NULL) {
-			list_add(&node->proxy_uris, uri, NULL, 0);
+			list_add_n(&node->proxy_uris, uri, strlen(uri), NULL, 0);
 			uri = strtok(NULL, " ");
 		}
 	}
@@ -660,6 +662,24 @@ static void node_free(node_t *node)
 {
 	list_t *item = NULL, *tmp_item = NULL;
 	calvinsys_handler_t *handler = NULL;
+	calvinsys_capability_t *capability = NULL;
+
+	item = node->proxy_uris;
+	while (item != NULL) {
+		tmp_item = item;
+		item = item->next;
+		platform_mem_free((void *)tmp_item->id);
+		platform_mem_free((void *)tmp_item);
+	}
+
+	item = node->actor_types;
+	while (item != NULL) {
+		tmp_item = item;
+		item = item->next;
+		platform_mem_free((void *)tmp_item->id);
+		platform_mem_free((void *)tmp_item->data);
+		platform_mem_free((void *)tmp_item);
+	}
 
 	item = node->actors;
 	while (item != NULL) {
@@ -682,8 +702,6 @@ static void node_free(node_t *node)
 		link_free(node, (link_t *)tmp_item->data);
 	}
 
-	platform_stop(node);
-
 	if (node->platform != NULL)
 		platform_mem_free((void *)node->platform);
 
@@ -691,7 +709,11 @@ static void node_free(node_t *node)
 	while (item != NULL) {
 		tmp_item = item;
 		item = item->next;
+		capability = (calvinsys_capability_t *)tmp_item->data;
+		if (capability->state != NULL)
+			platform_mem_free((void *)capability->state);
 		platform_mem_free((void *)tmp_item->id);
+		platform_mem_free((void *)tmp_item->data);
 		platform_mem_free((void *)tmp_item);
 	}
 
@@ -700,11 +722,15 @@ static void node_free(node_t *node)
 		node->calvinsys->handlers = node->calvinsys->handlers->next;
 		calvinsys_delete_handler(handler);
 	}
+
 	platform_mem_free((void *)node->calvinsys);
+
 	if (node->attributes != NULL)
 		platform_mem_free((void *)node->attributes);
+
 	if (node->storage_dir != NULL)
 		platform_mem_free((void *)node->storage_dir);
+
 	platform_mem_free((void *)node);
 }
 
@@ -762,6 +788,8 @@ result_t node_run(node_t *node)
 		}
 		platform_evt_wait(node, CC_RECONNECT_TIMEOUT);
 	}
+
+	platform_stop(node);
 
 	node_free(node);
 
