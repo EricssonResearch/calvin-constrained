@@ -24,17 +24,18 @@
 
 static result_t port_setup_connection(node_t *node, port_t *port, char *peer_id, uint32_t peer_id_len);
 
-static result_t port_remove_reply_handler(node_t *node, char *data, void *msg_data)
+static result_t port_remove_reply_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	return CC_RESULT_SUCCESS;
 }
 
-static result_t port_get_peer_port_reply_handler(node_t *node, char *data, void *msg_data)
+static result_t port_get_peer_port_reply_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	port_t *port = NULL;
 	char *value = NULL, *value_value = NULL, *node_id = NULL;
-	char *tmp = NULL, *end = NULL, *value_key = NULL;
+	char *tmp = NULL, *value_key = NULL;
 	uint32_t value_value_len = 0, value_key_len = 0, status = 0;
+	size_t tmp_len = 0;
 
 	if (get_value_from_map(data, "value", &value) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
@@ -59,27 +60,20 @@ static result_t port_get_peer_port_reply_handler(node_t *node, char *data, void 
 	if (decode_string_from_map(value, "value", &value_value, &value_value_len) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
-	tmp = strstr(value_value, "\"node_id\": \"");
-	if (tmp != NULL) {
-		tmp += strlen("\"node_id\": \"");
-		end = strstr(tmp, "\"");
-		if (end != NULL) {
-			if (platform_mem_alloc((void **)&node_id, end + 1 - tmp) != CC_RESULT_SUCCESS) {
-				cc_log_error("Failed to allocate memory");
-				return CC_RESULT_FAIL;
-			}
-
-			if (strncpy(node_id, tmp, end - tmp) != NULL)
-				node_id[end - tmp] = '\0';
-		}
-	}
-
-	if (node_id == NULL) {
-		cc_log_error("Failed to decode message");
+	if (get_json_string_value(value_value, value_value_len, (char *)"node_id", 7, &tmp, &tmp_len) != CC_RESULT_SUCCESS) {
+		cc_log_error("No attribute 'node_id'");
 		return CC_RESULT_FAIL;
 	}
 
-	port_setup_connection(node, port, node_id, strlen(node_id));
+	if (platform_mem_alloc((void **)&node_id, tmp_len + 1) != CC_RESULT_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_RESULT_FAIL;
+	}
+
+	strncpy(node_id, tmp, tmp_len);
+	node_id[tmp_len] = '\0';
+
+	port_setup_connection(node, port, node_id, strnlen(node_id, UUID_BUFFER_SIZE));
 	platform_mem_free((void *)node_id);
 
 	return CC_RESULT_SUCCESS;
@@ -91,7 +85,7 @@ static void port_enable(port_t *port)
 	actor_port_enabled(port->actor);
 }
 
-static result_t port_connect_reply_handler(node_t *node, char *data, void *msg_data)
+static result_t port_connect_reply_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	char *value = NULL, *value_data = NULL, *peer_port_id = NULL;
 	uint32_t status = 0, peer_port_id_len = 0;
@@ -118,7 +112,7 @@ static result_t port_connect_reply_handler(node_t *node, char *data, void *msg_d
 	return CC_RESULT_SUCCESS;
 }
 
-static result_t port_store_reply_handler(node_t *node, char *data, void *msg_data)
+static result_t port_store_reply_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	char *value = NULL;
 	bool status = false;
@@ -137,7 +131,7 @@ static result_t port_store_reply_handler(node_t *node, char *data, void *msg_dat
 	return CC_RESULT_FAIL;
 }
 
-static result_t port_disconnect_reply_handler(node_t *node, char *data, void *msg_data)
+static result_t port_disconnect_reply_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	cc_log_debug("Port '%s' disconnected", msg_data);
 	return CC_RESULT_SUCCESS;
@@ -346,7 +340,7 @@ port_t *port_get_from_peer_port_id(struct node_t *node, const char *peer_port_id
 	return NULL;
 }
 
-port_t *port_get_from_name(actor_t *actor, const char *name, port_direction_t direction)
+port_t *port_get_from_name(actor_t *actor, const char *name, size_t name_len, port_direction_t direction)
 {
 	list_t *ports = NULL;
 	port_t *port = NULL;
@@ -358,7 +352,7 @@ port_t *port_get_from_name(actor_t *actor, const char *name, port_direction_t di
 
 	while (ports != NULL) {
 		port = (port_t *)ports->data;
-		if (port->direction == direction && strncmp(port->name, name, strlen(name)) == 0)
+		if (port->direction == direction && strncmp(port->name, name, name_len) == 0)
 			return port;
 		ports = ports->next;
 	}
@@ -443,7 +437,7 @@ static result_t port_setup_connection(node_t *node, port_t *port, char *peer_id,
 	}
 
 	// handle local connection
-	peer_port = port_get(node, port->peer_port_id, strlen(port->peer_port_id));
+	peer_port = port_get(node, port->peer_port_id, strnlen(port->peer_port_id, UUID_BUFFER_SIZE));
 	if (peer_port != NULL) {
 		if (peer_port->tunnel != NULL) {
 			tunnel_remove_ref(node, peer_port->tunnel);

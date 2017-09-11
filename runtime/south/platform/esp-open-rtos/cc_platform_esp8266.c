@@ -33,24 +33,23 @@
 #include "calvinsys/cc_calvinsys_yl69.h"
 #include "calvinsys/cc_calvinsys_gpio.h"
 
-#define CALVIN_ESP_RUNTIME_STATE_FILE	"cc_state.conf"
-#define CALVIN_ESP_WIFI_CONFIG_FILE		"cc_wifi.conf"
-#define CALVIN_ESP_BUFFER_SIZE				1024
-#define CALVIN_ESP_AP_SSID						"calvin-esp"
-#define CALVIN_ESP_AP_PSK							"calvin-esp"
-#define CALVIN_ESP_WIFI_STATUS_PIN		2
-#define CALVIN_ESP_RESET_PIN					4
+#define CC_ESP_WIFI_CONFIG_FILE	"cc_wifi.msgpack"
+#define CC_ESP_BUFFER_SIZE			1024
+#define CC_ESP_AP_SSID					"calvin-esp"
+#define CC_ESP_AP_PSK						"calvin-esp"
+#define CC_ESP_WIFI_STATUS_PIN	2
+#define CC_ESP_RESET_PIN				4
 
 
 static result_t platform_esp_write_calvin_config(char *attributes, uint32_t attributes_len, char *proxy_uris, uint32_t proxy_uris_len)
 {
 	spiffs_file fd;
 	int res = 0, start = 0, read_pos = 0, nbr_uris = 1;
-	char buffer[CALVIN_ESP_BUFFER_SIZE], id[UUID_BUFFER_SIZE];
+	char buffer[CC_ESP_BUFFER_SIZE], id[UUID_BUFFER_SIZE];
 	char *tmp = buffer;
 	size_t size = 0;
 
-	fd = SPIFFS_open(&fs, CALVIN_ESP_RUNTIME_STATE_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
+	fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	if (fd < 0) {
 		cc_log_error("Failed to open config file");
 		return CC_RESULT_FAIL;
@@ -60,7 +59,7 @@ static result_t platform_esp_write_calvin_config(char *attributes, uint32_t attr
 
 	tmp = mp_encode_map(tmp, 3);
 	{
-		tmp = encode_str(&tmp, "id", id, strlen(id));
+		tmp = encode_str(&tmp, "id", id, strnlen(id, UUID_BUFFER_SIZE));
 		tmp = encode_str(&tmp, "attributes", attributes, attributes_len);
 
 		while (read_pos < proxy_uris_len) {
@@ -95,11 +94,11 @@ static result_t platform_esp_write_wifi_config(char *ssid, uint32_t ssid_len, ch
 {
 	spiffs_file fd;
 	int res = 0;
-	char buffer[CALVIN_ESP_BUFFER_SIZE];
+	char buffer[CC_ESP_BUFFER_SIZE];
 	char *tmp = buffer;
 	size_t size = 0;
 
-	fd = SPIFFS_open(&fs, CALVIN_ESP_WIFI_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
+	fd = SPIFFS_open(&fs, CC_ESP_WIFI_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	if (fd < 0) {
 		cc_log_error("Failed to open config file");
 		return CC_RESULT_FAIL;
@@ -121,25 +120,6 @@ static result_t platform_esp_write_wifi_config(char *ssid, uint32_t ssid_len, ch
 	}
 
 	return CC_RESULT_SUCCESS;
-}
-
-static int get_dict_size(char *data, size_t size)
-{
-	int read_pos = 0, braces = 0;
-
-	while (read_pos < size) {
-		if (data[read_pos] == '{')
-			braces++;
-		if (data[read_pos] == '}')
-			braces--;
-
-		read_pos++;
-
-		if (braces == 0)
-			break;
-	}
-
-	return read_pos;
 }
 
 void platform_print(const char *fmt, ...)
@@ -267,7 +247,7 @@ result_t platform_node_started(struct node_t *node)
 
 void platform_write_node_state(struct node_t *node, char *buffer, size_t size)
 {
-	spiffs_file fd = SPIFFS_open(&fs, CALVIN_ESP_RUNTIME_STATE_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
+	spiffs_file fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	int res = 0;
 
 	res = SPIFFS_write(&fs, fd, buffer, size);
@@ -279,7 +259,7 @@ void platform_write_node_state(struct node_t *node, char *buffer, size_t size)
 
 result_t platform_read_node_state(struct node_t *node, char buffer[], size_t size)
 {
-	spiffs_file fd = SPIFFS_open(&fs, CALVIN_ESP_RUNTIME_STATE_FILE, SPIFFS_RDONLY, 0);
+	spiffs_file fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_RDONLY, 0);
 
 	if (fd < 0) {
 		cc_log_error("Error opening file");
@@ -309,22 +289,60 @@ uint32_t platform_get_seconds(node_t *node)
 	return node->seconds + (sdk_system_get_time() / 1000000);
 }
 
+static result_t get_json_dict_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len)
+{
+	char *start = NULL;
+	size_t pos = 0, braces = 0, len = 0;
+
+	start = strnstr(buffer, key, buffer_len);
+	if (start != NULL) {
+		start = start + key_len + 1;
+		pos = start - buffer;
+		start = NULL;
+		while (pos < buffer_len) {
+			if (buffer[pos] == '{') {
+				if (start == NULL)
+					start = buffer + pos;
+				braces++;
+			}
+
+			if (buffer[pos] == '}') {
+				if (start == NULL)
+					break;
+				braces--;
+			}
+
+			if (start != NULL) {
+				len++;
+				if (braces == 0) {
+					*value_len = len;
+					*value = start;
+					return CC_RESULT_SUCCESS;
+				}
+			}
+			pos++;
+		}
+	}
+
+	return CC_RESULT_FAIL;
+}
+
 static result_t platform_esp_get_config(void)
 {
 	int sockfd = 0, newsockfd = 0, clilen = 0, len = 0;
 	struct sockaddr_in serv_addr, cli_addr;
-	char buffer[CALVIN_ESP_BUFFER_SIZE];
+	char buffer[CC_ESP_BUFFER_SIZE];
 	char *attributes = NULL, *uri = NULL, *ssid = NULL, *password = NULL;
 	size_t len_attributes = 0, len_uri = 0, len_ssid = 0, len_password = 0;
 	struct ip_info ap_ip;
 	ip_addr_t first_client_ip;
 	struct sdk_softap_config ap_config = {
-		.ssid = CALVIN_ESP_AP_SSID,
+		.ssid = CC_ESP_AP_SSID,
 		.ssid_hidden = 0,
 		.channel = 3,
-		.ssid_len = strlen(CALVIN_ESP_AP_SSID),
+		.ssid_len = strlen(CC_ESP_AP_SSID),
 		.authmode = AUTH_WPA_WPA2_PSK,
-		.password = CALVIN_ESP_AP_PSK,
+		.password = CC_ESP_AP_PSK,
 		.max_connection = 1,
 		.beacon_interval = 100,
 	};
@@ -353,6 +371,7 @@ static result_t platform_esp_get_config(void)
 	serv_addr.sin_port = htons(80);
 
 	if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+		dhcpserver_stop();
 		cc_log_error("Failed to bind socket");
 		return CC_RESULT_FAIL;
 	}
@@ -369,63 +388,61 @@ static result_t platform_esp_get_config(void)
 			continue;
 		}
 
-		bzero(buffer, CALVIN_ESP_BUFFER_SIZE);
-		len = read(newsockfd, buffer, CALVIN_ESP_BUFFER_SIZE);
+		bzero(buffer, CC_ESP_BUFFER_SIZE);
+		len = read(newsockfd, buffer, CC_ESP_BUFFER_SIZE);
 		if (len < 0) {
 			cc_log_error("Failed to read data");
 			close(newsockfd);
 			continue;
 		}
 
-		attributes = strstr(buffer, "\"attributes\": ");
-		if (attributes == NULL) {
-			cc_log_error("Failed to parse 'attributes' from '%s'", buffer);
+		cc_log("Config data received, %d bytes", len);
+
+		if (get_json_dict_value(buffer, len, (char *)"attributes", 10, &attributes, &len_attributes) != CC_RESULT_SUCCESS) {
+			cc_log_error("No attribute 'attributes'");
 			close(newsockfd);
 			continue;
 		}
-		attributes = attributes + 14;
-		len_attributes = get_dict_size(attributes, len - (buffer - attributes));
 
-		uri = strstr(buffer, "\"proxy_uris\": \"");
-		if (uri == NULL) {
-			cc_log_error("Failed to parse 'proxy_uris' from '%s'", buffer);
+		if (len_attributes > MAX_ATTRIBITES_LEN) {
+			cc_log_error("Attributes to big");
 			close(newsockfd);
 			continue;
 		}
-		uri = uri + 15;
-		len_uri = strstr(uri, "\"") - uri;
 
-		ssid = strstr(buffer, "\"ssid\": \"");
-		if (ssid == NULL) {
-			cc_log_error("Failed to parse 'ssid' from '%s'", buffer);
+		if (get_json_string_value(buffer, len, (char *)"proxy_uris", 10, &uri, &len_uri) != CC_RESULT_SUCCESS) {
+			cc_log_error("No attribute 'proxy_uris'");
 			close(newsockfd);
 			continue;
 		}
-		ssid = ssid + 9;
-		len_ssid = strstr(ssid, "\"") - ssid;
 
-		password = strstr(buffer, "\"password\": \"");
-		if (password == NULL) {
-			cc_log_error("Failed to parse 'password' from configuration data");
+		if (get_json_string_value(buffer, len, (char *)"ssid", 4, &ssid, &len_ssid) != CC_RESULT_SUCCESS) {
+			cc_log_error("No attribute 'ssid'");
 			close(newsockfd);
 			continue;
 		}
-		password = password + 13;
-		len_password = strstr(password, "\"") - password;
 
-		// TODO: Better attribute parsing needed
+		if (get_json_string_value(buffer, len, (char *)"password", 8, &password, &len_password) != CC_RESULT_SUCCESS) {
+			cc_log_error("No attribute 'password'");
+			close(newsockfd);
+			continue;
+		}
+
 		if (platform_esp_write_calvin_config(attributes, len_attributes, uri, len_uri) == CC_RESULT_SUCCESS) {
 			if (platform_esp_write_wifi_config(ssid, len_ssid, password, len_password) == CC_RESULT_SUCCESS) {
-				cc_log("Config data written");
-				write(newsockfd, "HTTP/1.0 200 OK\r\n", strlen("HTTP/1.0 200 OK\r\n"));
+				write(newsockfd, "HTTP/1.0 200 OK\r\n", 17);
+				vTaskDelay(1000 / portTICK_PERIOD_MS);
 				close(newsockfd);
+				dhcpserver_stop();
+				cc_log("Config data written");
 				return CC_RESULT_SUCCESS;
 			} else
 				cc_log_error("Failed to write WiFi config");
 		} else
 			cc_log_error("Failed to write runtime config");
 
-		write(newsockfd, "HTTP/1.0 500 Internal Server Error\r\n", strlen("HTTP/1.0 500 Internal Server Error\r\n"));
+		write(newsockfd, "HTTP/1.0 500 Internal Server Error\r\n", 36);
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
 		close(newsockfd);
 	}
 }
@@ -433,18 +450,18 @@ static result_t platform_esp_get_config(void)
 static result_t platform_esp_start_station_mode(void)
 {
 	spiffs_file fd;
-	char buffer[CALVIN_ESP_BUFFER_SIZE], *ssid = NULL, *password = NULL;
+	char buffer[CC_ESP_BUFFER_SIZE], *ssid = NULL, *password = NULL;
 	uint32_t ssid_len = 0, password_len = 0;
 	struct sdk_station_config config;
 	uint8_t status = 0, retries = 0;
 
-	fd = SPIFFS_open(&fs, CALVIN_ESP_WIFI_CONFIG_FILE, SPIFFS_RDONLY, 0);
+	fd = SPIFFS_open(&fs, CC_ESP_WIFI_CONFIG_FILE, SPIFFS_RDONLY, 0);
 	if (fd < 0) {
 		cc_log_error("Failed to open config file");
 		return CC_RESULT_FAIL;
 	}
 
-	if (SPIFFS_read(&fs, fd, buffer, CALVIN_ESP_BUFFER_SIZE) < 0) {
+	if (SPIFFS_read(&fs, fd, buffer, CC_ESP_BUFFER_SIZE) < 0) {
 		cc_log_error("Failed to read file");
 		SPIFFS_close(&fs, fd);
 		return CC_RESULT_FAIL;
@@ -473,7 +490,7 @@ static result_t platform_esp_start_station_mode(void)
 	sdk_wifi_station_set_config(&config);
 	sdk_wifi_station_connect();
 
-	retries = 60;
+	retries = 10;
 	while (retries--) {
 		cc_log("Waiting for connection to AP (retries %d)", retries);
 		status = sdk_wifi_station_get_connect_status();
@@ -483,14 +500,11 @@ static result_t platform_esp_start_station_mode(void)
 		} else if (status == STATION_WRONG_PASSWORD) {
 			cc_log("Wrong password");
 			return CC_RESULT_FAIL;
-		} else if (status == STATION_NO_AP_FOUND) {
+		} else if (status == STATION_NO_AP_FOUND)
 			cc_log("AP not found");
-			return CC_RESULT_FAIL;
-		} else if (status == STATION_CONNECT_FAIL) {
+		else if (status == STATION_CONNECT_FAIL)
 			cc_log("Connection failed");
-			return CC_RESULT_FAIL;
-		}
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
+		vTaskDelay(2000 / portTICK_PERIOD_MS);
 	}
 
 	return CC_RESULT_FAIL;
@@ -501,6 +515,7 @@ void calvin_task(void *pvParameters)
 	node_t *node = NULL;
 	spiffs_stat s;
 	bool startAP = false;
+	result_t result = CC_RESULT_SUCCESS;
 
 	uart_set_baud(0, 115200);
 
@@ -512,10 +527,10 @@ void calvin_task(void *pvParameters)
 	cc_log("----------------------------------------");
 
 	// Set led to indicate wifi status
-	sdk_wifi_status_led_install(CALVIN_ESP_WIFI_STATUS_PIN, PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
+	sdk_wifi_status_led_install(CC_ESP_WIFI_STATUS_PIN, PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
 
 	// reset config pin
-	gpio_enable(CALVIN_ESP_RESET_PIN, GPIO_INPUT);
+	gpio_enable(CC_ESP_RESET_PIN, GPIO_INPUT);
 
 	esp_spiffs_init();
 	cc_log("Mounting filesystem");
@@ -525,48 +540,46 @@ void calvin_task(void *pvParameters)
 		if (SPIFFS_format(&fs) == SPIFFS_OK)
 			cc_log("Filesystem formatted");
 		else {
-			cc_log_error("Failed to format filesystem %i, restarting", SPIFFS_errno(&fs));
-			sdk_system_restart();
-			return;
+			cc_log_error("Failed to format filesystem %i", SPIFFS_errno(&fs));
+			result = CC_RESULT_FAIL;
 		}
 
-		if (esp_spiffs_mount() != SPIFFS_OK) {
+		if (result == CC_RESULT_SUCCESS && esp_spiffs_mount() != SPIFFS_OK) {
 			cc_log_error("Failed to mount filesystem");
-			sdk_system_restart();
-			return;
+			result = CC_RESULT_FAIL;
 		}
 	}
 
-	if (gpio_read(CALVIN_ESP_RESET_PIN) == 1) {
-		cc_log("Forcing AP mode");
-		startAP = true;
-	}
+	if (result == CC_RESULT_SUCCESS) {
+		if (gpio_read(CC_ESP_RESET_PIN) == 1) {
+			cc_log("Forcing AP mode");
+			startAP = true;
+		}
 
-	if (SPIFFS_stat(&fs, CALVIN_ESP_WIFI_CONFIG_FILE, &s) != SPIFFS_OK) {
-		cc_log("No WiFi config found");
-		startAP = true;
-	}
+		if (SPIFFS_stat(&fs, CC_ESP_WIFI_CONFIG_FILE, &s) != SPIFFS_OK) {
+			cc_log("No WiFi config found");
+			startAP = true;
+		}
 
-	if (startAP) {
-		cc_log("Starting in AP mode");
-		if (platform_esp_get_config() != CC_RESULT_SUCCESS) {
-			cc_log("Failed to get config, restarting");
-			SPIFFS_remove(&fs, CALVIN_ESP_WIFI_CONFIG_FILE);
-			SPIFFS_remove(&fs, CALVIN_ESP_RUNTIME_STATE_FILE);
-			sdk_system_restart();
-			return;
+		if (startAP) {
+			cc_log("Starting in AP mode");
+			result = platform_esp_get_config();
 		}
 	}
 
-	if (platform_esp_start_station_mode() == CC_RESULT_SUCCESS) {
-		if (api_runtime_init(&node, NULL, NULL, NULL) == CC_RESULT_SUCCESS)
-			api_runtime_start(node);
+	if (result != CC_RESULT_SUCCESS) {
+		cc_log("Removing config files");
+		SPIFFS_remove(&fs, CC_ESP_WIFI_CONFIG_FILE);
+		SPIFFS_remove(&fs, CC_CONFIG_FILE);
 	} else {
-		SPIFFS_remove(&fs, CALVIN_ESP_WIFI_CONFIG_FILE);
-		SPIFFS_remove(&fs, CALVIN_ESP_RUNTIME_STATE_FILE);
+		result = platform_esp_start_station_mode();
+		if (result == CC_RESULT_SUCCESS) {
+			if (api_runtime_init(&node, NULL, NULL, NULL) == CC_RESULT_SUCCESS)
+				api_runtime_start(node);
+		}
 	}
 
-	cc_log("Restarting");
+	cc_log("System restart");
 	sdk_system_restart();
 }
 

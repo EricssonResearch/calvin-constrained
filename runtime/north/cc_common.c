@@ -169,3 +169,49 @@ void *list_get(list_t *list, const char *id)
 
 	return NULL;
 }
+
+result_t get_json_string_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len)
+{
+	char *start = NULL;
+	size_t pos = 0;
+
+	start = strnstr(buffer, key, buffer_len);
+	if (start != NULL) {
+		start = start + key_len + 1;
+		pos = start - buffer;
+		start = NULL;
+		while (pos < buffer_len) {
+			if (buffer[pos] == '\"') {
+				if (start == NULL) {
+					start = buffer + pos + 1;
+				} else {
+					*value = start;
+					*value_len = (buffer + pos) - start;
+					return CC_RESULT_SUCCESS;
+				}
+			}
+			pos++;
+		}
+	}
+
+	return CC_RESULT_FAIL;
+}
+
+#ifdef CC_ADD_STRNSTR
+char* strnstr(const char* buffer, const char* token, size_t n)
+{
+	const char* p;
+	int len = (int)strlen(token);
+
+	if (len == 0) {
+		return (char *)buffer;
+	}
+
+	for (p = buffer; *p && (p + len <= buffer + n); p++) {
+		if ((*p == *token) && (strncmp(p, token, len) == 0)) {
+			return (char *)p;
+		}
+	}
+	return NULL;
+}
+#endif

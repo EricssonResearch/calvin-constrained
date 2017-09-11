@@ -259,7 +259,7 @@ static result_t platform_trigger_reconnect(node_t *node, char *data, size_t size
 	return api_reconnect(node);
 }
 
-static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_data)
+static result_t node_setup_reply_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	// TODO: Return success or fail of the registration.
 	return CC_RESULT_SUCCESS;
@@ -644,13 +644,12 @@ uint32_t platform_get_seconds(node_t *node)
 void platform_write_node_state(node_t *node, char *buffer, size_t size)
 {
 	FILE *fp = NULL;
-	char *filename = "calvinconstrained.config";
-	char abs_filepath[strlen(filename) + strlen(node->storage_dir) + 1];
+	char abs_filepath[strlen(CC_CONFIG_FILE) + strlen(node->storage_dir) + 1];
 
 	strcpy(abs_filepath, node->storage_dir);
-	if (node->storage_dir[strlen(node->storage_dir)-1] != '/')
+	if (node->storage_dir[strlen(node->storage_dir) - 1] != '/')
 		strcat(abs_filepath, "/");
-	strcat(abs_filepath, filename);
+	strcat(abs_filepath, CC_CONFIG_FILE);
 
 	fp = fopen(abs_filepath, "w+");
 	if (fp != NULL) {
@@ -660,7 +659,7 @@ void platform_write_node_state(node_t *node, char *buffer, size_t size)
 			cc_log("Wrote node state to disk");
 		fclose(fp);
 	} else {
-		cc_log_error("Failed to open calvinconstrained.config for writing");
+		cc_log_error("Failed to open %s for writing", CC_CONFIG_FILE);
 		cc_log_error("Errno: %d, error: %s", errno, strerror(errno));
 	}
 }
@@ -669,14 +668,13 @@ result_t platform_read_node_state(node_t *node, char buffer[], size_t size)
 {
 	result_t result = CC_RESULT_FAIL;
 	FILE *fp = NULL;
-	char *filename = "calvinconstrained.config";
-	char abs_filepath[strlen(filename) + strlen(node->storage_dir) + 1];
+	char abs_filepath[strlen(CC_CONFIG_FILE) + strlen(node->storage_dir) + 1];
 	int len = 0;
 
 	strcpy(abs_filepath, node->storage_dir);
 	if (node->storage_dir[strlen(node->storage_dir)-1] != '/')
 		strcat(abs_filepath, "/");
-	strcat(abs_filepath, filename);
+	strcat(abs_filepath, CC_CONFIG_FILE);
 
 	fp = fopen(abs_filepath, "r+");
 	if (fp != NULL) {

@@ -29,18 +29,18 @@
 #include "../../actors/cc_actor_mpy.h"
 #endif
 
-static result_t actor_remove_reply_handler(node_t *node, char *data, void *msg_data)
+static result_t actor_remove_reply_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	return CC_RESULT_SUCCESS;
 }
 
-static result_t actor_migrate_reply_handler(node_t *node, char *data, void *msg_data)
+static result_t actor_migrate_reply_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	uint32_t status = 0;
 	char *value = NULL;
 	actor_t *actor = NULL;
 
-	actor = actor_get(node, (char *)msg_data, strlen((char *)msg_data));
+	actor = actor_get(node, (char *)msg_data, strnlen((char *)msg_data, UUID_BUFFER_SIZE));
 	if (actor == NULL) {
 		cc_log_error("No actor with id '%s'", (char *)msg_data);
 		return CC_RESULT_FAIL;
@@ -61,7 +61,7 @@ static result_t actor_migrate_reply_handler(node_t *node, char *data, void *msg_
 	return CC_RESULT_FAIL;
 }
 
-static result_t actor_set_reply_handler(node_t *node, char *data, void *msg_data)
+static result_t actor_set_reply_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	char *value = NULL;
 	bool status = false;
@@ -548,14 +548,14 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, b
 			while (in_ports != NULL) {
 				port = (port_t *)in_ports->data;
 				peer_id = port_get_peer_id(node, port);
-				*buffer = mp_encode_str(*buffer, port->id, strlen(port->id));
+				*buffer = mp_encode_str(*buffer, port->id, strnlen(port->id, UUID_BUFFER_SIZE));
 				*buffer = mp_encode_array(*buffer, 1);
 				*buffer = mp_encode_array(*buffer, 2);
 				if (peer_id != NULL)
-					*buffer = mp_encode_str(*buffer, peer_id, strlen(peer_id));
+					*buffer = mp_encode_str(*buffer, peer_id, strnlen(peer_id, UUID_BUFFER_SIZE));
 				else
 					*buffer = mp_encode_nil(*buffer);
-				*buffer = mp_encode_str(*buffer, port->peer_port_id, strlen(port->peer_port_id));
+				*buffer = mp_encode_str(*buffer, port->peer_port_id, strnlen(port->peer_port_id, UUID_BUFFER_SIZE));
 				in_ports = in_ports->next;
 			}
 
@@ -564,14 +564,14 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, b
 			while (out_ports != NULL) {
 				port = (port_t *)out_ports->data;
 				peer_id = port_get_peer_id(node, port);
-				*buffer = mp_encode_str(*buffer, port->id, strlen(port->id));
+				*buffer = mp_encode_str(*buffer, port->id, strnlen(port->id, UUID_BUFFER_SIZE));
 				*buffer = mp_encode_array(*buffer, 1);
 				*buffer = mp_encode_array(*buffer, 2);
 				if (peer_id != NULL)
-					*buffer = mp_encode_str(*buffer, peer_id, strlen(peer_id));
+					*buffer = mp_encode_str(*buffer, peer_id, strnlen(peer_id, UUID_BUFFER_SIZE));
 				else
 					*buffer = mp_encode_nil(*buffer);
-				*buffer = mp_encode_str(*buffer, port->peer_port_id, strlen(port->peer_port_id));
+				*buffer = mp_encode_str(*buffer, port->peer_port_id, strnlen(port->peer_port_id, UUID_BUFFER_SIZE));
 				out_ports = out_ports->next;
 			}
 		}
@@ -580,7 +580,7 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, b
 		{
 			*buffer = encode_array(buffer, "_component_members", 1);
 			{
-				*buffer = mp_encode_str(*buffer, actor->id, strlen(actor->id));
+				*buffer = mp_encode_str(*buffer, actor->id, strnlen(actor->id, UUID_BUFFER_SIZE));
 			}
 
 			*buffer = encode_array(buffer, "_managed", nbr_managed_attributes);
@@ -602,7 +602,7 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, b
 			}
 
 			{
-				*buffer = encode_str(buffer, "_id", actor->id, strlen(actor->id));
+				*buffer = encode_str(buffer, "_id", actor->id, strnlen(actor->id, UUID_BUFFER_SIZE));
 				*buffer = encode_str(buffer, "_name", actor->name, strlen(actor->name));
 
 				tmp_list = actor->attributes;
@@ -628,15 +628,15 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, b
 					{
 						if (include_state)
 							*buffer = encode_uint(buffer, "constrained_state", port->state);
-						*buffer = encode_str(buffer, "id", port->id, strlen(port->id));
+						*buffer = encode_str(buffer, "id", port->id, strnlen(port->id, UUID_BUFFER_SIZE));
 						*buffer = encode_str(buffer, "name", port->name, strlen(port->name));
 						*buffer = encode_map(buffer, "queue", 7);
 						{
-							*buffer = encode_str(buffer, "queuetype", "fanout_fifo", strlen("fanout_fifo"));
+							*buffer = encode_str(buffer, "queuetype", "fanout_fifo", 11);
 							*buffer = encode_uint(buffer, "write_pos", port->fifo->write_pos);
 							*buffer = encode_array(buffer, "readers", 1);
 							{
-								*buffer = mp_encode_str(*buffer, port->id, strlen(port->id));
+								*buffer = mp_encode_str(*buffer, port->id, strnlen(port->id, UUID_BUFFER_SIZE));
 							}
 							*buffer = encode_uint(buffer, "N", port->fifo->size);
 							*buffer = encode_map(buffer, "tentative_read_pos", 1);
@@ -672,15 +672,15 @@ char *actor_serialize(const node_t *node, const actor_t *actor, char **buffer, b
 					{
 						if (include_state)
 							*buffer = encode_uint(buffer, "constrained_state", port->state);
-						*buffer = encode_str(buffer, "id", port->id, strlen(port->id));
-						*buffer = encode_str(buffer, "name", port->name, strlen(port->name));
+						*buffer = encode_str(buffer, "id", port->id, strnlen(port->id, UUID_BUFFER_SIZE));
+						*buffer = encode_str(buffer, "name", port->name, strnlen(port->name, UUID_BUFFER_SIZE));
 						*buffer = encode_map(buffer, "queue", 7);
 						{
 							*buffer = encode_str(buffer, "queuetype", "fanout_fifo", 11);
 							*buffer = encode_uint(buffer, "write_pos", port->fifo->write_pos);
 							*buffer = encode_array(buffer, "readers", 1);
 							{
-								*buffer = mp_encode_str(*buffer, port->peer_port_id, strlen(port->peer_port_id));
+								*buffer = mp_encode_str(*buffer, port->peer_port_id, strnlen(port->peer_port_id, UUID_BUFFER_SIZE));
 							}
 							*buffer = encode_uint(buffer, "N", port->fifo->size);
 							*buffer = encode_map(buffer, "tentative_read_pos", 1);

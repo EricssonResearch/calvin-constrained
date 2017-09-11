@@ -68,7 +68,7 @@ STATIC mp_obj_t mpy_port_ccmp_tokens_available(mp_obj_t mp_actor, mp_obj_t mp_po
 	port_t *port = NULL;
 	bool result = false;
 
-	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
+	port = port_get_from_name(actor, port_name, strlen(port_name), PORT_DIRECTION_IN);
 	if (port != NULL)
 		result = fifo_tokens_available(port->fifo, nbr_of_tokens);
 	else
@@ -86,7 +86,7 @@ STATIC mp_obj_t mpy_port_ccmp_slots_available(mp_obj_t mp_actor, mp_obj_t mp_por
 	port_t *port = NULL;
 	bool result = false;
 
-	port = port_get_from_name(actor, port_name, PORT_DIRECTION_OUT);
+	port = port_get_from_name(actor, port_name, strlen(port_name), PORT_DIRECTION_OUT);
 	if (port != NULL)
 		result = fifo_slots_available(port->fifo, nbr_of_slots);
 	else
@@ -104,7 +104,7 @@ STATIC mp_obj_t mpy_port_ccmp_peek_token(mp_obj_t mp_actor, mp_obj_t mp_port_nam
 	token_t *token = NULL;
 	mp_obj_t value = MP_OBJ_NULL;
 
-	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
+	port = port_get_from_name(actor, port_name, strlen(port_name), PORT_DIRECTION_IN);
 	if (port != NULL) {
 		token = fifo_peek(port->fifo);
 		if (decode_to_mpy_obj(token->value, &value) == CC_RESULT_SUCCESS)
@@ -123,7 +123,7 @@ STATIC mp_obj_t mpy_port_ccmp_peek_commit(mp_obj_t mp_actor, mp_obj_t mp_port_na
 	port_t *port = NULL;
 	bool value = false;
 
-	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
+	port = port_get_from_name(actor, port_name, strlen(port_name), PORT_DIRECTION_IN);
 	if (port != NULL) {
 		fifo_commit_read(port->fifo, true);
 		value = true;
@@ -142,7 +142,7 @@ STATIC mp_obj_t mpy_port_ccmp_write_token(mp_obj_t mp_actor, mp_obj_t mp_port_na
 	char *value = NULL;
 	size_t size = 0;
 
-	port = port_get_from_name(actor, port_name, PORT_DIRECTION_OUT);
+	port = port_get_from_name(actor, port_name, strlen(port_name), PORT_DIRECTION_OUT);
 	if (port != NULL) {
 		if (encode_from_mpy_obj(&value, &size, mp_value) == CC_RESULT_SUCCESS) {
 			if (fifo_write(port->fifo, value, size) != CC_RESULT_SUCCESS) {
@@ -163,7 +163,7 @@ STATIC mp_obj_t mpy_port_ccmp_peek_cancel(mp_obj_t mp_actor, mp_obj_t mp_port_na
 	const char *port_name = mp_obj_str_get_str(mp_port_name);
 	port_t *port = NULL;
 
-	port = port_get_from_name(actor, port_name, PORT_DIRECTION_IN);
+	port = port_get_from_name(actor, port_name, strlen(port_name), PORT_DIRECTION_IN);
 	if (port != NULL)
 		fifo_cancel_commit(port->fifo);
 	else

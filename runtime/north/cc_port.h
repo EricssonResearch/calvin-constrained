@@ -61,7 +61,7 @@ void port_free(struct node_t *node, port_t *port, bool remove_from_registry);
 char *port_get_peer_id(const struct node_t *node, port_t *port);
 port_t *port_get(struct node_t *node, const char *port_id, uint32_t port_id_len);
 port_t *port_get_from_peer_port_id(struct node_t *node, const char *peer_port_id, uint32_t peer_port_id_len);
-port_t *port_get_from_name(struct actor_t *actor, const char *name, port_direction_t direction);
+port_t *port_get_from_name(struct actor_t *actor, const char *name, size_t name_len, port_direction_t direction);
 result_t port_handle_disconnect(struct node_t *node, const char *port_id, uint32_t port_id_len);
 result_t port_handle_connect(struct node_t *node, const char *port_id, uint32_t port_id_len, const char *tunnel_id, uint32_t tunnel_id_len);
 result_t port_iniate_connect(struct node_t *node, port_t *port);

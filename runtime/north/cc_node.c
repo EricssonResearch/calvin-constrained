@@ -153,8 +153,8 @@ void node_set_state(node_t *node)
 	tmp = mp_encode_map(tmp, nbr_of_items);
 	{
 		tmp = encode_uint(&tmp, "state", node->state);
-		tmp = encode_str(&tmp, "id", node->id, strlen(node->id));
-		tmp = encode_str(&tmp, "attributes", node->attributes, strlen(node->attributes));
+		tmp = encode_str(&tmp, "id", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		tmp = encode_str(&tmp, "attributes", node->attributes, strnlen(node->attributes, MAX_ATTRIBITES_LEN));
 #ifdef CC_TRACK_TIME
 		tmp = encode_uint(&tmp, "seconds", platform_get_seconds(node) + node->seconds_of_sleep);
 #endif
@@ -164,7 +164,7 @@ void node_set_state(node_t *node)
 		{
 			item = node->proxy_uris;
 			while (item != NULL) {
-				tmp = mp_encode_str(tmp, item->id, strlen(item->id));
+				tmp = mp_encode_str(tmp, item->id, strnlen(item->id, MAX_URI_LEN));
 				item = item->next;
 			}
 		}
@@ -268,7 +268,7 @@ static void node_reset(node_t *node, bool remove_actors)
 #endif
 }
 
-result_t node_add_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_len, result_t (*handler)(node_t *node, char *data, void *msg_data), void *msg_data)
+result_t node_add_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_len, result_t (*handler)(node_t *node, char *data, size_t data_len, void *msg_data), void *msg_data)
 {
 	int i = 0;
 
@@ -332,7 +332,7 @@ bool node_can_add_pending_msg(const node_t *node)
 	return false;
 }
 
-static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_data)
+static result_t node_setup_reply_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	uint32_t status;
 	char *value = NULL;
@@ -354,7 +354,7 @@ static result_t node_setup_reply_handler(node_t *node, char *data, void *msg_dat
 }
 
 #ifdef CC_DEEPSLEEP_ENABLED
-static result_t node_enter_sleep_reply_handler(node_t *node, char *data, void *msg_data)
+static result_t node_enter_sleep_reply_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	uint32_t status = 0, time_to_sleep = 0;
 	char *value = NULL;
@@ -432,7 +432,7 @@ void node_handle_token_reply(node_t *node, char *port_id, uint32_t port_id_len, 
 
 result_t node_handle_message(node_t *node, char *buffer, size_t len)
 {
-	if (proto_parse_message(node, buffer) == CC_RESULT_SUCCESS) {
+	if (proto_parse_message(node, buffer, len) == CC_RESULT_SUCCESS) {
 #if defined(CC_STORAGE_ENABLED) && defined(CC_STATE_CHECKPOINTING)
 		// message successfully handled == state changed -> serialize the node
 		if (node->state == NODE_STARTED)
@@ -494,7 +494,7 @@ static result_t node_connect_to_proxy(node_t *node, char *uri)
 		return CC_RESULT_FAIL;
 
 	peer_id = node->transport_client->peer_id;
-	peer_id_len = strlen(peer_id);
+	peer_id_len = strnlen(peer_id, UUID_BUFFER_SIZE);
 
 	if (node->proxy_link != NULL && strncmp(node->proxy_link->peer_id, peer_id, peer_id_len) != 0)
 		node_reset(node, false);
@@ -550,19 +550,26 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 #endif
 
 	if (attributes != NULL) {
-		if (platform_mem_alloc((void **)&node->attributes, strlen(attributes) + 1) != CC_RESULT_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
+		if (strlen(attributes) <= MAX_ATTRIBITES_LEN) {
+			if (platform_mem_alloc((void **)&node->attributes, strnlen(attributes, MAX_ATTRIBITES_LEN) + 1) != CC_RESULT_SUCCESS) {
+				cc_log_error("Failed to allocate memory");
+				return CC_RESULT_FAIL;
+			}
+			strcpy(node->attributes, attributes);
+		} else {
+			cc_log_error("Attributes to big");
 			return CC_RESULT_FAIL;
 		}
-		strcpy(node->attributes, attributes);
 	}
 
 	if (storage_dir != NULL) {
-		if (platform_mem_alloc((void **)&node->storage_dir, strlen(storage_dir) + 1) != CC_RESULT_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			return CC_RESULT_FAIL;
+		if (strlen(storage_dir) <= MAX_DIR_PATH) {
+			if (platform_mem_alloc((void **)&node->storage_dir, strnlen(storage_dir, MAX_DIR_PATH) + 1) != CC_RESULT_SUCCESS) {
+				cc_log_error("Failed to allocate memory");
+				return CC_RESULT_FAIL;
+			}
+			strcpy(node->storage_dir, storage_dir);
 		}
-		strcpy(node->storage_dir, storage_dir);
 	}
 
 	if (platform_create(node) != CC_RESULT_SUCCESS) {
@@ -602,7 +609,10 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 	if (node->proxy_uris == NULL && uris != NULL) {
 		uri = strtok(uris, " ");
 		while (uri != NULL) {
-			list_add_n(&node->proxy_uris, uri, strlen(uri), NULL, 0);
+			if (strlen(uri) <= MAX_URI_LEN)
+				list_add_n(&node->proxy_uris, uri, strlen(uri), NULL, 0);
+			else
+				cc_log_error("URI to big");
 			uri = strtok(NULL, " ");
 		}
 	}

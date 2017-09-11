@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm calvinconstrained.config
+rm calvin.msgpack
 rm cc_stderr.log
 rm calvin_c
 

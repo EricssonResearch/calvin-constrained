@@ -37,7 +37,7 @@ typedef enum {
 
 typedef struct pending_msg_t {
 	char msg_uuid[UUID_BUFFER_SIZE];
-	result_t (*handler)(struct node_t *node, char *data, void *msg_data);
+	result_t (*handler)(struct node_t *node, char *data, size_t data_len, void *msg_data);
 	void *msg_data;
 } pending_msg_t;
 
@@ -65,7 +65,7 @@ typedef struct node_t {
 	bool (*fire_actors)(struct node_t *node);
 } node_t;
 
-result_t node_add_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_len, result_t (*handler)(node_t *node, char *data, void *msg_data), void *msg_data);
+result_t node_add_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_len, result_t (*handler)(node_t *node, char *data, size_t data_len, void *msg_data), void *msg_data);
 result_t node_remove_pending_msg(node_t *node, char *msg_uuid, uint32_t msg_uuid_len);
 result_t node_get_pending_msg(node_t *node, const char *msg_uuid, uint32_t msg_uuid_len, pending_msg_t *pending_msg);
 bool node_can_add_pending_msg(const node_t *node);

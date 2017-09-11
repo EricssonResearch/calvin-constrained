@@ -43,12 +43,12 @@ tunnel_t *tunnel_get_from_peerid_and_type(node_t *node, const char *peer_id, uin
 	return NULL;
 }
 
-static result_t tunnel_destroy_handler(node_t *node, char *data, void *msg_data)
+static result_t tunnel_destroy_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	return CC_RESULT_SUCCESS;
 }
 
-static result_t tunnel_request_handler(node_t *node, char *data, void *msg_data)
+static result_t tunnel_request_handler(node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	uint32_t status = 0, tunnel_id_len = 0;
 	char *value = NULL, *tunnel_id = NULL, *data_value = NULL;
@@ -148,8 +148,8 @@ char *tunnel_serialize(const tunnel_t *tunnel, char **buffer)
 {
 	*buffer = mp_encode_map(*buffer, 4);
 	{
-		*buffer = encode_str(buffer, "id", tunnel->id, strlen(tunnel->id));
-		*buffer = encode_str(buffer, "peer_id", tunnel->link->peer_id, strlen(tunnel->link->peer_id));
+		*buffer = encode_str(buffer, "id", tunnel->id, strnlen(tunnel->id, UUID_BUFFER_SIZE));
+		*buffer = encode_str(buffer, "peer_id", tunnel->link->peer_id, strnlen(tunnel->link->peer_id, UUID_BUFFER_SIZE));
 		*buffer = encode_uint(buffer, "state", tunnel->state);
 		*buffer = encode_uint(buffer, "type", tunnel->type);
 	}
@@ -215,7 +215,7 @@ result_t tunnel_handle_tunnel_new_request(node_t *node, char *peer_id, uint32_t 
 			return CC_RESULT_SUCCESS;
 		}
 
-		if (uuid_is_higher(tunnel_id, tunnel_id_len, tunnel->id, strlen(tunnel->id)))
+		if (uuid_is_higher(tunnel_id, tunnel_id_len, tunnel->id, strnlen(tunnel->id, UUID_BUFFER_SIZE)))
 			strncpy(tunnel->id, tunnel_id, tunnel_id_len);
 
 		tunnel->state = TUNNEL_ENABLED;

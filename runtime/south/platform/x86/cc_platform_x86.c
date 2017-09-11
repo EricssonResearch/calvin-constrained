@@ -28,8 +28,6 @@
 #include "../../../../msgpuck/msgpuck.h"
 #include "../../../north/cc_msgpack_helper.h"
 
-#define CC_CONFIG_FILE "calvinconstrained.config"
-
 typedef enum {
 	CC_GPIO_IN,
 	CC_GPIO_OUT

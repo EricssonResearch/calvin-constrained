@@ -25,8 +25,11 @@ static bool calvinsys_timer_can_read(struct calvinsys_obj_t *obj)
 	calvinsys_timer_t *timer = (calvinsys_timer_t *)obj->state;
 	uint32_t now = platform_get_seconds(obj->handler->calvinsys->node);
 
-  if (timer->active && (timer->last_triggered == 0 || (now - timer->last_triggered) >= timer->timeout))
+	if (timer->active && (timer->timeout == 0 ||
+		timer->last_triggered == 0 ||
+		(now - timer->last_triggered) >= timer->timeout)) {
 		return true;
+	}
 
 	return false;
 }
@@ -49,21 +52,38 @@ static bool calvinsys_timer_can_write(struct calvinsys_obj_t *obj)
 static result_t calvinsys_timer_write(struct calvinsys_obj_t *obj, char *data, size_t size)
 {
 	calvinsys_timer_t *timer = (calvinsys_timer_t *)obj->state;
-	uint32_t uint_value = 0;
-	bool bool_value = false;
 
 	switch (mp_typeof(*data)) {
-		case MP_UINT:
-		if (decode_uint(data, &uint_value) == CC_RESULT_SUCCESS) {
+		case MP_FLOAT:
+		{
+			float value;
+			decode_float(data, &value);
+			timer->timeout = (uint32_t)value;
 			timer->last_triggered = platform_get_seconds(obj->handler->calvinsys->node);
 			timer->active = true;
-			timer->timeout = uint_value;
 			return CC_RESULT_SUCCESS;
 		}
-		break;
+		case MP_DOUBLE:
+		{
+			double value;
+			decode_double(data, &value);
+			timer->timeout = (uint32_t)value;
+			timer->last_triggered = platform_get_seconds(obj->handler->calvinsys->node);
+			timer->active = true;
+			return CC_RESULT_SUCCESS;
+		}
+		case MP_UINT:
+		{
+			decode_uint(data, &timer->timeout);
+			timer->last_triggered = platform_get_seconds(obj->handler->calvinsys->node);
+			timer->active = true;
+			return CC_RESULT_SUCCESS;
+		}
 		case MP_BOOL:
-		if (decode_bool(data, &bool_value) == CC_RESULT_SUCCESS) {
-			if (bool_value) {
+		{
+			bool value = false;
+			decode_bool(data, &value);
+			if (value) {
 				timer->last_triggered = platform_get_seconds(obj->handler->calvinsys->node);
 				timer->active = true;
 			} else {
@@ -84,7 +104,7 @@ static result_t calvinsys_timer_write(struct calvinsys_obj_t *obj, char *data, s
 static result_t calvinsys_timer_close(struct calvinsys_obj_t *obj)
 {
 	platform_mem_free((void *)obj->state);
-  obj->handler->objects = NULL; // TODO: Support multiple timers
+	obj->handler->objects = NULL; // TODO: Support multiple timers
 	return CC_RESULT_SUCCESS;
 }
 
@@ -104,16 +124,22 @@ static calvinsys_obj_t *calvinsys_timer_open(calvinsys_handler_t *handler, char 
 		return NULL;
 	}
 
-	timer->timeout = 0;
-	timer->last_triggered = 0;
-	timer->active = false;
+	timer->active = true;
 
-	if (decode_uint_from_map(data, "timeout", &timer->timeout) == CC_RESULT_SUCCESS) {
-		if (timer->timeout > 0) {
-			timer->active = true;
-			decode_uint_from_map(data, "last_triggered", &timer->last_triggered);
-		}
+	if (decode_uint_from_map(data, "timeout", &timer->timeout) != CC_RESULT_SUCCESS) {
+		cc_log_error("Failed to get attribute 'timeout'");
+		platform_mem_free((void *)timer);
+		return NULL;
 	}
+
+	if (has_key(data, "last_triggered")) {
+		if (decode_uint_from_map(data, "last_triggered", &timer->last_triggered) != CC_RESULT_SUCCESS) {
+			cc_log_error("Failed to get attribute 'last_triggered'");
+			platform_mem_free((void *)timer);
+			return NULL;
+		}
+	} else
+		timer->last_triggered = 0;
 
 	cc_log("Timer created with timeout '%ld' s last triggered: '%ld'", timer->timeout, timer->last_triggered);
 

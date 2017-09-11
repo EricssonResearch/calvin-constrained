@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm calvinconstrained.config
+rm calvin.msgpack
 rm cc_stderr.log
 rm calvin_c
 
@@ -31,7 +31,7 @@ mv cc_stderr.log cc_stderr_no_mpy.log
 # clean up
 kill -9 $RT1_PID
 kill -9 $RT2_PID
-rm calvinconstrained.config
+rm calvin.msgpack
 cd calvin-base
 git checkout calvin/csparser/parsetab.py
 

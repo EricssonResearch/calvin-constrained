@@ -65,13 +65,12 @@ result_t api_runtime_serialize_and_stop(node_t *node)
 #ifdef CC_STORAGE_ENABLED
 result_t api_clear_serialization_file(char *filedir)
 {
-	char *filename = "calvinconstrained.config";
-	char abs_filepath[strlen(filename) + strlen(filedir) + 1];
+	char abs_filepath[strlen(CC_CONFIG_FILE) + strlen(filedir) + 1];
 
 	strcpy(abs_filepath, filedir);
-	if (filedir[strlen(filedir)-1] != '/')
+	if (filedir[strlen(filedir) - 1] != '/')
 		strcat(abs_filepath, "/");
-	strcat(abs_filepath, filename);
+	strcat(abs_filepath, CC_CONFIG_FILE);
 	if (unlink(abs_filepath) < 0)
 		return CC_RESULT_FAIL;
 	return CC_RESULT_SUCCESS;

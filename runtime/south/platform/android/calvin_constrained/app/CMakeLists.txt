@@ -18,6 +18,7 @@ add_library(
              ../../../../../../runtime/south/platform/android/calvinsys/cc_stepcounter.c
              ../../../../../../main.c
              ../../../../../../calvinsys/cc_calvinsys.c
+             ../../../../../../calvinsys/common/cc_calvinsys_timer.c
              ../../../../../../cc_api.c
              ../../../../../../runtime/north/cc_common.c
              ../../../../../../runtime/north/scheduler/np_scheduler/cc_scheduler.c

@@ -393,13 +393,14 @@ static void actor_mpy_did_migrate(actor_t *actor)
 
 result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 {
-	char *tmp = NULL, instance_name[30];
+	char *class = NULL, instance_name[30];
 	qstr actor_type_qstr, actor_class_qstr;
 	mp_obj_t args[1];
 	ccmp_state_actor_t *state = NULL;
 	mp_obj_t actor_module;
 	mp_obj_t actor_class_ref[2];
 	static int counter;
+	uint8_t pos = type_len;
 
 	sprintf(instance_name, "actor_obj%d", counter++);
 
@@ -411,11 +412,19 @@ result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len)
 	actor->instance_state = (void *)state;
 
 	// get the class name (the part after the last "." in the passed module type string
-	tmp = type;
-	while (strstr(tmp, ".") != NULL)
-		tmp = strstr(tmp, ".") + 1;
+	while (pos-- > 0) {
+			if (type[pos] == '.') {
+				class = type + (pos + 1);
+			}
+	}
+
+	if (class == NULL) {
+		cc_log_error("Expected '.' as class delimiter");
+		return CC_RESULT_FAIL;
+	}
+
 	actor_type_qstr = QSTR_FROM_STR_STATIC(actor->type);
-	actor_class_qstr = QSTR_FROM_STR_STATIC(tmp);
+	actor_class_qstr = QSTR_FROM_STR_STATIC(class);
 
 	// load the module
 	// you have to pass mp_const_true to the second argument in order to return reference

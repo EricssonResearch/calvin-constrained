@@ -39,7 +39,7 @@ char *token_encode(char **buffer, token_t *token, bool with_key)
 	else
 		*buffer = mp_encode_map(*buffer, 2);
 
-	*buffer = encode_str(buffer, "type", "Token", strlen("Token"));
+	*buffer = encode_str(buffer, "type", "Token", 5);
 	if (token->size != 0)
 		*buffer = encode_value(buffer, "data", token->value, token->size);
 	else

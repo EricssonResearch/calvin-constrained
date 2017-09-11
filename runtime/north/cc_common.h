@@ -20,11 +20,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_PENDING_MSGS	20
-#define STORAGE_TUNNEL		"storage"
-#define TOKEN_TUNNEL			"token"
-#define UUID_BUFFER_SIZE	50
-#define SERIALIZER				"msgpack"
+#define MAX_PENDING_MSGS				20
+#define STORAGE_TUNNEL					"storage"
+#define TOKEN_TUNNEL						"token"
+#define UUID_BUFFER_SIZE				50
+#define ATTRIBUTE_BUFFER_SIZE		1024
+#define SERIALIZER							"msgpack"
+#define MAX_URI_LEN							50
+#define MAX_ATTRIBITES_LEN			1024
+#define MAX_DIR_PATH						100
+#define CC_CONFIG_FILE					"calvin.msgpack"
 
 typedef enum {
 	CC_RESULT_SUCCESS,
@@ -49,5 +54,9 @@ void list_remove(list_t **head, const char *id);
 uint32_t list_count(list_t *list);
 void *list_get_n(list_t *list, const char *id, uint32_t id_len);
 void *list_get(list_t *list, const char *id);
+result_t get_json_string_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len);
+#ifdef CC_ADD_STRNSTR
+char* strnstr(const char* buffer, const char* token, size_t n);
+#endif
 
 #endif /* COMMON_H */

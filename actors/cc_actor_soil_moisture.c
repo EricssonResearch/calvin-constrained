@@ -119,11 +119,12 @@ static result_t actor_soil_moisture_managed_attributes(actor_t *actor, list_t **
 	char *value = NULL, *name = NULL;
 	actor_soil_moisture_state_t *state = (actor_soil_moisture_state_t *)actor->instance_state;
 
-	if (platform_mem_alloc((void **)&name, strlen("frequency") + 1) != CC_RESULT_SUCCESS) {
+	if (platform_mem_alloc((void **)&name, 10) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
-	strcpy(name, "frequency");
+	strncpy(name, "frequency", 9);
+	name[9] = '\0';
 
 	size = mp_sizeof_uint(((calvinsys_timer_t *)state->timer->state)->timeout);
 	if (platform_mem_alloc((void **)&value, size) != CC_RESULT_SUCCESS) {

@@ -29,17 +29,17 @@
 
 struct command_handler_t {
 	char command[50];
-	result_t (*handler)(node_t *node, char *data);
+	result_t (*handler)(node_t *node, char *data, size_t data_len);
 };
 
-static result_t proto_parse_reply(node_t *node, char *data);
-static result_t proto_parse_tunnel_data(node_t *node, char *data);
-static result_t proto_parse_actor_new(node_t *node, char *data);
-static result_t proto_parse_app_destroy(node_t *node, char *data);
-static result_t proto_parse_port_disconnect(node_t *node, char *data);
-static result_t proto_parse_port_connect(node_t *node, char *data);
-static result_t proto_parse_tunnel_new(node_t *node, char *data);
-static result_t proto_parse_actor_migrate(node_t *node, char *root);
+static result_t proto_parse_reply(node_t *node, char *data, size_t data_len);
+static result_t proto_parse_tunnel_data(node_t *node, char *data, size_t data_len);
+static result_t proto_parse_actor_new(node_t *node, char *data, size_t data_len);
+static result_t proto_parse_app_destroy(node_t *node, char *data, size_t data_len);
+static result_t proto_parse_port_disconnect(node_t *node, char *data, size_t data_len);
+static result_t proto_parse_port_connect(node_t *node, char *data, size_t data_len);
+static result_t proto_parse_tunnel_new(node_t *node, char *data, size_t data_len);
+static result_t proto_parse_actor_migrate(node_t *node, char *data, size_t data_len);
 
 struct command_handler_t command_handlers[NBR_OF_COMMANDS] = {
 	{"REPLY", proto_parse_reply},
@@ -60,7 +60,8 @@ result_t proto_send_join_request(const node_t *node, transport_client_t *transpo
 	gen_uuid(msg_uuid, "MSGID_");
 
 	w = buffer + transport_client->prefix_len;
-	size = sprintf(w,
+	size = snprintf(w,
+		600 - transport_client->prefix_len,
 		"{\"cmd\": \"JOIN_REQUEST\", \"id\": \"%s\", \"sid\": \"%s\", \"serializers\": [\"%s\"]}",
 		node->id,
 		msg_uuid,
@@ -74,7 +75,7 @@ result_t proto_send_join_request(const node_t *node, transport_client_t *transpo
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 	list_t *capabilities = node->calvinsys->capabilities;
@@ -96,12 +97,12 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, nbr_of_attributes);
 	{
-		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
-		w = encode_str(&w, "cmd", "PROXY_CONFIG", strlen("PROXY_CONFIG"));
+		w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "PROXY_CONFIG", 12);
 		if (node->attributes != NULL)
-			w = encode_str(&w, "attributes", node->attributes, strlen(node->attributes));
+			w = encode_str(&w, "attributes", node->attributes, strnlen(node->attributes, ATTRIBUTE_BUFFER_SIZE));
 		else
 			w = encode_nil(&w, "attributes");
 		w = encode_array(&w, "capabilities", nbr_of_capabilities);
@@ -109,24 +110,24 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 			capabilities = node->calvinsys->capabilities;
 			while (capabilities != NULL) {
 				cc_log_debug("Setting capability %s", capabilities->id);
-				w = mp_encode_str(w, capabilities->id, strlen(capabilities->id));
+				w = mp_encode_str(w, capabilities->id, strnlen(capabilities->id, UUID_BUFFER_SIZE));
 				capabilities = capabilities->next;
 			}
 		}
-		w = encode_str(&w, "port_property_capability", "runtime.constrained.1", strlen("runtime.constrained.1"));
+		w = encode_str(&w, "port_property_capability", "runtime.constrained.1", 21);
 		w = encode_bool(&w, "redeploy", 0);
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		cc_log_debug("Sent PROXY_CONFIG");
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, NULL);
 		return CC_RESULT_SUCCESS;
 	}
 
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_sleep_request(node_t *node, uint32_t seconds_to_sleep, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_sleep_request(node_t *node, uint32_t seconds_to_sleep, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 
@@ -141,23 +142,23 @@ result_t proto_send_sleep_request(node_t *node, uint32_t seconds_to_sleep, resul
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
+		w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, UUID_BUFFER_SIZE));
 		w = encode_str(&w, "cmd", "SLEEP_REQUEST", 13);
 		w = encode_uint(&w, "seconds_to_sleep", seconds_to_sleep);
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		cc_log_debug("Sent SLEEP_REQUEST");
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, NULL);
 		return CC_RESULT_SUCCESS;
 	}
 
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 
@@ -172,17 +173,17 @@ result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*ha
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 7);
 	{
-		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "to_rt_uuid", tunnel->link->peer_id, strlen(tunnel->link->peer_id));
-		w = encode_str(&w, "cmd", "TUNNEL_NEW", strlen("TUNNEL_NEW"));
-		w = encode_str(&w, "tunnel_id", tunnel->id, strlen(tunnel->id));
+		w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "to_rt_uuid", tunnel->link->peer_id, strnlen(tunnel->link->peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "TUNNEL_NEW", 10);
+		w = encode_str(&w, "tunnel_id", tunnel->id, strnlen(tunnel->id, UUID_BUFFER_SIZE));
 		w = encode_str(&w, "type", tunnel->type == TUNNEL_TYPE_STORAGE ? STORAGE_TUNNEL : TOKEN_TUNNEL, tunnel->type == TUNNEL_TYPE_STORAGE ? strlen(STORAGE_TUNNEL) : strlen(TOKEN_TUNNEL));
 		w = encode_map(&w, "policy", 0);
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, tunnel);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, tunnel);
 		cc_log_debug("Sent TUNNEL_NEW with id '%s' to '%s'", tunnel->id, tunnel->link->peer_id);
 		return CC_RESULT_SUCCESS;
 	}
@@ -190,7 +191,7 @@ result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*ha
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_tunnel_destroy(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_tunnel_destroy(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 
@@ -205,15 +206,15 @@ result_t proto_send_tunnel_destroy(node_t *node, tunnel_t *tunnel, result_t (*ha
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "to_rt_uuid", tunnel->link->peer_id, strlen(tunnel->link->peer_id));
-		w = encode_str(&w, "cmd", "TUNNEL_DESTROY", strlen("TUNNEL_DESTROY"));
-		w = encode_str(&w, "tunnel_id", tunnel->id, strlen(tunnel->id));
+		w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "to_rt_uuid", tunnel->link->peer_id, strnlen(tunnel->link->peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "TUNNEL_DESTROY", 14);
+		w = encode_str(&w, "tunnel_id", tunnel->id, strnlen(tunnel->id, UUID_BUFFER_SIZE));
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, tunnel->id);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, tunnel->id);
 		cc_log_debug("Sent TUNNEL_DESTROY for tunnel '%s'", tunnel->id);
 		return CC_RESULT_SUCCESS;
 	}
@@ -236,8 +237,8 @@ result_t proto_send_reply(const node_t *node, char *msg_uuid, uint32_t msg_uuid_
 	{
 		w = encode_str(&w, "msg_uuid", msg_uuid, msg_uuid_len);
 		w = encode_str(&w, "to_rt_uuid", to_rt_uuid, to_rt_uuid_len);
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "cmd", "REPLY", strlen("REPLY"));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "REPLY", 5);
 		w = encode_map(&w, "value", 3);
 		{
 			w = encode_uint(&w, "status", status);
@@ -273,8 +274,8 @@ result_t proto_send_tunnel_new_reply(const node_t *node, char *msg_uuid, uint32_
 	{
 		w = encode_str(&w, "msg_uuid", msg_uuid, msg_uuid_len);
 		w = encode_str(&w, "to_rt_uuid", to_rt_uuid, to_rt_uuid_len);
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "cmd", "REPLY", strlen("REPLY"));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "REPLY", 5);
 		w = encode_map(&w, "value", 3);
 		{
 			w = encode_uint(&w, "status", status);
@@ -313,8 +314,8 @@ result_t proto_send_route_request_reply(const node_t *node, char *msg_uuid, uint
 	{
 		w = encode_str(&w, "msg_uuid", msg_uuid, msg_uuid_len);
 		w = encode_str(&w, "to_rt_uuid", to_rt_uuid, to_rt_uuid_len);
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "cmd", "REPLY", strlen("REPLY"));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "REPLY", 5);
 		w = encode_map(&w, "value", 3);
 		{
 			w = encode_uint(&w, "status", status);
@@ -353,8 +354,8 @@ result_t proto_send_port_connect_reply(const node_t *node, char *msg_uuid, uint3
 	{
 		w = encode_str(&w, "msg_uuid", msg_uuid, msg_uuid_len);
 		w = encode_str(&w, "to_rt_uuid", to_rt_uuid, to_rt_uuid_len);
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "cmd", "REPLY", strlen("REPLY"));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "REPLY", 5);
 		w = encode_map(&w, "value", 3);
 		{
 			w = encode_uint(&w, "status", status);
@@ -396,8 +397,8 @@ result_t proto_send_port_disconnect_reply(const node_t *node, char *msg_uuid, ui
 	{
 		w = encode_str(&w, "msg_uuid", msg_uuid, msg_uuid_len);
 		w = encode_str(&w, "to_rt_uuid", to_rt_uuid, to_rt_uuid_len);
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "cmd", "REPLY", strlen("REPLY"));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "REPLY", 5);
 		w = encode_map(&w, "value", 3);
 		{
 			w = encode_uint(&w, "status", status);
@@ -439,16 +440,16 @@ result_t proto_send_token(const node_t *node, port_t *port, token_t *token, uint
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "to_rt_uuid", peer_id, strlen(peer_id));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "cmd", "TUNNEL_DATA", strlen("TUNNEL_DATA"));
-		w = encode_str(&w, "tunnel_id", port->tunnel->id, strlen(port->tunnel->id));
+		w = encode_str(&w, "to_rt_uuid", peer_id, strnlen(peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "TUNNEL_DATA", 11);
+		w = encode_str(&w, "tunnel_id", port->tunnel->id, strnlen(port->tunnel->id, UUID_BUFFER_SIZE));
 		w = encode_map(&w, "value", 5);
 		{
-			w = encode_str(&w, "cmd", "TOKEN", strlen("TOKEN"));
+			w = encode_str(&w, "cmd", "TOKEN", 5);
 			w = encode_uint(&w, "sequencenbr", sequencenbr);
-			w = encode_str(&w, "port_id", port->id, strlen(port->id));
-			w = encode_str(&w, "peer_port_id", port->peer_port_id, strlen(port->peer_port_id));
+			w = encode_str(&w, "port_id", port->id, strnlen(port->id, UUID_BUFFER_SIZE));
+			w = encode_str(&w, "peer_port_id", port->peer_port_id, strnlen(port->peer_port_id, UUID_BUFFER_SIZE));
 			w = token_encode(&w, token, true);
 		}
 	}
@@ -477,17 +478,17 @@ result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t seque
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "to_rt_uuid", peer_id, strlen(peer_id));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "cmd", "TUNNEL_DATA", strlen("TUNNEL_DATA"));
-		w = encode_str(&w, "tunnel_id", port->tunnel->id, strlen(port->tunnel->id));
+		w = encode_str(&w, "to_rt_uuid", peer_id, strnlen(peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "TUNNEL_DATA", 11);
+		w = encode_str(&w, "tunnel_id", port->tunnel->id, strnlen(port->tunnel->id, UUID_BUFFER_SIZE));
 		w = encode_map(&w, "value", 5);
 		{
-			w = encode_str(&w, "cmd", "TOKEN_REPLY", strlen("TOKEN_REPLY"));
+			w = encode_str(&w, "cmd", "TOKEN_REPLY", 11);
 			w = encode_uint(&w, "sequencenbr", sequencenbr);
-			w = encode_str(&w, "peer_port_id", port->id, strlen(port->id));
-			w = encode_str(&w, "port_id", port->peer_port_id, strlen(port->peer_port_id));
-			w = encode_str(&w, "value", ack ? "ACK" : "NACK", strlen(ack ? "ACK" : "NACK"));
+			w = encode_str(&w, "peer_port_id", port->id, strnlen(port->id, UUID_BUFFER_SIZE));
+			w = encode_str(&w, "port_id", port->peer_port_id, strnlen(port->peer_port_id, UUID_BUFFER_SIZE));
+			w = encode_str(&w, "value", ack ? "ACK" : "NACK", strnlen(ack ? "ACK" : "NACK", ack ? 3 : 4));
 		}
 	}
 
@@ -501,7 +502,7 @@ result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t seque
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_port_connect(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_port_connect(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE], *peer_id = NULL;
 
@@ -520,32 +521,32 @@ result_t proto_send_port_connect(node_t *node, port_t *port, result_t (*handler)
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 11);
 	{
-		w = encode_str(&w, "to_rt_uuid", peer_id, strlen(peer_id));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
-		w = encode_str(&w, "tunnel_id", port->tunnel->id, strlen(port->tunnel->id));
-		w = encode_str(&w, "cmd", "PORT_CONNECT", strlen("PORT_CONNECT"));
+		w = encode_str(&w, "to_rt_uuid", peer_id, strnlen(peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "tunnel_id", port->tunnel->id, strnlen(port->tunnel->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "PORT_CONNECT", 12);
 		w = encode_nil(&w, "peer_port_name");
 		w = encode_nil(&w, "peer_actor_id");
-		w = encode_str(&w, "peer_port_id", port->peer_port_id, strlen(port->peer_port_id));
-		w = encode_str(&w, "port_id", port->id, strlen(port->id));
+		w = encode_str(&w, "peer_port_id", port->peer_port_id, strnlen(port->peer_port_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "port_id", port->id, strnlen(port->id, UUID_BUFFER_SIZE));
 		w = encode_nil(&w, "peer_port_properties");
 		w = encode_map(&w, "port_properties", 3);
 		w = encode_str(&w, "direction", port->direction == PORT_DIRECTION_IN ? STRING_IN : STRING_OUT, strlen(port->direction == PORT_DIRECTION_IN ? STRING_IN : STRING_OUT));
-		w = encode_str(&w, "routing", "default", strlen("default"));
+		w = encode_str(&w, "routing", "default", 7);
 		w = encode_uint(&w, "nbr_peers", 1);
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		cc_log_debug("Sent PORT_CONNECT for port '%s'", port->id);
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, port->id);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, port->id);
 		return CC_RESULT_SUCCESS;
 	}
 
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_port_disconnect(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_port_disconnect(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE], *peer_id = NULL;
 
@@ -564,20 +565,20 @@ result_t proto_send_port_disconnect(node_t *node, port_t *port, result_t (*handl
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 10);
 	{
-		w = encode_str(&w, "to_rt_uuid", peer_id, strlen(peer_id));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
-		w = encode_str(&w, "tunnel_id", port->tunnel->id, strlen(port->tunnel->id));
-		w = encode_str(&w, "cmd", "PORT_DISCONNECT", strlen("PORT_DISCONNECT"));
+		w = encode_str(&w, "to_rt_uuid", peer_id, strnlen(peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "tunnel_id", port->tunnel->id, strnlen(port->tunnel->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "PORT_DISCONNECT", 15);
 		w = encode_nil(&w, "peer_port_name");
 		w = encode_nil(&w, "peer_actor_id");
-		w = encode_str(&w, "peer_port_id", port->peer_port_id, strlen(port->peer_port_id));
-		w = encode_str(&w, "port_id", port->id, strlen(port->id));
+		w = encode_str(&w, "peer_port_id", port->peer_port_id, strnlen(port->peer_port_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "port_id", port->id, strnlen(port->id, UUID_BUFFER_SIZE));
 		w = encode_nil(&w, "peer_port_dir");
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, port->id);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, port->id);
 		cc_log_debug("Sent PORT_DISCONNECT for port '%s'", port->id);
 		return CC_RESULT_SUCCESS;
 	}
@@ -585,9 +586,9 @@ result_t proto_send_port_disconnect(node_t *node, port_t *port, result_t (*handl
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*handler)(node_t*, char*, size_t, void*))
 {
-	int data_len = 0, inports_len = 0, outports_len = 0;
+	int data_len = 0, inports_len = 0, outports_len = 0, key_len = 0;
 	char buffer[1000], *w = NULL, key[50] = "", data[400] = "", inports[200] = "", outports[200] = "", msg_uuid[UUID_BUFFER_SIZE];
 	list_t *list = NULL;
 	port_t *port = NULL;
@@ -595,7 +596,7 @@ result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*han
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
 
-	sprintf(key, "actor-%s", actor->id);
+	key_len = snprintf(key, 50, "actor-%s", actor->id);
 
 	if (!node_can_add_pending_msg(node))
 		return CC_RESULT_PENDING;
@@ -606,15 +607,17 @@ result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*han
 	while (list != NULL) {
 		port = (port_t *)list->data;
 		if (list->next != NULL)
-			inports_len += sprintf(inports + inports_len,
-						   "{\"id\": \"%s\", \"name\": \"%s\"}, ",
-						   port->id,
-						   port->name);
+			inports_len += snprintf(inports + inports_len,
+				200,
+				"{\"id\": \"%s\", \"name\": \"%s\"}, ",
+				port->id,
+				port->name);
 		else
-			inports_len += sprintf(inports + inports_len,
-						   "{\"id\": \"%s\", \"name\": \"%s\"}",
-						   port->id,
-						   port->name);
+			inports_len += snprintf(inports + inports_len,
+				200,
+				"{\"id\": \"%s\", \"name\": \"%s\"}",
+				port->id,
+				port->name);
 		list = list->next;
 	}
 
@@ -622,54 +625,58 @@ result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*han
 	while (list != NULL) {
 		port = (port_t *)list->data;
 		if (list->next != NULL)
-			outports_len += sprintf(outports + outports_len,
-						   "{\"id\": \"%s\", \"name\": \"%s\"}, ",
-							port->id,
-							port->name);
+			outports_len += snprintf(outports + outports_len,
+				200,
+				"{\"id\": \"%s\", \"name\": \"%s\"}, ",
+				port->id,
+				port->name);
 		else
-			outports_len += sprintf(outports + outports_len,
-						   "{\"id\": \"%s\", \"name\": \"%s\"}",
-							port->id,
-							port->name);
+			outports_len += snprintf(outports + outports_len,
+				200,
+				"{\"id\": \"%s\", \"name\": \"%s\"}",
+				port->id,
+				port->name);
 		list = list->next;
 	}
 
-	data_len = sprintf(data,
-				  "{\"is_shadow\": false, \"name\": \"%s\", \"node_id\": \"%s\", \"type\": \"%s\", \"inports\": [%s], \"outports\": [%s]}",
-				  actor->name,
-				  node->id,
-				  actor->type,
-				  inports,
-				  outports);
+	data_len = snprintf(data,
+		400,
+		"{\"is_shadow\": false, \"name\": \"%s\", \"node_id\": \"%s\", \"type\": \"%s\", \"inports\": [%s], \"outports\": [%s]}",
+		actor->name,
+		node->id,
+		actor->type,
+		inports,
+		outports);
 
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
-		w = encode_str(&w, "cmd", "TUNNEL_DATA", strlen("TUNNEL_DATA"));
-		w = encode_str(&w, "tunnel_id", node->storage_tunnel->id, strlen(node->storage_tunnel->id));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "TUNNEL_DATA", 11);
+		w = encode_str(&w, "tunnel_id", node->storage_tunnel->id, strnlen(node->storage_tunnel->id, UUID_BUFFER_SIZE));
 		w = encode_map(&w, "value", 4);
 		{
-			w = encode_str(&w, "cmd", "SET", strlen("SET"));
-			w = encode_str(&w, "key", key, strlen(key));
+			w = encode_str(&w, "cmd", "SET", 3);
+			w = encode_str(&w, "key", key, key_len);
 			w = encode_str(&w, "value", data, data_len);
-			w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
+			w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
 		}
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		cc_log_debug("Sent SET '%s'", key);
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, (void *)actor->id);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, (void *)actor->id);
 		return CC_RESULT_SUCCESS;
 	}
 
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_remove_actor(node_t *node, actor_t *actor, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_remove_actor(node_t *node, actor_t *actor, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, key[50], msg_uuid[UUID_BUFFER_SIZE];
+	int key_len = 0;
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -677,28 +684,28 @@ result_t proto_send_remove_actor(node_t *node, actor_t *actor, result_t (*handle
 	if (!node_can_add_pending_msg(node))
 		return CC_RESULT_PENDING;
 
-	sprintf(key, "actor-%s", actor->id);
+	key_len = snprintf(key, 50, "actor-%s", actor->id);
 
 	gen_uuid(msg_uuid, "MSGID_");
 
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
-		w = encode_str(&w, "cmd", "TUNNEL_DATA", strlen("TUNNEL_DATA"));
-		w = encode_str(&w, "tunnel_id", node->storage_tunnel->id, strlen(node->storage_tunnel->id));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "TUNNEL_DATA", 11);
+		w = encode_str(&w, "tunnel_id", node->storage_tunnel->id, strnlen(node->storage_tunnel->id, UUID_BUFFER_SIZE));
 		w = encode_map(&w, "value", 4);
 		{
-			w = encode_str(&w, "cmd", "SET", strlen("SET"));
-			w = encode_str(&w, "key", key, strlen(key));
+			w = encode_str(&w, "cmd", "SET", 3);
+			w = encode_str(&w, "key", key, key_len);
 			w = encode_nil(&w, "value");
-			w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
+			w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
 		}
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, NULL);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, NULL);
 		cc_log_debug("Sent SET '%s' with nil", key);
 		return CC_RESULT_SUCCESS;
 	}
@@ -706,9 +713,10 @@ result_t proto_send_remove_actor(node_t *node, actor_t *actor, result_t (*handle
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[2000], *w = NULL, key[50] = "", data[1000] = "", msg_uuid[UUID_BUFFER_SIZE], *peer_id = NULL;
+	int key_len = 0, data_len = 0;
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -720,10 +728,11 @@ result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(nod
 
 	peer_id = port_get_peer_id(node, port);
 
-	sprintf(key, "port-%s", port->id);
+	key_len = snprintf(key, 50, "port-%s", port->id);
 
 	if (peer_id != NULL)
-		sprintf(data,
+		data_len = snprintf(data,
+			1000,
 			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%s\"}",
 			peer_id,
 			port->peer_port_id,
@@ -733,7 +742,8 @@ result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(nod
 			STRING_TRUE,
 			port->actor->id);
 	else
-		sprintf(data,
+		data_len = snprintf(data,
+			1000,
 			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%s\"}",
 			"null",
 			port->peer_port_id,
@@ -746,31 +756,32 @@ result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(nod
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "cmd", "TUNNEL_DATA", strlen("TUNNEL_DATA"));
-		w = encode_str(&w, "tunnel_id", node->storage_tunnel->id, strlen(node->storage_tunnel->id));
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "TUNNEL_DATA", 11);
+		w = encode_str(&w, "tunnel_id", node->storage_tunnel->id, strnlen(node->storage_tunnel->id, UUID_BUFFER_SIZE));
 		w = encode_map(&w, "value", 4);
 		{
-			w = encode_str(&w, "cmd", "SET", strlen("SET"));
-			w = encode_str(&w, "key", key, strlen(key));
-			w = encode_str(&w, "value", data, strlen(data));
-			w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
+			w = encode_str(&w, "cmd", "SET", 3);
+			w = encode_str(&w, "key", key, key_len);
+			w = encode_str(&w, "value", data, data_len);
+			w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
 		}
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		cc_log_debug("Sent SET '%s'", key);
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, (void *)port->id);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, (void *)port->id);
 		return CC_RESULT_SUCCESS;
 	}
 
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_get_port(node_t *node, char *port_id, result_t (*handler)(node_t*, char*, void*), void *msg_data)
+result_t proto_send_get_port(node_t *node, char *port_id, result_t (*handler)(node_t*, char*, size_t, void*), void *msg_data)
 {
 	char buffer[1000], msg_uuid[UUID_BUFFER_SIZE], *w = NULL, key[50] = "";
+	int key_len = 0;
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -778,36 +789,37 @@ result_t proto_send_get_port(node_t *node, char *port_id, result_t (*handler)(no
 	if (!node_can_add_pending_msg(node))
 		return CC_RESULT_PENDING;
 
-	sprintf(key, "port-%s", port_id);
+	key_len = snprintf(key, 50, "port-%s", port_id);
 	gen_uuid(msg_uuid, "MSGID_");
 
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "cmd", "TUNNEL_DATA", strlen("TUNNEL_DATA"));
-		w = encode_str(&w, "tunnel_id", node->storage_tunnel->id, strlen(node->storage_tunnel->id));
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "TUNNEL_DATA", 11);
+		w = encode_str(&w, "tunnel_id", node->storage_tunnel->id, strnlen(node->storage_tunnel->id, UUID_BUFFER_SIZE));
 		w = encode_map(&w, "value", 3);
 		{
-			w = encode_str(&w, "cmd", "GET", strlen("GET"));
-			w = encode_str(&w, "key", key, strlen(key));
-			w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
+			w = encode_str(&w, "cmd", "GET", 3);
+			w = encode_str(&w, "key", key, strnlen(key, key_len));
+			w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
 		}
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		cc_log_debug("Sent GET '%s'", key);
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, msg_data);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, msg_data);
 		return CC_RESULT_SUCCESS;
 	}
 
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_remove_port(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_remove_port(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, key[50] = "", msg_uuid[UUID_BUFFER_SIZE];
+	int key_len = 0;
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -815,35 +827,35 @@ result_t proto_send_remove_port(node_t *node, port_t *port, result_t (*handler)(
 	if (!node_can_add_pending_msg(node))
 		return CC_RESULT_PENDING;
 
-	sprintf(key, "port-%s", port->id);
+	key_len = snprintf(key, 50, "port-%s", port->id);
 	gen_uuid(msg_uuid, "MSGID_");
 
 	w = buffer + node->transport_client->prefix_len;
 	w = mp_encode_map(w, 5);
 	{
-		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strlen(node->proxy_link->peer_id));
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
-		w = encode_str(&w, "cmd", "TUNNEL_DATA", strlen("TUNNEL_DATA"));
-		w = encode_str(&w, "tunnel_id", node->storage_tunnel->id, strlen(node->storage_tunnel->id));
+		w = encode_str(&w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
+		w = encode_str(&w, "cmd", "TUNNEL_DATA", 11);
+		w = encode_str(&w, "tunnel_id", node->storage_tunnel->id, strnlen(node->storage_tunnel->id, UUID_BUFFER_SIZE));
 		w = encode_map(&w, "value", 4);
 		{
-			w = encode_str(&w, "cmd", "SET", strlen("SET"));
-			w = encode_str(&w, "key", key, strlen(key));
+			w = encode_str(&w, "cmd", "SET", 3);
+			w = encode_str(&w, "key", key, key_len);
 			w = encode_nil(&w, "value");
-			w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
+			w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
 		}
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		cc_log_debug("Sent SET '%s' with nil", key);
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, port->id);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, port->id);
 		return CC_RESULT_SUCCESS;
 	}
 
 	return CC_RESULT_FAIL;
 }
 
-result_t proto_send_actor_new(node_t *node, actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, result_t (*handler)(node_t*, char*, void*))
+result_t proto_send_actor_new(node_t *node, actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[2000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 
@@ -859,25 +871,25 @@ result_t proto_send_actor_new(node_t *node, actor_t *actor, char *to_rt_uuid, ui
 	w = mp_encode_map(w, 5);
 	{
 		w = encode_str(&w, "to_rt_uuid", to_rt_uuid, to_rt_uuid_len);
-		w = encode_str(&w, "from_rt_uuid", node->id, strlen(node->id));
+		w = encode_str(&w, "from_rt_uuid", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
 		w = encode_str(&w, "cmd", "ACTOR_NEW", 9);
-		w = encode_str(&w, "msg_uuid", msg_uuid, strlen(msg_uuid));
+		w = encode_str(&w, "msg_uuid", msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE));
 		w = actor_serialize(node, actor, &w, false);
 	}
 
 	if (transport_send(node->transport_client, buffer, w - buffer) == CC_RESULT_SUCCESS) {
 		cc_log_debug("Sent ACTOR_NEW to '%s'", actor->migrate_to);
-		node_add_pending_msg(node, msg_uuid, strlen(msg_uuid), handler, actor->id);
+		node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, UUID_BUFFER_SIZE), handler, actor->id);
 		return CC_RESULT_SUCCESS;
 	}
 
 	return CC_RESULT_FAIL;
 }
 
-static result_t proto_parse_reply(node_t *node, char *root)
+static result_t proto_parse_reply(node_t *node, char *data, size_t data_len)
 {
 	result_t result = CC_RESULT_SUCCESS;
-	char *msg_uuid = NULL, *r = root;
+	char *msg_uuid = NULL, *r = data;
 	pending_msg_t pending_msg;
 	uint32_t len = 0;
 
@@ -891,7 +903,7 @@ static result_t proto_parse_reply(node_t *node, char *root)
 		return CC_RESULT_SUCCESS;
 	}
 
-	result = pending_msg.handler(node, root, pending_msg.msg_data);
+	result = pending_msg.handler(node, data, data_len, pending_msg.msg_data);
 	node_remove_pending_msg(node, msg_uuid, len);
 	return result;
 }
@@ -967,7 +979,7 @@ static result_t proto_parse_token_reply(node_t *node, char *root)
 	return CC_RESULT_FAIL;
 }
 
-static result_t proto_parse_tunnel_data(node_t *node, char *root)
+static result_t proto_parse_tunnel_data(node_t *node, char *root, size_t len)
 {
 	char *msg_uuid = NULL, *value = NULL, *cmd = NULL, *r = root;
 	pending_msg_t pending_msg;
@@ -982,7 +994,7 @@ static result_t proto_parse_tunnel_data(node_t *node, char *root)
 			return CC_RESULT_FAIL;
 
 		if (node_get_pending_msg(node, msg_uuid, msg_uuid_len, &pending_msg) == CC_RESULT_SUCCESS) {
-			result = pending_msg.handler(node, root, pending_msg.msg_data);
+			result = pending_msg.handler(node, root, len, pending_msg.msg_data);
 			node_remove_pending_msg(node, msg_uuid, msg_uuid_len);
 			return result;
 		}
@@ -1004,7 +1016,7 @@ static result_t proto_parse_tunnel_data(node_t *node, char *root)
 	return CC_RESULT_FAIL;
 }
 
-static result_t proto_parse_actor_new(node_t *node, char *root)
+static result_t proto_parse_actor_new(node_t *node, char *root, size_t len)
 {
 	result_t result = CC_RESULT_SUCCESS;
 	actor_t *actor = NULL;
@@ -1033,7 +1045,7 @@ static result_t proto_parse_actor_new(node_t *node, char *root)
 	return result;
 }
 
-static result_t proto_parse_actor_migrate(node_t *node, char *root)
+static result_t proto_parse_actor_migrate(node_t *node, char *root, size_t len)
 {
 	result_t result = CC_RESULT_SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *actor_id = NULL, *msg_uuid = NULL;
@@ -1067,7 +1079,7 @@ static result_t proto_parse_actor_migrate(node_t *node, char *root)
 	return result;
 }
 
-static result_t proto_parse_app_destroy(node_t *node, char *root)
+static result_t proto_parse_app_destroy(node_t *node, char *root, size_t len)
 {
 	result_t result = CC_RESULT_SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL;
@@ -1106,7 +1118,7 @@ static result_t proto_parse_app_destroy(node_t *node, char *root)
 	return result;
 }
 
-static result_t proto_parse_port_disconnect(node_t *node, char *root)
+static result_t proto_parse_port_disconnect(node_t *node, char *root, size_t len)
 {
 	result_t result = CC_RESULT_SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL, *peer_port_id = NULL;
@@ -1133,7 +1145,7 @@ static result_t proto_parse_port_disconnect(node_t *node, char *root)
 	return result;
 }
 
-static result_t proto_parse_port_connect(node_t *node, char *root)
+static result_t proto_parse_port_connect(node_t *node, char *root, size_t len)
 {
 	result_t result = CC_RESULT_SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL;
@@ -1164,7 +1176,7 @@ static result_t proto_parse_port_connect(node_t *node, char *root)
 	return result;
 }
 
-static result_t proto_parse_tunnel_new(node_t *node, char *root)
+static result_t proto_parse_tunnel_new(node_t *node, char *root, size_t len)
 {
 	result_t result = CC_RESULT_SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL;
@@ -1186,7 +1198,7 @@ static result_t proto_parse_tunnel_new(node_t *node, char *root)
 	if (decode_string_from_map(r, "tunnel_id", &tunnel_id, &tunnel_id_len) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 
-	if (strncmp(type, "token", strlen("token")) != 0) {
+	if (strncmp(type, "token", 5) != 0) {
 		cc_log_error("Unhandled tunnel type '%.*s'", type_len, type);
 		result = CC_RESULT_FAIL;
 	} else {
@@ -1214,37 +1226,40 @@ static result_t proto_parse_tunnel_new(node_t *node, char *root)
 	return result;
 }
 
-static result_t proto_handle_join_reply(node_t *node, char *buffer)
+static result_t proto_handle_join_reply(node_t *node, char *buffer, uint32_t buffer_len)
 {
-	char *id = NULL, *serializer = NULL;
+	char *value = NULL;
+	size_t value_len = 0;
 
-	serializer = strstr(buffer, SERIALIZER);
-	if (serializer == NULL) {
-		cc_log_error("Failed to parse JOIN_REPLY");
+	if (get_json_string_value(buffer, buffer_len, (char *)"serializer", 10, &value, &value_len) != CC_RESULT_SUCCESS) {
+		cc_log_error("No attribute 'serializer'");
 		return CC_RESULT_FAIL;
 	}
 
-	id = strstr(buffer, "\"id\": \"");
-	if (id == NULL) {
-		cc_log_error("Failed to parse JOIN_REPLY");
+	if (strncmp(value, SERIALIZER, value_len) != 0) {
+		cc_log_error("Unsupported serializer '%.*s'", value_len, value);
 		return CC_RESULT_FAIL;
 	}
-	id = id + 7;
 
+	if (get_json_string_value(buffer, buffer_len, (char *)"id", 2, &value, &value_len) != CC_RESULT_SUCCESS) {
+		cc_log_error("No attribute 'id'");
+		return CC_RESULT_FAIL;
+	}
+
+	strncpy(node->transport_client->peer_id, value, value_len);
 	node->transport_client->state = TRANSPORT_ENABLED;
-	strncpy(node->transport_client->peer_id, id, strstr(id, "\"") - id);
 
 	return CC_RESULT_SUCCESS;
 }
 
-result_t proto_parse_message(node_t *node, char *data)
+result_t proto_parse_message(node_t *node, char *data, size_t data_len)
 {
 	char *cmd = NULL, *r = data, *msg_uuid = NULL, *from_rt_uuid = NULL;
 	int i = 0;
 	uint32_t cmd_len = 0, msg_uuid_len = 0, from_rt_uuid_len = 0;
 
 	if (node->transport_client->state != TRANSPORT_ENABLED)
-		return proto_handle_join_reply(node, data);
+		return proto_handle_join_reply(node, data, data_len);
 
 	if (decode_string_from_map(r, "cmd", &cmd, &cmd_len) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
@@ -1253,7 +1268,7 @@ result_t proto_parse_message(node_t *node, char *data)
 
 	for (i = 0; i < NBR_OF_COMMANDS; i++) {
 		if (strncmp(cmd, command_handlers[i].command, cmd_len) == 0)
-			return command_handlers[i].handler(node, r);
+			return command_handlers[i].handler(node, data, data_len);
 	}
 
 	cc_log_error("Unhandled command '%.*s'", (int)cmd_len, cmd);

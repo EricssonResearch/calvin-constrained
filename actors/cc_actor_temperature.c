@@ -33,7 +33,7 @@ typedef struct actor_temperature_state_t {
 static result_t actor_temperature_init(actor_t **actor, list_t *attributes)
 {
 	actor_temperature_state_t *state = NULL;
-	char buffer[50], *data = NULL;
+	char buffer[50], *data_frequency = NULL, *data_last_triggered = NULL;
 	char *buffer_pos = buffer;
 	uint32_t timeout = 0, last_triggered = 0;
 
@@ -42,32 +42,32 @@ static result_t actor_temperature_init(actor_t **actor, list_t *attributes)
 		return CC_RESULT_FAIL;
 	}
 
-	data = (char *)list_get(attributes, "frequency");
-	if (data == NULL) {
+	data_frequency = (char *)list_get(attributes, "frequency");
+	if (data_frequency == NULL) {
 		cc_log_error("Failed to get attribute 'frequency'");
 		platform_mem_free((void *)state);
 		return CC_RESULT_FAIL;
 	}
 
-	switch (mp_typeof(*data)) {
+	switch (mp_typeof(*data_frequency)) {
 	case MP_UINT:
 	{
 		uint32_t frequency;
-		decode_uint(data, &frequency);
+		decode_uint(data_frequency, &frequency);
 		timeout = 1 / frequency;
 		break;
 	}
 	case MP_FLOAT:
 	{
 		float frequency;
-		decode_float(data, &frequency);
-		timeout = 1 / (uint32_t)frequency;
+		decode_float(data_frequency, &frequency);
+		timeout = (uint32_t)(1 / frequency);
 		break;
 	}
 	case MP_DOUBLE:
 	{
 		double frequency;
-		decode_double(data, &frequency);
+		decode_double(data_frequency, &frequency);
 		timeout = (uint32_t)(1 / frequency);
 		break;
 	}
@@ -77,9 +77,9 @@ static result_t actor_temperature_init(actor_t **actor, list_t *attributes)
 		return CC_RESULT_FAIL;
 	}
 
-	data = (char *)list_get(attributes, "last_triggered");
-	if (data != NULL) {
-		decode_uint(data, &last_triggered);
+	data_last_triggered = (char *)list_get(attributes, "last_triggered");
+	if (data_last_triggered != NULL) {
+		decode_uint(data_last_triggered, &last_triggered);
 		buffer_pos = mp_encode_map(buffer_pos, 2);
 		{
 			buffer_pos = encode_uint(&buffer_pos, "timeout", timeout);
@@ -165,11 +165,12 @@ static result_t actor_temperature_add_last_triggered(calvinsys_obj_t *obj, list_
 	if (!timer->active)
 		return CC_RESULT_SUCCESS;
 
-	if (platform_mem_alloc((void **)&name, strlen("last_triggered") + 1) != CC_RESULT_SUCCESS) {
+	if (platform_mem_alloc((void **)&name, 15) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
-	strcpy(name, "last_triggered");
+	strncpy(name, "last_triggered", 14);
+	name[13] = '\0';
 
 	size = mp_sizeof_uint(timer->last_triggered);
 	if (platform_mem_alloc((void **)&value, size) != CC_RESULT_SUCCESS) {
@@ -202,11 +203,12 @@ static result_t actor_temperature_get_managed_attributes(actor_t *actor, list_t 
 	if (!timer->active || timer->timeout == 0)
 		return CC_RESULT_SUCCESS;
 
-	if (platform_mem_alloc((void **)&name, strlen("frequency") + 1) != CC_RESULT_SUCCESS) {
+	if (platform_mem_alloc((void **)&name, 10) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_RESULT_FAIL;
 	}
-	strcpy(name, "frequency");
+	strncpy(name, "frequency", 9);
+	name[9] = '\0';
 
 	frequency = 1.0 / timer->timeout;
 
@@ -245,5 +247,5 @@ result_t actor_temperature_register(list_t **actor_types)
 	type->will_end = NULL;
 	type->did_migrate = NULL;
 
-	return list_add_n(actor_types, "sensor.Temperature", strlen("sensor.Temperature"), type, sizeof(actor_type_t *));
+	return list_add_n(actor_types, "sensor.Temperature", 18, type, sizeof(actor_type_t *));
 }

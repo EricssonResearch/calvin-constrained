@@ -56,7 +56,7 @@ char *link_serialize(const link_t *link, char **buffer)
 {
 	*buffer = mp_encode_map(*buffer, 2);
 	{
-		*buffer = encode_str(buffer, "peer_id", link->peer_id, strlen(link->peer_id));
+		*buffer = encode_str(buffer, "peer_id", link->peer_id, strnlen(link->peer_id, UUID_BUFFER_SIZE));
 		*buffer = encode_bool(buffer, "is_proxy", link->is_proxy);
 	}
 
