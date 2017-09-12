@@ -1,7 +1,7 @@
 {
   "global": {
     "storage_type": "local"
-  }
+  },
   "calvinsys": {
     "capabilities": {
     }
