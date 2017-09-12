@@ -29,6 +29,7 @@
 #include "../../crypto/cc_crypto.h"
 #endif
 #include "../../calvinsys/common/cc_calvinsys_timer.h"
+#include "../../calvinsys/common/cc_calvinsys_attribute.h"
 
 #define CC_RECONNECT_TIMEOUT	5
 #ifndef CC_INACTIVITY_TIMEOUT
@@ -154,7 +155,7 @@ void node_set_state(node_t *node)
 	{
 		tmp = encode_uint(&tmp, "state", node->state);
 		tmp = encode_str(&tmp, "id", node->id, strnlen(node->id, UUID_BUFFER_SIZE));
-		tmp = encode_str(&tmp, "attributes", node->attributes, strnlen(node->attributes, MAX_ATTRIBITES_LEN));
+		tmp = encode_str(&tmp, "attributes", node->attributes, strnlen(node->attributes, MAX_ATTRIBUTES_LEN));
 #ifdef CC_TRACK_TIME
 		tmp = encode_uint(&tmp, "seconds", platform_get_seconds(node) + node->seconds_of_sleep);
 #endif
@@ -550,8 +551,8 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 #endif
 
 	if (attributes != NULL) {
-		if (strlen(attributes) <= MAX_ATTRIBITES_LEN) {
-			if (platform_mem_alloc((void **)&node->attributes, strnlen(attributes, MAX_ATTRIBITES_LEN) + 1) != CC_RESULT_SUCCESS) {
+		if (strlen(attributes) <= MAX_ATTRIBUTES_LEN) {
+			if (platform_mem_alloc((void **)&node->attributes, strnlen(attributes, MAX_ATTRIBUTES_LEN) + 1) != CC_RESULT_SUCCESS) {
 				cc_log_error("Failed to allocate memory");
 				return CC_RESULT_FAIL;
 			}
@@ -595,6 +596,9 @@ result_t node_init(node_t *node, const char *attributes, const char *proxy_uris,
 
 	if (calvinsys_timer_create(&node->calvinsys) != CC_RESULT_SUCCESS)
 		cc_log_error("Failed to create calvinsys 'timer'");
+
+	if (calvinsys_attribute_create(&node->calvinsys) != CC_RESULT_SUCCESS)
+		cc_log_error("Failed to create calvinsys 'attribute'");
 
 	if (actor_store_init(&node->actor_types) != CC_RESULT_SUCCESS) {
 		cc_log_error("Failed to create actor types");

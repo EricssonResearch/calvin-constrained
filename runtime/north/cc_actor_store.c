@@ -47,6 +47,9 @@
 #ifdef CC_ACTOR_STEPCOUNTER
 #include "../../actors/cc_actor_stepcounter.h"
 #endif
+#ifdef CC_ACTOR_REGISTRY_ATTIBUTE
+#include "../../actors/cc_actor_registry_attribute.h"
+#endif
 
 result_t actor_store_init(list_t **actor_types)
 {
@@ -102,6 +105,11 @@ result_t actor_store_init(list_t **actor_types)
 
 #ifdef CC_ACTOR_STEPCOUNTER
 	if (actor_stepcounter_register(actor_types) != CC_RESULT_SUCCESS)
+		return CC_RESULT_FAIL;
+#endif
+
+#ifdef CC_ACTOR_REGISTRY_ATTIBUTE
+	if (actor_registry_attribute_register(actor_types) != CC_RESULT_SUCCESS)
 		return CC_RESULT_FAIL;
 #endif
 

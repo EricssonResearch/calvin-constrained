@@ -175,7 +175,14 @@ result_t get_json_string_value(char *buffer, size_t buffer_len, char *key, size_
 	char *start = NULL;
 	size_t pos = 0;
 
-	start = strnstr(buffer, key, buffer_len);
+	while ((pos + key_len) < buffer_len) {
+		if (strncmp(buffer + pos, key, key_len) == 0) {
+			start = buffer + pos;
+			break;
+		}
+		pos++;
+	}
+
 	if (start != NULL) {
 		start = start + key_len + 1;
 		pos = start - buffer;
@@ -193,6 +200,51 @@ result_t get_json_string_value(char *buffer, size_t buffer_len, char *key, size_
 			pos++;
 		}
 	}
+
+	return CC_RESULT_FAIL;
+}
+
+result_t get_json_dict_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len)
+{
+	char *start = NULL;
+	size_t pos = 0, braces = 0, len = 0;
+
+	while ((pos + key_len) < buffer_len) {
+		if (strncmp(buffer + pos, key, key_len) == 0) {
+			start = buffer + pos;
+			break;
+		}
+		pos++;
+	}
+
+	if (start != NULL) {
+		start = start + key_len + 1;
+		pos = start - buffer;
+		start = NULL;
+		while (pos < buffer_len) {
+			if (buffer[pos] == '{') {
+				if (start == NULL) {
+					start = buffer + pos;
+				}
+				braces++;
+			}
+
+			if (buffer[pos] == '}') {
+				braces--;
+			}
+
+			if (start != NULL) {
+				len++;
+				if (braces == 0) {
+					*value_len = len;
+					*value = start;
+					return CC_RESULT_SUCCESS;
+				}
+			}
+			pos++;
+		}
+	} else
+		cc_log_error("Failed to get '%.*s' from '%.*s'", key_len, key, buffer_len, buffer);
 
 	return CC_RESULT_FAIL;
 }

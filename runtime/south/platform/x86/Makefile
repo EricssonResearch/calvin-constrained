@@ -10,7 +10,7 @@ endif
 CFLAGS += -DCC_GETOPT_ENABLED
 CFLAGS += -DCC_TRANSPORT_SOCKET -DCC_TRANSPORT_SOCKET_SSDP_ENABLED
 CFLAGS += -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=60 -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
-CFLAGS += -DCC_ACTOR_IDENTITY -DCC_ACTOR_BUTTON -DCC_ACTOR_LIGHT -DCC_ACTOR_SOIL_MOISTURE -DCC_ACTOR_TEMPERATURE
+CFLAGS += -DCC_ACTOR_IDENTITY -DCC_ACTOR_BUTTON -DCC_ACTOR_LIGHT -DCC_ACTOR_SOIL_MOISTURE -DCC_ACTOR_TEMPERATURE -DCC_ACTOR_REGISTRY_ATTIBUTE
 CFLAGS += -DCC_ADD_STRNSTR
 
 C_SOURCE_FILES += \
@@ -34,11 +34,13 @@ runtime/north/cc_msgpack_helper.c \
 msgpuck/msgpuck.c \
 calvinsys/cc_calvinsys.c \
 calvinsys/common/cc_calvinsys_timer.c \
+calvinsys/common/cc_calvinsys_attribute.c \
 actors/cc_actor_identity.c \
 actors/cc_actor_light.c \
 actors/cc_actor_button.c \
 actors/cc_actor_temperature.c \
-actors/cc_actor_soil_moisture.c
+actors/cc_actor_soil_moisture.c \
+actors/cc_actor_registry_attribute.c
 
 c_calvin: $(C_SOURCE_FILES)
 	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h

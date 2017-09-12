@@ -289,44 +289,6 @@ uint32_t platform_get_seconds(node_t *node)
 	return node->seconds + (sdk_system_get_time() / 1000000);
 }
 
-static result_t get_json_dict_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len)
-{
-	char *start = NULL;
-	size_t pos = 0, braces = 0, len = 0;
-
-	start = strnstr(buffer, key, buffer_len);
-	if (start != NULL) {
-		start = start + key_len + 1;
-		pos = start - buffer;
-		start = NULL;
-		while (pos < buffer_len) {
-			if (buffer[pos] == '{') {
-				if (start == NULL)
-					start = buffer + pos;
-				braces++;
-			}
-
-			if (buffer[pos] == '}') {
-				if (start == NULL)
-					break;
-				braces--;
-			}
-
-			if (start != NULL) {
-				len++;
-				if (braces == 0) {
-					*value_len = len;
-					*value = start;
-					return CC_RESULT_SUCCESS;
-				}
-			}
-			pos++;
-		}
-	}
-
-	return CC_RESULT_FAIL;
-}
-
 static result_t platform_esp_get_config(void)
 {
 	int sockfd = 0, newsockfd = 0, clilen = 0, len = 0;
@@ -404,7 +366,7 @@ static result_t platform_esp_get_config(void)
 			continue;
 		}
 
-		if (len_attributes > MAX_ATTRIBITES_LEN) {
+		if (len_attributes > MAX_ATTRIBUTES_LEN) {
 			cc_log_error("Attributes to big");
 			close(newsockfd);
 			continue;

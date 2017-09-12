@@ -44,12 +44,14 @@ static mp_obj_t cc_mp_obj_write(mp_obj_t arg_obj, mp_obj_t arg_data)
 	size_t size = 0;
 	cc_mp_calvinsys_obj_t *mp_obj = arg_obj;
 
-	if (encode_from_mpy_obj(&data, &size, arg_data) == CC_RESULT_SUCCESS) {
-		if (mp_obj->obj != NULL) {
+	if (mp_obj->obj != NULL) {
+		if (encode_from_mpy_obj(&data, &size, arg_data) == CC_RESULT_SUCCESS) {
 			if (mp_obj->obj->write(mp_obj->obj, data, size) == CC_RESULT_SUCCESS)
 				result = true;
-		}
-	}
+		} else
+			cc_log_error("Failed to encode Python object");
+	} else
+		cc_log_error("No object");
 
 	return mp_obj_new_bool(result);
 }

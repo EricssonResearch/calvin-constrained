@@ -658,3 +658,65 @@ def testSleepWithTimer():
 
     # verify actor removal
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':temp'])
+
+def testRegistryAttribute():
+    assert rt1 is not None
+    assert constrained_id is not None
+
+    script_name = "testRegistryAttribute"
+    script = """
+    tick : std.Trigger(data=null, tick=0.1)
+    attr: context.RegistryAttribute(attr="node_name.name")
+    snk : test.Sink(store_tokens=1, quiet=1)
+
+    tick.data > attr.trigger
+    attr.value > snk.token
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "tick": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "type": "+"
+               }],
+            "attr": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                    "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "type": "+"
+                }]
+        }
+    }
+    """
+
+    resp = request_handler.deploy_application(rt1,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+
+    # verify placement
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':attr'], constrained_id)
+
+    # verify data
+    wait_for_tokens(request_handler,
+                    rt1,
+                    resp['actor_map'][script_name + ':snk'], 5, 20)
+    actual = request_handler.report(rt1,
+                                    resp['actor_map'][script_name + ':snk'])
+    assert len(actual) >= 5
+    assert all(x == "constrained" for x in actual)
+
+    # remove app
+    request_handler.delete_application(rt1, resp['application_id'])
+
+    # verify actor removal
+    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':snk'])

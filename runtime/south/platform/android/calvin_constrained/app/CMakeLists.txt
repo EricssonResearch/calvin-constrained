@@ -19,6 +19,7 @@ add_library(
              ../../../../../../main.c
              ../../../../../../calvinsys/cc_calvinsys.c
              ../../../../../../calvinsys/common/cc_calvinsys_timer.c
+             ../../../../../../calvinsys/common/cc_calvinsys_attribute.c
              ../../../../../../cc_api.c
              ../../../../../../runtime/north/cc_common.c
              ../../../../../../runtime/north/scheduler/np_scheduler/cc_scheduler.c
@@ -45,6 +46,7 @@ add_library(
              ../../../../../../actors/cc_actor_stepcounter.c
              ../../../../../../runtime/north/cc_actor_store.c
              ../../../../../../actors/cc_actor_temperature.c
+             ../../../../../../actors/cc_actor_registry_attribute.c
 )
 
 find_library(

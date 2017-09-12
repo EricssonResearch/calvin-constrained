@@ -186,8 +186,8 @@ result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t input)
 		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)(*size));
 		return CC_RESULT_FAIL;
 	} else if (MP_OBJ_IS_STR(input)) {
-		str = mp_obj_get_type_str(input);
-		*size = mp_sizeof_str(strlen(str));
+		str = mp_obj_str_get_str(input);
+		*size = mp_sizeof_str(strlen(str) + strlen(str));
 		if (platform_mem_alloc((void **)buffer, *size) == CC_RESULT_SUCCESS) {
 			tmp = *buffer;
 			mp_encode_str(*buffer, str, strlen(str));

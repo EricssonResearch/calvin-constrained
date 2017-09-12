@@ -59,6 +59,8 @@ result_t proto_send_join_request(const node_t *node, transport_client_t *transpo
 
 	gen_uuid(msg_uuid, "MSGID_");
 
+	memset(buffer, 0, 600);
+
 	w = buffer + transport_client->prefix_len;
 	size = snprintf(w,
 		600 - transport_client->prefix_len,
@@ -80,6 +82,8 @@ result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*,
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 	list_t *capabilities = node->calvinsys->capabilities;
 	uint32_t nbr_of_capabilities = 0, nbr_of_attributes = 7;
+
+	memset(buffer, 0, 1000);
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -131,6 +135,8 @@ result_t proto_send_sleep_request(node_t *node, uint32_t seconds_to_sleep, resul
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 
+	memset(buffer, 0, 1000);
+
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
 
@@ -161,6 +167,8 @@ result_t proto_send_sleep_request(node_t *node, uint32_t seconds_to_sleep, resul
 result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
+
+	memset(buffer, 0, 1000);
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -195,6 +203,8 @@ result_t proto_send_tunnel_destroy(node_t *node, tunnel_t *tunnel, result_t (*ha
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
 
+	memset(buffer, 0, 1000);
+
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
 
@@ -225,6 +235,8 @@ result_t proto_send_tunnel_destroy(node_t *node, tunnel_t *tunnel, result_t (*ha
 result_t proto_send_reply(const node_t *node, char *msg_uuid, uint32_t msg_uuid_len, char *to_rt_uuid, uint32_t to_rt_uuid_len, uint32_t status)
 {
 	char buffer[1000], *w = NULL;
+
+	memset(buffer, 0, 1000);
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -266,6 +278,8 @@ result_t proto_send_tunnel_new_reply(const node_t *node, char *msg_uuid, uint32_
 {
 	char buffer[1000], *w = NULL;
 
+	memset(buffer, 0, 1000);
+
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
 
@@ -305,6 +319,8 @@ result_t proto_send_tunnel_new_reply(const node_t *node, char *msg_uuid, uint32_
 result_t proto_send_route_request_reply(const node_t *node, char *msg_uuid, uint32_t msg_uuid_len, char *to_rt_uuid, uint32_t to_rt_uuid_len, uint32_t status, char *dest_peer_id, uint32_t dest_peer_id_len)
 {
 	char buffer[1000], *w = NULL;
+
+	memset(buffer, 0, 1000);
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -346,6 +362,8 @@ result_t proto_send_port_connect_reply(const node_t *node, char *msg_uuid, uint3
 {
 	char buffer[1000], *w = NULL;
 
+	memset(buffer, 0, 1000);
+
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
 
@@ -385,6 +403,8 @@ result_t proto_send_port_connect_reply(const node_t *node, char *msg_uuid, uint3
 result_t proto_send_port_disconnect_reply(const node_t *node, char *msg_uuid, uint32_t msg_uuid_len, char *to_rt_uuid, uint32_t to_rt_uuid_len, uint32_t status)
 {
 	char buffer[1000], *w = NULL;
+
+	memset(buffer, 0, 1000);
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -430,6 +450,8 @@ result_t proto_send_token(const node_t *node, port_t *port, token_t *token, uint
 {
 	char buffer[1000], *w = NULL, *peer_id = NULL;
 
+	memset(buffer, 0, 1000);
+
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
 
@@ -465,6 +487,8 @@ result_t proto_send_token(const node_t *node, port_t *port, token_t *token, uint
 result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t sequencenbr, bool ack)
 {
 	char buffer[1000], *w = NULL, *peer_id = NULL;
+
+	memset(buffer, 0, 1000);
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -505,6 +529,8 @@ result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t seque
 result_t proto_send_port_connect(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE], *peer_id = NULL;
+
+	memset(buffer, 0, 1000);
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -550,6 +576,8 @@ result_t proto_send_port_disconnect(node_t *node, port_t *port, result_t (*handl
 {
 	char buffer[1000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE], *peer_id = NULL;
 
+	memset(buffer, 0, 1000);
+
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
 
@@ -592,6 +620,8 @@ result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*han
 	char buffer[1000], *w = NULL, key[50] = "", data[400] = "", inports[200] = "", outports[200] = "", msg_uuid[UUID_BUFFER_SIZE];
 	list_t *list = NULL;
 	port_t *port = NULL;
+
+	memset(buffer, 0, 1000);
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -678,6 +708,8 @@ result_t proto_send_remove_actor(node_t *node, actor_t *actor, result_t (*handle
 	char buffer[1000], *w = NULL, key[50], msg_uuid[UUID_BUFFER_SIZE];
 	int key_len = 0;
 
+	memset(buffer, 0, 1000);
+
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
 
@@ -717,6 +749,8 @@ result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(nod
 {
 	char buffer[2000], *w = NULL, key[50] = "", data[1000] = "", msg_uuid[UUID_BUFFER_SIZE], *peer_id = NULL;
 	int key_len = 0, data_len = 0;
+
+	memset(buffer, 0, 2000);
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
@@ -783,6 +817,8 @@ result_t proto_send_get_port(node_t *node, char *port_id, result_t (*handler)(no
 	char buffer[1000], msg_uuid[UUID_BUFFER_SIZE], *w = NULL, key[50] = "";
 	int key_len = 0;
 
+	memset(buffer, 0, 1000);
+
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
 
@@ -821,6 +857,8 @@ result_t proto_send_remove_port(node_t *node, port_t *port, result_t (*handler)(
 	char buffer[1000], *w = NULL, key[50] = "", msg_uuid[UUID_BUFFER_SIZE];
 	int key_len = 0;
 
+	memset(buffer, 0, 1000);
+
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
 
@@ -858,6 +896,8 @@ result_t proto_send_remove_port(node_t *node, port_t *port, result_t (*handler)(
 result_t proto_send_actor_new(node_t *node, actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, result_t (*handler)(node_t*, char*, size_t, void*))
 {
 	char buffer[2000], *w = NULL, msg_uuid[UUID_BUFFER_SIZE];
+
+	memset(buffer, 0, 2000);
 
 	if (node->transport_client == NULL)
 		return CC_RESULT_FAIL;
