@@ -71,22 +71,21 @@ static cc_result_t tunnel_request_handler(cc_node_t *node, char *data, size_t da
 	}
 
 	tunnel = cc_tunnel_get_from_id(node, tunnel_id, tunnel_id_len);
-	if (tunnel == NULL) {
-		cc_log("No tunnel with id '%.*s'", tunnel_id_len, tunnel_id);
-		return CC_FAIL;
-	}
-
-	strncpy(tunnel->id, tunnel_id, tunnel_id_len);
 
 	if (status == 200) {
-		cc_log_debug("Tunnel '%.*s' connected", (int)tunnel_id_len, tunnel_id);
-		tunnel->state = CC_TUNNEL_ENABLED;
-		return CC_SUCCESS;
+		if (tunnel != NULL) {
+			cc_log_debug("Tunnel '%.*s' connected", (int)tunnel_id_len, tunnel_id);
+			strncpy(tunnel->id, tunnel_id, tunnel_id_len);
+			tunnel->state = CC_TUNNEL_ENABLED;
+		}
+	} else {
+		if (tunnel != NULL) {
+			cc_log_error("Failed to connect tunnel");
+			tunnel->state = CC_TUNNEL_DISCONNECTED;
+		}
 	}
 
-	cc_log_error("Failed to connect tunnel");
-	tunnel->state = CC_TUNNEL_DISCONNECTED;
-	return CC_FAIL;
+	return CC_SUCCESS;
 }
 
 cc_tunnel_t *cc_tunnel_create(cc_node_t *node, cc_tunnel_type_t type, cc_tunnel_state_t state, char *peer_id, uint32_t peer_id_len, char *tunnel_id, uint32_t tunnel_id_len)
