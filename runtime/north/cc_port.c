@@ -83,7 +83,7 @@ static cc_result_t port_get_peer_port_reply_handler(cc_node_t *node, char *data,
 static void port_enable(cc_port_t *port)
 {
 	port_set_state(port, CC_PORT_ENABLED);
-	cc_actor_CC_PORT_ENABLED(port->actor);
+	cc_actor_port_enabled(port->actor);
 }
 
 static cc_result_t port_connect_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
@@ -228,7 +228,7 @@ cc_port_t *cc_port_create(cc_node_t *node, cc_actor_t*actor, char *obj_port, cha
 		port->tunnel = cc_tunnel_get_from_peerid_and_type(node, peer_id, peer_id_len, CC_TUNNEL_TYPE_TOKEN);
 		if (port->tunnel != NULL) {
 			port_set_state(port, CC_PORT_PENDING);
-			cc_actor_CC_PORT_ENABLED(actor);
+			cc_actor_port_enabled(actor);
 		}
 		cc_tunnel_add_ref(port->tunnel);
 	}
@@ -237,7 +237,7 @@ cc_port_t *cc_port_create(cc_node_t *node, cc_actor_t*actor, char *obj_port, cha
 		if (cc_coder_decode_uint_from_map(r, "constrained_state", (uint32_t *)&port->state) != CC_SUCCESS)
 			return NULL;
 		if (port->state == CC_PORT_ENABLED)
-			cc_actor_CC_PORT_ENABLED(port->actor);
+			cc_actor_port_enabled(port->actor);
 	} else {
 		if (node->transport_client != NULL) {
 			if (cc_proto_send_set_port(node, port, port_store_reply_handler) != CC_SUCCESS) {
@@ -374,7 +374,7 @@ cc_result_t cc_port_handle_connect(cc_node_t *node, const char *port_id, uint32_
 	if (port->tunnel != NULL) {
 		if (strncmp(port->tunnel->id, tunnel_id, tunnel_id_len) == 0) {
 			port_set_state(port, CC_PORT_ENABLED);
-			cc_actor_CC_PORT_ENABLED(port->actor);
+			cc_actor_port_enabled(port->actor);
 			return CC_SUCCESS;
 		}
 		cc_tunnel_remove_ref(node, port->tunnel);
@@ -388,7 +388,7 @@ cc_result_t cc_port_handle_connect(cc_node_t *node, const char *port_id, uint32_
 
 	cc_tunnel_add_ref(port->tunnel);
 	port_set_state(port, CC_PORT_ENABLED);
-	cc_actor_CC_PORT_ENABLED(port->actor);
+	cc_actor_port_enabled(port->actor);
 	cc_log_debug("Port '%s' connected by remote", port->id);
 
 	return CC_SUCCESS;
@@ -406,7 +406,7 @@ cc_result_t cc_port_handle_disconnect(cc_node_t *node, const char *port_id, uint
 
 	cc_fifo_cancel(port->fifo);
 	port_set_state(port, CC_PORT_DISCONNECTED);
-	cc_actor_CC_PORT_DISCONNECTED(port->actor);
+	cc_actor_port_disconnected(port->actor);
 
 	if (port->tunnel != NULL) {
 		cc_tunnel_remove_ref(node, port->tunnel);
@@ -522,4 +522,79 @@ void cc_port_transmit(cc_node_t *node, cc_port_t *port)
 		}
 	} else
 		port_setup_connection(node, port, NULL, 0);
+}
+
+char *cc_port_serialize_prev_connections(char *buffer, cc_port_t *port, const cc_node_t *node)
+{
+	char *peer_id = NULL;
+
+	peer_id = cc_port_get_peer_id(node, port);
+	buffer = cc_coder_encode_str(buffer, port->id, strnlen(port->id, CC_UUID_BUFFER_SIZE));
+	buffer = cc_coder_encode_array(buffer, 1);
+	buffer = cc_coder_encode_array(buffer, 2);
+	if (peer_id != NULL)
+		buffer = cc_coder_encode_str(buffer, peer_id, strnlen(peer_id, CC_UUID_BUFFER_SIZE));
+	else
+		buffer = cc_coder_encode_nil(buffer);
+	buffer = cc_coder_encode_str(buffer, port->peer_port_id, strnlen(port->peer_port_id, CC_UUID_BUFFER_SIZE));
+
+	return buffer;
+}
+
+char *cc_port_serialize_port(char *buffer, cc_port_t *port, bool include_state)
+{
+	unsigned int nbr_port_attributes = 4, i_token = 0;
+
+	if (include_state)
+		nbr_port_attributes += 1;
+
+	buffer = cc_coder_encode_kv_map(buffer, port->name, nbr_port_attributes);
+	{
+		if (include_state)
+			buffer = cc_coder_encode_kv_uint(buffer, "constrained_state", port->state);
+		buffer = cc_coder_encode_kv_str(buffer, "id", port->id, strnlen(port->id, CC_UUID_BUFFER_SIZE));
+		buffer = cc_coder_encode_kv_str(buffer, "name", port->name, strnlen(port->name, CC_UUID_BUFFER_SIZE));
+		buffer = cc_coder_encode_kv_map(buffer, "queue", 7);
+		{
+			buffer = cc_coder_encode_kv_str(buffer, "queuetype", "fanout_fifo", 11);
+			buffer = cc_coder_encode_kv_uint(buffer, "write_pos", port->fifo->write_pos);
+			buffer = cc_coder_encode_kv_array(buffer, "readers", 1);
+			{
+				if (port->direction == CC_PORT_DIRECTION_IN)
+					buffer = cc_coder_encode_str(buffer, port->id, strnlen(port->id, CC_UUID_BUFFER_SIZE));
+				else
+					buffer = cc_coder_encode_str(buffer, port->peer_port_id, strnlen(port->peer_port_id, CC_UUID_BUFFER_SIZE));
+			}
+			buffer = cc_coder_encode_kv_uint(buffer, "N", port->fifo->size);
+			buffer = cc_coder_encode_kv_map(buffer, "tentative_read_pos", 1);
+			{
+				if (port->direction == CC_PORT_DIRECTION_IN)
+					buffer = cc_coder_encode_kv_uint(buffer, port->id, port->fifo->tentative_read_pos);
+				else
+					buffer = cc_coder_encode_kv_uint(buffer, port->peer_port_id, port->fifo->tentative_read_pos);
+			}
+			buffer = cc_coder_encode_kv_map(buffer, "read_pos", 1);
+			{
+				if (port->direction == CC_PORT_DIRECTION_IN)
+					buffer = cc_coder_encode_kv_uint(buffer, port->id, port->fifo->tentative_read_pos);
+				else
+					buffer = cc_coder_encode_kv_uint(buffer, port->peer_port_id, port->fifo->read_pos);
+			}
+			buffer = cc_coder_encode_kv_array(buffer, "fifo", port->fifo->size);
+			{
+				for (i_token = 0; i_token < port->fifo->size; i_token++)
+					buffer = cc_token_encode(buffer, &port->fifo->tokens[i_token], false);
+			}
+		}
+		buffer = cc_coder_encode_kv_map(buffer, "properties", 3);
+		{
+			buffer = cc_coder_encode_kv_uint(buffer, "nbr_peers", 1);
+			if (port->direction == CC_PORT_DIRECTION_IN)
+				buffer = cc_coder_encode_kv_str(buffer, "direction", "in", 2);
+			else
+				buffer = cc_coder_encode_kv_str(buffer, "direction", "out", 3);
+			buffer = cc_coder_encode_kv_str(buffer, "routing", "default", 7);
+		}
+	}
+	return buffer;
 }

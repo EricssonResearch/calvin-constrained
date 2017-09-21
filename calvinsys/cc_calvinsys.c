@@ -104,6 +104,11 @@ cc_calvinsys_obj_t *cc_calvinsys_open(cc_calvinsys_t *calvinsys, const char *nam
 	cc_calvinsys_capability_t *capability = NULL;
 	cc_calvinsys_obj_t *result = NULL;
 
+	if (calvinsys == NULL) {
+		cc_log_error("Actor does not have a calvinsys");
+		return NULL;
+	}
+
 	capability = (cc_calvinsys_capability_t *)cc_list_get(calvinsys->capabilities, name);
 	if (capability != NULL) {
 		result = capability->handler->open(capability->handler, data, size, capability->state, calvinsys->next_id, name);

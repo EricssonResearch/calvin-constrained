@@ -226,7 +226,7 @@ cc_result_t cc_actor_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size
 	return result;
 }
 
-static cc_result_t cc_actor_mpy_init(cc_actor_t**actor, cc_list_t *attributes)
+static cc_result_t cc_actor_mpy_init(cc_actor_t **actor, cc_list_t *attributes)
 {
 	uint32_t j = 0, nbr_of_attributes = cc_list_count(attributes);
 	cc_list_t *list = attributes;
@@ -243,11 +243,15 @@ static cc_result_t cc_actor_mpy_init(cc_actor_t**actor, cc_list_t *attributes)
 	args[1] = actor_init_method[1];
 
 	while (list != NULL && result == CC_SUCCESS) {
-		tmp = mp_obj_new_str(list->id, strlen(list->id), true);
+		tmp = mp_obj_new_str(list->id, list->id_len, true);
 		j += 2;
 		args[j] = tmp;
-		result = cc_actor_mpy_decode_to_mpy_obj(list->data, &tmp);
+		if (cc_actor_mpy_decode_to_mpy_obj(list->data, &tmp) != CC_SUCCESS) {
+			cc_log_error("Failed to decode value from managed attribute");
+			return CC_FAIL;
+		}
 		args[j + 1] = tmp;
+		cc_log_debug("Added managed attribute '%.*s'", list->id_len, list->id);
 		list = list->next;
 	}
 
@@ -260,11 +264,10 @@ static cc_result_t cc_actor_mpy_init(cc_actor_t**actor, cc_list_t *attributes)
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_mpy_set_state(cc_actor_t**actor, cc_list_t *attributes)
+static cc_result_t cc_actor_mpy_set_state(cc_actor_t **actor, cc_list_t *attributes)
 {
 	uint32_t nbr_of_attributes = cc_list_count(attributes);
 	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)(*actor)->instance_state;
-	cc_result_t result = CC_SUCCESS;
 	uint32_t item = 0;
 	cc_list_t *list = attributes;
 	mp_obj_t value = MP_OBJ_NULL;
@@ -275,17 +278,17 @@ static cc_result_t cc_actor_mpy_set_state(cc_actor_t**actor, cc_list_t *attribut
 	// Copy to python world
 	py_managed_list = mp_obj_new_list(nbr_of_attributes, NULL);
 	mp_store_attr(state->actor_class_instance, QSTR_FROM_STR_STATIC("_managed"), py_managed_list);
-	cc_log_debug("in actor_mpy_set_state, after creating _managed list and associate it with actor instance");
-	while (list != NULL && result == CC_SUCCESS) {
-		q_attr = QSTR_FROM_STR_STATIC(list->id);
-		attr = mp_obj_new_str(list->id, strlen(list->id), true);
-		result = cc_actor_mpy_decode_to_mpy_obj((char *)list->data, &value);
-		if (result == CC_SUCCESS) {
-			mp_obj_list_store(py_managed_list, MP_OBJ_NEW_SMALL_INT(item), attr);
-			mp_store_attr(state->actor_class_instance, q_attr, value);
-			item++;
+	while (list != NULL) {
+		q_attr = qstr_from_strn(list->id, list->id_len);
+		attr = mp_obj_new_str(list->id, list->id_len, true);
+		if (cc_actor_mpy_decode_to_mpy_obj((char *)list->data, &value) != CC_SUCCESS) {
+			cc_log_error("Failed to decode value from managed attribute");
+			return CC_FAIL;
 		}
-		cc_log_debug("Adding attribute %s", list->id);
+		mp_obj_list_store(py_managed_list, MP_OBJ_NEW_SMALL_INT(item), attr);
+		mp_store_attr(state->actor_class_instance, q_attr, value);
+		item++;
+		cc_log_debug("Added managed attribute '%.*s'", list->id_len, list->id);
 		list = list->next;
 	}
 
@@ -293,12 +296,10 @@ static cc_result_t cc_actor_mpy_set_state(cc_actor_t**actor, cc_list_t *attribut
 	py_managed_list = MP_OBJ_NULL;
 	attr = MP_OBJ_NULL;
 
-	cc_log_debug("Done storing managed attributes\n");
-
-	return result;
+	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_mpy_get_managed_attributes(cc_actor_t*actor, cc_list_t **attributes)
+static cc_result_t cc_actor_mpy_get_managed_attributes(cc_actor_t *actor, cc_list_t **attributes)
 {
 	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)actor->instance_state;
 	qstr q_attr;
@@ -337,7 +338,7 @@ static cc_result_t cc_actor_mpy_get_managed_attributes(cc_actor_t*actor, cc_list
 	return CC_SUCCESS;
 }
 
-static bool cc_actor_mpy_fire(cc_actor_t*actor)
+static bool cc_actor_mpy_fire(cc_actor_t *actor)
 {
 	mp_obj_t res;
 	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)actor->instance_state;
@@ -356,7 +357,7 @@ static bool cc_actor_mpy_fire(cc_actor_t*actor)
 	return did_fire;
 }
 
-static void cc_actor_mpy_free_state(cc_actor_t*actor)
+static void cc_actor_mpy_free_state(cc_actor_t *actor)
 {
 	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)actor->instance_state;
 
@@ -373,7 +374,7 @@ static void cc_actor_mpy_free_state(cc_actor_t*actor)
 #endif
 }
 
-static void cc_actor_mpy_will_migrate(cc_actor_t*actor)
+static void cc_actor_mpy_will_migrate(cc_actor_t *actor)
 {
 	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)actor->instance_state;
 	mp_obj_t mpy_will_migrate[2];
@@ -386,7 +387,7 @@ static void cc_actor_mpy_will_migrate(cc_actor_t*actor)
 	mpy_will_migrate[1] = MP_OBJ_NULL;
 }
 
-static void cc_actor_mpy_will_end(cc_actor_t*actor)
+static void cc_actor_mpy_will_end(cc_actor_t *actor)
 {
 	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)actor->instance_state;
 	mp_obj_t mpy_will_end[2];
@@ -399,7 +400,7 @@ static void cc_actor_mpy_will_end(cc_actor_t*actor)
 	mpy_will_end[1] = MP_OBJ_NULL;
 }
 
-static void cc_actor_mpy_did_migrate(cc_actor_t*actor)
+static void cc_actor_mpy_did_migrate(cc_actor_t *actor)
 {
 	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)actor->instance_state;
 	mp_obj_t mpy_did_migrate[2];
@@ -412,16 +413,16 @@ static void cc_actor_mpy_did_migrate(cc_actor_t*actor)
 	mpy_did_migrate[1] = MP_OBJ_NULL;
 }
 
-cc_result_t cc_actor_mpy_init_from_type(cc_actor_t*actor, char *type, uint32_t type_len)
+cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 {
-	char *class = NULL, instance_name[30];
+	char *type = actor->type, *class = NULL, instance_name[30];
 	qstr actor_type_qstr, actor_class_qstr;
 	mp_obj_t args[1];
 	cc_actor_mpy_state_t *state = NULL;
 	mp_obj_t actor_module;
 	mp_obj_t actor_class_ref[2];
 	static int counter;
-	uint8_t pos = type_len;
+	uint8_t pos = actor->type_len, class_len = 0;
 
 	sprintf(instance_name, "actor_obj%d", counter++);
 
@@ -436,7 +437,9 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t*actor, char *type, uint32_t t
 	while (pos-- > 0) {
 			if (type[pos] == '.') {
 				class = type + (pos + 1);
+				break;
 			}
+			class_len++;
 	}
 
 	if (class == NULL) {
@@ -444,8 +447,8 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t*actor, char *type, uint32_t t
 		return CC_FAIL;
 	}
 
-	actor_type_qstr = QSTR_FROM_STR_STATIC(actor->type);
-	actor_class_qstr = QSTR_FROM_STR_STATIC(class);
+	actor_type_qstr = qstr_from_strn(type, actor->type_len);
+	actor_class_qstr = qstr_from_strn(class, class_len);
 
 	// load the module
 	// you have to pass mp_const_true to the second argument in order to return reference

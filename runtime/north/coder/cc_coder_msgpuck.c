@@ -543,3 +543,53 @@ char *cc_coder_get_name()
 
 	return name;
 }
+
+void cc_coder_print_value(char *value)
+{
+	switch (mp_typeof(*value)) {
+		case MP_FLOAT:
+		{
+			float f;
+			cc_coder_decode_float(value, &f);
+			cc_log("Type: float Value: %f", f);
+		}
+		break;
+		case MP_DOUBLE:
+		{
+			double d;
+			cc_coder_decode_double(value, &d);
+			cc_log("Type: double Value: %lf", d);
+		}
+		break;
+		case MP_BOOL:
+		{
+			bool b;
+			cc_coder_decode_bool(value, &b);
+			cc_log("Type: bool Value: %d", b);
+		}
+		break;
+		case MP_NIL:
+			cc_log("Type: NIL");
+			break;
+		case MP_INT:
+			cc_log("Type: int");
+			break;
+		case MP_UINT:
+			cc_log("Type: uint");
+			break;
+		case MP_MAP:
+			cc_log("Type: map");
+			break;
+		case MP_STR:
+			cc_log("Type: str");
+			break;
+		case MP_BIN:
+			cc_log("Type: bin");
+			break;
+		case MP_ARRAY:
+			cc_log("Type: array");
+			break;
+		default:
+			break;
+	}
+}

@@ -626,7 +626,7 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 	if (node->transport_client == NULL)
 		return CC_FAIL;
 
-	key_len = snprintf(key, 50, "actor-%s", actor->id);
+	key_len = snprintf(key, 50, "actor-%.*s", actor->id_len, actor->id);
 
 	if (!cc_node_can_add_pending_msg(node))
 		return CC_PENDING;
@@ -671,9 +671,11 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 
 	data_len = snprintf(data,
 		400,
-		"{\"is_shadow\": false, \"name\": \"%s\", \"node_id\": \"%s\", \"type\": \"%s\", \"inports\": [%s], \"outports\": [%s]}",
+		"{\"is_shadow\": false, \"name\": \"%.*s\", \"node_id\": \"%s\", \"type\": \"%.*s\", \"inports\": [%s], \"outports\": [%s]}",
+		actor->name_len,
 		actor->name,
 		node->id,
+		actor->type_len,
 		actor->type,
 		inports,
 		outports);
@@ -696,7 +698,7 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 
 	if (cc_transport_send(node->transport_client, buffer, w - buffer) == CC_SUCCESS) {
 		cc_log_debug("Sent SET '%s'", key);
-		cc_node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE), handler, (void *)actor->id);
+		cc_node_add_pending_msg(node, msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE), handler, actor->id);
 		return CC_SUCCESS;
 	}
 
@@ -716,7 +718,7 @@ cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_res
 	if (!cc_node_can_add_pending_msg(node))
 		return CC_PENDING;
 
-	key_len = snprintf(key, 50, "actor-%s", actor->id);
+	key_len = snprintf(key, 50, "actor-%.*s", actor->id_len, actor->id);
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
@@ -767,24 +769,26 @@ cc_result_t cc_proto_send_set_port(cc_node_t *node, cc_port_t *port, cc_result_t
 	if (peer_id != NULL)
 		data_len = snprintf(data,
 			1000,
-			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%s\"}",
+			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%.*s\"}",
 			peer_id,
 			port->peer_port_id,
 			port->direction == CC_PORT_DIRECTION_IN ? STRING_IN : STRING_OUT,
 			port->name,
 			node->id,
 			STRING_TRUE,
+			port->actor->id_len,
 			port->actor->id);
 	else
 		data_len = snprintf(data,
 			1000,
-			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%s\"}",
+			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%.*s\"}",
 			"null",
 			port->peer_port_id,
 			port->direction == CC_PORT_DIRECTION_IN ? STRING_IN : STRING_OUT,
 			port->name,
 			node->id,
 			STRING_TRUE,
+			port->actor->id_len,
 			port->actor->id);
 
 	w = buffer + node->transport_client->prefix_len;
@@ -893,7 +897,7 @@ cc_result_t cc_proto_send_remove_port(cc_node_t *node, cc_port_t *port, cc_resul
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_actor_new(cc_node_t *node, cc_actor_t*actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_actor_new(cc_node_t *node, cc_actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
 {
 	char buffer[2000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 

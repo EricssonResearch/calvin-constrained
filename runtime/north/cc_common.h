@@ -39,6 +39,7 @@ typedef enum {
 // list with a string identifier
 typedef struct cc_list_t {
 	char *id;
+	uint32_t id_len;
 	void *data;
 	uint32_t data_len;
 	bool free_id;

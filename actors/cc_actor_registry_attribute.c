@@ -31,7 +31,7 @@ static cc_result_t cc_actor_registry_attribute_init(cc_actor_t**actor, cc_list_t
   uint32_t data_len = 0;
 
   while (tmp != NULL) {
-    if (strncmp(tmp->id, "attr", 4) == 0) {
+    if (strncmp(tmp->id, "attribute", 9) == 0) {
       data = (char *)tmp->data;
       data_len = tmp->data_len;
       break;

@@ -666,7 +666,7 @@ def testRegistryAttribute():
     script_name = "testRegistryAttribute"
     script = """
     tick : std.Trigger(data=null, tick=0.1)
-    attr: context.RegistryAttribute(attr="node_name.name")
+    attr: context.RegistryAttribute(attribute="node_name.name")
     snk : test.Sink(store_tokens=1, quiet=1)
 
     tick.data > attr.trigger

@@ -30,15 +30,18 @@ typedef enum {
 } cc_actor_state_t;
 
 typedef struct cc_actor_t{
-	char id[CC_UUID_BUFFER_SIZE];
-	char name[CC_UUID_BUFFER_SIZE];
-	char type[CC_UUID_BUFFER_SIZE];
+	char *type;
+	uint32_t type_len;
+	char *id;
+	uint32_t id_len;
+	char *name;
+	uint32_t name_len;
 	char migrate_to[CC_UUID_BUFFER_SIZE]; // id of rt to migrate to if requested
 	cc_actor_state_t state;
 	void *instance_state;
 	cc_list_t *in_ports;
 	cc_list_t *out_ports;
-	cc_list_t *attributes;
+	cc_list_t *private_attributes;
 	cc_result_t (*init)(struct cc_actor_t **actor, cc_list_t *attributes);
 	cc_result_t (*set_state)(struct cc_actor_t **actor, cc_list_t *attributes);
 	bool (*fire)(struct cc_actor_t *actor);
@@ -53,8 +56,8 @@ typedef struct cc_actor_t{
 cc_actor_t *cc_actor_create(struct cc_node_t *node, char *root);
 void cc_actor_free(struct cc_node_t *node, cc_actor_t *actor, bool remove_from_registry);
 cc_actor_t *cc_actor_get(struct cc_node_t *node, const char *actor_id, uint32_t actor_id_len);
-void cc_actor_CC_PORT_ENABLED(cc_actor_t *actor);
-void cc_actor_CC_PORT_DISCONNECTED(cc_actor_t *actor);
+void cc_actor_port_enabled(cc_actor_t *actor);
+void cc_actor_port_disconnected(cc_actor_t *actor);
 void cc_actor_disconnect(struct cc_node_t *node, cc_actor_t *actor);
 cc_result_t cc_actor_migrate(struct cc_node_t *node, cc_actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len);
 char *cc_actor_serialize(const struct cc_node_t *node, const cc_actor_t *actor, char *buffer, bool include_state);

@@ -66,6 +66,7 @@ static cc_result_t cc__list_add(cc_list_t **head, char *id, bool free_id, void *
 	}
 
 	new_item->id = id;
+	new_item->id_len = strlen(id);
 	new_item->data = data;
 	new_item->data_len = data_len;
 	new_item->next = NULL;

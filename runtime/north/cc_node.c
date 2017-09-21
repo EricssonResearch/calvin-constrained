@@ -534,6 +534,7 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 {
 	char *uris = (char *)proxy_uris, *uri = NULL;
 	cc_list_t *item = NULL;
+	cc_actor_t *actor = NULL;
 
 	node->state = CC_NODE_DO_START;
 	node->fire_actors = fire_actors;
@@ -659,7 +660,8 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 		cc_log("Actors:");
 		item = node->actors;
 		while (item != NULL) {
-			cc_log(" %s %s", ((cc_actor_t*)item->data)->name, item->id);
+			actor = (cc_actor_t*)item->data;
+			cc_log(" %.*s %.*s", actor->id_len, actor->id, actor->name_len, actor->name);
 			item = item->next;
 		}
 	}

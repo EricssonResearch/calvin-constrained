@@ -84,27 +84,34 @@ static void cc_actor_identity_free(cc_actor_t*actor)
 static cc_result_t cc_actor_identity_get_managed_attributes(cc_actor_t*actor, cc_list_t **attributes)
 {
 	uint32_t size = 0;
-	char *value = NULL, *name = NULL;
+	char *dump = NULL, *last = NULL;
 	state_identity_t *state = (state_identity_t *)actor->instance_state;
 
-	if (cc_platform_mem_alloc((void **)&name, 5) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
-	}
-	strncpy(name, "dump", 5);
-
 	size = cc_coder_sizeof_bool(state->dump);
-	if (cc_platform_mem_alloc((void **)&value, size) != CC_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&dump, size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
 
-	cc_coder_encode_bool(value, state->dump);
+	cc_coder_encode_bool(dump, state->dump);
 
-	if (cc_list_add(attributes, name, value, size) != CC_SUCCESS) {
-		cc_log_error("Failed to add '%s' to managed list", name);
-		cc_platform_mem_free(name);
-		cc_platform_mem_free(value);
+	if (cc_list_add_n(attributes, "dump", 4, dump, size) != CC_SUCCESS) {
+		cc_log_error("Failed to add 'dump' to managed list");
+		cc_platform_mem_free(dump);
+		return CC_FAIL;
+	}
+
+	size = cc_coder_sizeof_nil();
+	if (cc_platform_mem_alloc((void **)&last, size) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+
+	cc_coder_encode_nil(last);
+
+	if (cc_list_add_n(attributes, "last", 4, last, size) != CC_SUCCESS) {
+		cc_log_error("Failed to add 'last' to managed list");
+		cc_platform_mem_free(last);
 		return CC_FAIL;
 	}
 

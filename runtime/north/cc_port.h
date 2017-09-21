@@ -64,5 +64,7 @@ cc_result_t cc_port_handle_disconnect(struct cc_node_t *node, const char *port_i
 cc_result_t cc_port_handle_connect(struct cc_node_t *node, const char *port_id, uint32_t port_id_len, const char *tunnel_id, uint32_t tunnel_id_len);
 void cc_port_disconnect(struct cc_node_t *node, cc_port_t *port);
 void cc_port_transmit(struct cc_node_t *node, cc_port_t *port);
+char *cc_port_serialize_prev_connections(char *buffer, cc_port_t *port, const struct cc_node_t *node);
+char *cc_port_serialize_port(char *buffer, cc_port_t *port, bool include_state);
 
 #endif /* CC_PORT_H */
