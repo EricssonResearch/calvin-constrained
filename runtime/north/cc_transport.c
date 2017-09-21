@@ -40,7 +40,7 @@ unsigned int cc_transport_get_message_len(const char *buffer)
 	return value;
 }
 
-static int transport_recv(cc_transport_client_t *transport_client, char *buffer, size_t size)
+static int cc_transport_recv(cc_transport_client_t *transport_client, char *buffer, size_t size)
 {
 #ifdef CC_TLS_ENABLED
 	return crypto_tls_recv(transport_client, buffer, size);
@@ -48,7 +48,7 @@ static int transport_recv(cc_transport_client_t *transport_client, char *buffer,
 	return transport_client->recv(transport_client, buffer, size);
 }
 
-static void transcc_port_free_transport_buffer(cc_transport_buffer_t *buffer)
+static void cc_transport_free_transport_buffer(cc_transport_buffer_t *buffer)
 {
 	cc_platform_mem_free((void *)buffer->buffer);
 	buffer->buffer = NULL;
@@ -75,9 +75,10 @@ cc_result_t cc_transport_handle_data(cc_node_t *node, cc_transport_client_t *tra
 				to_read = CC_TRANSPORT_RX_BUFFER_SIZE;
 			}
 
-			read = transport_recv(transport_client, rx_data, to_read);
+			read = cc_transport_recv(transport_client, rx_data, to_read);
 			if (read <= 0) {
 				cc_log_error("Failed to read data from transport");
+				transport_client->state = CC_TRANSPORT_DISCONNECTED;
 				return CC_FAIL;
 			}
 		}
@@ -87,7 +88,7 @@ cc_result_t cc_transport_handle_data(cc_node_t *node, cc_transport_client_t *tra
 			// TODO: Handle trailing data
 			if (transport_client->rx_buffer.size == transport_client->rx_buffer.pos) {
 				result = handler(node, transport_client->rx_buffer.buffer, msg_size);
-				transcc_port_free_transport_buffer(&transport_client->rx_buffer);
+				cc_transport_free_transport_buffer(&transport_client->rx_buffer);
 				return result;
 			}
 		} else {
