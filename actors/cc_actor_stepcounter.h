@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_STEPCOUNTER_H
-#define ACTOR_STEPCOUNTER_H
+#ifndef CC_ACTOR_STEPCOUNTER_H
+#define CC_ACTOR_STEPCOUNTER_H
 
 #include "../runtime/north/cc_common.h"
+#include "../calvinsys/cc_calvinsys.h"
 
-typedef struct actor_stepcounter_state_t {
-	calvinsys_obj_t *calvinsys_stepcounter;
+typedef struct cc_actor_stepcounter_state_t {
+	cc_calvinsys_obj_t *calvinsys_stepcounter;
 	char *stepcount;
 	size_t stepcount_size;
-} actor_stepcounter_state_t;
+} cc_actor_stepcounter_state_t;
 
-result_t actor_stepcounter_register(list_t **actor_types);
+cc_result_t cc_actor_stepcounter_register(cc_list_t **actor_types);
 
-#endif
+#endif /* CC_ACTOR_STEPCOUNTER_H */

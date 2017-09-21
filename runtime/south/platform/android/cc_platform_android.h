@@ -41,14 +41,14 @@ typedef struct android_platform_t {
 	int upstream_platform_fd[2]; // read end [0], write end [1]
 	int downstream_platform_fd[2];
 	ALooper *looper;
-	int (*send_upstream_platform_message)(const struct node_t *node, char *cmd, char *data, size_t data_size);
-	result_t (*send_downstream_platform_message)(const struct node_t *node, char *data, size_t data_size);
-	result_t (*read_upstream)(const struct node_t *node, char *buffer, size_t size);
+	int (*send_upstream_platform_message)(const struct cc_node_t *node, char *cmd, char *data, size_t data_size);
+	cc_result_t (*send_downstream_platform_message)(const struct cc_node_t *node, char *data, size_t data_size);
+	cc_result_t (*read_upstream)(const struct cc_node_t *node, char *buffer, size_t size);
 } android_platform_t;
 
 struct platform_command_handler_t {
 	char command[PLATFORM_ANDROID_COMMAND_SIZE];
-	result_t (*handler)(struct node_t *node, char *data, size_t size);
+	cc_result_t (*handler)(struct cc_node_t *node, char *data, size_t size);
 };
 
 typedef struct android_sensor_data_t {

@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_MPY_H
-#define ACTOR_MPY_H
+#ifndef CC_ACTOR_MPY_H
+#define CC_ACTOR_MPY_H
 
 #ifdef CC_PYTHON_ENABLED
 
@@ -23,16 +23,16 @@
 #include "py/objstr.h"
 #include "py/lexer.h"
 
-typedef struct ccmp_state_actor_t {
+typedef struct cc_actor_mpy_state_t {
 	mp_obj_t actor_class_instance;
 	mp_obj_t actor_fire_method[2];
-} ccmp_state_actor_t;
+} cc_actor_mpy_state_t;
 
-result_t actor_mpy_init_from_type(actor_t *actor, char *type, uint32_t type_len);
-result_t decode_to_mpy_obj(char *buffer, mp_obj_t *value);
-char *encode_mpy_map(char **buffer, mp_map_t *map);
-result_t encode_from_mpy_obj(char **buffer, size_t *size, mp_obj_t value);
+cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor, char *type, uint32_t type_len);
+cc_result_t cc_actor_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value);
+cc_result_t cc_actor_mpy_encode_mpy_map(mp_map_t *map, char **buffer, size_t buffer_size);
+cc_result_t cc_actor_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size_t *size);
 
 #endif
 
-#endif /* ACTOR_MPY_H */
+#endif /* CC_ACTOR_MPY_H */

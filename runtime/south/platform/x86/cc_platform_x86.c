@@ -25,20 +25,19 @@
 #include "../../../north/cc_node.h"
 #include "../../../north/cc_common.h"
 #include "../../../../calvinsys/cc_calvinsys.h"
-#include "../../../../msgpuck/msgpuck.h"
-#include "../../../north/cc_msgpack_helper.h"
+#include "../../../north/coder/cc_coder.h"
 
 typedef enum {
 	CC_GPIO_IN,
 	CC_GPIO_OUT
-} calvinsys_gpio_direction;
+} cc_calvinsys_gpio_direction;
 
-typedef struct calvinsys_gpio_state_t {
+typedef struct cc_calvinsys_gpio_state_t {
 	int pin;
-	calvinsys_gpio_direction direction;
-} calvinsys_gpio_state_t;
+	cc_calvinsys_gpio_direction direction;
+} cc_calvinsys_gpio_state_t;
 
-void platform_print(const char *fmt, ...)
+void cc_platform_print(const char *fmt, ...)
 {
 	va_list args;
 
@@ -48,52 +47,52 @@ void platform_print(const char *fmt, ...)
 	va_end(args);
 }
 
-result_t platform_stop(node_t *node)
+cc_result_t cc_platform_stop(cc_node_t *node)
 {
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-result_t platform_node_started(struct node_t *node)
+cc_result_t cc_platform_node_started(struct cc_node_t *node)
 {
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
 // calvinsys functions
-static bool platform_temp_can_read(struct calvinsys_obj_t *obj)
+static bool platform_temp_can_read(struct cc_calvinsys_obj_t *obj)
 {
 	return true;
 }
 
-static result_t platform_temp_read(struct calvinsys_obj_t *obj, char **data, size_t *size)
+static cc_result_t platform_temp_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
 	double temp = 15.5;
 
-	*size = mp_sizeof_double(temp);
-	if (platform_mem_alloc((void **)data, *size) != CC_RESULT_SUCCESS) {
+	*size = cc_coder_sizeof_double(temp);
+	if (cc_platform_mem_alloc((void **)data, *size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	mp_encode_double(*data, temp);
+	cc_coder_encode_double(*data, temp);
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-static bool platform_calvinsys_temp_can_write(struct calvinsys_obj_t *obj)
+static bool platform_calvinsys_temp_can_write(struct cc_calvinsys_obj_t *obj)
 {
 	return true;
 }
 
-static result_t platform_calvinsys_temp_write(struct calvinsys_obj_t *obj, char *data, size_t size)
+static cc_result_t platform_calvinsys_temp_write(struct cc_calvinsys_obj_t *obj, char *data, size_t size)
 {
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
+static cc_calvinsys_obj_t *platform_temp_open(cc_calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
 {
-	calvinsys_obj_t *obj = NULL;
+	cc_calvinsys_obj_t *obj = NULL;
 
-	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&obj, sizeof(cc_calvinsys_obj_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
@@ -110,11 +109,11 @@ static calvinsys_obj_t *platform_temp_open(calvinsys_handler_t *handler, char *d
 	return obj;
 }
 
-static calvinsys_handler_t *platform_create_temperature_handler(void)
+static cc_calvinsys_handler_t *cc_platform_create_temperature_handler(void)
 {
-	calvinsys_handler_t *handler = NULL;
+	cc_calvinsys_handler_t *handler = NULL;
 
-	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) == CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&handler, sizeof(cc_calvinsys_handler_t)) == CC_SUCCESS) {
 		handler->open = platform_temp_open;
 		handler->objects = NULL;
 		handler->next = NULL;
@@ -124,59 +123,59 @@ static calvinsys_handler_t *platform_create_temperature_handler(void)
 	return handler;
 }
 
-static bool platform_calvinsys_digitial_in_out_can_write(struct calvinsys_obj_t *obj)
+static bool platform_calvinsys_digitial_in_out_can_write(struct cc_calvinsys_obj_t *obj)
 {
 	return true;
 }
 
-static result_t platform_calvinsys_digitial_in_out_write(struct calvinsys_obj_t *obj, char *data, size_t size)
+static cc_result_t platform_calvinsys_digitial_in_out_write(struct cc_calvinsys_obj_t *obj, char *data, size_t size)
 {
 	uint32_t value = 0;
 
-	if (decode_uint(data, &value) == CC_RESULT_SUCCESS) {
+	if (cc_coder_decode_uint(data, &value) == CC_SUCCESS) {
 		cc_log("Setting digitial out with '%d'", (int)value);
-		return CC_RESULT_SUCCESS;
+		return CC_SUCCESS;
 	}
 
 	cc_log_error("Failed to decode data");
-	return CC_RESULT_FAIL;
+	return CC_FAIL;
 }
 
-static bool platform_calvinsys_digitial_in_out_can_read(struct calvinsys_obj_t *obj)
+static bool platform_calvinsys_digitial_in_out_can_read(struct cc_calvinsys_obj_t *obj)
 {
 	return true;
 }
 
-static result_t platform_calvinsys_digitial_in_out_read(struct calvinsys_obj_t *obj, char **data, size_t *size)
+static cc_result_t platform_calvinsys_digitial_in_out_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
 	static uint32_t value = 1;
 
-	*size = mp_sizeof_uint(value);
-	if (platform_mem_alloc((void **)data, *size) != CC_RESULT_SUCCESS) {
+	*size = cc_coder_sizeof_uint(value);
+	if (cc_platform_mem_alloc((void **)data, *size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	mp_encode_uint(*data, value);
+	cc_coder_encode_uint(*data, value);
 
 	if (value == 1)
 		value = 0;
 	else
 		value = 1;
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-static result_t platform_calvinsys_digitial_in_out_close(struct calvinsys_obj_t *obj)
+static cc_result_t platform_calvinsys_digitial_in_out_close(struct cc_calvinsys_obj_t *obj)
 {
 	cc_log("Closing digitial in/out");
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
+static cc_calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(cc_calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
 {
-	calvinsys_obj_t *obj = NULL;
-	calvinsys_gpio_state_t *gpio_state = (calvinsys_gpio_state_t *)state;
+	cc_calvinsys_obj_t *obj = NULL;
+	cc_calvinsys_gpio_state_t *gpio_state = (cc_calvinsys_gpio_state_t *)state;
 
 	if (gpio_state->direction == CC_GPIO_IN)
 		cc_log("Opening pin '%d' as input", gpio_state->pin);
@@ -187,7 +186,7 @@ static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handle
 		return NULL;
 	}
 
-	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&obj, sizeof(cc_calvinsys_obj_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
@@ -204,11 +203,11 @@ static calvinsys_obj_t *platform_calvinsys_digitial_in_out_open(calvinsys_handle
 	return obj;
 }
 
-static calvinsys_handler_t *platform_create_digitial_in_out_handler(void)
+static cc_calvinsys_handler_t *cc_platform_create_digitial_in_out_handler(void)
 {
-	calvinsys_handler_t *handler = NULL;
+	cc_calvinsys_handler_t *handler = NULL;
 
-	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) == CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&handler, sizeof(cc_calvinsys_handler_t)) == CC_SUCCESS) {
 		handler->open = platform_calvinsys_digitial_in_out_open;
 		handler->objects = NULL;
 		handler->next = NULL;
@@ -220,61 +219,61 @@ static calvinsys_handler_t *platform_create_digitial_in_out_handler(void)
 
 // end of calvinsys functions
 
-result_t platform_create_calvinsys(calvinsys_t **calvinsys)
+cc_result_t cc_platform_create_calvinsys(cc_calvinsys_t **calvinsys)
 {
-	calvinsys_handler_t *handler = NULL;
-	calvinsys_gpio_state_t *state_light = NULL, *state_button = NULL;
+	cc_calvinsys_handler_t *handler = NULL;
+	cc_calvinsys_gpio_state_t *state_light = NULL, *state_button = NULL;
 
-	handler = platform_create_temperature_handler();
+	handler = cc_platform_create_temperature_handler();
 	if (handler == NULL)
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 
-	calvinsys_add_handler(calvinsys, handler);
-	if (calvinsys_register_capability(*calvinsys, "io.temperature", handler, NULL) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	cc_calvinsys_add_handler(calvinsys, handler);
+	if (cc_calvinsys_register_capability(*calvinsys, "io.temperature", handler, NULL) != CC_SUCCESS)
+		return CC_FAIL;
 
-	handler = platform_create_digitial_in_out_handler();
+	handler = cc_platform_create_digitial_in_out_handler();
 	if (handler == NULL)
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 
-	calvinsys_add_handler(calvinsys, handler);
+	cc_calvinsys_add_handler(calvinsys, handler);
 
-	if (platform_mem_alloc((void **)&state_light, sizeof(calvinsys_gpio_state_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&state_light, sizeof(cc_calvinsys_gpio_state_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	state_light->pin = 1;
 	state_light->direction = CC_GPIO_OUT;
 
-	if (calvinsys_register_capability(*calvinsys, "io.light", handler, state_light) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_calvinsys_register_capability(*calvinsys, "io.light", handler, state_light) != CC_SUCCESS)
+		return CC_FAIL;
 
-	if (platform_mem_alloc((void **)&state_button, sizeof(calvinsys_gpio_state_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&state_button, sizeof(cc_calvinsys_gpio_state_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	state_button->pin = 2;
 	state_button->direction = CC_GPIO_IN;
 
-	if (calvinsys_register_capability(*calvinsys, "io.button", handler, state_button) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_calvinsys_register_capability(*calvinsys, "io.button", handler, state_button) != CC_SUCCESS)
+		return CC_FAIL;
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-void platform_init(void)
+void cc_platform_init(void)
 {
 	srand(time(NULL));
 }
 
-result_t platform_create(node_t *node)
+cc_result_t cc_platform_create(cc_node_t *node)
 {
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
+bool cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
 {
 	fd_set fds;
 	int fd = 0;
@@ -288,16 +287,16 @@ bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 
 	FD_ZERO(&fds);
 
-	if (node->transport_client != NULL && (node->transport_client->state == TRANSPORT_PENDING || node->transport_client->state == TRANSPORT_ENABLED)) {
-		FD_SET(((transport_socket_client_t *)node->transport_client->client_state)->fd, &fds);
-		fd = ((transport_socket_client_t *)node->transport_client->client_state)->fd;
+	if (node->transport_client != NULL && (node->transport_client->state == CC_TRANSPORT_PENDING || node->transport_client->state == CC_TRANSPORT_ENABLED)) {
+		FD_SET(((cc_transport_socket_client_t *)node->transport_client->client_state)->fd, &fds);
+		fd = ((cc_transport_socket_client_t *)node->transport_client->client_state)->fd;
 
 		select(fd + 1, &fds, NULL, NULL, tv_ref);
 
 		if (FD_ISSET(fd, &fds)) {
-			if (transport_handle_data(node, node->transport_client, node_handle_message) != CC_RESULT_SUCCESS) {
+			if (cc_transport_handle_data(node, node->transport_client, cc_node_handle_message) != CC_SUCCESS) {
 				cc_log_error("Failed to read data from transport");
-				node->transport_client->state = TRANSPORT_DISCONNECTED;
+				node->transport_client->state = CC_TRANSPORT_DISCONNECTED;
 			}
 			return true;
 		}
@@ -307,34 +306,34 @@ bool platform_evt_wait(node_t *node, uint32_t timeout_seconds)
 	return false;
 }
 
-result_t platform_mem_alloc(void **buffer, uint32_t size)
+cc_result_t cc_platform_mem_alloc(void **buffer, uint32_t size)
 {
 	*buffer = malloc(size);
 	if (*buffer == NULL) {
 		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)size);
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-void *platform_mem_calloc(size_t nitems, size_t size)
+void *cc_platform_mem_calloc(size_t nitems, size_t size)
 {
 	void *ptr = NULL;
 
-	if (platform_mem_alloc(&ptr, nitems * size) != CC_RESULT_SUCCESS)
+	if (cc_platform_mem_alloc(&ptr, nitems * size) != CC_SUCCESS)
 		return NULL;
 
 	memset(ptr, 0, nitems * size);
 	return ptr;
 }
 
-void platform_mem_free(void *buffer)
+void cc_platform_mem_free(void *buffer)
 {
 	free(buffer);
 }
 
-uint32_t platform_get_seconds(node_t *node)
+uint32_t cc_platform_get_seconds(cc_node_t *node)
 {
 	struct timeval value;
 
@@ -344,14 +343,14 @@ uint32_t platform_get_seconds(node_t *node)
 }
 
 #ifdef CC_DEEPSLEEP_ENABLED
-void platform_deepsleep(node_t *node, uint32_t time)
+void cc_platform_deepsleep(cc_node_t *node, uint32_t time)
 {
 	cc_log("Going to deepsleep state, runtime will stop!");
 }
 #endif
 
 #ifdef CC_STORAGE_ENABLED
-void platform_write_node_state(node_t *node, char *buffer, size_t size)
+void cc_platform_write_node_state(cc_node_t *node, char *buffer, size_t size)
 {
 	FILE *fp = NULL;
 	int len = 0;
@@ -368,7 +367,7 @@ void platform_write_node_state(node_t *node, char *buffer, size_t size)
 		cc_log("Failed to open %s for writing", CC_CONFIG_FILE);
 }
 
-result_t platform_read_node_state(node_t *node, char buffer[], size_t size)
+cc_result_t cc_platform_read_node_state(cc_node_t *node, char buffer[], size_t size)
 {
 	FILE *fp = NULL;
 
@@ -376,9 +375,9 @@ result_t platform_read_node_state(node_t *node, char buffer[], size_t size)
 	if (fp != NULL) {
 		fread(buffer, 1, size, fp);
 		fclose(fp);
-		return CC_RESULT_SUCCESS;
+		return CC_SUCCESS;
 	}
 
-	return CC_RESULT_FAIL;
+	return CC_FAIL;
 }
 #endif

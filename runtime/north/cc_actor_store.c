@@ -51,67 +51,67 @@
 #include "../../actors/cc_actor_registry_attribute.h"
 #endif
 
-result_t actor_store_init(list_t **actor_types)
+cc_result_t cc_actor_store_init(cc_list_t **actor_types)
 {
 #ifdef CC_ACTOR_BUTTON
-	if (actor_button_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_button_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
 #ifdef CC_ACTOR_IDENTITY
-	if (actor_identity_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_identity_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
 #ifdef CC_ACTOR_LIGHT
-	if (actor_light_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_light_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
 #ifdef CC_ACTOR_SOIL_MOISTURE
-	if (actor_soil_moisture_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_soil_moisture_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
 #ifdef CC_ACTOR_TEMPERATURE
-	if (actor_temperature_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_temperature_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
 #ifdef CC_ACTOR_CAMERA
-	if (actor_camera_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_camera_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
 #ifdef CC_ACTOR_ACCELEROMETER
-	if (actor_accelerometer_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_accelerometer_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
 #ifdef CC_ACTOR_GYROSCOPE
-	if (actor_gyroscope_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_gyroscope_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
 #ifdef CC_ACTOR_PRESSURE
-	if (actor_pressure_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_pressure_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
 #ifdef CC_ACTOR_PICKUPGESTURE
-	if (actor_pickupgesture_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_pickupgesture_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
 #ifdef CC_ACTOR_STEPCOUNTER
-	if (actor_stepcounter_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_stepcounter_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
 #ifdef CC_ACTOR_REGISTRY_ATTIBUTE
-	if (actor_registry_attribute_register(actor_types) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_actor_registry_attribute_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
 #endif
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_REGISTRY_ATTRIBUTE_H
-#define ACTOR_REGISTRY_ATTRIBUTE_H
+#ifndef CC_ACTOR_REGISTRY_ATTRIBUTE_H
+#define CC_ACTOR_REGISTRY_ATTRIBUTE_H
 
 #include "../runtime/north/cc_common.h"
 
-result_t actor_registry_attribute_register(list_t **actor_types);
+cc_result_t cc_actor_registry_attribute_register(cc_list_t **actor_types);
 
-#endif /* ACTOR_REGISTRY_ATTRIBUTE_H */
+#endif /* CC_ACTOR_REGISTRY_ATTRIBUTE_H */

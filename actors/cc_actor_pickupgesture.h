@@ -18,6 +18,6 @@
 
 #include "../runtime/north/cc_common.h"
 
-result_t actor_pickupgesture_register(list_t **actor_types);
+cc_result_t cc_actor_pickupgesture_register(cc_list_t **actor_types);
 
-#endif
+#endif  /* ACTOR_PICKUPGESTURE_H */

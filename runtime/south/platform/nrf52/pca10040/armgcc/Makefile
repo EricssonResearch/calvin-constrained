@@ -82,6 +82,7 @@ $(abspath main.c) \
 $(abspath cc_api.c) \
 $(abspath calvinsys/cc_calvinsys.c) \
 $(abspath calvinsys/common/cc_calvinsys_timer.c) \
+$(abspath calvinsys/common/cc_calvinsys_attribute.c) \
 $(abspath runtime/south/platform/nrf52/cc_platform_nrf52.c) \
 $(abspath runtime/north/cc_common.c) \
 $(abspath runtime/north/scheduler/np_scheduler/cc_scheduler.c) \
@@ -96,7 +97,7 @@ $(abspath runtime/north/cc_actor.c) \
 $(abspath runtime/north/cc_port.c) \
 $(abspath runtime/north/cc_fifo.c) \
 $(abspath runtime/north/cc_token.c) \
-$(abspath runtime/north/cc_msgpack_helper.c) \
+$(abspath runtime/north/coder/cc_coder_msgpuck.c) \
 $(abspath msgpuck/msgpuck.c) \
 $(abspath actors/cc_actor_identity.c) \
 $(abspath actors/cc_actor_temperature.c) \
@@ -119,11 +120,14 @@ ASM_SOURCE_FILES  = $(abspath $(NORDIC_SDK_PATH)/components/toolchain/gcc/gcc_st
 LIBS  = $(abspath $(NORDIC_SDK_PATH)/components/iot/ble_6lowpan/lib/ble_6lowpan.a)
 
 #includes common to all targets
+INC_PATHS += -I$(abspath runtime/north)
+INC_PATHS += -I$(abspath runtime/north/coder)
 INC_PATHS += -I$(abspath runtime/south/platform/nrf52/config)
 INC_PATHS += -I$(abspath runtime/south/platform/nrf52/pca10040/armgcc)
 INC_PATHS += -I$(abspath msgpuck)
 INC_PATHS += -I$(abspath actors)
 INC_PATHS += -I$(abspath calvinsys)
+INC_PATHS += -I$(abspath calvinsys/common)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/iot/errno)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/softdevice/s1xx_iot/headers)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/common)

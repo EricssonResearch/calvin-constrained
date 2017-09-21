@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef TOKEN_H
-#define TOKEN_H
+#ifndef CC_TOKEN_H
+#define CC_TOKEN_H
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include "cc_common.h"
 
-typedef struct token_t {
+typedef struct cc_token_t {
 	char *value;
 	size_t size;
-} token_t;
+} cc_token_t;
 
-void token_set_data(token_t *token, char *data, const size_t size);
-char *token_encode(char **buffer, token_t *token, bool with_key);
-void token_free(token_t *token);
+void cc_token_set_data(cc_token_t *token, char *data, const size_t size);
+char *cc_token_encode(char *buffer, cc_token_t *token, bool with_key);
+void cc_token_free(cc_token_t *token);
 
-#endif /* TOKEN_H */
+#endif /* CC_TOKEN_H */

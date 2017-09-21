@@ -29,4 +29,4 @@ mpy-cross:
 	$(MAKE) lib -C $(MP_LIB_DIR)
 ```
 
-The MicroPython heap is alloacted using the platform_mem_alloc() function and the size should be configured to handle actors included in library. And the default configuration of MicroPython, libmpy/mpconfigport.h, is configured to enable a limited set of Python functionality to minimize the size. Adding new actors can imply enabling functionality.
+The MicroPython heap is alloacted using the cc_platform_mem_alloc() function and the size should be configured to handle actors included in library. And the default configuration of MicroPython, libmpy/mpconfigport.h, is configured to enable a limited set of Python functionality to minimize the size. Adding new actors can imply enabling functionality.

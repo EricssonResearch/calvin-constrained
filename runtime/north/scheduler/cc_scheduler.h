@@ -19,6 +19,6 @@
 #include <stdbool.h>
 #include "../cc_node.h"
 
-bool fire_actors(node_t *node);
+bool fire_actors(cc_node_t *node);
 
 #endif /* SCHEDULER_H */

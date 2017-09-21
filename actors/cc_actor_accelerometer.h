@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_ACCELEROMETER_H
-#define ACTOR_ACCELEROMETER_H
+#ifndef CC_ACTOR_ACCELEROMETER_H
+#define CC_ACTOR_ACCELEROMETER_H
 
 #include "../runtime/north/cc_common.h"
 
-result_t actor_accelerometer_register(list_t **actor_types);
+cc_result_t cc_actor_accelerometer_register(cc_list_t **actor_types);
 
-#endif
+#endif /* CC_ACTOR_ACCELEROMETER_H */

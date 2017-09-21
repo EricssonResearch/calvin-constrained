@@ -13,24 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_STORE_H
-#define ACTOR_STORE_H
+#ifndef CC_ACTOR_STORE_H
+#define CC_ACTOR_STORE_H
 
 #include <stdbool.h>
 #include "cc_common.h"
 #include "cc_actor.h"
 
-typedef struct actor_type_t {
-	result_t (*init)(actor_t **actor, list_t *attributes);
-	result_t (*set_state)(actor_t **actor, list_t *attributes);
-	void (*free_state)(actor_t *actor);
-	bool (*fire_actor)(actor_t *actor);
-	result_t (*get_managed_attributes)(actor_t *actor, list_t **attributes);
-	void (*will_migrate)(actor_t *actor);
-	void (*will_end)(actor_t *actor);
-	void (*did_migrate)(actor_t *actor);
-} actor_type_t;
+typedef struct cc_actor_type_t {
+	cc_result_t (*init)(cc_actor_t**actor, cc_list_t *attributes);
+	cc_result_t (*set_state)(cc_actor_t**actor, cc_list_t *attributes);
+	void (*free_state)(cc_actor_t*actor);
+	bool (*fire_actor)(cc_actor_t*actor);
+	cc_result_t (*get_managed_attributes)(cc_actor_t*actor, cc_list_t **attributes);
+	void (*will_migrate)(cc_actor_t*actor);
+	void (*will_end)(cc_actor_t*actor);
+	void (*did_migrate)(cc_actor_t*actor);
+} cc_actor_type_t;
 
-result_t actor_store_init(list_t **actor_types);
+cc_result_t cc_actor_store_init(cc_list_t **actor_types);
 
-#endif /* ACTOR_STORE_H */
+#endif /* CC_ACTOR_STORE_H */

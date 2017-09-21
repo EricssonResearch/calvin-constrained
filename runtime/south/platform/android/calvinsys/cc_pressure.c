@@ -20,18 +20,17 @@
 #include "cc_pressure.h"
 #include "../../../../../runtime/south/platform/cc_platform.h"
 #include "../../../../../runtime/south/platform/android/cc_platform_android.h"
-#include "../../../../../msgpuck/msgpuck.h"
 #include "../../../../../calvinsys/cc_calvinsys.h"
 #include "../../../../../runtime/north/cc_node.h"
-#include "../../../../../runtime/north/cc_msgpack_helper.h"
+#include "../../../../../runtime/north/coder/cc_coder.h"
 
-static bool pressure_can_read(struct calvinsys_obj_t *obj)
+static bool pressure_can_read(struct cc_calvinsys_obj_t *obj)
 {
 	android_sensor_data_t *data_acc = (android_sensor_data_t *)obj->state;
 	return data_acc->data != NULL && data_acc->data_size > 0;
 }
 
-static result_t pressure_read(struct calvinsys_obj_t *obj, char **data, size_t *size)
+static cc_result_t pressure_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
 	android_sensor_data_t *data_acc = (android_sensor_data_t *)obj->state;
 
@@ -40,27 +39,27 @@ static result_t pressure_read(struct calvinsys_obj_t *obj, char **data, size_t *
 		*size = data_acc->data_size;
 		data_acc->data = NULL;
 		data_acc->data_size = 0;
-		return CC_RESULT_SUCCESS;
+		return CC_SUCCESS;
 	}
-	return CC_RESULT_FAIL;
+	return CC_FAIL;
 }
 
-static result_t pressure_close(calvinsys_obj_t *obj)
+static cc_result_t pressure_close(cc_calvinsys_obj_t *obj)
 {
 	android_sensor_data_t *data_acc = (android_sensor_data_t *)obj->state;
 
 	ASensorEventQueue_disableSensor(data_acc->queue, data_acc->sensor);
 
 	if (data_acc->data != NULL)
-		platform_mem_free((void *)data_acc->data);
-	platform_mem_free((void *)data_acc);
+		cc_platform_mem_free((void *)data_acc->data);
+	cc_platform_mem_free((void *)data_acc);
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
 static int pressure_looper_callback(int fd, int events, void *data)
 {
-	calvinsys_obj_t *obj = (calvinsys_obj_t *)data;
+	cc_calvinsys_obj_t *obj = (cc_calvinsys_obj_t *)data;
 	android_sensor_data_t *data_acc = (android_sensor_data_t *)obj->state;
 	size_t size = 0;
 	char *w = NULL;
@@ -74,17 +73,17 @@ static int pressure_looper_callback(int fd, int events, void *data)
 		}
 
 		if (data_acc->data != NULL)
-			platform_mem_free((void *)data_acc->data);
+			cc_platform_mem_free((void *)data_acc->data);
 
-		size = 50 + mp_sizeof_float(event.pressure);
+		size = 50 + cc_coder_sizeof_float(event.pressure);
 
-		if (platform_mem_alloc((void **)&data_acc->data, size) != CC_RESULT_SUCCESS) {
+		if (cc_platform_mem_alloc((void **)&data_acc->data, size) != CC_SUCCESS) {
 			cc_log_error("Failed to allocate memory");
 			return CC_ANDROID_LOOPER_CALLBACK_RESULT_UNREGISTER;
 		}
 
 		w = data_acc->data;
-		w = mp_encode_float(w, event.pressure);
+		w = cc_coder_encode_float(w, event.pressure);
 		data_acc->data_size = w - data_acc->data;
 
 		return CC_ANDROID_LOOPER_CALLBACK_RESULT_CONTINUE;
@@ -94,22 +93,22 @@ static int pressure_looper_callback(int fd, int events, void *data)
 	return CC_ANDROID_LOOPER_CALLBACK_RESULT_UNREGISTER;
 }
 
-static calvinsys_obj_t *pressure_open(calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char* capability_name)
+static cc_calvinsys_obj_t *pressure_open(cc_calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char* capability_name)
 {
-	calvinsys_obj_t *obj = NULL;
+	cc_calvinsys_obj_t *obj = NULL;
 
 	android_sensor_data_t *data_acc = NULL;
 	android_platform_t* platform = (android_platform_t*) handler->calvinsys->node->platform;
 
 	ASensorManager *mg= ASensorManager_getInstance();
-	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&obj, sizeof(cc_calvinsys_obj_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
-	if (platform_mem_alloc((void **)&data_acc, sizeof(android_sensor_data_t))) {
+	if (cc_platform_mem_alloc((void **)&data_acc, sizeof(android_sensor_data_t))) {
 		cc_log_error("Failed to allocate memory");
-		platform_mem_free((void *)obj);
+		cc_platform_mem_free((void *)obj);
 		return NULL;
 	}
 
@@ -119,8 +118,8 @@ static calvinsys_obj_t *pressure_open(calvinsys_handler_t *handler, char *data, 
 
 	if (data_acc->sensor == NULL) {
 		cc_log_error("Failed to get sensor");
-		platform_mem_free((void *)obj);
-		platform_mem_free((void *)data_acc);
+		cc_platform_mem_free((void *)obj);
+		cc_platform_mem_free((void *)data_acc);
 		return NULL;
 	}
 
@@ -137,22 +136,22 @@ static calvinsys_obj_t *pressure_open(calvinsys_handler_t *handler, char *data, 
 	return obj;
 }
 
-result_t calvinsys_pressure_create(calvinsys_t **calvinsys, const char *name)
+cc_result_t calvinsys_pressure_create(cc_calvinsys_t **calvinsys, const char *name)
 {
-	calvinsys_handler_t *handler = NULL;
+	cc_calvinsys_handler_t *handler = NULL;
 
-	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&handler, sizeof(cc_calvinsys_handler_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	handler->open = pressure_open;
 	handler->objects = NULL;
 	handler->next = NULL;
 
-	calvinsys_add_handler(calvinsys, handler);
-	if (calvinsys_register_capability(*calvinsys, name, handler, NULL) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	cc_calvinsys_add_handler(calvinsys, handler);
+	if (cc_calvinsys_register_capability(*calvinsys, name, handler, NULL) != CC_SUCCESS)
+		return CC_FAIL;
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }

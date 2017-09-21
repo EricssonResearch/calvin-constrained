@@ -24,15 +24,15 @@
 #define CRYPTO_CERT_FILE "cert.pem"
 #define CRYPTO_PRIVE_KEY_FILE "private.key"
 
-result_t crypto_get_node_info(char domain[], char name[], char id[])
+cc_result_t crypto_get_node_info(char domain[], char name[], char id[])
 {
 	char buf[CRYPTO_PARSE_BUF_SIZE];
 	mbedtls_x509_crt crt;
-	result_t result = FAIL;
+	cc_result_t result = FAIL;
 	int ret = 0;
 
 #ifdef MBEDTLS_NO_PLATFORM_ENTROPY
-	mbedtls_platform_set_calloc_free(platform_mem_calloc, platform_mem_free);
+	mbedtls_platform_set_calloc_free(cc_platform_mem_calloc, cc_platform_mem_free);
 #endif
 
 	memset(buf, 0, CRYPTO_PARSE_BUF_SIZE);
@@ -66,19 +66,19 @@ static void crypto_debug_cb(void *ctx, int level, const char *file, int line, co
 
 static int _crypto_tls_send(void *ctx, const unsigned char *buffer, size_t size)
 {
-	transport_client_t *transport_client = (transport_client_t *)ctx;
+	cc_transport_client_t *transport_client = (cc_transport_client_t *)ctx;
 
 	return transport_client->send(transport_client, (char *)buffer, size);
 }
 
 static int _crypto_tls_read(void *ctx, unsigned char *buffer, size_t size)
 {
-	transport_client_t *transport_client = (transport_client_t *)ctx;
+	cc_transport_client_t *transport_client = (cc_transport_client_t *)ctx;
 
 	return transport_client->recv(transport_client, (char *)buffer, size);
 }
 
-result_t crypto_tls_init(char *node_id, transport_client_t *transport_client)
+cc_result_t crypto_tls_init(char *node_id, cc_transport_client_t *transport_client)
 {
 	int ret = 0;
 
@@ -119,7 +119,7 @@ result_t crypto_tls_init(char *node_id, transport_client_t *transport_client)
 #ifndef MBEDTLS_NO_PLATFORM_ENTROPY
 	mbedtls_ssl_conf_rng(&transport_client->crypto.conf, mbedtls_ctr_drbg_random, &transport_client->crypto.ctr_drbg);
 #else
-	mbedtls_ssl_conf_rng(&transport_client->crypto.conf, platform_random_vector_generate, NULL);
+	mbedtls_ssl_conf_rng(&transport_client->crypto.conf, cc_platform_random_vector_generate, NULL);
 #endif
 	mbedtls_ssl_conf_dbg(&transport_client->crypto.conf, crypto_debug_cb, NULL);
 	mbedtls_ssl_conf_own_cert(&transport_client->crypto.conf, &transport_client->crypto.cacert, &transport_client->crypto.private_key);
@@ -149,7 +149,7 @@ result_t crypto_tls_init(char *node_id, transport_client_t *transport_client)
 	return SUCCESS;
 }
 
-int crypto_tls_send(transport_client_t *transport_client, char *buffer, size_t size)
+int crypto_tls_send(cc_transport_client_t *transport_client, char *buffer, size_t size)
 {
 	int ret = 0;
 
@@ -163,7 +163,7 @@ int crypto_tls_send(transport_client_t *transport_client, char *buffer, size_t s
 	return ret;
 }
 
-int crypto_tls_recv(transport_client_t *transport_client, char *buffer, size_t size)
+int crypto_tls_recv(cc_transport_client_t *transport_client, char *buffer, size_t size)
 {
 	return mbedtls_ssl_read(&transport_client->crypto.ssl, (unsigned char *)buffer, size);
 }

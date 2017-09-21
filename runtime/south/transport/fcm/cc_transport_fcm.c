@@ -29,26 +29,26 @@
  * platform commands are handled elsewhere.
  */
 
-static result_t transport_fcm_connect(node_t *node, transport_client_t *transport_client)
+static cc_result_t transport_fcm_connect(cc_node_t *node, cc_transport_client_t *transport_client)
 {
-	char buffer[TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE];
+	char buffer[CC_TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE];
 
 	if (((android_platform_t *)node->platform)->send_upstream_platform_message(
 			node,
 			PLATFORM_ANDROID_FCM_CONNECT,
 			buffer,
-			TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE) > 0) {
-		transport_client->state = TRANSPORT_PENDING;
-		return CC_RESULT_SUCCESS;
+			CC_TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE) > 0) {
+		transport_client->state = CC_TRANSPORT_PENDING;
+		return CC_SUCCESS;
 	}
 
 	cc_log_error("Failed to send connect request");
-	transport_client->state = TRANSPORT_INTERFACE_DOWN;
+	transport_client->state = CC_TRANSPORT_INTERFACE_DOWN;
 
-	return CC_RESULT_FAIL;
+	return CC_FAIL;
 }
 
-static int transport_fcm_send(transport_client_t *transport_client, char *data, size_t size)
+static int transport_fcm_send(cc_transport_client_t *transport_client, char *data, size_t size)
 {
 	transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
 
@@ -61,7 +61,7 @@ static int transport_fcm_send(transport_client_t *transport_client, char *data, 
 		size);
 }
 
-static int transport_fcm_recv(transport_client_t *transport_client, char *buffer, size_t size)
+static int transport_fcm_recv(cc_transport_client_t *transport_client, char *buffer, size_t size)
 {
 	transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
 
@@ -69,7 +69,7 @@ static int transport_fcm_recv(transport_client_t *transport_client, char *buffer
 	return read(((android_platform_t *)fcm_client->node->platform)->downstream_platform_fd[0], buffer, size);
 }
 
-static void transport_fcm_disconnect(node_t *node, transport_client_t *transport_client)
+static void transport_fcm_disconnect(cc_node_t *node, cc_transport_client_t *transport_client)
 {
 	// TODO: Send disconnect message to calvin base
 	// TODO: Close these pipes somewhere (from java)
@@ -81,45 +81,45 @@ static void transport_fcm_disconnect(node_t *node, transport_client_t *transport
 	 */
 }
 
-static void transport_fcm_free(transport_client_t *transport_client)
+static void transport_fcm_free(cc_transport_client_t *transport_client)
 {
 	if (transport_client->client_state != NULL)
-		platform_mem_free((void *)transport_client->client_state);
-	platform_mem_free((void *)transport_client);
+		cc_platform_mem_free((void *)transport_client->client_state);
+	cc_platform_mem_free((void *)transport_client);
 }
 
-transport_client_t *transport_fcm_create(struct node_t *node, char *uri)
+cc_transport_client_t *transport_fcm_create(struct cc_node_t *node, char *uri)
 {
-	transport_client_t *transport_client = NULL;
+	cc_transport_client_t *transport_client = NULL;
 	transport_fcm_client_t *fcm_client = NULL;
 
-	if (platform_mem_alloc((void **)&transport_client, sizeof(transport_client_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&transport_client, sizeof(cc_transport_client_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
-	memset(transport_client, 0, sizeof(transport_client_t));
+	memset(transport_client, 0, sizeof(cc_transport_client_t));
 
-	if (platform_mem_alloc((void **)&fcm_client, sizeof(transport_fcm_client_t)) != CC_RESULT_SUCCESS) {
-		platform_mem_free((void *)transport_client);
+	if (cc_platform_mem_alloc((void **)&fcm_client, sizeof(transport_fcm_client_t)) != CC_SUCCESS) {
+		cc_platform_mem_free((void *)transport_client);
 		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
 	fcm_client->node = node;
 	transport_client->client_state = fcm_client;
-	transport_client->transport_type = TRANSPORT_FCM_TYPE;
+	transport_client->transport_type = CC_TRANSPORT_FCM_TYPE;
 	transport_client->rx_buffer.buffer = NULL;
 	transport_client->rx_buffer.pos = 0;
 	transport_client->rx_buffer.size = 0;
-	transport_client->prefix_len = TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE;
+	transport_client->prefix_len = CC_TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE;
 
 	transport_client->connect = transport_fcm_connect;
 	transport_client->send = transport_fcm_send;
 	transport_client->recv = transport_fcm_recv;
 	transport_client->disconnect = transport_fcm_disconnect;
 	transport_client->free = transport_fcm_free;
-	transport_client->state = TRANSPORT_INTERFACE_UP;
+	transport_client->state = CC_TRANSPORT_INTERFACE_UP;
 	strncpy(transport_client->uri, uri, strlen(uri) + 1);
 
 	// Dependency for Android, must be run on an Android phone as of now.

@@ -244,7 +244,7 @@ public class CalvinService extends Service {
     public void onDestroy() {
         Log.d(LOG_TAG, "Destorying Calvin service");
         this.unregisterReceiver(br);
-        if (calvin.nodeState != Calvin.STATE.NODE_STOP) {
+        if (calvin.nodeState != Calvin.STATE.CC_NODE_STOP) {
             if (calvin.runtimeSerialize)
                 calvin.runtimeSerializeAndStop(calvin.node);
             else
@@ -376,7 +376,7 @@ class CalvinDataListenThread implements Runnable{
 
             @Override
             public void handleData(byte[] data) {
-                calvin.nodeState = Calvin.STATE.NODE_STOP;
+                calvin.nodeState = Calvin.STATE.CC_NODE_STOP;
             }
         };
         handlers[4] = new CalvinMessageHandler() {
@@ -509,7 +509,7 @@ class CalvinDataListenThread implements Runnable{
                           cmh.handleData(payload);
                       }
                   }
-              if (calvin.nodeState == Calvin.STATE.NODE_STOP) {
+              if (calvin.nodeState == Calvin.STATE.CC_NODE_STOP) {
                   // TODO: Close pipes here instead of from calvin constrained
                   break;
               }

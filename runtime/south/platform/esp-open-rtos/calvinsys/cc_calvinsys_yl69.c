@@ -16,16 +16,16 @@
 #include <espressif/esp_common.h>
 #include "cc_calvinsys_yl69.h"
 #include "../../../../north/cc_node.h"
+#include "../../../../north/coder/cc_coder.h"
 #include "../../cc_platform.h"
 #include "../../../../../calvinsys/cc_calvinsys.h"
-#include "../../../../../msgpuck/msgpuck.h"
 
-static bool calvinsys_yl69_can_read(struct calvinsys_obj_t *obj)
+static bool cc_calvinsys_yl69_can_read(struct cc_calvinsys_obj_t *obj)
 {
 	return true;
 }
 
-static result_t calvinsys_yl69_read(struct calvinsys_obj_t *obj, char **data, size_t *size)
+static cc_result_t cc_calvinsys_yl69_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
 	uint16_t adc_value = sdk_system_adc_read();
 	float humidity = 1024 - adc_value;
@@ -33,35 +33,35 @@ static result_t calvinsys_yl69_read(struct calvinsys_obj_t *obj, char **data, si
 	humidity = humidity / 1024;
 	humidity = humidity * 100;
 
-	*size = mp_sizeof_float(humidity);
-	if (platform_mem_alloc((void **)data, *size) != CC_RESULT_SUCCESS) {
+	*size = cc_coder_sizeof_float(humidity);
+	if (cc_platform_mem_alloc((void **)data, *size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
-	mp_encode_float(*data, humidity);
+	*data = cc_coder_encode_float(*data, humidity);
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-static result_t calvinsys_yl69_close(struct calvinsys_obj_t *obj)
+static cc_result_t cc_calvinsys_yl69_close(struct cc_calvinsys_obj_t *obj)
 {
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-static calvinsys_obj_t *calvinsys_yl69_open(calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
+static cc_calvinsys_obj_t *cc_calvinsys_yl69_open(cc_calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
 {
-	calvinsys_obj_t *obj = NULL;
+	cc_calvinsys_obj_t *obj = NULL;
 
-	if (platform_mem_alloc((void **)&obj, sizeof(calvinsys_obj_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&obj, sizeof(cc_calvinsys_obj_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
 	obj->can_write = NULL;
 	obj->write = NULL;
-	obj->can_read = calvinsys_yl69_can_read;
-	obj->read = calvinsys_yl69_read;
-	obj->close = calvinsys_yl69_close;
+	obj->can_read = cc_calvinsys_yl69_can_read;
+	obj->read = cc_calvinsys_yl69_read;
+	obj->close = cc_calvinsys_yl69_close;
 	obj->handler = handler;
 	obj->next = NULL;
 	obj->state = NULL;
@@ -70,22 +70,22 @@ static calvinsys_obj_t *calvinsys_yl69_open(calvinsys_handler_t *handler, char *
 	return obj;
 }
 
-result_t calvinsys_yl69_create(calvinsys_t **calvinsys, const char *name)
+cc_result_t cc_calvinsys_yl69_create(cc_calvinsys_t **calvinsys, const char *name)
 {
-	calvinsys_handler_t *handler = NULL;
+	cc_calvinsys_handler_t *handler = NULL;
 
-	if (platform_mem_alloc((void **)&handler, sizeof(calvinsys_handler_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&handler, sizeof(cc_calvinsys_handler_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	handler->open = calvinsys_yl69_open;
+	handler->open = cc_calvinsys_yl69_open;
 	handler->objects = NULL;
 	handler->next = NULL;
 
-	calvinsys_add_handler(calvinsys, handler);
-	if (calvinsys_register_capability(*calvinsys, name, handler, NULL) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	cc_calvinsys_add_handler(calvinsys, handler);
+	if (cc_calvinsys_register_capability(*calvinsys, name, handler, NULL) != CC_SUCCESS)
+		return CC_FAIL;
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }

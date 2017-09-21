@@ -21,49 +21,49 @@
 #include "libmpy/cc_mpy_port.h"
 #endif
 
-result_t api_runtime_init(node_t **node, const char *attributes, const char *proxy_uris, const char *storage_dir)
+cc_result_t cc_api_runtime_init(cc_node_t **node, const char *attributes, const char *proxy_uris, const char *storage_dir)
 {
-	platform_init();
+	cc_platform_init();
 
 #ifdef CC_PYTHON_ENABLED
-	if (!mpy_port_init(CC_PYTHON_HEAP_SIZE)) {
+	if (!cc_mpy_port_init(CC_PYTHON_HEAP_SIZE)) {
 		cc_log_error("Failed to initialize micropython lib");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 #endif
 
-	if (platform_mem_alloc((void **)node, sizeof(node_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)node, sizeof(cc_node_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
-	memset(*node, 0, sizeof(node_t));
+	memset(*node, 0, sizeof(cc_node_t));
 
-	return node_init(*node, attributes, proxy_uris, storage_dir);
+	return cc_node_init(*node, attributes, proxy_uris, storage_dir);
 }
 
-result_t api_runtime_start(node_t *node)
+cc_result_t cc_api_runtime_start(cc_node_t *node)
 {
-	node_run(node);
-	return CC_RESULT_SUCCESS;
+	cc_node_run(node);
+	return CC_SUCCESS;
 }
 
-result_t api_runtime_stop(node_t *node)
+cc_result_t cc_api_runtime_stop(cc_node_t *node)
 {
-	node->state = NODE_STOP;
-	return CC_RESULT_SUCCESS;
+	node->state = CC_NODE_STOP;
+	return CC_SUCCESS;
 }
 
-result_t api_runtime_serialize_and_stop(node_t *node)
+cc_result_t cc_api_runtime_serialize_and_stop(cc_node_t *node)
 {
 #ifdef CC_STORAGE_ENABLED
-	if (node->state == NODE_STARTED)
-		node_set_state(node);
+	if (node->state == CC_NODE_STARTED)
+		cc_node_set_state(node);
 #endif
-	return api_runtime_stop(node);
+	return cc_api_runtime_stop(node);
 }
 
 #ifdef CC_STORAGE_ENABLED
-result_t api_clear_serialization_file(char *filedir)
+cc_result_t cc_api_clear_serialization_file(char *filedir)
 {
 	char abs_filepath[strlen(CC_CONFIG_FILE) + strlen(filedir) + 1];
 
@@ -72,14 +72,14 @@ result_t api_clear_serialization_file(char *filedir)
 		strcat(abs_filepath, "/");
 	strcat(abs_filepath, CC_CONFIG_FILE);
 	if (unlink(abs_filepath) < 0)
-		return CC_RESULT_FAIL;
-	return CC_RESULT_SUCCESS;
+		return CC_FAIL;
+	return CC_SUCCESS;
 }
 #endif
 
-result_t api_reconnect(node_t *node)
+cc_result_t cc_api_reconnect(cc_node_t *node)
 {
-	if (node->transport_client->state == TRANSPORT_ENABLED)
-		node->transport_client->state = TRANSPORT_INTERFACE_DOWN;
-	return CC_RESULT_SUCCESS;
+	if (node->transport_client->state == CC_TRANSPORT_ENABLED)
+		node->transport_client->state = CC_TRANSPORT_INTERFACE_DOWN;
+	return CC_SUCCESS;
 }

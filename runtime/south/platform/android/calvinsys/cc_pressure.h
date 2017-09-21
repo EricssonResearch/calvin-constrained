@@ -19,6 +19,6 @@
 #include "../../../../../runtime/north/cc_common.h"
 #include "../../../../../calvinsys/cc_calvinsys.h"
 
-result_t calvinsys_pressure_create(calvinsys_t **calvinsys, const char *name);
+cc_result_t calvinsys_pressure_create(cc_calvinsys_t **calvinsys, const char *name);
 
 #endif

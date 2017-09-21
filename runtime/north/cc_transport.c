@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include "cc_transport.h"
 #include "cc_node.h"
+#include "coder/cc_coder.h"
 #include "cc_proto.h"
 #include "../south/platform/cc_platform.h"
 #ifdef CC_TRANSPORT_SOCKET
@@ -29,7 +30,7 @@
 #include "../south/transport/fcm/cc_transport_fcm.h"
 #endif
 
-unsigned int transport_get_message_len(const char *buffer)
+unsigned int cc_transport_get_message_len(const char *buffer)
 {
 	unsigned int value =
 		((buffer[3] & 0xFF) <<  0) |
@@ -39,7 +40,7 @@ unsigned int transport_get_message_len(const char *buffer)
 	return value;
 }
 
-static int transport_recv(transport_client_t *transport_client, char *buffer, size_t size)
+static int transport_recv(cc_transport_client_t *transport_client, char *buffer, size_t size)
 {
 #ifdef CC_TLS_ENABLED
 	return crypto_tls_recv(transport_client, buffer, size);
@@ -47,21 +48,21 @@ static int transport_recv(transport_client_t *transport_client, char *buffer, si
 	return transport_client->recv(transport_client, buffer, size);
 }
 
-static void transport_free_transport_buffer(transport_buffer_t *buffer)
+static void transcc_port_free_transport_buffer(cc_transport_buffer_t *buffer)
 {
-	platform_mem_free((void *)buffer->buffer);
+	cc_platform_mem_free((void *)buffer->buffer);
 	buffer->buffer = NULL;
 	buffer->pos = 0;
 	buffer->size = 0;
 }
 
-result_t transport_handle_data(node_t *node, transport_client_t *transport_client, result_t (*handler)(node_t *node, char *data, size_t size))
+cc_result_t cc_transport_handle_data(cc_node_t *node, cc_transport_client_t *transport_client, cc_result_t (*handler)(cc_node_t *node, char *data, size_t size))
 {
-	char *rx_data = NULL, rx_buffer[TRANSPORT_RX_BUFFER_SIZE];
+	char *rx_data = NULL, rx_buffer[CC_TRANSPORT_RX_BUFFER_SIZE];
 	int read = 0, read_pos = 0, msg_size = 0, to_read = 0;
-	result_t result = CC_RESULT_SUCCESS;
+	cc_result_t result = CC_SUCCESS;
 
-	memset(rx_buffer, 0, TRANSPORT_RX_BUFFER_SIZE);
+	memset(rx_buffer, 0, CC_TRANSPORT_RX_BUFFER_SIZE);
 
 	// read until atleast one complete message has been received
 	while (true) {
@@ -71,13 +72,13 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 				to_read = transport_client->rx_buffer.size - transport_client->rx_buffer.pos;
 			} else {
 				rx_data = rx_buffer;
-				to_read = TRANSPORT_RX_BUFFER_SIZE;
+				to_read = CC_TRANSPORT_RX_BUFFER_SIZE;
 			}
 
 			read = transport_recv(transport_client, rx_data, to_read);
 			if (read <= 0) {
 				cc_log_error("Failed to read data from transport");
-				return CC_RESULT_FAIL;
+				return CC_FAIL;
 			}
 		}
 
@@ -86,18 +87,18 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 			// TODO: Handle trailing data
 			if (transport_client->rx_buffer.size == transport_client->rx_buffer.pos) {
 				result = handler(node, transport_client->rx_buffer.buffer, msg_size);
-				transport_free_transport_buffer(&transport_client->rx_buffer);
+				transcc_port_free_transport_buffer(&transport_client->rx_buffer);
 				return result;
 			}
 		} else {
-			msg_size = transport_get_message_len(rx_data + read_pos);
-			read_pos += TRANSPORT_LEN_PREFIX_SIZE;
+			msg_size = cc_transport_get_message_len(rx_data + read_pos);
+			read_pos += CC_TRANSPORT_LEN_PREFIX_SIZE;
 			if (msg_size == (read - read_pos)) {
 				return handler(node, rx_data + read_pos, msg_size);
 			} else if (msg_size > (read - read_pos)) {
-				if (platform_mem_alloc((void **)&transport_client->rx_buffer.buffer, msg_size) != CC_RESULT_SUCCESS) {
+				if (cc_platform_mem_alloc((void **)&transport_client->rx_buffer.buffer, msg_size) != CC_SUCCESS) {
 					cc_log_error("Failed to allocate memory");
-					return CC_RESULT_FAIL;
+					return CC_FAIL;
 				}
 
 				memcpy(transport_client->rx_buffer.buffer, rx_buffer + read_pos, read - read_pos);
@@ -106,8 +107,8 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 				read_pos = 0;
 				read = 0;
 			} else {
-				if (handler(node, rx_data + read_pos, msg_size) != CC_RESULT_SUCCESS)
-					return CC_RESULT_FAIL;
+				if (handler(node, rx_data + read_pos, msg_size) != CC_SUCCESS)
+					return CC_FAIL;
 				read_pos += msg_size;
 			}
 		}
@@ -116,7 +117,7 @@ result_t transport_handle_data(node_t *node, transport_client_t *transport_clien
 	return result;
 }
 
-void transport_set_length_prefix(char *buffer, size_t size)
+void cc_transport_set_length_prefix(char *buffer, size_t size)
 {
 	buffer[0] = size >> 24 & 0xFF;
 	buffer[1] = size >> 16 & 0xFF;
@@ -124,53 +125,63 @@ void transport_set_length_prefix(char *buffer, size_t size)
 	buffer[3] = size & 0xFF;
 }
 
-result_t transport_send(transport_client_t *transport_client, char *buffer, int size)
+cc_result_t cc_transport_send(cc_transport_client_t *transport_client, char *buffer, int size)
 {
-	transport_set_length_prefix(buffer, size - TRANSPORT_LEN_PREFIX_SIZE);
+	cc_transport_set_length_prefix(buffer, size - CC_TRANSPORT_LEN_PREFIX_SIZE);
 
 #ifdef CC_TLS_ENABLED
 	if (crypto_tls_send(transport_client, buffer, size) == size)
-		return CC_RESULT_SUCCESS;
+		return CC_SUCCESS;
 	cc_log_error("Failed to send TLS data");
 #else
 	if (transport_client->send(transport_client, buffer, size) == size)
-		return CC_RESULT_SUCCESS;
+		return CC_SUCCESS;
 	cc_log_error("Failed to send data");
 #endif
 
-	return CC_RESULT_FAIL;
+	return CC_FAIL;
 }
 
-result_t transport_join(node_t *node, transport_client_t *transport_client)
+cc_result_t cc_transport_join(cc_node_t *node, cc_transport_client_t *transport_client)
 {
+	char *serializer = NULL;
+
 #ifdef CC_TLS_ENABLED
-	if (crypto_tls_init(node->id, transport_client) != CC_RESULT_SUCCESS) {
+	if (crypto_tls_init(node->id, transport_client) != CC_SUCCESS) {
 		cc_log_error("Failed initialize TLS");
 		transport_client->disconnect(node, transport_client);
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 #endif
 
-	if (proto_send_join_request(node, transport_client, SERIALIZER) != CC_RESULT_SUCCESS) {
-		cc_log_error("Failed to send join request");
-		return CC_RESULT_FAIL;
+	serializer = cc_coder_get_name();
+	if (serializer == NULL) {
+		cc_log_error("Failed to get serializer name");
+		return CC_FAIL;
 	}
 
-	transport_client->state = TRANSPORT_PENDING;
+	if (cc_proto_send_join_request(node, transport_client, serializer) != CC_SUCCESS) {
+		cc_log_error("Failed to send join request");
+		cc_platform_mem_free((void *)serializer);
+		return CC_FAIL;
+	}
 
-	return CC_RESULT_SUCCESS;
+	transport_client->state = CC_TRANSPORT_PENDING;
+	cc_platform_mem_free((void *)serializer);
+
+	return CC_SUCCESS;
 }
 
-transport_client_t *transport_create(node_t *node, char *uri)
+cc_transport_client_t *cc_transport_create(cc_node_t *node, char *uri)
 {
 #ifdef CC_TRANSPORT_SOCKET
 	if (strncmp(uri, "calvinip://", 11) == 0 || strncmp(uri, "ssdp", 4) == 0)
-		return transport_socket_create(node, uri);
+		return cc_transport_socket_create(node, uri);
 #endif
 
 #ifdef CC_TRANSPORT_LWIP
 	if (strncmp(uri, "lwip", 4) == 0)
-		return transport_lwip_create(node);
+		return cc_transport_lwip_create(node);
 #endif
 #ifdef CC_TRANSPORT_FCM
 	if (strncmp(uri, "calvinfcm://", 12) == 0)

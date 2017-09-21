@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef CALVINSYS_YL69_H
-#define CALVINSYS_YL69_H
+#ifndef CC_CALVINSYS_YL69_H
+#define CC_CALVINSYS_YL69_H
 
 #include "../../../../../runtime/north/cc_common.h"
 #include "../../../../../calvinsys/cc_calvinsys.h"
 
-result_t calvinsys_yl69_create(calvinsys_t **calvinsys, const char *name);
+cc_result_t cc_calvinsys_yl69_create(cc_calvinsys_t **calvinsys, const char *name);
 
-#endif /* CALVINSYS_YL69_H */
+#endif /* CC_CALVINSYS_YL69_H */

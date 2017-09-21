@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_GYROSCOPE_H
-#define ACTOR_GYROSCOPE_H
+#ifndef CC_ACTOR_GYROSCOPE_H
+#define CC_ACTOR_GYROSCOPE_H
 
 #include "../runtime/north/cc_common.h"
 
-result_t actor_gyroscope_register(list_t **actor_types);
+cc_result_t cc_actor_gyroscope_register(cc_list_t **actor_types);
 
-#endif
+#endif /* CC_ACTOR_GYROSCOPE_H */

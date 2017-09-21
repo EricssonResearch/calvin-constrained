@@ -23,8 +23,8 @@
 #endif
 #include "../../north/cc_common.h"
 
-struct node_t;
-struct transport_client_t;
+struct cc_node_t;
+struct cc_transport_client_t;
 
 typedef struct crypto_t {
 #ifndef MBEDTLS_NO_PLATFORM_ENTROPY
@@ -37,10 +37,10 @@ typedef struct crypto_t {
 	mbedtls_pk_context private_key;
 } crypto_t;
 
-result_t crypto_get_node_info(char domain[], char name[], char id[]);
-result_t crypto_tls_init(char *node_id, struct transport_client_t *transport_client);
-int crypto_tls_send(struct transport_client_t *transport_client, char *buffer, size_t size);
-int crypto_tls_recv(struct transport_client_t *transport_client, char *buffer, size_t size);
+cc_result_t crypto_get_node_info(char domain[], char name[], char id[]);
+cc_result_t crypto_tls_init(char *node_id, struct cc_transport_client_t *transport_client);
+int crypto_tls_send(struct cc_transport_client_t *transport_client, char *buffer, size_t size);
+int crypto_tls_recv(struct cc_transport_client_t *transport_client, char *buffer, size_t size);
 void crypto_tls_free(crypto_t *crypto);
 
 #endif /* CRYPTO_H */

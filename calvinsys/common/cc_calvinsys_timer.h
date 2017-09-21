@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef CC_TIMER_H
-#define CC_TIMER_H
+#ifndef CC_CALVINSYS_TIMER_H
+#define CC_CALVINSYS_TIMER_H
 
 #include <stdint.h>
 #include <stdbool.h>
 #include "../../runtime/north/cc_common.h"
 #include "../cc_calvinsys.h"
 
-typedef struct calvinsys_timer_t {
+typedef struct cc_calvinsys_timer_t {
 	uint32_t timeout;
   uint32_t last_triggered;
 	bool active;
-} calvinsys_timer_t;
+} cc_calvinsys_timer_t;
 
-result_t calvinsys_timer_create(calvinsys_t **calvinsys);
-result_t calvinsys_timer_get_next_timeout(struct node_t *node, uint32_t *time);
+cc_result_t cc_calvinsys_timer_create(cc_calvinsys_t **calvinsys);
+cc_result_t cc_calvinsys_timer_get_next_timeout(struct cc_node_t *node, uint32_t *time);
 
-#endif /* CC_TIMER_H */
+#endif /* CC_CALVINSYS_TIMER_H */

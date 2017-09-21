@@ -24,16 +24,16 @@
 #include "../calvinsys/common/cc_calvinsys_timer.h"
 #include "../msgpuck/msgpuck.h"
 
-typedef struct actor_soil_moisture_state_t {
-	calvinsys_obj_t *soilmoisture;
-	calvinsys_obj_t *timer;
-} actor_soil_moisture_state_t;
+typedef struct cc_actor_soil_moisture_state_t {
+	cc_calvinsys_obj_t *soilmoisture;
+	cc_calvinsys_obj_t *timer;
+} cc_actor_soil_moisture_state_t;
 
-static result_t actor_soil_moisture_init(actor_t **actor, list_t *attributes)
+static cc_result_t cc_actor_soil_moisture_init(cc_actor_t**actor, cc_list_t *attributes)
 {
-	actor_soil_moisture_state_t *state = NULL;
+	cc_actor_soil_moisture_state_t *state = NULL;
 	char *data = NULL;
-	list_t *tmp = attributes;
+	cc_list_t *tmp = attributes;
 	uint32_t data_len = 0;
 
 	while (tmp != NULL) {
@@ -46,61 +46,61 @@ static result_t actor_soil_moisture_init(actor_t **actor, list_t *attributes)
 
 	if (data == NULL) {
 		cc_log_error("Failed to get attribute 'frequency'");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	if (platform_mem_alloc((void **)&state, sizeof(actor_soil_moisture_state_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&state, sizeof(cc_actor_soil_moisture_state_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	state->soilmoisture = calvinsys_open((*actor)->calvinsys, "io.soilmoisture", NULL, 0);
+	state->soilmoisture = cc_calvinsys_open((*actor)->calvinsys, "io.soilmoisture", NULL, 0);
 	if (state->soilmoisture == NULL) {
 		cc_log_error("Failed to open 'io.soilmoisture'");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	state->timer = calvinsys_open((*actor)->calvinsys, "sys.timer.once", NULL, 0);
+	state->timer = cc_calvinsys_open((*actor)->calvinsys, "sys.timer.once", NULL, 0);
 	if (state->timer == NULL) {
 		cc_log_error("Failed to open 'sys.timer.once'");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	state->timer->write(state->timer, data, data_len);
 
 	(*actor)->instance_state = (void *)state;
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-static result_t actor_soil_moisture_set_state(actor_t **actor, list_t *attributes)
+static cc_result_t cc_actor_soil_moisture_set_state(cc_actor_t**actor, cc_list_t *attributes)
 {
-	return actor_soil_moisture_init(actor, attributes);
+	return cc_actor_soil_moisture_init(actor, attributes);
 }
 
-static bool actor_soil_moisture_fire(struct actor_t *actor)
+static bool cc_actor_soil_moisture_fire(struct cc_actor_t*actor)
 {
-	port_t *outport = (port_t *)actor->out_ports->data;
-	actor_soil_moisture_state_t *state = (actor_soil_moisture_state_t *)actor->instance_state;
-	calvinsys_obj_t *obj_soilmoisture = state->soilmoisture;
-	calvinsys_obj_t *obj_timer = state->timer;
+	cc_port_t *outport = (cc_port_t *)actor->out_ports->data;
+	cc_actor_soil_moisture_state_t *state = (cc_actor_soil_moisture_state_t *)actor->instance_state;
+	cc_calvinsys_obj_t *obj_soilmoisture = state->soilmoisture;
+	cc_calvinsys_obj_t *obj_timer = state->timer;
 	char *data = NULL;
 	size_t size = 0;
 
-	if (obj_timer->can_read(obj_timer) && fifo_slots_available(outport->fifo, 1)) {
-		if (obj_soilmoisture->read(obj_soilmoisture, &data, &size) == CC_RESULT_SUCCESS) {
-			if (fifo_write(outport->fifo, data, size) == CC_RESULT_SUCCESS) {
+	if (obj_timer->can_read(obj_timer) && cc_fifo_slots_available(outport->fifo, 1)) {
+		if (obj_soilmoisture->read(obj_soilmoisture, &data, &size) == CC_SUCCESS) {
+			if (cc_fifo_write(outport->fifo, data, size) == CC_SUCCESS) {
 				size = mp_sizeof_bool(true);
-				if (platform_mem_alloc((void **)&data, size) == CC_RESULT_SUCCESS) {
+				if (cc_platform_mem_alloc((void **)&data, size) == CC_SUCCESS) {
 					obj_timer->read(obj_timer, &data, &size);
 					mp_encode_bool(data, true);
 					obj_timer->write(obj_timer, data, size);
-					platform_mem_free((void *)data);
+					cc_platform_mem_free((void *)data);
 					return true;
 				} else
 					cc_log_error("Failed to allocate memory");
 			}
-			platform_mem_free((void *)data);
+			cc_platform_mem_free((void *)data);
 		} else
 			cc_log_error("Failed to read value");
 	}
@@ -108,59 +108,59 @@ static bool actor_soil_moisture_fire(struct actor_t *actor)
 	return false;
 }
 
-static void actor_soil_moisture_free(actor_t *actor)
+static void cc_actor_soil_moisture_free(cc_actor_t*actor)
 {
-	calvinsys_close((calvinsys_obj_t *)actor->instance_state);
+	cc_calvinsys_close((cc_calvinsys_obj_t *)actor->instance_state);
 }
 
-static result_t actor_soil_moisture_managed_attributes(actor_t *actor, list_t **attributes)
+static cc_result_t cc_actor_soil_moisture_managed_attributes(cc_actor_t*actor, cc_list_t **attributes)
 {
 	uint32_t size = 0;
 	char *value = NULL, *name = NULL;
-	actor_soil_moisture_state_t *state = (actor_soil_moisture_state_t *)actor->instance_state;
+	cc_actor_soil_moisture_state_t *state = (cc_actor_soil_moisture_state_t *)actor->instance_state;
 
-	if (platform_mem_alloc((void **)&name, 10) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&name, 10) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 	strncpy(name, "frequency", 9);
 	name[9] = '\0';
 
-	size = mp_sizeof_uint(((calvinsys_timer_t *)state->timer->state)->timeout);
-	if (platform_mem_alloc((void **)&value, size) != CC_RESULT_SUCCESS) {
+	size = mp_sizeof_uint(((cc_calvinsys_timer_t *)state->timer->state)->timeout);
+	if (cc_platform_mem_alloc((void **)&value, size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	mp_encode_uint(value, ((calvinsys_timer_t *)state->timer->state)->timeout);
+	mp_encode_uint(value, ((cc_calvinsys_timer_t *)state->timer->state)->timeout);
 
-	if (list_add(attributes, name, value, size) != CC_RESULT_SUCCESS) {
+	if (cc_list_add(attributes, name, value, size) != CC_SUCCESS) {
 		cc_log_error("Failed to add '%s' to managed list", name);
-		platform_mem_free(name);
-		platform_mem_free(value);
-		return CC_RESULT_FAIL;
+		cc_platform_mem_free(name);
+		cc_platform_mem_free(value);
+		return CC_FAIL;
 	}
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-result_t actor_soil_moisture_register(list_t **actor_types)
+cc_result_t cc_actor_soil_moisture_register(cc_list_t **actor_types)
 {
-	actor_type_t *type = NULL;
+	cc_actor_type_t *type = NULL;
 
-	if (platform_mem_alloc((void **)&type, sizeof(actor_type_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&type, sizeof(cc_actor_type_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	type->init = actor_soil_moisture_init;
-	type->set_state = actor_soil_moisture_set_state;
-	type->free_state = actor_soil_moisture_free;
-	type->fire_actor = actor_soil_moisture_fire;
-	type->get_managed_attributes = actor_soil_moisture_managed_attributes;
+	type->init = cc_actor_soil_moisture_init;
+	type->set_state = cc_actor_soil_moisture_set_state;
+	type->free_state = cc_actor_soil_moisture_free;
+	type->fire_actor = cc_actor_soil_moisture_fire;
+	type->get_managed_attributes = cc_actor_soil_moisture_managed_attributes;
 	type->will_migrate = NULL;
 	type->will_end = NULL;
 	type->did_migrate = NULL;
 
-	return list_add_n(actor_types, "sensor.SoilMoisture", 19, type, sizeof(actor_type_t *));
+	return cc_list_add_n(actor_types, "sensor.SoilMoisture", 19, type, sizeof(cc_actor_type_t *));
 }

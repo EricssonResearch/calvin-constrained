@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef TRANSPORT_SOCKET_H
-#define TRANSPORT_SOCKET_H
+#ifndef CC_TRANSPORT_SOCKET_H
+#define CC_TRANSPORT_SOCKET_H
 
 #include "../../../north/cc_transport.h"
 
-struct node_t;
+struct cc_node_t;
 
-typedef struct transport_socket_client_t {
+typedef struct cc_transport_socket_client_t {
 	int fd;
 	char ip[40];
 	int port;
-} transport_socket_client_t;
+} cc_transport_socket_client_t;
 
-transport_client_t *transport_socket_create(struct node_t *node, char *uri);
+cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node, char *uri);
 
-#endif /* TRANSPORT_SOCKET_H */
+#endif /* CC_TRANSPORT_SOCKET_H */

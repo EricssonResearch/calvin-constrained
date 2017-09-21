@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef CALVINSYS_GPIO_H
-#define CALVINSYS_GPIO_H
+#ifndef CC_CALVINSYS_GPIO_H
+#define CC_CALVINSYS_GPIO_H
 
 #include "../../../../../runtime/north/cc_common.h"
 #include "../../../../../calvinsys/cc_calvinsys.h"
@@ -22,13 +22,13 @@
 typedef enum {
 	CC_GPIO_IN,
 	CC_GPIO_OUT
-} calvinsys_gpio_direction;
+} cc_calvinsys_gpio_direction;
 
-typedef struct calvinsys_gpio_state_t {
+typedef struct cc_calvinsys_gpio_state_t {
 	uint8_t pin;
-	calvinsys_gpio_direction direction;
-} calvinsys_gpio_state_t;
+	cc_calvinsys_gpio_direction direction;
+} cc_calvinsys_gpio_state_t;
 
-calvinsys_handler_t *calvinsys_gpio_create_handler(calvinsys_t **calvinsys);
+cc_calvinsys_handler_t *cc_calvinsys_gpio_create_handler(cc_calvinsys_t **calvinsys);
 
-#endif /* CALVINSYS_GPIO_H */
+#endif /* CC_CALVINSYS_GPIO_H */

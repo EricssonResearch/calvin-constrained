@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_TEMPERATURE_H
-#define ACTOR_TEMPERATURE_H
+#ifndef CC_ACTOR_TEMPERATURE_H
+#define CC_ACTOR_TEMPERATURE_H
 
 #include "../runtime/north/cc_actor.h"
 
-result_t actor_temperature_register(list_t **actor_types);
+cc_result_t cc_actor_temperature_register(cc_list_t **actor_types);
 
-#endif /* ACTOR_TEMPERATURE_H */
+#endif /* CC_ACTOR_TEMPERATURE_H */

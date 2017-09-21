@@ -17,14 +17,13 @@
 #include "cc_token.h"
 #include "cc_common.h"
 #include "../south/platform/cc_platform.h"
-#include "cc_msgpack_helper.h"
-#include "../../msgpuck/msgpuck.h"
+#include "coder/cc_coder.h"
 
-void token_set_data(token_t *token, char *data, const size_t size)
+void cc_token_set_data(cc_token_t *token, char *data, const size_t size)
 {
 	if (token->value != NULL) {
 		cc_log_debug("Token not freed");
-		platform_mem_free((void *)token->value);
+		cc_platform_mem_free((void *)token->value);
 		token->value = NULL;
 	}
 
@@ -32,26 +31,26 @@ void token_set_data(token_t *token, char *data, const size_t size)
 	token->size = size;
 }
 
-char *token_encode(char **buffer, token_t *token, bool with_key)
+char *cc_token_encode(char *buffer, cc_token_t *token, bool with_key)
 {
 	if (with_key)
-		*buffer = encode_map(buffer, "token", 2);
+		buffer = cc_coder_encode_kv_map(buffer, "token", 2);
 	else
-		*buffer = mp_encode_map(*buffer, 2);
+		buffer = cc_coder_encode_map(buffer, 2);
 
-	*buffer = encode_str(buffer, "type", "Token", 5);
+	buffer = cc_coder_encode_kv_str(buffer, "type", "Token", 5);
 	if (token->size != 0)
-		*buffer = encode_value(buffer, "data", token->value, token->size);
+		buffer = cc_coder_encode_kv_value(buffer, "data", token->value, token->size);
 	else
-		*buffer = encode_nil(buffer, "data");
+		buffer = cc_coder_encode_kv_nil(buffer, "data");
 
-	return *buffer;
+	return buffer;
 }
 
-void token_free(token_t *token)
+void cc_token_free(cc_token_t *token)
 {
 	if (token->value != NULL) {
-		platform_mem_free((void *)token->value);
+		cc_platform_mem_free((void *)token->value);
 		token->value = NULL;
 		token->size = 0;
 	}

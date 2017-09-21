@@ -20,7 +20,7 @@
 #include "../south/platform/cc_platform.h"
 
 // TODO: Generate a proper uuid
-void gen_uuid(char *buffer, const char *prefix)
+void cc_gen_uuid(char *buffer, const char *prefix)
 {
 	int i, len_prefix = 0;
 	const char *hex_digits = "0123456789abcdef";
@@ -38,7 +38,7 @@ void gen_uuid(char *buffer, const char *prefix)
 	buffer[36 + len_prefix] = '\0';
 }
 
-bool uuid_is_higher(char *id1, size_t len1, char *id2, size_t len2)
+bool cc_uuid_is_higher(char *id1, size_t len1, char *id2, size_t len2)
 {
 	int i = 0;
 
@@ -56,13 +56,13 @@ bool uuid_is_higher(char *id1, size_t len1, char *id2, size_t len2)
 	return false;
 }
 
-static result_t _list_add(list_t **head, char *id, bool free_id, void *data, uint32_t data_len)
+static cc_result_t cc__list_add(cc_list_t **head, char *id, bool free_id, void *data, uint32_t data_len)
 {
-	list_t *new_item = NULL, *tmp = NULL;
+	cc_list_t *new_item = NULL, *tmp = NULL;
 
-	if (platform_mem_alloc((void **)&new_item, sizeof(list_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&new_item, sizeof(cc_list_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	new_item->id = id;
@@ -80,44 +80,44 @@ static result_t _list_add(list_t **head, char *id, bool free_id, void *data, uin
 		tmp->next = new_item;
 	}
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-result_t list_add_n(list_t **head, const char *id, uint32_t len, void *data, uint32_t data_len)
+cc_result_t cc_list_add_n(cc_list_t **head, const char *id, uint32_t len, void *data, uint32_t data_len)
 {
 	char *name = NULL;
 
-	if (platform_mem_alloc((void **)&name, sizeof(char) * (len + 1)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&name, sizeof(char) * (len + 1)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	strncpy(name, id, len);
 	name[len] = '\0';
 
-	if (_list_add(head, name, true, data, data_len) == CC_RESULT_FAIL) {
-		platform_mem_free(name);
-		return CC_RESULT_FAIL;
+	if (cc__list_add(head, name, true, data, data_len) == CC_FAIL) {
+		cc_platform_mem_free(name);
+		return CC_FAIL;
 	}
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-result_t list_add(list_t **head, char *id, void *data, uint32_t data_len)
+cc_result_t cc_list_add(cc_list_t **head, char *id, void *data, uint32_t data_len)
 {
-	return _list_add(head, id, false, data, data_len);
+	return cc__list_add(head, id, false, data, data_len);
 }
 
-static void list_free_item(list_t *item)
+static void cc_list_free_item(cc_list_t *item)
 {
 	if (item->free_id)
-		platform_mem_free((void *)item->id);
-	platform_mem_free((void *)item);
+		cc_platform_mem_free((void *)item->id);
+	cc_platform_mem_free((void *)item);
 }
 
-void list_remove(list_t **head, const char *id)
+void cc_list_remove(cc_list_t **head, const char *id)
 {
-	list_t *curr = NULL, *prev = NULL;
+	cc_list_t *curr = NULL, *prev = NULL;
 
 	for (curr = *head; curr != NULL; prev = curr, curr = curr->next) {
 		if (strncmp(curr->id, id, strlen(curr->id)) == 0) {
@@ -125,16 +125,16 @@ void list_remove(list_t **head, const char *id)
 				*head = curr->next;
 			else
 				prev->next = curr->next;
-			list_free_item(curr);
+			cc_list_free_item(curr);
 			return;
 		}
 	}
 }
 
-uint32_t list_count(list_t *list)
+uint32_t cc_list_count(cc_list_t *list)
 {
 	uint32_t count = 0;
-	list_t *tmp = list;
+	cc_list_t *tmp = list;
 
 	while (tmp != NULL) {
 		count++;
@@ -144,9 +144,9 @@ uint32_t list_count(list_t *list)
 	return count;
 }
 
-void *list_get_n(list_t *list, const char *id, uint32_t id_len)
+void *cc_list_get_n(cc_list_t *list, const char *id, uint32_t id_len)
 {
-	list_t *tmp = list;
+	cc_list_t *tmp = list;
 
 	while (tmp != NULL) {
 		if (strncmp(tmp->id, id, id_len) == 0)
@@ -157,9 +157,9 @@ void *list_get_n(list_t *list, const char *id, uint32_t id_len)
 	return NULL;
 }
 
-void *list_get(list_t *list, const char *id)
+void *cc_list_get(cc_list_t *list, const char *id)
 {
-	list_t *tmp = list;
+	cc_list_t *tmp = list;
 
 	while (tmp != NULL) {
 		if (strncmp(tmp->id, id, strlen(tmp->id)) == 0)
@@ -170,7 +170,7 @@ void *list_get(list_t *list, const char *id)
 	return NULL;
 }
 
-result_t get_json_string_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len)
+cc_result_t cc_get_json_string_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len)
 {
 	char *start = NULL;
 	size_t pos = 0;
@@ -194,17 +194,17 @@ result_t get_json_string_value(char *buffer, size_t buffer_len, char *key, size_
 				} else {
 					*value = start;
 					*value_len = (buffer + pos) - start;
-					return CC_RESULT_SUCCESS;
+					return CC_SUCCESS;
 				}
 			}
 			pos++;
 		}
 	}
 
-	return CC_RESULT_FAIL;
+	return CC_FAIL;
 }
 
-result_t get_json_dict_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len)
+cc_result_t cc_get_json_dict_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len)
 {
 	char *start = NULL;
 	size_t pos = 0, braces = 0, len = 0;
@@ -238,7 +238,7 @@ result_t get_json_dict_value(char *buffer, size_t buffer_len, char *key, size_t 
 				if (braces == 0) {
 					*value_len = len;
 					*value = start;
-					return CC_RESULT_SUCCESS;
+					return CC_SUCCESS;
 				}
 			}
 			pos++;
@@ -246,7 +246,7 @@ result_t get_json_dict_value(char *buffer, size_t buffer_len, char *key, size_t 
 	} else
 		cc_log_error("Failed to get '%.*s' from '%.*s'", key_len, key, buffer_len, buffer);
 
-	return CC_RESULT_FAIL;
+	return CC_FAIL;
 }
 
 #ifdef CC_ADD_STRNSTR

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#ifndef MPY_PORT_H
-#define MPY_PORT_H
+#ifndef CC_MPY_PORT_H
+#define CC_MPY_PORT_H
 
 #include <stdint.h>
 
-bool mpy_port_init(uint32_t heap_size);
+bool cc_mpy_port_init(uint32_t heap_size);
 
-#endif /* MPY_PORT_H */
+#endif /* CC_MPY_PORT_H */

@@ -21,124 +21,123 @@
 #include "../runtime/north/cc_token.h"
 #include "../runtime/north/cc_port.h"
 #include "../runtime/north/cc_common.h"
-#include "../runtime/north/cc_msgpack_helper.h"
+#include "../runtime/north/coder/cc_coder.h"
 #include "../calvinsys/common/cc_calvinsys_timer.h"
-#include "../msgpuck/msgpuck.h"
 
-typedef struct actor_temperature_state_t {
-	calvinsys_obj_t *temperature;
-	calvinsys_obj_t *timer;
-} actor_temperature_state_t;
+typedef struct cc_actor_temperature_state_t {
+	cc_calvinsys_obj_t *temperature;
+	cc_calvinsys_obj_t *timer;
+} cc_actor_temperature_state_t;
 
-static result_t actor_temperature_init(actor_t **actor, list_t *attributes)
+static cc_result_t cc_actor_temperature_init(cc_actor_t**actor, cc_list_t *attributes)
 {
-	actor_temperature_state_t *state = NULL;
+	cc_actor_temperature_state_t *state = NULL;
 	char buffer[50], *data_frequency = NULL, *data_last_triggered = NULL;
 	char *buffer_pos = buffer;
 	uint32_t timeout = 0, last_triggered = 0;
 
-	if (platform_mem_alloc((void **)&state, sizeof(actor_temperature_state_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&state, sizeof(cc_actor_temperature_state_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	data_frequency = (char *)list_get(attributes, "frequency");
+	data_frequency = (char *)cc_list_get(attributes, "frequency");
 	if (data_frequency == NULL) {
 		cc_log_error("Failed to get attribute 'frequency'");
-		platform_mem_free((void *)state);
-		return CC_RESULT_FAIL;
+		cc_platform_mem_free((void *)state);
+		return CC_FAIL;
 	}
 
-	switch (mp_typeof(*data_frequency)) {
-	case MP_UINT:
+	switch (cc_coder_type_of(data_frequency)) {
+	case CC_CODER_UINT:
 	{
 		uint32_t frequency;
-		decode_uint(data_frequency, &frequency);
+		cc_coder_decode_uint(data_frequency, &frequency);
 		timeout = 1 / frequency;
 		break;
 	}
-	case MP_FLOAT:
+	case CC_CODER_FLOAT:
 	{
 		float frequency;
-		decode_float(data_frequency, &frequency);
+		cc_coder_decode_float(data_frequency, &frequency);
 		timeout = (uint32_t)(1 / frequency);
 		break;
 	}
-	case MP_DOUBLE:
+	case CC_CODER_DOUBLE:
 	{
 		double frequency;
-		decode_double(data_frequency, &frequency);
+		cc_coder_decode_double(data_frequency, &frequency);
 		timeout = (uint32_t)(1 / frequency);
 		break;
 	}
 	default:
 		cc_log_error("Unknown type");
-		platform_mem_free((void *)state);
-		return CC_RESULT_FAIL;
+		cc_platform_mem_free((void *)state);
+		return CC_FAIL;
 	}
 
-	data_last_triggered = (char *)list_get(attributes, "last_triggered");
+	data_last_triggered = (char *)cc_list_get(attributes, "last_triggered");
 	if (data_last_triggered != NULL) {
-		decode_uint(data_last_triggered, &last_triggered);
-		buffer_pos = mp_encode_map(buffer_pos, 2);
+		cc_coder_decode_uint(data_last_triggered, &last_triggered);
+		buffer_pos = cc_coder_encode_map(buffer_pos, 2);
 		{
-			buffer_pos = encode_uint(&buffer_pos, "timeout", timeout);
-			buffer_pos = encode_uint(&buffer_pos, "last_triggered", last_triggered);
+			buffer_pos = cc_coder_encode_kv_uint(buffer_pos, "timeout", timeout);
+			buffer_pos = cc_coder_encode_kv_uint(buffer_pos, "last_triggered", last_triggered);
 		}
 	} else {
-		buffer_pos = mp_encode_map(buffer_pos, 1);
+		buffer_pos = cc_coder_encode_map(buffer_pos, 1);
 		{
-			buffer_pos = encode_uint(&buffer_pos, "timeout", timeout);
+			buffer_pos = cc_coder_encode_kv_uint(buffer_pos, "timeout", timeout);
 		}
 	}
 
-	state->temperature = calvinsys_open((*actor)->calvinsys, "io.temperature", NULL, 0);
+	state->temperature = cc_calvinsys_open((*actor)->calvinsys, "io.temperature", NULL, 0);
 	if (state->temperature == NULL) {
 		cc_log_error("Failed to open 'io.temperature'");
-		platform_mem_free((void *)state);
-		return CC_RESULT_FAIL;
+		cc_platform_mem_free((void *)state);
+		return CC_FAIL;
 	}
 
-	state->timer = calvinsys_open((*actor)->calvinsys, "sys.timer.once", buffer, buffer_pos - buffer);
+	state->timer = cc_calvinsys_open((*actor)->calvinsys, "sys.timer.once", buffer, buffer_pos - buffer);
 	if (state->timer == NULL) {
 		cc_log_error("Failed to open 'sys.timer.once'");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	(*actor)->instance_state = (void *)state;
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-static result_t actor_temperature_set_state(actor_t **actor, list_t *attributes)
+static cc_result_t cc_actor_temperature_set_state(cc_actor_t**actor, cc_list_t *attributes)
 {
-	return actor_temperature_init(actor, attributes);
+	return cc_actor_temperature_init(actor, attributes);
 }
 
-static bool actor_temperature_fire(struct actor_t *actor)
+static bool cc_actor_temperature_fire(struct cc_actor_t*actor)
 {
-	port_t *outport = (port_t *)actor->out_ports->data;
-	actor_temperature_state_t *state = (actor_temperature_state_t *)actor->instance_state;
-	calvinsys_obj_t *obj_temp = state->temperature;
-	calvinsys_obj_t *obj_timer = state->timer;
+	cc_port_t *outport = (cc_port_t *)actor->out_ports->data;
+	cc_actor_temperature_state_t *state = (cc_actor_temperature_state_t *)actor->instance_state;
+	cc_calvinsys_obj_t *obj_temp = state->temperature;
+	cc_calvinsys_obj_t *obj_timer = state->timer;
 	char *data = NULL;
 	size_t size = 0;
 
-	if (obj_timer->can_read(obj_timer) && obj_temp->can_read(obj_temp) && fifo_slots_available(outport->fifo, 1)) {
-		if (obj_temp->read(obj_temp, &data, &size) == CC_RESULT_SUCCESS) {
-			if (fifo_write(outport->fifo, data, size) == CC_RESULT_SUCCESS) {
-				size = mp_sizeof_bool(true);
-				if (platform_mem_alloc((void **)&data, size) == CC_RESULT_SUCCESS) {
+	if (obj_timer->can_read(obj_timer) && obj_temp->can_read(obj_temp) && cc_fifo_slots_available(outport->fifo, 1)) {
+		if (obj_temp->read(obj_temp, &data, &size) == CC_SUCCESS) {
+			if (cc_fifo_write(outport->fifo, data, size) == CC_SUCCESS) {
+				size = cc_coder_sizeof_bool(true);
+				if (cc_platform_mem_alloc((void **)&data, size) == CC_SUCCESS) {
 					obj_timer->read(obj_timer, &data, &size);
-					mp_encode_bool(data, true);
+					cc_coder_encode_bool(data, true);
 					obj_timer->write(obj_timer, data, size);
-					platform_mem_free((void *)data);
+					cc_platform_mem_free((void *)data);
 					return true;
 				} else
 					cc_log_error("Failed to allocate memory");
 			} else
 				cc_log_error("Failed to write to outport");
-			platform_mem_free((void *)data);
+			cc_platform_mem_free((void *)data);
 		} else
 			cc_log_error("Failed to read temperature");
 	}
@@ -146,106 +145,106 @@ static bool actor_temperature_fire(struct actor_t *actor)
 	return false;
 }
 
-static void actor_temperature_free(actor_t *actor)
+static void cc_actor_temperature_free(cc_actor_t*actor)
 {
-	actor_temperature_state_t *state = (actor_temperature_state_t *)actor->instance_state;
+	cc_actor_temperature_state_t *state = (cc_actor_temperature_state_t *)actor->instance_state;
 
-	calvinsys_close(state->temperature);
-	calvinsys_close(state->timer);
+	cc_calvinsys_close(state->temperature);
+	cc_calvinsys_close(state->timer);
 
-	platform_mem_free((void *)state);
+	cc_platform_mem_free((void *)state);
 }
 
-static result_t actor_temperature_add_last_triggered(calvinsys_obj_t *obj, list_t **attributes)
+static cc_result_t cc_actor_temperature_add_last_triggered(cc_calvinsys_obj_t *obj, cc_list_t **attributes)
 {
 	uint32_t size = 0;
 	char *value = NULL, *name = NULL;
-	calvinsys_timer_t *timer = (calvinsys_timer_t *)obj->state;
+	cc_calvinsys_timer_t *timer = (cc_calvinsys_timer_t *)obj->state;
 
 	if (!timer->active)
-		return CC_RESULT_SUCCESS;
+		return CC_SUCCESS;
 
-	if (platform_mem_alloc((void **)&name, 15) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&name, 15) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 	strncpy(name, "last_triggered", 14);
 	name[13] = '\0';
 
-	size = mp_sizeof_uint(timer->last_triggered);
-	if (platform_mem_alloc((void **)&value, size) != CC_RESULT_SUCCESS) {
+	size = cc_coder_sizeof_uint(timer->last_triggered);
+	if (cc_platform_mem_alloc((void **)&value, size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		platform_mem_free((void *)name);
-		return CC_RESULT_FAIL;
+		cc_platform_mem_free((void *)name);
+		return CC_FAIL;
 	}
 
-	mp_encode_uint(value, timer->last_triggered);
+	cc_coder_encode_uint(value, timer->last_triggered);
 
-	if (list_add(attributes, name, value, size) != CC_RESULT_SUCCESS) {
+	if (cc_list_add(attributes, name, value, size) != CC_SUCCESS) {
 		cc_log_error("Failed to add '%s' to managed list", name);
-		platform_mem_free(name);
-		platform_mem_free(value);
-		return CC_RESULT_FAIL;
+		cc_platform_mem_free(name);
+		cc_platform_mem_free(value);
+		return CC_FAIL;
 	}
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-static result_t actor_temperature_get_managed_attributes(actor_t *actor, list_t **attributes)
+static cc_result_t cc_actor_temperature_get_managed_attributes(cc_actor_t*actor, cc_list_t **attributes)
 {
 	uint32_t size = 0;
 	char *value = NULL, *name = NULL;
-	actor_temperature_state_t *state = (actor_temperature_state_t *)actor->instance_state;
-	calvinsys_obj_t *timer_obj = state->timer;
-	calvinsys_timer_t *timer = (calvinsys_timer_t *)timer_obj->state;
+	cc_actor_temperature_state_t *state = (cc_actor_temperature_state_t *)actor->instance_state;
+	cc_calvinsys_obj_t *timer_obj = state->timer;
+	cc_calvinsys_timer_t *timer = (cc_calvinsys_timer_t *)timer_obj->state;
 	double frequency;
 
 	if (!timer->active || timer->timeout == 0)
-		return CC_RESULT_SUCCESS;
+		return CC_SUCCESS;
 
-	if (platform_mem_alloc((void **)&name, 10) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&name, 10) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 	strncpy(name, "frequency", 9);
 	name[9] = '\0';
 
 	frequency = 1.0 / timer->timeout;
 
-	size = mp_sizeof_double(frequency);
-	if (platform_mem_alloc((void **)&value, size) != CC_RESULT_SUCCESS) {
+	size = cc_coder_sizeof_double(frequency);
+	if (cc_platform_mem_alloc((void **)&value, size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
-	mp_encode_double(value, frequency);
+	cc_coder_encode_double(value, frequency);
 
-	if (list_add(attributes, name, value, size) != CC_RESULT_SUCCESS) {
+	if (cc_list_add(attributes, name, value, size) != CC_SUCCESS) {
 		cc_log_error("Failed to add '%s' to managed list", name);
-		platform_mem_free(name);
-		platform_mem_free(value);
-		return CC_RESULT_FAIL;
+		cc_platform_mem_free(name);
+		cc_platform_mem_free(value);
+		return CC_FAIL;
 	}
 
-	return actor_temperature_add_last_triggered(timer_obj, attributes);
+	return cc_actor_temperature_add_last_triggered(timer_obj, attributes);
 }
 
-result_t actor_temperature_register(list_t **actor_types)
+cc_result_t cc_actor_temperature_register(cc_list_t **actor_types)
 {
-	actor_type_t *type = NULL;
+	cc_actor_type_t *type = NULL;
 
-	if (platform_mem_alloc((void **)&type, sizeof(actor_type_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&type, sizeof(cc_actor_type_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	type->init = actor_temperature_init;
-	type->set_state = actor_temperature_set_state;
-	type->free_state = actor_temperature_free;
-	type->fire_actor = actor_temperature_fire;
-	type->get_managed_attributes = actor_temperature_get_managed_attributes;
+	type->init = cc_actor_temperature_init;
+	type->set_state = cc_actor_temperature_set_state;
+	type->free_state = cc_actor_temperature_free;
+	type->fire_actor = cc_actor_temperature_fire;
+	type->get_managed_attributes = cc_actor_temperature_get_managed_attributes;
 	type->will_migrate = NULL;
 	type->will_end = NULL;
 	type->did_migrate = NULL;
 
-	return list_add_n(actor_types, "sensor.Temperature", 18, type, sizeof(actor_type_t *));
+	return cc_list_add_n(actor_types, "sensor.Temperature", 18, type, sizeof(cc_actor_type_t *));
 }

@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_PRESSURE_H
-#define ACTOR_PRESSURE_H
+#ifndef CC_ACTOR_PRESSURE_H
+#define CC_ACTOR_PRESSURE_H
 
 #include "../runtime/north/cc_common.h"
 
-result_t actor_pressure_register(list_t **actor_types);
+cc_result_t cc_actor_pressure_register(cc_list_t **actor_types);
 
-#endif
+#endif  /* CC_ACTOR_PRESSURE_H */

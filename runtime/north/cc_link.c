@@ -18,32 +18,31 @@
 #include "cc_link.h"
 #include "cc_node.h"
 #include "cc_proto.h"
-#include "cc_msgpack_helper.h"
-#include "../../msgpuck/msgpuck.h"
+#include "coder/cc_coder.h"
 #include "../south/platform/cc_platform.h"
 
-link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, bool is_proxy)
+cc_link_t *cc_link_create(cc_node_t *node, const char *peer_id, uint32_t peer_id_len, bool is_proxy)
 {
-	link_t *link = NULL;
+	cc_link_t *link = NULL;
 
-	link = link_get(node, peer_id, peer_id_len);
+	link = cc_link_get(node, peer_id, peer_id_len);
 	if (link != NULL)
 		return link;
 
-	if (platform_mem_alloc((void **)&link, sizeof(link_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&link, sizeof(cc_link_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return NULL;
 	}
 
-	memset(link, 0, sizeof(link_t));
+	memset(link, 0, sizeof(cc_link_t));
 
 	link->is_proxy = is_proxy;
 	strncpy(link->peer_id, peer_id, peer_id_len);
 	link->ref_count = 0;
 
-	if (list_add(&node->links, link->peer_id, (void *)link, sizeof(link_t)) != CC_RESULT_SUCCESS) {
+	if (cc_list_add(&node->links, link->peer_id, (void *)link, sizeof(cc_link_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to add link");
-		platform_mem_free((void *)link);
+		cc_platform_mem_free((void *)link);
 		return NULL;
 	}
 
@@ -52,40 +51,40 @@ link_t *link_create(node_t *node, const char *peer_id, uint32_t peer_id_len, boo
 	return link;
 }
 
-char *link_serialize(const link_t *link, char **buffer)
+char *cc_link_serialize(const cc_link_t *link, char *buffer)
 {
-	*buffer = mp_encode_map(*buffer, 2);
+	buffer = cc_coder_encode_map(buffer, 2);
 	{
-		*buffer = encode_str(buffer, "peer_id", link->peer_id, strnlen(link->peer_id, UUID_BUFFER_SIZE));
-		*buffer = encode_bool(buffer, "is_proxy", link->is_proxy);
+		buffer = cc_coder_encode_kv_str(buffer, "peer_id", link->peer_id, strnlen(link->peer_id, CC_UUID_BUFFER_SIZE));
+		buffer = cc_coder_encode_kv_bool(buffer, "is_proxy", link->is_proxy);
 	}
 
-	return *buffer;
+	return buffer;
 }
 
-link_t *link_deserialize(node_t *node, char *buffer)
+cc_link_t *cc_link_deserialize(cc_node_t *node, char *buffer)
 {
 	char *peer_id = NULL;
 	uint32_t len = 0;
 	bool is_proxy = false;
 
-	if (decode_string_from_map(buffer, "peer_id", &peer_id, &len) != CC_RESULT_SUCCESS)
+	if (cc_coder_decode_string_from_map(buffer, "peer_id", &peer_id, &len) != CC_SUCCESS)
 		return NULL;
 
-	if (decode_bool_from_map(buffer, "is_proxy", &is_proxy) != CC_RESULT_SUCCESS)
+	if (cc_coder_decode_bool_from_map(buffer, "is_proxy", &is_proxy) != CC_SUCCESS)
 		return NULL;
 
-	return link_create(node, peer_id, len, is_proxy);
+	return cc_link_create(node, peer_id, len, is_proxy);
 }
 
-void link_free(node_t *node, link_t *link)
+void cc_link_free(cc_node_t *node, cc_link_t *link)
 {
 	cc_log_debug("Deleting link to '%s'", link->peer_id);
-	list_remove(&node->links, link->peer_id);
-	platform_mem_free((void *)link);
+	cc_list_remove(&node->links, link->peer_id);
+	cc_platform_mem_free((void *)link);
 }
 
-void link_add_ref(link_t *link)
+void cc_link_add_ref(cc_link_t *link)
 {
 	if (link != NULL) {
 		link->ref_count++;
@@ -93,23 +92,23 @@ void link_add_ref(link_t *link)
 	}
 }
 
-void link_remove_ref(node_t *node, link_t *link)
+void cc_link_remove_ref(cc_node_t *node, cc_link_t *link)
 {
 	if (link != NULL) {
 		link->ref_count--;
 		cc_log_debug("Link ref removed '%s' ref: %d", link->peer_id, link->ref_count);
 		if (link->ref_count == 0)
-			link_free(node, link);
+			cc_link_free(node, link);
 	}
 }
 
-link_t *link_get(node_t *node, const char *peer_id, uint32_t peer_id_len)
+cc_link_t *cc_link_get(cc_node_t *node, const char *peer_id, uint32_t peer_id_len)
 {
-	list_t *links = node->links;
-	link_t *link = NULL;
+	cc_list_t *links = node->links;
+	cc_link_t *link = NULL;
 
 	while (links != NULL) {
-		link = (link_t *)links->data;
+		link = (cc_link_t *)links->data;
 		if (strncmp(link->peer_id, peer_id, peer_id_len) == 0)
 			return link;
 		links = links->next;

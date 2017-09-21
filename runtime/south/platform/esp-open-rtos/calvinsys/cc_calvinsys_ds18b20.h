@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef CALVINSYS_DS18B20_H
-#define CALVINSYS_DS18B20_H
+#ifndef CC_CALVINSYS_DS18B20_H
+#define CC_CALVINSYS_DS18B20_H
 
 #include "../../../../../runtime/north/cc_common.h"
 #include "../../../../../calvinsys/cc_calvinsys.h"
 
-result_t calvinsys_ds18b20_create(calvinsys_t **calvinsys, const char *name);
+cc_result_t cc_calvinsys_ds18b20_create(cc_calvinsys_t **calvinsys, const char *name);
 
-#endif /* CALVINSYS_DS18B20_H */
+#endif /* CC_CALVINSYS_DS18B20_H */

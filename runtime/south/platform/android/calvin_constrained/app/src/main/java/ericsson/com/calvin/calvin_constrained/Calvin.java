@@ -32,10 +32,10 @@ public class Calvin {
     }
 
     public enum STATE {
-        NODE_DO_START,
+        CC_NODE_DO_START,
         NODE_PENDING,
-        NODE_STARTED,
-        NODE_STOP,
+        CC_NODE_STARTED,
+        CC_NODE_STOP,
         NODE_UNKNOW
     }
 
@@ -60,7 +60,7 @@ public class Calvin {
      */
     public synchronized boolean writeDownstreamQueue() {
         Log.d(LOG_TAG, "Write downstream queue of size: " + downstreamQueue.size());
-        if (getNodeState() != STATE.NODE_STOP) {
+        if (getNodeState() != STATE.CC_NODE_STOP) {
             while(!downstreamQueue.isEmpty()) {
                 Log.d(LOG_TAG, "Write data from downstream queue");
                 runtimeCalvinPayload(downstreamQueue.poll(), node);
@@ -118,16 +118,16 @@ public class Calvin {
     public Calvin.STATE getNodeState() {
         switch(this.getNodeState(this.node)) {
             case 0:
-                nodeState = STATE.NODE_DO_START;
+                nodeState = STATE.CC_NODE_DO_START;
                 return nodeState;
             case 1:
                 nodeState = STATE.NODE_PENDING;
                 return nodeState;
             case 2:
-                nodeState = STATE.NODE_STARTED;
+                nodeState = STATE.CC_NODE_STARTED;
                 return nodeState;
             case 3:
-                nodeState = STATE.NODE_STOP;
+                nodeState = STATE.CC_NODE_STOP;
                 return nodeState;
         }
         Log.e(LOG_TAG, "Node state unknown");

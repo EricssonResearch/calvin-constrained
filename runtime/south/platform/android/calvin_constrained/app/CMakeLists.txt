@@ -34,7 +34,7 @@ add_library(
              ../../../../../../runtime/north/cc_port.c
              ../../../../../../runtime/north/cc_fifo.c
              ../../../../../../runtime/north/cc_token.c
-             ../../../../../../runtime/north/cc_msgpack_helper.c
+             ../../../../../../runtime/north/coder/cc_coder_msgpuck.c
              ../../../../../../msgpuck/msgpuck.c
              ../../../../../../actors/cc_actor_identity.c
              ../../../../../../actors/cc_actor_button.c

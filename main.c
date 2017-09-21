@@ -24,7 +24,7 @@
 int main(int argc, char **argv)
 {
 	char *attr = NULL, *proxy_uris = NULL;
-	node_t *node = NULL;
+	cc_node_t *node = NULL;
 #ifdef CC_GETOPT_ENABLED
 	int c = 0;
 	static struct option long_options[] = {
@@ -48,10 +48,10 @@ int main(int argc, char **argv)
 
 #endif
 
-	if (api_runtime_init(&node, attr, proxy_uris, "./") != CC_RESULT_SUCCESS)
+	if (cc_api_runtime_init(&node, attr, proxy_uris, "./") != CC_SUCCESS)
 		return EXIT_FAILURE;
 
-	if (api_runtime_start(node) != CC_RESULT_SUCCESS)
+	if (cc_api_runtime_start(node) != CC_SUCCESS)
 		return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;

@@ -21,6 +21,6 @@
 #include "../../runtime/north/cc_common.h"
 #include "../cc_calvinsys.h"
 
-result_t calvinsys_attribute_create(calvinsys_t **calvinsys);
+cc_result_t cc_calvinsys_attribute_create(cc_calvinsys_t **calvinsys);
 
 #endif /* CC_CALVINSYS_ATTRIBUTE_H */

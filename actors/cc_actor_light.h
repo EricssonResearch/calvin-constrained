@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef ACTOR_LIGHT_H
-#define ACTOR_LIGHT_H
+#ifndef CC_ACTOR_LIGHT_H
+#define CC_ACTOR_LIGHT_H
 
 #include "../runtime/north/cc_actor.h"
 
-result_t actor_light_register(list_t **actor_types);
+cc_result_t cc_actor_light_register(cc_list_t **actor_types);
 
-#endif /* ACTOR_LIGHT_H */
+#endif /* CC_ACTOR_LIGHT_H */

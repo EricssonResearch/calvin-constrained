@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef PROTO_H
-#define PROTO_H
+#ifndef CC_PROTO_H
+#define CC_PROTO_H
 
 #include "cc_tunnel.h"
 #include "cc_common.h"
@@ -25,21 +25,21 @@
 #include "cc_actor.h"
 #include "cc_tunnel.h"
 
-result_t proto_send_join_request(const node_t *node, transport_client_t *transport_client, const char *serializer);
-result_t proto_send_node_setup(node_t *node, result_t (*handler)(node_t*, char*, size_t, void*));
-result_t proto_send_sleep_request(node_t *node, uint32_t seconds_to_sleep, result_t (*handler)(node_t*, char*, size_t, void*));
-result_t proto_send_tunnel_request(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, size_t, void*));
-result_t proto_send_tunnel_destroy(node_t *node, tunnel_t *tunnel, result_t (*handler)(node_t*, char*, size_t, void*));
-result_t proto_send_port_connect(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, size_t, void*));
-result_t proto_send_port_disconnect(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, size_t, void*));
-result_t proto_send_token(const node_t *node, port_t *port, token_t *token, uint32_t sequencenbr);
-result_t proto_send_token_reply(const node_t *node, port_t *port, uint32_t sequencenbr, bool ack);
-result_t proto_send_set_actor(node_t *node, const actor_t *actor, result_t (*handler)(node_t*, char*, size_t, void*));
-result_t proto_send_set_port(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, size_t, void*));
-result_t proto_send_get_port(node_t *node, char *port_id, result_t (*handler)(node_t*, char*, size_t, void*), void *msg_data);
-result_t proto_send_remove_actor(node_t *node, actor_t *actor, result_t (*handler)(node_t*, char*, size_t, void*));
-result_t proto_send_remove_port(node_t *node, port_t *port, result_t (*handler)(node_t*, char*, size_t, void*));
-result_t proto_send_actor_new(node_t *node, actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, result_t (*handler)(node_t*, char*, size_t, void*));
-result_t proto_parse_message(node_t *node, char *data, size_t data_len);
+cc_result_t cc_proto_send_join_request(const cc_node_t *node, cc_transport_client_t *transport_client, const char *serializer);
+cc_result_t cc_proto_send_node_setup(cc_node_t *node, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t seconds_to_sleep, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_tunnel_request(cc_node_t *node, cc_tunnel_t *tunnel, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_tunnel_destroy(cc_node_t *node, cc_tunnel_t *tunnel, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_port_connect(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_cc_port_disconnect(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_token(const cc_node_t *node, cc_port_t *port, cc_token_t *token, uint32_t sequencenbr);
+cc_result_t cc_proto_send_token_reply(const cc_node_t *node, cc_port_t *port, uint32_t sequencenbr, bool ack);
+cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_set_port(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_get_port(cc_node_t *node, char *port_id, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*), void *msg_data);
+cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_remove_port(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_actor_new(cc_node_t *node, cc_actor_t*actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_parse_message(cc_node_t *node, char *data, size_t data_len);
 
-#endif /* PROTO_H */
+#endif /* CC_PROTO_H */

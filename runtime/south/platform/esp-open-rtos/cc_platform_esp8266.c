@@ -28,7 +28,7 @@
 #include "../../../../runtime/north/cc_common.h"
 #include "../../../../runtime/north/cc_node.h"
 #include "../../transport/socket/cc_transport_socket.h"
-#include "../../../../runtime/north/cc_msgpack_helper.c"
+#include "../../../../runtime/north/coder/cc_coder.h"
 #include "calvinsys/cc_calvinsys_ds18b20.h"
 #include "calvinsys/cc_calvinsys_yl69.h"
 #include "calvinsys/cc_calvinsys_gpio.h"
@@ -41,37 +41,37 @@
 #define CC_ESP_RESET_PIN				4
 
 
-static result_t platform_esp_write_calvin_config(char *attributes, uint32_t attributes_len, char *proxy_uris, uint32_t proxy_uris_len)
+static cc_result_t cc_platform_esp_write_calvin_config(char *attributes, uint32_t attributes_len, char *proxy_uris, uint32_t proxy_uris_len)
 {
 	spiffs_file fd;
 	int res = 0, start = 0, read_pos = 0, nbr_uris = 1;
-	char buffer[CC_ESP_BUFFER_SIZE], id[UUID_BUFFER_SIZE];
+	char buffer[CC_ESP_BUFFER_SIZE], id[CC_UUID_BUFFER_SIZE];
 	char *tmp = buffer;
 	size_t size = 0;
 
 	fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	if (fd < 0) {
 		cc_log_error("Failed to open config file");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	gen_uuid(id, NULL);
+	cc_gen_uuid(id, NULL);
 
-	tmp = mp_encode_map(tmp, 3);
+	tmp = cc_coder_encode_map(tmp, 3);
 	{
-		tmp = encode_str(&tmp, "id", id, strnlen(id, UUID_BUFFER_SIZE));
-		tmp = encode_str(&tmp, "attributes", attributes, attributes_len);
+		tmp = cc_coder_encode_kv_str(tmp, "id", id, strnlen(id, CC_UUID_BUFFER_SIZE));
+		tmp = cc_coder_encode_kv_str(tmp, "attributes", attributes, attributes_len);
 
 		while (read_pos < proxy_uris_len) {
 			if (proxy_uris[read_pos] == ' ' || read_pos == proxy_uris_len)
 				nbr_uris++;
 			read_pos++;
 		}
-		tmp = encode_array(&tmp, "proxy_uris", nbr_uris);
+		tmp = cc_coder_encode_kv_array(tmp, "proxy_uris", nbr_uris);
 		read_pos = 0;
 		while (read_pos <= proxy_uris_len) {
 			if (proxy_uris[read_pos] == ' ' || read_pos == proxy_uris_len) {
-				tmp = mp_encode_str(tmp, proxy_uris + start, read_pos - start);
+				tmp = cc_coder_encode_str(tmp, proxy_uris + start, read_pos - start);
 				start = read_pos + 1;
 			}
 			read_pos++;
@@ -84,13 +84,13 @@ static result_t platform_esp_write_calvin_config(char *attributes, uint32_t attr
 
 	if (res != size) {
 		cc_log_error("Failed to write runtime config, status '%d'", res);
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-static result_t platform_esp_write_wifi_config(char *ssid, uint32_t ssid_len, char *password, uint32_t password_len)
+static cc_result_t cc_platform_esp_write_wifi_config(char *ssid, uint32_t ssid_len, char *password, uint32_t password_len)
 {
 	spiffs_file fd;
 	int res = 0;
@@ -101,13 +101,13 @@ static result_t platform_esp_write_wifi_config(char *ssid, uint32_t ssid_len, ch
 	fd = SPIFFS_open(&fs, CC_ESP_WIFI_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	if (fd < 0) {
 		cc_log_error("Failed to open config file");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	tmp = mp_encode_map(tmp, 2);
+	tmp = cc_coder_encode_map(tmp, 2);
 	{
-		tmp = encode_str(&tmp, "ssid", ssid, ssid_len);
-		tmp = encode_str(&tmp, "password", password, password_len);
+		tmp = cc_coder_encode_kv_str(tmp, "ssid", ssid, ssid_len);
+		tmp = cc_coder_encode_kv_str(tmp, "password", password, password_len);
 	}
 
 	size = tmp - buffer;
@@ -116,13 +116,13 @@ static result_t platform_esp_write_wifi_config(char *ssid, uint32_t ssid_len, ch
 
 	if (res != size) {
 		cc_log_error("Failed to write runtime wifi config, status '%d'", res);
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-void platform_print(const char *fmt, ...)
+void cc_platform_print(const char *fmt, ...)
 {
 	va_list args;
 
@@ -132,75 +132,75 @@ void platform_print(const char *fmt, ...)
 	va_end(args);
 }
 
-result_t platform_create(struct node_t *node)
+cc_result_t cc_platform_create(struct cc_node_t *node)
 {
 	node->platform = NULL;
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-result_t platform_create_calvinsys(calvinsys_t **calvinsys)
+cc_result_t cc_platform_create_calvinsys(cc_calvinsys_t **calvinsys)
 {
-	calvinsys_handler_t *handler = NULL;
-	calvinsys_gpio_state_t *state_light = NULL;
+	cc_calvinsys_handler_t *handler = NULL;
+	cc_calvinsys_gpio_state_t *state_light = NULL;
 
-	if (calvinsys_ds18b20_create(calvinsys, "io.temperature") != CC_RESULT_SUCCESS) {
+	if (cc_calvinsys_ds18b20_create(calvinsys, "io.temperature") != CC_SUCCESS) {
 		cc_log_error("Failed to create 'io.temperature'");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	if (calvinsys_yl69_create(calvinsys, "io.soilmoisture") != CC_RESULT_SUCCESS) {
+	if (cc_calvinsys_yl69_create(calvinsys, "io.soilmoisture") != CC_SUCCESS) {
 		cc_log_error("Failed to create 'io.soil_moisture'");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	handler = calvinsys_gpio_create_handler(calvinsys);
+	handler = cc_calvinsys_gpio_create_handler(calvinsys);
 	if (handler == NULL) {
 		cc_log_error("Failed to create gpio handler");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	if (platform_mem_alloc((void **)&state_light, sizeof(calvinsys_gpio_state_t)) != CC_RESULT_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&state_light, sizeof(cc_calvinsys_gpio_state_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	state_light->pin = 4;
 	state_light->direction = CC_GPIO_OUT;
 
-	if (calvinsys_register_capability(*calvinsys, "io.light", handler, state_light) != CC_RESULT_SUCCESS)
-		return CC_RESULT_FAIL;
+	if (cc_calvinsys_register_capability(*calvinsys, "io.light", handler, state_light) != CC_SUCCESS)
+		return CC_FAIL;
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-result_t platform_mem_alloc(void **buffer, uint32_t size)
+cc_result_t cc_platform_mem_alloc(void **buffer, uint32_t size)
 {
 	*buffer = malloc(size);
 	if (*buffer == NULL) {
 		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)size);
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-void *platform_mem_calloc(size_t nitems, size_t size)
+void *cc_platform_mem_calloc(size_t nitems, size_t size)
 {
 	void *ptr = NULL;
 
-	if (platform_mem_alloc(&ptr, nitems * size) != CC_RESULT_SUCCESS)
+	if (cc_platform_mem_alloc(&ptr, nitems * size) != CC_SUCCESS)
 		return NULL;
 	memset(ptr, 0, nitems * size);
 
 	return ptr;
 }
 
-void platform_mem_free(void *buffer)
+void cc_platform_mem_free(void *buffer)
 {
 	free(buffer);
 }
 
-bool platform_evt_wait(struct node_t *node, uint32_t timeout_seconds)
+bool cc_platform_evt_wait(struct cc_node_t *node, uint32_t timeout_seconds)
 {
 	fd_set fds;
 	int fd = 0;
@@ -214,16 +214,16 @@ bool platform_evt_wait(struct node_t *node, uint32_t timeout_seconds)
 
 	FD_ZERO(&fds);
 
-	if (node->transport_client != NULL && (node->transport_client->state == TRANSPORT_PENDING || node->transport_client->state == TRANSPORT_ENABLED)) {
-		FD_SET(((transport_socket_client_t *)node->transport_client->client_state)->fd, &fds);
-		fd = ((transport_socket_client_t *)node->transport_client->client_state)->fd;
+	if (node->transport_client != NULL && (node->transport_client->state == CC_TRANSPORT_PENDING || node->transport_client->state == CC_TRANSPORT_ENABLED)) {
+		FD_SET(((cc_transport_socket_client_t *)node->transport_client->client_state)->fd, &fds);
+		fd = ((cc_transport_socket_client_t *)node->transport_client->client_state)->fd;
 
 		select(fd + 1, &fds, NULL, NULL, tv_ref);
 
 		if (FD_ISSET(fd, &fds)) {
-			if (transport_handle_data(node, node->transport_client, node_handle_message) != CC_RESULT_SUCCESS) {
+			if (cc_transport_handle_data(node, node->transport_client, cc_node_handle_message) != CC_SUCCESS) {
 				cc_log_error("Failed to read data from transport");
-				node->transport_client->state = TRANSPORT_DISCONNECTED;
+				node->transport_client->state = CC_TRANSPORT_DISCONNECTED;
 			}
 			return true;
 		}
@@ -235,17 +235,17 @@ bool platform_evt_wait(struct node_t *node, uint32_t timeout_seconds)
 	return false;
 }
 
-result_t platform_stop(struct node_t *node)
+cc_result_t cc_platform_stop(struct cc_node_t *node)
 {
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-result_t platform_node_started(struct node_t *node)
+cc_result_t cc_platform_node_started(struct cc_node_t *node)
 {
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
-void platform_write_node_state(struct node_t *node, char *buffer, size_t size)
+void cc_platform_write_node_state(struct cc_node_t *node, char *buffer, size_t size)
 {
 	spiffs_file fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	int res = 0;
@@ -257,39 +257,39 @@ void platform_write_node_state(struct node_t *node, char *buffer, size_t size)
 	SPIFFS_close(&fs, fd);
 }
 
-result_t platform_read_node_state(struct node_t *node, char buffer[], size_t size)
+cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char buffer[], size_t size)
 {
 	spiffs_file fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_RDONLY, 0);
 
 	if (fd < 0) {
 		cc_log_error("Error opening file");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	SPIFFS_read(&fs, fd, buffer, size);
 	SPIFFS_close(&fs, fd);
 
-	return CC_RESULT_SUCCESS;
+	return CC_SUCCESS;
 }
 
 #ifdef CC_DEEPSLEEP_ENABLED
-void platform_deepsleep(node_t *node, uint32_t time)
+void cc_platform_deepsleep(cc_node_t *node, uint32_t time)
 {
 	sdk_system_deep_sleep(time * 1000 * 1000);
 	vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 #endif
 
-void platform_init(void)
+void cc_platform_init(void)
 {
 }
 
-uint32_t platform_get_seconds(node_t *node)
+uint32_t cc_platform_get_seconds(cc_node_t *node)
 {
 	return node->seconds + (sdk_system_get_time() / 1000000);
 }
 
-static result_t platform_esp_get_config(void)
+static cc_result_t cc_platform_esp_get_config(void)
 {
 	int sockfd = 0, newsockfd = 0, clilen = 0, len = 0;
 	struct sockaddr_in serv_addr, cli_addr;
@@ -324,7 +324,7 @@ static result_t platform_esp_get_config(void)
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0) {
 		cc_log_error("Failed to open socket");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -335,7 +335,7 @@ static result_t platform_esp_get_config(void)
 	if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
 		dhcpserver_stop();
 		cc_log_error("Failed to bind socket");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	listen(sockfd, 1);
@@ -360,44 +360,44 @@ static result_t platform_esp_get_config(void)
 
 		cc_log("Config data received, %d bytes", len);
 
-		if (get_json_dict_value(buffer, len, (char *)"attributes", 10, &attributes, &len_attributes) != CC_RESULT_SUCCESS) {
+		if (cc_get_json_dict_value(buffer, len, (char *)"attributes", 10, &attributes, &len_attributes) != CC_SUCCESS) {
 			cc_log_error("No attribute 'attributes'");
 			close(newsockfd);
 			continue;
 		}
 
-		if (len_attributes > MAX_ATTRIBUTES_LEN) {
+		if (len_attributes > CC_MAX_ATTRIBUTES_LEN) {
 			cc_log_error("Attributes to big");
 			close(newsockfd);
 			continue;
 		}
 
-		if (get_json_string_value(buffer, len, (char *)"proxy_uris", 10, &uri, &len_uri) != CC_RESULT_SUCCESS) {
+		if (cc_get_json_string_value(buffer, len, (char *)"proxy_uris", 10, &uri, &len_uri) != CC_SUCCESS) {
 			cc_log_error("No attribute 'proxy_uris'");
 			close(newsockfd);
 			continue;
 		}
 
-		if (get_json_string_value(buffer, len, (char *)"ssid", 4, &ssid, &len_ssid) != CC_RESULT_SUCCESS) {
+		if (cc_get_json_string_value(buffer, len, (char *)"ssid", 4, &ssid, &len_ssid) != CC_SUCCESS) {
 			cc_log_error("No attribute 'ssid'");
 			close(newsockfd);
 			continue;
 		}
 
-		if (get_json_string_value(buffer, len, (char *)"password", 8, &password, &len_password) != CC_RESULT_SUCCESS) {
+		if (cc_get_json_string_value(buffer, len, (char *)"password", 8, &password, &len_password) != CC_SUCCESS) {
 			cc_log_error("No attribute 'password'");
 			close(newsockfd);
 			continue;
 		}
 
-		if (platform_esp_write_calvin_config(attributes, len_attributes, uri, len_uri) == CC_RESULT_SUCCESS) {
-			if (platform_esp_write_wifi_config(ssid, len_ssid, password, len_password) == CC_RESULT_SUCCESS) {
+		if (cc_platform_esp_write_calvin_config(attributes, len_attributes, uri, len_uri) == CC_SUCCESS) {
+			if (cc_platform_esp_write_wifi_config(ssid, len_ssid, password, len_password) == CC_SUCCESS) {
 				write(newsockfd, "HTTP/1.0 200 OK\r\n", 17);
 				vTaskDelay(1000 / portTICK_PERIOD_MS);
 				close(newsockfd);
 				dhcpserver_stop();
 				cc_log("Config data written");
-				return CC_RESULT_SUCCESS;
+				return CC_SUCCESS;
 			} else
 				cc_log_error("Failed to write WiFi config");
 		} else
@@ -409,7 +409,7 @@ static result_t platform_esp_get_config(void)
 	}
 }
 
-static result_t platform_esp_start_station_mode(void)
+static cc_result_t cc_platform_esp_start_station_mode(void)
 {
 	spiffs_file fd;
 	char buffer[CC_ESP_BUFFER_SIZE], *ssid = NULL, *password = NULL;
@@ -420,25 +420,25 @@ static result_t platform_esp_start_station_mode(void)
 	fd = SPIFFS_open(&fs, CC_ESP_WIFI_CONFIG_FILE, SPIFFS_RDONLY, 0);
 	if (fd < 0) {
 		cc_log_error("Failed to open config file");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	if (SPIFFS_read(&fs, fd, buffer, CC_ESP_BUFFER_SIZE) < 0) {
 		cc_log_error("Failed to read file");
 		SPIFFS_close(&fs, fd);
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	SPIFFS_close(&fs, fd);
 
-	if (decode_string_from_map(buffer, "ssid", &ssid, &ssid_len) != CC_RESULT_SUCCESS) {
+	if (cc_coder_decode_string_from_map(buffer, "ssid", &ssid, &ssid_len) != CC_SUCCESS) {
 		cc_log_error("Failed to read 'ssid' from config");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
-	if (decode_string_from_map(buffer, "password", &password, &password_len) != CC_RESULT_SUCCESS) {
+	if (cc_coder_decode_string_from_map(buffer, "password", &password, &password_len) != CC_SUCCESS) {
 		cc_log_error("Failed to read 'password' from config");
-		return CC_RESULT_FAIL;
+		return CC_FAIL;
 	}
 
 	strncpy((char *)config.ssid, ssid, ssid_len);
@@ -458,10 +458,10 @@ static result_t platform_esp_start_station_mode(void)
 		status = sdk_wifi_station_get_connect_status();
 		if (status == STATION_GOT_IP) {
 			cc_log("Connected to AP");
-			return CC_RESULT_SUCCESS;
+			return CC_SUCCESS;
 		} else if (status == STATION_WRONG_PASSWORD) {
 			cc_log("Wrong password");
-			return CC_RESULT_FAIL;
+			return CC_FAIL;
 		} else if (status == STATION_NO_AP_FOUND)
 			cc_log("AP not found");
 		else if (status == STATION_CONNECT_FAIL)
@@ -469,15 +469,15 @@ static result_t platform_esp_start_station_mode(void)
 		vTaskDelay(2000 / portTICK_PERIOD_MS);
 	}
 
-	return CC_RESULT_FAIL;
+	return CC_FAIL;
 }
 
 void calvin_task(void *pvParameters)
 {
-	node_t *node = NULL;
+	cc_node_t *node = NULL;
 	spiffs_stat s;
 	bool startAP = false;
-	result_t result = CC_RESULT_SUCCESS;
+	cc_result_t result = CC_SUCCESS;
 
 	uart_set_baud(0, 115200);
 
@@ -503,16 +503,16 @@ void calvin_task(void *pvParameters)
 			cc_log("Filesystem formatted");
 		else {
 			cc_log_error("Failed to format filesystem %i", SPIFFS_errno(&fs));
-			result = CC_RESULT_FAIL;
+			result = CC_FAIL;
 		}
 
-		if (result == CC_RESULT_SUCCESS && esp_spiffs_mount() != SPIFFS_OK) {
+		if (result == CC_SUCCESS && esp_spiffs_mount() != SPIFFS_OK) {
 			cc_log_error("Failed to mount filesystem");
-			result = CC_RESULT_FAIL;
+			result = CC_FAIL;
 		}
 	}
 
-	if (result == CC_RESULT_SUCCESS) {
+	if (result == CC_SUCCESS) {
 		if (gpio_read(CC_ESP_RESET_PIN) == 1) {
 			cc_log("Forcing AP mode");
 			startAP = true;
@@ -525,19 +525,19 @@ void calvin_task(void *pvParameters)
 
 		if (startAP) {
 			cc_log("Starting in AP mode");
-			result = platform_esp_get_config();
+			result = cc_platform_esp_get_config();
 		}
 	}
 
-	if (result != CC_RESULT_SUCCESS) {
+	if (result != CC_SUCCESS) {
 		cc_log("Removing config files");
 		SPIFFS_remove(&fs, CC_ESP_WIFI_CONFIG_FILE);
 		SPIFFS_remove(&fs, CC_CONFIG_FILE);
 	} else {
-		result = platform_esp_start_station_mode();
-		if (result == CC_RESULT_SUCCESS) {
-			if (api_runtime_init(&node, NULL, NULL, NULL) == CC_RESULT_SUCCESS)
-				api_runtime_start(node);
+		result = cc_platform_esp_start_station_mode();
+		if (result == CC_SUCCESS) {
+			if (cc_api_runtime_init(&node, NULL, NULL, NULL) == CC_SUCCESS)
+				cc_api_runtime_start(node);
 		}
 	}
 

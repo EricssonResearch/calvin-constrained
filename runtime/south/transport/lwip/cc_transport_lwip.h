@@ -13,27 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef TRANSPORT_LWIP_H
-#define TRANSPORT_LWIP_H
+#ifndef CC_TRANSPORT_LWIP_H
+#define CC_TRANSPORT_LWIP_H
 
 #include "lwip/tcp.h"
 #include "../../../north/cc_transport.h"
 
-struct node_t;
+struct cc_node_t;
 
-typedef struct transport_lwip_rx_buffer_t {
-	char buffer[TRANSPORT_RX_BUFFER_SIZE];
+typedef struct cc_transport_lwip_rx_buffer_t {
+	char buffer[CC_TRANSPORT_RX_BUFFER_SIZE];
 	size_t size;
-} transport_lwip_rx_buffer_t;
+} cc_transport_lwip_rx_buffer_t;
 
-typedef struct transport_lwip_client_t {
+typedef struct cc_transport_lwip_client_t {
 	char mac[40];
 	struct tcp_pcb *tcp_port;
-	struct node_t *node;
-	transport_lwip_rx_buffer_t rx_buffer;
-} transport_lwip_client_t;
+	struct cc_node_t *node;
+	cc_transport_lwip_rx_buffer_t rx_buffer;
+} cc_transport_lwip_client_t;
 
-transport_client_t *transport_lwip_get_client(void);
-bool transport_lwip_has_data(transport_client_t *transport_client);
+cc_transport_client_t *cc_transport_lwip_get_client(void);
+bool cc_transport_lwip_has_data(cc_transport_client_t *transport_client);
 
-#endif /* TRANSPORT_LWIP_H */
+#endif /* CC_TRANSPORT_LWIP_H */

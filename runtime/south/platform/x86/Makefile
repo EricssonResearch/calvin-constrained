@@ -30,8 +30,8 @@ runtime/north/cc_actor.c \
 runtime/north/cc_port.c \
 runtime/north/cc_fifo.c \
 runtime/north/cc_token.c \
-runtime/north/cc_msgpack_helper.c \
 msgpuck/msgpuck.c \
+runtime/north/coder/cc_coder_msgpuck.c \
 calvinsys/cc_calvinsys.c \
 calvinsys/common/cc_calvinsys_timer.c \
 calvinsys/common/cc_calvinsys_attribute.c \

@@ -18,12 +18,12 @@
 
 #include "../../../north/cc_transport.h"
 
-struct node_t;
+struct cc_node_t;
 
 typedef struct transport_fcm_client_t {
-	struct node_t *node;
+	struct cc_node_t *node;
 } transport_fcm_client_t;
 
-transport_client_t *transport_fcm_create(struct node_t *node, char *uri);
+cc_transport_client_t *transport_fcm_create(struct cc_node_t *node, char *uri);
 
 #endif /* TRANSPORT_FCM_H */
