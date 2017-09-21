@@ -52,12 +52,8 @@ static cc_result_t tunnel_request_handler(cc_node_t *node, char *data, size_t da
 	uint32_t status = 0, tunnel_id_len = 0;
 	char *value = NULL, *tunnel_id = NULL, *data_value = NULL;
 	cc_result_t result = CC_FAIL;
-	cc_tunnel_t *tunnel = (cc_tunnel_t *)msg_data;
+	cc_tunnel_t *tunnel = NULL;
 
-	if (msg_data == NULL) {
-		cc_log_error("Expected msg_data");
-		return CC_FAIL;
-	}
 
 	result = cc_coder_get_value_from_map(data, "value", &value);
 	if (result == CC_SUCCESS)
@@ -71,6 +67,12 @@ static cc_result_t tunnel_request_handler(cc_node_t *node, char *data, size_t da
 
 	if (result != CC_SUCCESS) {
 		cc_log_error("Failed to parse reply");
+		return CC_FAIL;
+	}
+
+	tunnel = cc_tunnel_get_from_id(node, tunnel_id, tunnel_id_len);
+	if (tunnel == NULL) {
+		cc_log("No tunnel with id '%.*s'", tunnel_id_len, tunnel_id);
 		return CC_FAIL;
 	}
 
