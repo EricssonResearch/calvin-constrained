@@ -294,10 +294,8 @@ bool cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
 		select(fd + 1, &fds, NULL, NULL, tv_ref);
 
 		if (FD_ISSET(fd, &fds)) {
-			if (cc_transport_handle_data(node, node->transport_client, cc_node_handle_message) != CC_SUCCESS) {
-				cc_log_error("Failed to read data from transport");
-				node->transport_client->state = CC_TRANSPORT_DISCONNECTED;
-			}
+			if (cc_transport_handle_data(node, node->transport_client, cc_node_handle_message) != CC_SUCCESS)
+				cc_log_error("Failed to handle received data");
 			return true;
 		}
 	} else
