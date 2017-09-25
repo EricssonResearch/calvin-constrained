@@ -91,7 +91,7 @@ uint32_t cc_coder_sizeof_str(uint32_t len)
 	return mp_sizeof_str(len) + len;
 }
 
-uint32_t cc_coder_sizeof_nil()
+uint32_t cc_coder_sizeof_nil(void)
 {
 	return mp_sizeof_nil();
 }
@@ -530,7 +530,7 @@ void cc_coder_decode_map_next(char **data)
 	mp_next((const char **)data);
 }
 
-char *cc_coder_get_name()
+char *cc_coder_get_name(void)
 {
 	char *name = NULL;
 

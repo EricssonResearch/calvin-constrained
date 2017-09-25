@@ -41,7 +41,7 @@ uint32_t cc_coder_sizeof_int(int32_t value);
 uint32_t cc_coder_sizeof_double(double value);
 uint32_t cc_coder_sizeof_float(float value);
 uint32_t cc_coder_sizeof_str(uint32_t len);
-uint32_t cc_coder_sizeof_nil();
+uint32_t cc_coder_sizeof_nil(void);
 size_t cc_coder_get_size_of_value(char *value);
 uint32_t cc_coder_get_size_of_array(char *buffer);
 char *cc_coder_encode_map(char *buffer, uint32_t items);
@@ -84,7 +84,7 @@ cc_result_t cc_coder_decode_double_from_map(char *buffer, const char *key, doubl
 cc_result_t cc_coder_copy_value(char *buffer, const char *key, char **value, size_t *size);
 uint32_t cc_coder_decode_map(char **data);
 void cc_coder_decode_map_next(char **data);
-char *cc_coder_get_name();
+char *cc_coder_get_name(void);
 void cc_coder_print_value(char *value);
 
 #endif /* CC_CODER_H */
