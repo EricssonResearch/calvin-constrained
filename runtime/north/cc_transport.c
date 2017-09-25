@@ -29,6 +29,9 @@
 #ifdef CC_TRANSPORT_FCM
 #include "../south/transport/fcm/cc_transport_fcm.h"
 #endif
+#ifdef CC_TRANSPORT_SPRITZER
+#include "../south/transport/spritzer/cc_transport_spritzer.h"
+#endif
 
 unsigned int cc_transport_get_message_len(const char *buffer)
 {
@@ -180,10 +183,16 @@ cc_transport_client_t *cc_transport_create(cc_node_t *node, char *uri)
 		return cc_transport_socket_create(node, uri);
 #endif
 
+#ifdef CC_TRANSPORT_SPRITZER
+	if (strncmp(uri, "calvinip://", 11) == 0)
+		return cc_transport_spritzer_create(node, uri);
+#endif
+
 #ifdef CC_TRANSPORT_LWIP
 	if (strncmp(uri, "lwip", 4) == 0)
 		return cc_transport_lwip_create(node);
 #endif
+
 #ifdef CC_TRANSPORT_FCM
 	if (strncmp(uri, "calvinfcm://", 12) == 0)
 		return transport_fcm_create(node, uri);

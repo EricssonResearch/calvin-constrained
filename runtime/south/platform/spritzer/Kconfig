@@ -1,0 +1,32 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config CALVIN
+	bool "calvin"
+	select NET_LWIP
+	select NSH_LIBRARY
+	default n
+	---help---
+		Enable the Calvin runtime
+
+if CALVIN
+
+config CALVIN_PROGNAME
+	string "Program name"
+	default "calvin"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be use when the NSH ELF
+		program is installed.
+
+config CALVIN_PRIORITY
+	int "Calvin runtime task priority"
+	default 100
+
+config CALVIN_STACKSIZE
+	int "Calvin runtime stack size"
+	default 2048
+
+endif

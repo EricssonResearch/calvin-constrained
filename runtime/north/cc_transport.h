@@ -41,7 +41,8 @@ typedef enum {
 typedef enum {
 	CC_TRANSPORT_SOCKET_TYPE,
 	CC_TRANSPORT_BT_TYPE,
-	CC_TRANSPORT_FCM_TYPE
+	CC_TRANSPORT_FCM_TYPE,
+	CC_TRANSPORT_SPRITZER_TYPE
 } cc_transport_type_t;
 
 typedef struct cc_transport_buffer_t {

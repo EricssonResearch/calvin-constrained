@@ -1,0 +1,3 @@
+ifeq ($(CONFIG_CALVIN),y)
+CONFIGURED_APPS += ericsson/calvin-constrained/runtime/south/platform/spritzer
+endif
