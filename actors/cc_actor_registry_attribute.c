@@ -23,70 +23,104 @@
 #include "../runtime/north/coder/cc_coder.h"
 #include "../calvinsys/cc_calvinsys.h"
 
-static cc_result_t cc_actor_registry_attribute_init(cc_actor_t**actor, cc_list_t *attributes)
+static cc_result_t cc_actor_registry_attribute_init(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
-  cc_calvinsys_obj_t *obj = NULL;
-  cc_list_t *tmp = attributes;
-  char *data = NULL;
-  uint32_t data_len = 0;
+  cc_list_t *item = NULL;
+  char *obj_ref = NULL;
+  uint32_t obj_ref_len = 0;
 
-  while (tmp != NULL) {
-    if (strncmp(tmp->id, "attribute", 9) == 0) {
-      data = (char *)tmp->data;
-      data_len = tmp->data_len;
-      break;
+  item = cc_list_get(managed_attributes, "registry");
+  if (item != NULL) {
+    if (cc_coder_decode_str((char *)item->data, &obj_ref, &obj_ref_len) != CC_SUCCESS) {
+      cc_log_error("Failed to decode 'registry'");
+      return CC_FAIL;
     }
-    tmp = tmp->next;
+
+    (*actor)->instance_state = cc_calvinsys_get_obj_ref((*actor)->calvinsys, obj_ref, obj_ref_len);
+    if ((*actor)->instance_state == NULL) {
+      cc_log_error("Failed to get object reference");
+      return CC_FAIL;
+    }
+
+    return CC_SUCCESS;
   }
 
-  if (data == NULL) {
-    cc_log_error("Failed to get attribute 'attribute'");
+  item = cc_list_get(managed_attributes, "attribute");
+  if (item == NULL) {
+    cc_log_error("Failed to get 'attribute'");
     return CC_FAIL;
   }
 
-	obj = cc_calvinsys_open((*actor)->calvinsys, "sys.attribute.indexed", NULL, 0);
-	if (obj == NULL) {
+	obj_ref = cc_calvinsys_open(*actor, "sys.attribute.indexed", NULL, 0);
+	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'sys.attribute.indexed'");
 		return CC_FAIL;
 	}
 
-  obj->write(obj, data, data_len);
+  if (cc_calvinsys_write((*actor)->calvinsys, obj_ref, (char *)item->data, item->data_len) != CC_SUCCESS) {
+    cc_log_error("Failed to set attribute");
+    return CC_FAIL;
+  }
 
-	(*actor)->instance_state = (void *)obj;
+	(*actor)->instance_state = (void *)obj_ref;
 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_registry_attribute_set_state(cc_actor_t**actor, cc_list_t *attributes)
+static cc_result_t cc_actor_registry_attribute_set_state(cc_actor_t**actor, cc_list_t *managed_attributes)
 {
-	return cc_actor_registry_attribute_init(actor, attributes);
+	return cc_actor_registry_attribute_init(actor, managed_attributes);
 }
 
 static bool cc_actor_registry_attribute_fire(struct cc_actor_t*actor)
 {
-	cc_port_t *inport = (cc_port_t *)actor->in_ports->data, *outport = (cc_port_t *)actor->out_ports->data;
-  cc_calvinsys_obj_t *obj = (cc_calvinsys_obj_t *)actor->instance_state;
+	cc_port_t *inport = (cc_port_t *)actor->in_ports->data;
+  cc_port_t *outport = (cc_port_t *)actor->out_ports->data;
+  char *obj_ref = (char *)actor->instance_state;
   char *data = NULL;
   size_t size = 0;
 
-	if (obj->can_read(obj) && cc_fifo_tokens_available(inport->fifo, 1) && cc_fifo_slots_available(outport->fifo, 1)) {
-		if (obj->read(obj, &data, &size) == CC_SUCCESS) {
-      cc_fifo_peek(inport->fifo);
-      if (cc_fifo_write(outport->fifo, data, size) == CC_SUCCESS) {
-        cc_fifo_commit_read(inport->fifo, true);
-        return true;
-      }
-      cc_log_error("Could not write to ouport");
-      cc_fifo_cancel_commit(inport->fifo);
-    } else
-      cc_log_error("Failed to from calvinsys object");
-	}
-	return false;
+	if (!cc_calvinsys_can_read(actor->calvinsys, obj_ref))
+    return false;
+
+  if (!cc_fifo_tokens_available(inport->fifo, 1))
+    return false;
+
+  if (!cc_fifo_slots_available(outport->fifo, 1))
+    return false;
+
+  if (cc_calvinsys_read(actor->calvinsys, obj_ref, &data, &size) != CC_SUCCESS)
+    return false;
+
+  cc_fifo_peek(inport->fifo);
+  if (cc_fifo_write(outport->fifo, data, size) != CC_SUCCESS) {
+    cc_fifo_cancel_commit(inport->fifo);
+    return false;
+  }
+  cc_fifo_commit_read(inport->fifo, true);
+
+  return true;
 }
 
-static void cc_actor_registry_attribute_free(cc_actor_t*actor)
+static cc_result_t cc_actor_registry_attribute_get_attributes(cc_actor_t *actor, cc_list_t **managed_attributes)
 {
-	cc_calvinsys_close((cc_calvinsys_obj_t *)actor->instance_state);
+	char *obj_ref = (char *)actor->instance_state;
+	char *buffer = NULL, *w = NULL;
+
+	if (cc_platform_mem_alloc((void **)&buffer, cc_coder_sizeof_str(strlen(obj_ref))) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+	w = buffer;
+	w = cc_coder_encode_str(w, obj_ref, strlen(obj_ref));
+
+	if (cc_list_add_n(managed_attributes, "registry", 8, buffer, w - buffer) == NULL) {
+		cc_log_error("Failed to add 'registry' to managed attributes");
+		cc_platform_mem_free(buffer);
+		return CC_FAIL;
+	}
+
+	return CC_SUCCESS;
 }
 
 cc_result_t cc_actor_registry_attribute_register(cc_list_t **actor_types)
@@ -98,14 +132,16 @@ cc_result_t cc_actor_registry_attribute_register(cc_list_t **actor_types)
 		return CC_FAIL;
 	}
 
+  memset(type, 0, sizeof(cc_actor_type_t));
 	type->init = cc_actor_registry_attribute_init;
 	type->set_state = cc_actor_registry_attribute_set_state;
-	type->free_state = cc_actor_registry_attribute_free;
 	type->fire_actor = cc_actor_registry_attribute_fire;
-	type->get_managed_attributes = NULL;
-	type->will_migrate = NULL;
-	type->will_end = NULL;
-	type->did_migrate = NULL;
+  type->get_managed_attributes = cc_actor_registry_attribute_get_attributes;
 
-	return cc_list_add_n(actor_types, "context.RegistryAttribute", 25, type, sizeof(cc_actor_type_t *));
+	if (cc_list_add_n(actor_types, "context.RegistryAttribute", 25, type, sizeof(cc_actor_type_t *)) == NULL) {
+    cc_log_error("Failed to register 'context.RegistryAttribute'");
+    return CC_FAIL;
+  }
+
+  return CC_SUCCESS;
 }

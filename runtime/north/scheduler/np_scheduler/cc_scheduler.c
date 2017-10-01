@@ -30,7 +30,7 @@ bool fire_actors(cc_node_t *node)
 		actor = (cc_actor_t*)actors->data;
 		if (actor->state == CC_ACTOR_ENABLED) {
 			if (actor->fire(actor)) {
-				cc_log("Fired '%.*s'", actor->name_len, actor->name);
+				cc_log("Scheduler: Fired '%s' at '%ld'", actor->id, cc_node_get_time(node));
 				fired = true;
 			}
 		}

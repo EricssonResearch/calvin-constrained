@@ -20,47 +20,44 @@
 #include "../runtime/north/coder/cc_coder.h"
 #include "../runtime/north/cc_fifo.h"
 
-static cc_result_t cc_actor_light_init(cc_actor_t**actor, cc_list_t *attributes)
+static cc_result_t cc_actor_light_init(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
-	cc_calvinsys_obj_t *obj = NULL;
+	char *obj_ref = NULL;
 
-	obj = cc_calvinsys_open((*actor)->calvinsys, "io.light", NULL, 0);
-	if (obj == NULL) {
+	obj_ref = cc_calvinsys_open(*actor, "io.light", NULL, 0);
+	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'io.light'");
 		return CC_FAIL;
 	}
 
-	(*actor)->instance_state = (void *)obj;
+	(*actor)->instance_state = (void *)obj_ref;
 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_light_set_state(cc_actor_t**actor, cc_list_t *attributes)
+static cc_result_t cc_actor_light_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
-	return cc_actor_light_init(actor, attributes);
+	return cc_actor_light_init(actor, managed_attributes);
 }
 
-static bool cc_actor_light_fire(struct cc_actor_t*actor)
+static bool cc_actor_light_fire(struct cc_actor_t *actor)
 {
 	cc_port_t *inport = (cc_port_t *)actor->in_ports->data;
-	cc_calvinsys_obj_t *obj = (cc_calvinsys_obj_t *)actor->instance_state;
+	char *obj_ref = (char *)actor->instance_state;
 	cc_token_t *token = NULL;
 
-	if (cc_fifo_tokens_available(inport->fifo, 1)) {
-		token = cc_fifo_peek(inport->fifo);
-		if (obj->write(obj, token->value, token->size) == CC_SUCCESS) {
-			cc_fifo_commit_read(inport->fifo, true);
-			return true;
-		}
+	if (!cc_fifo_tokens_available(inport->fifo, 1))
+		return false;
+
+	token = cc_fifo_peek(inport->fifo);
+	if (cc_calvinsys_write(actor->calvinsys, obj_ref, token->value, token->size) != CC_SUCCESS) {
 		cc_fifo_cancel_commit(inport->fifo);
+		return false;
 	}
 
-	return false;
-}
+	cc_fifo_commit_read(inport->fifo, true);
 
-static void cc_actor_light_free(cc_actor_t*actor)
-{
-	cc_calvinsys_close((cc_calvinsys_obj_t *)actor->instance_state);
+	return true;
 }
 
 cc_result_t cc_actor_light_register(cc_list_t **actor_types)
@@ -72,14 +69,15 @@ cc_result_t cc_actor_light_register(cc_list_t **actor_types)
 		return CC_FAIL;
 	}
 
+	memset(type, 0, sizeof(cc_actor_type_t));
 	type->init = cc_actor_light_init;
 	type->set_state = cc_actor_light_set_state;
-	type->free_state = cc_actor_light_free;
 	type->fire_actor = cc_actor_light_fire;
-	type->get_managed_attributes = NULL;
-	type->will_migrate = NULL;
-	type->will_end = NULL;
-	type->did_migrate = NULL;
 
-	return cc_list_add_n(actor_types, "io.Light", 8, type, sizeof(cc_actor_type_t *));
+	if (cc_list_add_n(actor_types, "io.Light", 8, type, sizeof(cc_actor_type_t *)) == NULL) {
+		cc_log_error("Failed to register 'io.Light'");
+		return CC_FAIL;
+	}
+
+	return CC_SUCCESS;
 }

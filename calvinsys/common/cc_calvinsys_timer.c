@@ -13,198 +13,217 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <string.h>
 #include "cc_calvinsys_timer.h"
 #include "../../runtime/north/cc_common.h"
 #include "../../runtime/north/cc_node.h"
 #include "../../runtime/north/coder/cc_coder.h"
 #include "../cc_calvinsys.h"
 
-static bool calvinsys_timer_can_read(struct cc_calvinsys_obj_t *obj)
+static bool cc_calvinsys_timer_can_read(struct cc_calvinsys_obj_t *obj)
 {
 	cc_calvinsys_timer_t *timer = (cc_calvinsys_timer_t *)obj->state;
-	uint32_t now = cc_platform_get_seconds(obj->handler->calvinsys->node);
+	uint32_t now = cc_node_get_time(obj->capability->calvinsys->node);
 
-	if (timer->active && (timer->timeout == 0 ||
-		timer->last_triggered == 0 ||
-		(now - timer->last_triggered) >= timer->timeout)) {
+	if (timer->nexttrigger != 0 && now >= timer->nexttrigger)
 		return true;
-	}
 
 	return false;
 }
 
-static cc_result_t calvinsys_timer_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
+static cc_result_t cc_calvinsys_timer_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
 	cc_calvinsys_timer_t *timer = (cc_calvinsys_timer_t *)obj->state;
 
-	timer->active = false;
-	timer->last_triggered = 0;
+	if (timer->repeats)
+		timer->nexttrigger = cc_node_get_time(obj->capability->calvinsys->node) + timer->timeout;
+	else
+		timer->nexttrigger = 0;
 
 	return CC_SUCCESS;
 }
 
-static bool calvinsys_timer_can_write(struct cc_calvinsys_obj_t *obj)
+static bool cc_calvinsys_timer_can_write(struct cc_calvinsys_obj_t *obj)
 {
 	return true;
 }
 
-static cc_result_t calvinsys_timer_write(struct cc_calvinsys_obj_t *obj, char *data, size_t size)
+static cc_result_t cc_calvinsys_timer_write(struct cc_calvinsys_obj_t *obj, char *data, size_t size)
 {
 	cc_calvinsys_timer_t *timer = (cc_calvinsys_timer_t *)obj->state;
+	cc_node_t *node = obj->capability->calvinsys->node;
+	uint32_t timeout = 0;
 
-	switch (cc_coder_type_of(data)) {
-		case CC_CODER_FLOAT:
-		{
-			float value;
-			cc_coder_decode_float(data, &value);
-			timer->timeout = (uint32_t)value;
-			timer->last_triggered = cc_platform_get_seconds(obj->handler->calvinsys->node);
-			timer->active = true;
-			return CC_SUCCESS;
+	if (cc_coder_type_of(data) == CC_CODER_BOOL) {
+		bool value = false;
+		if (cc_coder_decode_bool(data, &value) != CC_SUCCESS) {
+			cc_log_error("Failed to decode value as bool");
+			return CC_FAIL;
 		}
-		case CC_CODER_DOUBLE:
-		{
-			double value;
-			cc_coder_decode_double(data, &value);
-			timer->timeout = (uint32_t)value;
-			timer->last_triggered = cc_platform_get_seconds(obj->handler->calvinsys->node);
-			timer->active = true;
-			return CC_SUCCESS;
+		if (value)
+			timeout = timer->timeout;
+	} else {
+		if (cc_coder_decode_uint(data, &timeout) != CC_SUCCESS) {
+			cc_log_error("Failed to decode value as uint");
+			return CC_FAIL;
 		}
-		case CC_CODER_UINT:
-		{
-			cc_coder_decode_uint(data, &timer->timeout);
-			timer->last_triggered = cc_platform_get_seconds(obj->handler->calvinsys->node);
-			timer->active = true;
-			return CC_SUCCESS;
-		}
-		case CC_CODER_BOOL:
-		{
-			bool value = false;
-			cc_coder_decode_bool(data, &value);
-			if (value) {
-				timer->last_triggered = cc_platform_get_seconds(obj->handler->calvinsys->node);
-				timer->active = true;
-			} else {
-				timer->last_triggered = 0;
-				timer->active = false;
-			}
-			return CC_SUCCESS;
-		}
-		break;
-		default:
-			cc_log_error("Unknown type");
 	}
 
-	return CC_FAIL;
-}
+	if (timeout > 0) {
+		timer->timeout = timeout;
+		timer->nexttrigger = cc_node_get_time(node) + timeout;
+	} else
+		timer->nexttrigger = 0;
 
-
-static cc_result_t calvinsys_timer_close(struct cc_calvinsys_obj_t *obj)
-{
-	cc_platform_mem_free((void *)obj->state);
-	obj->handler->objects = NULL; // TODO: Support multiple timers
 	return CC_SUCCESS;
 }
 
-static cc_calvinsys_obj_t *calvinsys_timer_open(cc_calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
+static cc_result_t cc_calvinsys_timer_close(struct cc_calvinsys_obj_t *obj)
 {
-	cc_calvinsys_obj_t *obj = NULL;
+	cc_platform_mem_free((void *)obj->state);
+	return CC_SUCCESS;
+}
+
+static char *cc_calvinsys_timer_serialize(char *id, cc_calvinsys_obj_t *obj, char *buffer)
+{
+	cc_calvinsys_timer_t *timer = (cc_calvinsys_timer_t *)obj->state;
+
+	buffer = cc_coder_encode_kv_map(buffer, "obj", 3);
+	{
+		buffer = cc_coder_encode_kv_uint(buffer, "nexttrigger", timer->nexttrigger);
+		buffer = cc_coder_encode_kv_bool(buffer, "repeats", timer->repeats);
+		buffer = cc_coder_encode_kv_uint(buffer, "timeout", timer->timeout);
+	}
+
+	return buffer;
+}
+
+static cc_result_t cc_calvinsys_timer_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
+{
 	cc_calvinsys_timer_t *timer = NULL;
+	uint32_t timeout = 0;
+
+	if (data != NULL) {
+		if (cc_coder_decode_uint(data, &timeout) != CC_SUCCESS) {
+			cc_log_error("Failed to get 'timeout'");
+			return CC_FAIL;
+		}
+	}
 
 	if (cc_platform_mem_alloc((void **)&timer, sizeof(cc_calvinsys_timer_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return NULL;
+		return CC_FAIL;
 	}
 
-	if (cc_platform_mem_alloc((void **)&obj, sizeof(cc_calvinsys_obj_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		cc_platform_mem_free((void *)timer);
-		return NULL;
-	}
+	timer->timeout = timeout;
+	if (timer->timeout != 0)
+		timer->nexttrigger = cc_node_get_time(obj->capability->calvinsys->node);
+	else
+		timer->nexttrigger = 0;
+	if (strncmp(obj->capability->name, "sys.timer.repeating", 19)  == 0)
+		timer->repeats = true;
+	else
+		timer->repeats = false;
 
-	timer->active = true;
-
-	if (cc_coder_decode_uint_from_map(data, "timeout", &timer->timeout) != CC_SUCCESS) {
-		cc_log_error("Failed to get attribute 'timeout'");
-		cc_platform_mem_free((void *)timer);
-		return NULL;
-	}
-
-	if (cc_coder_has_key(data, "last_triggered")) {
-		if (cc_coder_decode_uint_from_map(data, "last_triggered", &timer->last_triggered) != CC_SUCCESS) {
-			cc_log_error("Failed to get attribute 'last_triggered'");
-			cc_platform_mem_free((void *)timer);
-			return NULL;
-		}
-	} else
-		timer->last_triggered = 0;
-
-	cc_log("Timer created with timeout '%ld' s last triggered: '%ld'", timer->timeout, timer->last_triggered);
-
-	obj->can_write = calvinsys_timer_can_write;
-	obj->write = calvinsys_timer_write;
-	obj->can_read = calvinsys_timer_can_read;
-	obj->read = calvinsys_timer_read;
-	obj->close = calvinsys_timer_close;
+	obj->can_write = cc_calvinsys_timer_can_write;
+	obj->write = cc_calvinsys_timer_write;
+	obj->can_read = cc_calvinsys_timer_can_read;
+	obj->read = cc_calvinsys_timer_read;
+	obj->close = cc_calvinsys_timer_close;
+	obj->serialize = cc_calvinsys_timer_serialize;
 	obj->state = timer;
 
-	return obj;
+	cc_log_debug("Timer created, timeout '%ld'", timer->timeout);
+
+	return CC_SUCCESS;
+}
+
+cc_result_t cc_calvinsys_timer_deserialize(cc_calvinsys_obj_t *obj, char *buffer)
+{
+	cc_calvinsys_timer_t *timer = NULL;
+	uint32_t timeout = 0, nexttrigger = 0;
+	bool repeats = false;
+
+	if (cc_coder_decode_uint_from_map(buffer, "timeout", &timeout) != CC_SUCCESS) {
+		cc_log_error("Failed to get attribute 'timeout'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_uint_from_map(buffer, "nexttrigger", &nexttrigger) != CC_SUCCESS) {
+		cc_log_error("Failed to get attribute 'nexttriger'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_bool_from_map(buffer, "repeats", &repeats) != CC_SUCCESS) {
+		cc_log_error("Failed to get attribute 'repeats'");
+		return CC_FAIL;
+	}
+
+	if (cc_platform_mem_alloc((void **)&timer, sizeof(cc_calvinsys_timer_t)) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+
+	memset(timer, 0, sizeof(cc_calvinsys_timer_t));
+	timer->timeout = timeout;
+	timer->nexttrigger = nexttrigger;
+	timer->repeats = repeats;
+
+	obj->can_write = cc_calvinsys_timer_can_write;
+	obj->write = cc_calvinsys_timer_write;
+	obj->can_read = cc_calvinsys_timer_can_read;
+	obj->read = cc_calvinsys_timer_read;
+	obj->close = cc_calvinsys_timer_close;
+	obj->serialize = cc_calvinsys_timer_serialize;
+	obj->state = timer;
+
+	cc_log_debug("Timer deserialized, timeout '%ld'", timer->timeout);
+
+	return CC_SUCCESS;
 }
 
 cc_result_t cc_calvinsys_timer_create(cc_calvinsys_t **calvinsys)
 {
-	cc_calvinsys_handler_t *handler = NULL;
-
-	if (cc_platform_mem_alloc((void **)&handler, sizeof(cc_calvinsys_handler_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
+	if (cc_calvinsys_create_capability(*calvinsys, "sys.timer.once",
+			cc_calvinsys_timer_open,
+			cc_calvinsys_timer_deserialize,
+			NULL) != CC_SUCCESS) {
+		cc_log_error("Failed to create 'sys.timer.once'");
+	 	return CC_FAIL;
 	}
 
-	handler->open = calvinsys_timer_open;
-	handler->objects = NULL;
-	handler->next = NULL;
-
-	cc_calvinsys_add_handler(calvinsys, handler);
-	if (cc_calvinsys_register_capability(*calvinsys, "sys.timer.once", handler, NULL) != CC_SUCCESS)
+	if (cc_calvinsys_create_capability(*calvinsys, "sys.timer.repeating",
+			cc_calvinsys_timer_open,
+			cc_calvinsys_timer_deserialize,
+			NULL) != CC_SUCCESS) {
+		cc_log_error("Failed to create 'sys.timer.repeating'");
 		return CC_FAIL;
+	}
 
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_calvinsys_timer_get_next_timeout(cc_node_t *node, uint32_t *timeout)
+cc_result_t cc_calvinsys_timer_get_seconds_to_next_trigger(cc_node_t *node, uint32_t *seconds)
 {
-	uint32_t now = 0, diff = 0;
-	cc_calvinsys_capability_t *timer_capability = (cc_calvinsys_capability_t *)cc_list_get(node->calvinsys->capabilities, "sys.timer.once");
-	cc_calvinsys_obj_t *timer_obj = NULL;
-	cc_calvinsys_timer_t *state = NULL;
-	bool first = true;
-	cc_result_t result = CC_FAIL;
+	cc_list_t *list = node->calvinsys->objects;
+	cc_calvinsys_timer_t *timer = NULL;
+	cc_calvinsys_obj_t *obj = NULL;
+	uint32_t nexttrigger = 0;
 
-	if (timer_capability != NULL) {
-		timer_obj = timer_capability->handler->objects;
-		*timeout = 0;
-		now = cc_platform_get_seconds(node);
-		timer_obj = timer_capability->handler->objects;
-		while (timer_obj != NULL) {
-			state = (cc_calvinsys_timer_t *)timer_obj->state;
-			if (state->active) {
-				if (((cc_calvinsys_timer_t *)timer_obj->state)->last_triggered == 0)
-					diff = 0;
-				else
-					diff = ((cc_calvinsys_timer_t *)timer_obj->state)->timeout - (now - ((cc_calvinsys_timer_t *)timer_obj->state)->last_triggered);
-				if (first) {
-					*timeout = diff;
-					first = false;
-				} else {
-					if (diff < *timeout)
-						*timeout = diff;
-				}
-				result = CC_SUCCESS;
-			}
-			timer_obj = timer_obj->next;
+	while (list != NULL) {
+		obj = (cc_calvinsys_obj_t *)list->data;
+		if (strncmp(obj->capability->name, "sys.timer", 9) == 0) {
+			timer = (cc_calvinsys_timer_t *)obj->state;
+			if (timer->nexttrigger != 0 && (nexttrigger == 0 || timer->nexttrigger < nexttrigger))
+				nexttrigger = timer->nexttrigger;
 		}
+		list = list->next;
 	}
 
-	return result;
+	if (nexttrigger != 0) {
+		*seconds = nexttrigger - cc_node_get_time(node);
+		return CC_SUCCESS;
+	}
+
+	return CC_FAIL;
 }

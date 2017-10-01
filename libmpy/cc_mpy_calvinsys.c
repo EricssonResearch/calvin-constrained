@@ -21,139 +21,108 @@
 #include "../runtime/south/platform/cc_platform.h"
 #include "../actors/cc_actor_mpy.h"
 
-typedef struct cc_mp_calvinsys_obj_t {
-	mp_obj_base_t base;
-	cc_calvinsys_obj_t *obj;
-} cc_mp_calvinsys_obj_t;
-
-static mp_obj_t cc_mp_obj_can_write(mp_obj_t arg_obj)
+static mp_obj_t cc_mp_obj_can_write(mp_obj_t arg_calvinsys, mp_obj_t arg_obj)
 {
 	bool can_write = false;
-	cc_mp_calvinsys_obj_t *mp_obj = arg_obj;
+	cc_calvinsys_t *calvinsys = MP_OBJ_TO_PTR(arg_calvinsys);
+	const char *obj_ref = mp_obj_str_get_str(arg_obj);
 
-	if (mp_obj->obj != NULL && mp_obj->obj->can_write != NULL)
-		can_write = mp_obj->obj->can_write(mp_obj->obj);
+	can_write = cc_calvinsys_can_write(calvinsys, (char *)obj_ref);
 
 	return mp_obj_new_bool(can_write);
 }
+static MP_DEFINE_CONST_FUN_OBJ_2(cc_mp_calvinsys_obj_can_write, cc_mp_obj_can_write);
 
-static mp_obj_t cc_mp_obj_write(mp_obj_t arg_obj, mp_obj_t arg_data)
+static mp_obj_t cc_mp_obj_write(mp_obj_t arg_calvinsys, mp_obj_t arg_obj, mp_obj_t arg_data)
 {
 	bool result = false;
 	char *data = NULL;
 	size_t size = 0;
-	cc_mp_calvinsys_obj_t *mp_obj = arg_obj;
+	cc_calvinsys_t *calvinsys = MP_OBJ_TO_PTR(arg_calvinsys);
+	const char *obj_ref = mp_obj_str_get_str(arg_obj);
 
-	if (mp_obj->obj != NULL) {
-		if (cc_actor_mpy_encode_from_mpy_obj(arg_data, &data, &size) == CC_SUCCESS) {
-			if (mp_obj->obj->write(mp_obj->obj, data, size) == CC_SUCCESS)
-				result = true;
-		} else
-			cc_log_error("Failed to encode object");
+	if (cc_actor_mpy_encode_from_mpy_obj(arg_data, &data, &size) == CC_SUCCESS) {
+		if (cc_calvinsys_write(calvinsys, (char *)obj_ref, data, size) == CC_SUCCESS)
+			result = true;
+		cc_platform_mem_free((void *)data);
 	} else
-		cc_log_error("No object");
+		cc_log_error("Failed to encode object");
 
 	return mp_obj_new_bool(result);
 }
+static MP_DEFINE_CONST_FUN_OBJ_3(cc_mp_calvinsys_obj_write, cc_mp_obj_write);
 
-static mp_obj_t cc_mp_obj_can_read(mp_obj_t arg_obj)
+static mp_obj_t cc_mp_obj_can_read(mp_obj_t arg_calvinsys, mp_obj_t arg_obj)
 {
 	bool can_read = false;
-	cc_mp_calvinsys_obj_t *mp_obj = arg_obj;
+	cc_calvinsys_t *calvinsys = MP_OBJ_TO_PTR(arg_calvinsys);
+	const char *obj_ref = mp_obj_str_get_str(arg_obj);
 
-	if (mp_obj->obj != NULL && mp_obj->obj->can_read)
-		can_read = mp_obj->obj->can_read(mp_obj->obj);
+	can_read = cc_calvinsys_can_read(calvinsys, (char *)obj_ref);
 
 	return mp_obj_new_bool(can_read);
 }
+static MP_DEFINE_CONST_FUN_OBJ_2(cc_mp_calvinsys_obj_can_read, cc_mp_obj_can_read);
 
-static mp_obj_t cc_mp_obj_read(mp_obj_t arg_obj)
+static mp_obj_t cc_mp_obj_read(mp_obj_t arg_calvinsys, mp_obj_t arg_obj)
 {
 	mp_obj_t value = MP_OBJ_NULL;
 	char *data = NULL;
 	size_t size = 0;
-	cc_mp_calvinsys_obj_t *mp_obj = arg_obj;
+	cc_calvinsys_t *calvinsys = MP_OBJ_TO_PTR(arg_calvinsys);
+	const char *obj_ref = mp_obj_str_get_str(arg_obj);
 
-	if (mp_obj->obj != NULL) {
-		if (mp_obj->obj->read(mp_obj->obj, &data, &size) == CC_SUCCESS) {
-			if (data == NULL)
-				return mp_const_none;
-			if (cc_actor_mpy_decode_to_mpy_obj(data, &value) == CC_SUCCESS) {
-				cc_platform_mem_free((void *)data);
-				return value;
-			}
+	if (cc_calvinsys_read(calvinsys, (char *)obj_ref, &data, &size) == CC_SUCCESS) {
+		if (data == NULL)
+			return mp_const_none;
+		if (cc_actor_mpy_decode_to_mpy_obj(data, &value) == CC_SUCCESS) {
 			cc_platform_mem_free((void *)data);
-		}
-	}
+			return value;
+		} else
+			cc_log_error("Failed to decode data");
+		cc_platform_mem_free((void *)data);
+	} else
+		cc_log_error("Failed to read calvinsys object");
 
 	return mp_const_none;
 }
+static MP_DEFINE_CONST_FUN_OBJ_2(cc_mp_calvinsys_obj_read, cc_mp_obj_read);
 
-static MP_DEFINE_CONST_FUN_OBJ_1(cc_mp_calvinsys_obj_can_write, cc_mp_obj_can_write);
-static MP_DEFINE_CONST_FUN_OBJ_2(cc_mp_calvinsys_obj_write, cc_mp_obj_write);
-static MP_DEFINE_CONST_FUN_OBJ_1(cc_mp_calvinsys_obj_can_read, cc_mp_obj_can_read);
-static MP_DEFINE_CONST_FUN_OBJ_1(cc_mp_calvinsys_obj_read, cc_mp_obj_read);
+static mp_obj_t cc_mp_calvinsys_open(mp_obj_t arg_actor, mp_obj_t arg_name)
+{
+	cc_actor_t *actor = MP_OBJ_TO_PTR(arg_actor);
+	const char *name = mp_obj_str_get_str(arg_name);
+	char *obj_ref = NULL;
 
-static const mp_map_elem_t cc_mp_calvinsys_obj_locals_table[] = {
+	obj_ref = cc_calvinsys_open(actor, name, NULL, 0);
+	if (obj_ref == NULL) {
+		cc_log_error("Failed to open '%s'", name);
+		return mp_const_none;
+	}
+
+	return mp_obj_new_str(obj_ref, strlen(obj_ref), 0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(cc_mp_calvinsys_open_obj, cc_mp_calvinsys_open);
+
+static mp_obj_t cc_mp_calvinsys_close(mp_obj_t arg_calvinsys, mp_obj_t arg_obj)
+{
+	cc_calvinsys_t *calvinsys = MP_OBJ_TO_PTR(arg_calvinsys);
+	const char *obj_ref = mp_obj_str_get_str(arg_obj);
+
+	cc_calvinsys_close(calvinsys, (char *)obj_ref);
+
+	return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(cc_mp_calvinsys_close_obj, cc_mp_calvinsys_close);
+
+static const mp_map_elem_t cc_mp_calvinsys_globals_table[] = {
+	{ MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_cc_mp_calvinsys)},
 	{ MP_OBJ_NEW_QSTR(MP_QSTR_can_write), (mp_obj_t)&cc_mp_calvinsys_obj_can_write },
 	{ MP_OBJ_NEW_QSTR(MP_QSTR_write), (mp_obj_t)&cc_mp_calvinsys_obj_write },
 	{ MP_OBJ_NEW_QSTR(MP_QSTR_can_read), (mp_obj_t)&cc_mp_calvinsys_obj_can_read },
 	{ MP_OBJ_NEW_QSTR(MP_QSTR_read), (mp_obj_t)&cc_mp_calvinsys_obj_read },
-};
-static MP_DEFINE_CONST_DICT(cc_mp_calvinsys_obj_locals_dict, cc_mp_calvinsys_obj_locals_table);
-
-static const mp_obj_type_t cc_mp_calvinsys_obj_type = {
-	{ &mp_type_type },
-	.name = MP_QSTR_cc_mp_calvinsys_obj,
-	.locals_dict = (mp_obj_t)&cc_mp_calvinsys_obj_locals_dict
-};
-
-static mp_obj_t cc_mp_cc_calvinsys_open(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args)
-{
-	cc_actor_t*actor = MP_OBJ_TO_PTR(args[0]);
-	const char *name = mp_obj_str_get_str(args[1]);
-	cc_calvinsys_obj_t *obj = NULL;
-	cc_mp_calvinsys_obj_t *cc_mp_calvinsys_obj = NULL;
-	char buffer[400], *tmp = buffer;
-
-	if (kw_args != NULL) {
-		if (cc_actor_mpy_encode_mpy_map(kw_args, &tmp, 400) == CC_SUCCESS)
-			obj = cc_calvinsys_open(actor->calvinsys, name, buffer, tmp - buffer);
-		else {
-			cc_log_error("Failed encode object");
-			return mp_const_none;
-		}
-	} else
-		obj = cc_calvinsys_open(actor->calvinsys, name, NULL, 0);
-
-	if (obj == NULL) {
-		cc_log_error("Failed to open object");
-		return mp_const_none;
-	}
-
-	cc_mp_calvinsys_obj = m_new_obj(cc_mp_calvinsys_obj_t);
-	memset(cc_mp_calvinsys_obj, 0, sizeof(cc_mp_calvinsys_obj_t));
-	cc_mp_calvinsys_obj->base.type = &cc_mp_calvinsys_obj_type;
-	cc_mp_calvinsys_obj->obj = obj;
-
-	return MP_OBJ_FROM_PTR(cc_mp_calvinsys_obj);
-}
-static MP_DEFINE_CONST_FUN_OBJ_KW(cc_mp_cc_calvinsys_open_obj, 1, cc_mp_cc_calvinsys_open);
-
-static mp_obj_t cc_mp_cc_calvinsys_close(mp_obj_t arg_obj)
-{
-	cc_mp_calvinsys_obj_t *mp_obj = arg_obj;
-
-	cc_calvinsys_close(mp_obj->obj);
-
-	return mp_const_none;
-}
-static MP_DEFINE_CONST_FUN_OBJ_1(cc_mp_cc_calvinsys_close_obj, cc_mp_cc_calvinsys_close);
-
-static const mp_map_elem_t cc_mp_calvinsys_globals_table[] = {
-	{ MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_cc_mp_calvinsys)},
-	{ MP_OBJ_NEW_QSTR(MP_QSTR_open), (mp_obj_t)&cc_mp_cc_calvinsys_open_obj },
-	{ MP_OBJ_NEW_QSTR(MP_QSTR_close), (mp_obj_t)&cc_mp_cc_calvinsys_close_obj }
+	{ MP_OBJ_NEW_QSTR(MP_QSTR_open), (mp_obj_t)&cc_mp_calvinsys_open_obj },
+	{ MP_OBJ_NEW_QSTR(MP_QSTR_close), (mp_obj_t)&cc_mp_calvinsys_close_obj }
 };
 
 static MP_DEFINE_CONST_DICT(cc_mp_calvinsys_globals_dict, cc_mp_calvinsys_globals_table);

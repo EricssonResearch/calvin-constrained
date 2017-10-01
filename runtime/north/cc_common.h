@@ -48,12 +48,12 @@ typedef struct cc_list_t {
 
 void cc_gen_uuid(char *buffer, const char *prefix);
 bool cc_uuid_is_higher(char *id1, size_t len1, char *id2, size_t len2);
-cc_result_t cc_list_add(cc_list_t **head, char *id, void *data, uint32_t data_len);
-cc_result_t cc_list_add_n(cc_list_t **head, const char *id, uint32_t len, void *data, uint32_t data_len);
+cc_list_t *cc_list_add(cc_list_t **head, char *id, void *data, uint32_t data_len);
+cc_list_t *cc_list_add_n(cc_list_t **head, const char *id, uint32_t len, void *data, uint32_t data_len);
 void cc_list_remove(cc_list_t **head, const char *id);
 uint32_t cc_list_count(cc_list_t *list);
-void *cc_list_get_n(cc_list_t *list, const char *id, uint32_t id_len);
-void *cc_list_get(cc_list_t *list, const char *id);
+cc_list_t *cc_list_get_n(cc_list_t *list, const char *id, uint32_t id_len);
+cc_list_t *cc_list_get(cc_list_t *list, const char *id);
 cc_result_t cc_get_json_string_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len);
 cc_result_t cc_get_json_dict_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len);
 #ifdef CC_ADD_STRNSTR

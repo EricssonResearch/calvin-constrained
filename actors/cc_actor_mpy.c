@@ -88,148 +88,78 @@ cc_result_t cc_actor_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 	return result;
 }
 
-static bool cc_actor_mpy_can_encode(uint32_t size, uint32_t buffer_size, char *start, char *pos)
+cc_result_t cc_actor_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size_t *size)
 {
-	if (((pos + size) - start) <= buffer_size)
-		return true;
+	char *pos = NULL;
+	size_t to_alloc = 0;
 
-	return false;
-}
-
-cc_result_t cc_actor_mpy_encode_mpy_map(mp_map_t *map, char **buffer, size_t buffer_size)
-{
-	uint i = 0;
-	char *pos = *buffer;
-
-	if (map->alloc > 0) {
-		pos = cc_coder_encode_map(pos, map->alloc);
-		for (i = 0; i < map->alloc; i++) {
-			const char *key = mp_obj_str_get_str(map->table[i].key);
-			if (!cc_actor_mpy_can_encode(cc_coder_sizeof_str(strlen(key)), buffer_size, *buffer, pos)) {
-				cc_log_error("Buffer to small");
-				return CC_FAIL;
-			}
-			pos = cc_coder_encode_str(pos, key, strlen(key));
-
-			if (MP_OBJ_IS_SMALL_INT(map->table[i].value)) {
-				int value = MP_OBJ_SMALL_INT_VALUE(map->table[i].value);
-				if (!cc_actor_mpy_can_encode(cc_coder_sizeof_uint(value), buffer_size, *buffer, pos)) {
-					cc_log_error("Buffer to small");
-					return CC_FAIL;
-				}
-				pos = cc_coder_encode_uint(pos, value);
-			} else if (MP_OBJ_IS_INT(map->table[i].value)) {
-				int32_t value = mp_obj_get_int(map->table[i].value);
-				if (!cc_actor_mpy_can_encode(cc_coder_sizeof_int(value), buffer_size, *buffer, pos)) {
-					cc_log_error("Buffer to small");
-					return CC_FAIL;
-				}
-				pos = cc_coder_encode_int(pos, mp_obj_get_int(map->table[i].value));
-			} else if (mp_obj_is_float(map->table[i].value)) {
-				float value = mp_obj_float_get(map->table[i].value);
-				if (!cc_actor_mpy_can_encode(cc_coder_sizeof_float(value), buffer_size, *buffer, pos)) {
-					cc_log_error("Buffer to small");
-					return CC_FAIL;
-				}
-				pos = cc_coder_encode_double(pos, value);
-			} else if (MP_OBJ_IS_TYPE(map->table[i].value, &mp_type_bool)) {
-				bool value = mp_obj_new_bool(mp_obj_get_int(map->table[i].value));
-				if (!cc_actor_mpy_can_encode(cc_coder_sizeof_bool(value), buffer_size, *buffer, pos)) {
-					cc_log_error("Buffer to small");
-					return CC_FAIL;
-				}
-				pos = cc_coder_encode_bool(pos, value);
-			} else if (MP_OBJ_IS_TYPE(map->table[i].value, &mp_type_NoneType)) {
-				if (!cc_actor_mpy_can_encode(cc_coder_sizeof_nil(), buffer_size, *buffer, pos)) {
-					cc_log_error("Buffer to small");
-					return CC_FAIL;
-				}
-				pos = cc_coder_encode_nil(pos);
-			} else if (MP_OBJ_IS_STR(map->table[i].value)) {
-				mp_uint_t len;
-				const char *s = mp_obj_str_get_data(map->table[i].value, &len);
-				if (!cc_actor_mpy_can_encode(cc_coder_sizeof_str(strlen(s)), buffer_size, *buffer, pos)) {
-					cc_log_error("Buffer to small");
-					return CC_FAIL;
-				}
-				pos = cc_coder_encode_str(pos, s, strlen(s));
-			} else {
-				cc_log_error("Unsupported type");
-				return CC_FAIL;
-			}
+	if (MP_OBJ_IS_SMALL_INT(input)) {
+		int value = MP_OBJ_SMALL_INT_VALUE(input);
+		to_alloc = cc_coder_sizeof_uint(value);
+		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
+			cc_log_error("Failed to allocate memory");
+			return CC_FAIL;
 		}
+		pos = *buffer;
+		pos = cc_coder_encode_uint(pos, value);
+	} else if (MP_OBJ_IS_INT(input)) {
+		int32_t value = mp_obj_get_int(input);
+		to_alloc = cc_coder_sizeof_int(value);
+		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
+			cc_log_error("Failed to allocate memory");
+			return CC_FAIL;
+		} else
+		pos = *buffer;
+		pos = cc_coder_encode_int(pos, value);
+	} else if (mp_obj_is_float(input)) {
+		float value = mp_obj_float_get(input);
+		to_alloc = cc_coder_sizeof_float(value);
+		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
+			cc_log_error("Failed to allocate memory");
+			return CC_FAIL;
+		}
+		pos = *buffer;
+		pos = cc_coder_encode_float(pos, value);
+	} else if (MP_OBJ_IS_TYPE(input, &mp_type_bool)) {
+		bool value = mp_obj_new_bool(mp_obj_get_int(input));
+		to_alloc = cc_coder_sizeof_bool(value);
+		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
+			cc_log_error("Failed to allocate memory");
+			return CC_FAIL;
+		}
+		pos = *buffer;
+		pos = cc_coder_encode_bool(pos, value);
+	} else if (MP_OBJ_IS_TYPE(input, &mp_type_NoneType)) {
+		to_alloc = cc_coder_sizeof_nil();
+		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
+			cc_log_error("Failed to allocate memory");
+			return CC_FAIL;
+		}
+		pos = *buffer;
+		pos = cc_coder_encode_nil(pos);
+	} else if (MP_OBJ_IS_STR(input)) {
+		const char *str = mp_obj_str_get_str(input);
+		to_alloc = cc_coder_sizeof_str(strlen(str));
+		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
+			cc_log_error("Failed to allocate memory");
+			return CC_FAIL;
+		}
+		pos = *buffer;
+		pos = cc_coder_encode_str(pos, str, strlen(str));
+	} else {
+		cc_log_error("Unsupported type");
+		return CC_FAIL;
 	}
+
+	*size = pos - *buffer;
 
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_actor_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size_t *size)
+static cc_result_t cc_actor_mpy_init(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
-	char *pos = *buffer;
-	cc_result_t result = CC_SUCCESS;
-
-	if (MP_OBJ_IS_SMALL_INT(input)) {
-		int value = MP_OBJ_SMALL_INT_VALUE(input);
-		*size = cc_coder_sizeof_uint(value);
-		if (cc_platform_mem_alloc((void **)buffer, *size) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			result = CC_FAIL;
-		} else
-			pos = cc_coder_encode_uint(*buffer, value);
-	} else if (MP_OBJ_IS_INT(input)) {
-		int32_t value = mp_obj_get_int(input);
-		*size = cc_coder_sizeof_int(value);
-		if (cc_platform_mem_alloc((void **)buffer, *size) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			result = CC_FAIL;
-		} else
-			pos = cc_coder_encode_int(*buffer, value);
-	} else if (mp_obj_is_float(input)) {
-		float value = mp_obj_float_get(input);
-		*size = cc_coder_sizeof_float(value);
-		if (cc_platform_mem_alloc((void **)buffer, *size) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			result = CC_FAIL;
-		} else
-			pos = cc_coder_encode_float(*buffer, value);
-	} else if (MP_OBJ_IS_TYPE(input, &mp_type_bool)) {
-		bool value = mp_obj_new_bool(mp_obj_get_int(input));
-		*size = cc_coder_sizeof_bool(value);
-		if (cc_platform_mem_alloc((void **)buffer, *size) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			result = CC_FAIL;
-		} else
-			pos = cc_coder_encode_bool(*buffer, value);
-	} else if (MP_OBJ_IS_TYPE(input, &mp_type_NoneType)) {
-		*size = cc_coder_sizeof_nil();
-		if (cc_platform_mem_alloc((void **)buffer, *size) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			result = CC_FAIL;
-		}
-		pos = cc_coder_encode_nil(*buffer);
-	} else if (MP_OBJ_IS_STR(input)) {
-		const char *str = mp_obj_str_get_str(input);
-		*size = cc_coder_sizeof_str(strlen(str));
-		if (cc_platform_mem_alloc((void **)buffer, *size) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			result = CC_FAIL;
-		}
-		pos = cc_coder_encode_str(*buffer, str, strlen(str));
-	} else {
-		cc_log_error("Unsupported type");
-		result = CC_FAIL;
-	}
-
-	if ((pos - *buffer) > *size)
-		cc_log_error("OPS, buffer is to small");
-
-	return result;
-}
-
-static cc_result_t cc_actor_mpy_init(cc_actor_t **actor, cc_list_t *attributes)
-{
-	uint32_t j = 0, nbr_of_attributes = cc_list_count(attributes);
-	cc_list_t *list = attributes;
+	uint32_t j = 0, nbr_of_attributes = cc_list_count(managed_attributes);
+	cc_list_t *list = managed_attributes;
 	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)(*actor)->instance_state;
 	mp_obj_t args[2 + 2 * nbr_of_attributes];
 	mp_obj_t tmp = MP_OBJ_NULL;
@@ -241,7 +171,10 @@ static cc_result_t cc_actor_mpy_init(cc_actor_t **actor, cc_list_t *attributes)
 
 	args[0] = actor_init_method[0];
 	args[1] = actor_init_method[1];
-
+/*
+	py_managed_list = mp_obj_new_list(nbr_of_attributes, NULL);
+	mp_store_attr(state->actor_class_instance, QSTR_FROM_STR_STATIC("_managed"), py_managed_list);
+*/
 	while (list != NULL && result == CC_SUCCESS) {
 		tmp = mp_obj_new_str(list->id, list->id_len, true);
 		j += 2;
@@ -251,7 +184,7 @@ static cc_result_t cc_actor_mpy_init(cc_actor_t **actor, cc_list_t *attributes)
 			return CC_FAIL;
 		}
 		args[j + 1] = tmp;
-		cc_log_debug("Added managed attribute '%.*s'", list->id_len, list->id);
+		cc_log_debug("Added managed attribute '%s'", list->id);
 		list = list->next;
 	}
 
@@ -264,18 +197,18 @@ static cc_result_t cc_actor_mpy_init(cc_actor_t **actor, cc_list_t *attributes)
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_mpy_set_state(cc_actor_t **actor, cc_list_t *attributes)
+static cc_result_t cc_actor_mpy_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
-	uint32_t nbr_of_attributes = cc_list_count(attributes);
+	uint32_t nbr_of_attributes = cc_list_count(managed_attributes);
 	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)(*actor)->instance_state;
-	uint32_t item = 0;
-	cc_list_t *list = attributes;
+	uint32_t index = 0;
+	cc_list_t *list = managed_attributes;
 	mp_obj_t value = MP_OBJ_NULL;
 	mp_obj_t py_managed_list = MP_OBJ_NULL;
 	qstr q_attr;
 	mp_obj_t attr = MP_OBJ_NULL;
 
-	// Copy to python world
+	// Create the _managed list and the managed attributes on the Python instance
 	py_managed_list = mp_obj_new_list(nbr_of_attributes, NULL);
 	mp_store_attr(state->actor_class_instance, QSTR_FROM_STR_STATIC("_managed"), py_managed_list);
 	while (list != NULL) {
@@ -285,10 +218,8 @@ static cc_result_t cc_actor_mpy_set_state(cc_actor_t **actor, cc_list_t *attribu
 			cc_log_error("Failed to decode value from managed attribute");
 			return CC_FAIL;
 		}
-		mp_obj_list_store(py_managed_list, MP_OBJ_NEW_SMALL_INT(item), attr);
+		mp_obj_list_store(py_managed_list, MP_OBJ_NEW_SMALL_INT(index++), attr);
 		mp_store_attr(state->actor_class_instance, q_attr, value);
-		item++;
-		cc_log_debug("Added managed attribute '%.*s'", list->id_len, list->id);
 		list = list->next;
 	}
 
@@ -299,11 +230,11 @@ static cc_result_t cc_actor_mpy_set_state(cc_actor_t **actor, cc_list_t *attribu
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_mpy_get_managed_attributes(cc_actor_t *actor, cc_list_t **attributes)
+static cc_result_t cc_actor_mpy_get_attributes(cc_actor_t *actor, cc_list_t **managed_attributes)
 {
 	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)actor->instance_state;
 	qstr q_attr;
-	mp_obj_t mpy_attr[2], attr;
+	mp_obj_t mpy_attr[2];
 	mp_obj_list_t *managed_list = NULL;
 	uint32_t i = 0;
 	size_t size = 0;
@@ -317,19 +248,28 @@ static cc_result_t cc_actor_mpy_get_managed_attributes(cc_actor_t *actor, cc_lis
 
 	managed_list = MP_OBJ_TO_PTR(mpy_attr[0]);
 	for (i = 0; i < managed_list->len; i++) {
-		attr = managed_list->items[i];
-		GET_STR_DATA_LEN(attr, name, len);
-		q_attr = qstr_from_strn((const char *)name, len);
-		mp_load_method(state->actor_class_instance, q_attr, mpy_attr);
-		if (mpy_attr[0] == MP_OBJ_NULL) {
-			cc_log_debug("Unknown managed attribute");
-			continue;
+		if (!MP_OBJ_IS_STR(managed_list->items[i])) {
+			cc_log_error("Attribute name is not a string");
+			return CC_FAIL;
 		}
 
-		if (cc_actor_mpy_encode_from_mpy_obj(mpy_attr[0], &packed_value, &size) != CC_SUCCESS)
-			return CC_FAIL;
+		const char *attribute_name = mp_obj_str_get_str(managed_list->items[i]);
 
-		if (cc_list_add_n(attributes, (char *)name, len, packed_value, size) != CC_SUCCESS) {
+		q_attr = qstr_from_strn(attribute_name, strlen(attribute_name));
+
+		mp_load_method(state->actor_class_instance, q_attr, mpy_attr);
+		if (mpy_attr[0] == MP_OBJ_NULL) {
+			cc_log_error("Failed to get managed attribute");
+			return CC_FAIL;
+		}
+
+		if (cc_actor_mpy_encode_from_mpy_obj(mpy_attr[0], &packed_value, &size) != CC_SUCCESS) {
+			cc_log_error("Failed to encode attribute");
+			return CC_FAIL;
+		}
+
+		if (cc_list_add_n(managed_attributes, attribute_name, strlen(attribute_name), packed_value, size) == NULL) {
+			cc_log_error("Failed to add attribute");
 			cc_platform_mem_free(packed_value);
 			return CC_FAIL;
 		}
@@ -417,12 +357,12 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 {
 	char *type = actor->type, *class = NULL, instance_name[30];
 	qstr actor_type_qstr, actor_class_qstr;
-	mp_obj_t args[1];
+	mp_obj_t args[2];
 	cc_actor_mpy_state_t *state = NULL;
 	mp_obj_t actor_module;
 	mp_obj_t actor_class_ref[2];
 	static int counter;
-	uint8_t pos = actor->type_len, class_len = 0;
+	uint8_t pos = strlen(actor->type), class_len = 0;
 
 	sprintf(instance_name, "actor_obj%d", counter++);
 
@@ -447,7 +387,7 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 		return CC_FAIL;
 	}
 
-	actor_type_qstr = qstr_from_strn(type, actor->type_len);
+	actor_type_qstr = qstr_from_strn(type, strlen(actor->type));
 	actor_class_qstr = qstr_from_strn(class, class_len);
 
 	// load the module
@@ -459,9 +399,10 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 	// load the class
 	mp_load_method(actor_module, actor_class_qstr, actor_class_ref);
 
-	//pass the actor as a mp_obj_t
+	// pass the actor and calvinsys as a mp_obj_t
 	args[0] = MP_OBJ_FROM_PTR(actor);
-	state->actor_class_instance = mp_call_function_n_kw(actor_class_ref[0], 1, 0, args);
+	args[1] = MP_OBJ_FROM_PTR(actor->calvinsys);
+	state->actor_class_instance = mp_call_function_n_kw(actor_class_ref[0], 2, 0, args);
 	mp_store_name(QSTR_FROM_STR_STATIC(instance_name), state->actor_class_instance);
 
 	// load the fire method
@@ -474,7 +415,7 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 	actor->init = cc_actor_mpy_init;
 	actor->fire = cc_actor_mpy_fire;
 	actor->set_state = cc_actor_mpy_set_state;
-	actor->get_managed_attributes = cc_actor_mpy_get_managed_attributes;
+	actor->get_managed_attributes = cc_actor_mpy_get_attributes;
 	actor->free_state = cc_actor_mpy_free_state;
 	actor->will_migrate = cc_actor_mpy_will_migrate;
 	actor->will_end = cc_actor_mpy_will_end;

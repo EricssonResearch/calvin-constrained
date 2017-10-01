@@ -17,10 +17,9 @@
 #define CC_ACTOR_STEPCOUNTER_H
 
 #include "../runtime/north/cc_common.h"
-#include "../calvinsys/cc_calvinsys.h"
 
 typedef struct cc_actor_stepcounter_state_t {
-	cc_calvinsys_obj_t *calvinsys_stepcounter;
+	char *obj_ref;
 	char *stepcount;
 	size_t stepcount_size;
 } cc_actor_stepcounter_state_t;

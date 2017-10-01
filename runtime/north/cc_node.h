@@ -57,11 +57,8 @@ typedef struct cc_node_t {
 	cc_transport_client_t *transport_client;
 	cc_calvinsys_t *calvinsys;
 	cc_list_t *proxy_uris;
-#ifdef CC_TRACK_TIME
-	// TODO: handle wrap
-	uint32_t seconds;
-	uint32_t seconds_of_sleep;
-#endif
+	uint32_t seconds_since_epoch;
+	uint32_t time_at_sync;
 	bool (*fire_actors)(struct cc_node_t *node);
 } cc_node_t;
 
@@ -73,6 +70,7 @@ cc_result_t cc_node_handle_token(cc_port_t *port, const char *data, const size_t
 void cc_node_handle_token_reply(cc_node_t *node, char *port_id, uint32_t port_id_len, cc_port_reply_type_t reply_type, uint32_t sequencenbr);
 cc_result_t cc_node_handle_message(cc_node_t *node, char *buffer, size_t len);
 cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *proxy_uris, const char *storage_dir);
+uint32_t cc_node_get_time(cc_node_t *node);
 cc_result_t cc_node_run(cc_node_t *node);
 #ifdef CC_STORAGE_ENABLED
 void cc_node_set_state(cc_node_t *node);

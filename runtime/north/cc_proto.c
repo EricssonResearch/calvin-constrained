@@ -131,7 +131,7 @@ cc_result_t cc_proto_send_node_setup(cc_node_t *node, cc_result_t (*handler)(cc_
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t seconds_to_sleep, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t time_to_sleep, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
@@ -152,7 +152,7 @@ cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t seconds_to_sle
 		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "cmd", "SLEEP_REQUEST", 13);
-		w = cc_coder_encode_kv_uint(w, "seconds_to_sleep", seconds_to_sleep);
+		w = cc_coder_encode_kv_uint(w, "seconds_to_sleep", time_to_sleep);
 	}
 
 	if (cc_transport_send(node->transport_client, buffer, w - buffer) == CC_SUCCESS) {
@@ -626,7 +626,7 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 	if (node->transport_client == NULL)
 		return CC_FAIL;
 
-	key_len = snprintf(key, 50, "actor-%.*s", actor->id_len, actor->id);
+	key_len = snprintf(key, 50, "actor-%s", actor->id);
 
 	if (!cc_node_can_add_pending_msg(node))
 		return CC_PENDING;
@@ -671,11 +671,9 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 
 	data_len = snprintf(data,
 		400,
-		"{\"is_shadow\": false, \"name\": \"%.*s\", \"node_id\": \"%s\", \"type\": \"%.*s\", \"inports\": [%s], \"outports\": [%s]}",
-		actor->name_len,
+		"{\"is_shadow\": false, \"name\": \"%s\", \"node_id\": \"%s\", \"type\": \"%s\", \"inports\": [%s], \"outports\": [%s]}",
 		actor->name,
 		node->id,
-		actor->type_len,
 		actor->type,
 		inports,
 		outports);
@@ -718,7 +716,7 @@ cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_res
 	if (!cc_node_can_add_pending_msg(node))
 		return CC_PENDING;
 
-	key_len = snprintf(key, 50, "actor-%.*s", actor->id_len, actor->id);
+	key_len = snprintf(key, 50, "actor-%s", actor->id);
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
@@ -769,26 +767,24 @@ cc_result_t cc_proto_send_set_port(cc_node_t *node, cc_port_t *port, cc_result_t
 	if (peer_id != NULL)
 		data_len = snprintf(data,
 			1000,
-			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%.*s\"}",
+			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%s\"}",
 			peer_id,
 			port->peer_port_id,
 			port->direction == CC_PORT_DIRECTION_IN ? STRING_IN : STRING_OUT,
 			port->name,
 			node->id,
 			STRING_TRUE,
-			port->actor->id_len,
 			port->actor->id);
 	else
 		data_len = snprintf(data,
 			1000,
-			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%.*s\"}",
+			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%s\"}",
 			"null",
 			port->peer_port_id,
 			port->direction == CC_PORT_DIRECTION_IN ? STRING_IN : STRING_OUT,
 			port->name,
 			node->id,
 			STRING_TRUE,
-			port->actor->id_len,
 			port->actor->id);
 
 	w = buffer + node->transport_client->prefix_len;

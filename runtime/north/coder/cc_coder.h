@@ -85,6 +85,5 @@ cc_result_t cc_coder_copy_value(char *buffer, const char *key, char **value, siz
 uint32_t cc_coder_decode_map(char **data);
 void cc_coder_decode_map_next(char **data);
 char *cc_coder_get_name(void);
-void cc_coder_print_value(char *value);
 
 #endif /* CC_CODER_H */

@@ -27,7 +27,7 @@
 
 cc_result_t cc_proto_send_join_request(const cc_node_t *node, cc_transport_client_t *transport_client, const char *serializer);
 cc_result_t cc_proto_send_node_setup(cc_node_t *node, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
-cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t seconds_to_sleep, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t time_to_sleep, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
 cc_result_t cc_proto_send_tunnel_request(cc_node_t *node, cc_tunnel_t *tunnel, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
 cc_result_t cc_proto_send_tunnel_destroy(cc_node_t *node, cc_tunnel_t *tunnel, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
 cc_result_t cc_proto_send_port_connect(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));

@@ -140,24 +140,7 @@ cc_result_t cc_platform_create(struct cc_node_t *node)
 
 cc_result_t cc_platform_create_calvinsys(cc_calvinsys_t **calvinsys)
 {
-	cc_calvinsys_handler_t *handler = NULL;
 	cc_calvinsys_gpio_state_t *state_light = NULL;
-
-	if (cc_calvinsys_ds18b20_create(calvinsys, "io.temperature") != CC_SUCCESS) {
-		cc_log_error("Failed to create 'io.temperature'");
-		return CC_FAIL;
-	}
-
-	if (cc_calvinsys_yl69_create(calvinsys, "io.soilmoisture") != CC_SUCCESS) {
-		cc_log_error("Failed to create 'io.soil_moisture'");
-		return CC_FAIL;
-	}
-
-	handler = cc_calvinsys_gpio_create_handler(calvinsys);
-	if (handler == NULL) {
-		cc_log_error("Failed to create gpio handler");
-		return CC_FAIL;
-	}
 
 	if (cc_platform_mem_alloc((void **)&state_light, sizeof(cc_calvinsys_gpio_state_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
@@ -167,7 +150,13 @@ cc_result_t cc_platform_create_calvinsys(cc_calvinsys_t **calvinsys)
 	state_light->pin = 4;
 	state_light->direction = CC_GPIO_OUT;
 
-	if (cc_calvinsys_register_capability(*calvinsys, "io.light", handler, state_light) != CC_SUCCESS)
+	if (cc_calvinsys_create_capability(*calvinsys, "io.light", cc_calvinsys_gpio_open, NULL, state_light) != CC_SUCCESS)
+		return CC_FAIL;
+
+	if (cc_calvinsys_create_capability(*calvinsys, "io.temperature", cc_calvinsys_ds18b20_open, NULL, NULL) != CC_SUCCESS)
+		return CC_FAIL;
+
+	if (cc_calvinsys_create_capability(*calvinsys, "io.soil_moisture", cc_calvinsys_yl69_open, NULL, NULL) != CC_SUCCESS)
 		return CC_FAIL;
 
 	return CC_SUCCESS;
@@ -273,9 +262,9 @@ cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char buffer[], s
 }
 
 #ifdef CC_DEEPSLEEP_ENABLED
-void cc_platform_deepsleep(cc_node_t *node, uint32_t time)
+void cc_platform_deepsleep(uint32_t time_in_us)
 {
-	sdk_system_deep_sleep(time * 1000 * 1000);
+	sdk_system_deep_sleep(time_in_us);
 	vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 #endif
@@ -284,9 +273,9 @@ void cc_platform_init(void)
 {
 }
 
-uint32_t cc_platform_get_seconds(cc_node_t *node)
+uint32_t cc_platform_get_time()
 {
-	return node->seconds + (sdk_system_get_time() / 1000000);
+	return sdk_system_get_time();
 }
 
 static cc_result_t cc_platform_esp_get_config(void)

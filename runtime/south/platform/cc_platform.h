@@ -117,19 +117,18 @@ cc_result_t cc_platform_stop(struct cc_node_t *node);
 cc_result_t cc_platform_node_started(struct cc_node_t *node);
 
 /**
- * platform_node_get_seconds() - Get seconds since start
+ * cc_platform_get_time() - Get system time (s)
  *
- * Return: Seconds since start
+ * Return: System time in seconds since boot/reset
  */
-uint32_t cc_platform_get_seconds(struct cc_node_t *node);
+uint32_t cc_platform_get_time(void);
 
 #ifdef CC_DEEPSLEEP_ENABLED
 /**
  * cc_platform_deepsleep() - Enter platform deep sleep state.
- * @node the node
- * @time time to sleep
+ * @time_in_us microseconds to sleep
  */
-void cc_platform_deepsleep(struct cc_node_t *node, uint32_t time);
+void cc_platform_deepsleep(uint32_t time_in_us);
 #endif
 
 #ifdef CC_STORAGE_ENABLED

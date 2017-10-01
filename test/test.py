@@ -608,7 +608,7 @@ def testSleepWithTimer():
 
     script_name = "testSleepWithTimer"
     script = """
-    temp : sensor.Temperature(frequency=0.25)
+    temp : sensor.Temperature(frequency=0.3)
     snk : test.Sink(store_tokens=1, quiet=1)
     temp.centigrade > snk.token
     """
@@ -648,6 +648,19 @@ def testSleepWithTimer():
     # verify data
     wait_for_tokens(request_handler,
                     rt1,
+                    resp['actor_map'][script_name + ':snk'], 1, 10)
+    actual = request_handler.report(rt1,
+                                    resp['actor_map'][script_name + ':snk'])
+    assert len(actual) >= 1
+
+    # wait for constrained enterring sleep
+    constrained_process.wait()
+
+    constrained_process = subprocess.Popen("exec ./calvin_c", shell=True, stderr=output_file)
+
+    # verify data
+    wait_for_tokens(request_handler,
+                    rt1,
                     resp['actor_map'][script_name + ':snk'], 2, 10)
     actual = request_handler.report(rt1,
                                     resp['actor_map'][script_name + ':snk'])
@@ -665,9 +678,9 @@ def testRegistryAttribute():
 
     script_name = "testRegistryAttribute"
     script = """
-    tick : std.Trigger(data=null, tick=0.1)
+    tick : std.Trigger(data=null, tick=1)
     attr: context.RegistryAttribute(attribute="node_name.name")
-    snk : test.Sink(store_tokens=1, quiet=1)
+    snk : test.Sink(store_tokens=1, quiet=0.1)
 
     tick.data > attr.trigger
     attr.value > snk.token

@@ -144,7 +144,7 @@ void port_set_state(cc_port_t *port, cc_port_state_t state)
 	port->state = state;
 }
 
-cc_port_t *cc_port_create(cc_node_t *node, cc_actor_t*actor, char *obj_port, char *obj_prev_connections, cc_port_direction_t direction)
+cc_port_t *cc_port_create(cc_node_t *node, cc_actor_t *actor, char *obj_port, char *obj_prev_connections, cc_port_direction_t direction)
 {
 	char *obj_prev_ports = NULL, *obj_prev_port = NULL, *obj_peer = NULL, *obj_queue = NULL, *obj_properties = NULL;
 	char *r = obj_port, *port_id = NULL, *port_name = NULL, *routing = NULL, *peer_id = NULL, *peer_port_id = NULL, *tmp_value = NULL;
@@ -289,20 +289,19 @@ char *cc_port_get_peer_id(const cc_node_t *node, cc_port_t *port)
 
 cc_port_t *cc_port_get(cc_node_t *node, const char *port_id, uint32_t port_id_len)
 {
-	cc_list_t *actors = node->actors;
-	cc_actor_t*actor = NULL;
-	cc_port_t *port = NULL;
+	cc_list_t *port = NULL, *actors = node->actors;
+	cc_actor_t *actor = NULL;
 
 	while (actors != NULL) {
-		actor = (cc_actor_t*)actors->data;
+		actor = (cc_actor_t *)actors->data;
 
-		port = (cc_port_t *)cc_list_get_n(actor->in_ports, port_id, port_id_len);
+		port = cc_list_get_n(actor->in_ports, port_id, port_id_len);
 		if (port != NULL)
-			return port;
+			return (cc_port_t *)port->data;
 
-		port = (cc_port_t *)cc_list_get_n(actor->out_ports, port_id, port_id_len);
+		port = cc_list_get_n(actor->out_ports, port_id, port_id_len);
 		if (port != NULL)
-			return port;
+			return (cc_port_t *)port->data;
 
 		actors = actors->next;
 	}
@@ -313,12 +312,12 @@ cc_port_t *cc_port_get(cc_node_t *node, const char *port_id, uint32_t port_id_le
 cc_port_t *cc_port_get_from_peer_port_id(struct cc_node_t *node, const char *peer_port_id, uint32_t peer_port_id_len)
 {
 	cc_list_t *actors = node->actors;
-	cc_actor_t*actor = NULL;
+	cc_actor_t *actor = NULL;
 	cc_list_t *ports = NULL;
 	cc_port_t *port = NULL;
 
 	while (actors != NULL) {
-		actor = (cc_actor_t*)actors->data;
+		actor = (cc_actor_t *)actors->data;
 
 		ports = actor->in_ports;
 		while (ports != NULL) {
@@ -341,7 +340,7 @@ cc_port_t *cc_port_get_from_peer_port_id(struct cc_node_t *node, const char *pee
 	return NULL;
 }
 
-cc_port_t *cc_port_get_from_name(cc_actor_t*actor, const char *name, size_t name_len, cc_port_direction_t direction)
+cc_port_t *cc_port_get_from_name(cc_actor_t *actor, const char *name, size_t name_len, cc_port_direction_t direction)
 {
 	cc_list_t *ports = NULL;
 	cc_port_t *port = NULL;

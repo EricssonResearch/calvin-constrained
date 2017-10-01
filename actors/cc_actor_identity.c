@@ -26,19 +26,19 @@ typedef struct state_identity_t {
 	bool dump;
 } state_identity_t;
 
-static cc_result_t cc_actor_identity_init(cc_actor_t**actor, cc_list_t *attributes)
+static cc_result_t cc_actor_identity_init(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
 	state_identity_t *state = NULL;
 	bool dump = false;
-	char *data = NULL;
+	cc_list_t *item = NULL;
 
-	data = (char *)cc_list_get(attributes, "dump");
-	if (data == NULL) {
+	item = cc_list_get(managed_attributes, "dump");
+	if (item == NULL) {
 		cc_log_error("Failed to get attribute 'dump'");
 		return CC_FAIL;
 	}
 
-	if (cc_coder_decode_bool(data, &dump) != CC_SUCCESS)
+	if (cc_coder_decode_bool((char *)item->data, &dump) != CC_SUCCESS)
 		return CC_FAIL;
 
 	if (cc_platform_mem_alloc((void **)&state, sizeof(state_identity_t)) != CC_SUCCESS) {
@@ -52,36 +52,41 @@ static cc_result_t cc_actor_identity_init(cc_actor_t**actor, cc_list_t *attribut
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_identity_set_state(cc_actor_t**actor, cc_list_t *attributes)
+static cc_result_t cc_actor_identity_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
-	return cc_actor_identity_init(actor, attributes);
+	return cc_actor_identity_init(actor, managed_attributes);
 }
 
-static bool cc_actor_identity_fire(struct cc_actor_t*actor)
+static bool cc_actor_identity_fire(struct cc_actor_t *actor)
 {
 	cc_token_t *token = NULL;
-	cc_port_t *inport = (cc_port_t *)actor->in_ports->data, *outport = (cc_port_t *)actor->out_ports->data;
+	cc_port_t *inport = (cc_port_t *)actor->in_ports->data; // only 1 inport
+	cc_port_t *outport = (cc_port_t *)actor->out_ports->data; // only 1 outport
 
-	if (cc_fifo_tokens_available(inport->fifo, 1) && cc_fifo_slots_available(outport->fifo, 1)) {
-		token = cc_fifo_peek(inport->fifo);
-		if (cc_fifo_write(outport->fifo, token->value, token->size) == CC_SUCCESS) {
-			cc_fifo_commit_read(inport->fifo, false);
-			return true;
-		}
+	if (!cc_fifo_tokens_available(inport->fifo, 1))
+	 	return false;
+
+	if (!cc_fifo_slots_available(outport->fifo, 1))
+		return false;
+
+	token = cc_fifo_peek(inport->fifo);
+	if (cc_fifo_write(outport->fifo, token->value, token->size) != CC_SUCCESS) {
 		cc_fifo_cancel_commit(inport->fifo);
+		return false;
 	}
-	return false;
+
+	cc_fifo_commit_read(inport->fifo, false);
+
+	return true;
 }
 
-static void cc_actor_identity_free(cc_actor_t*actor)
+static void cc_actor_identity_free(cc_actor_t *actor)
 {
-	state_identity_t *state = (state_identity_t *)actor->instance_state;
-
-	if (state != NULL)
-		cc_platform_mem_free((void *)state);
+	if (actor->instance_state)
+		cc_platform_mem_free(actor->instance_state);
 }
 
-static cc_result_t cc_actor_identity_get_managed_attributes(cc_actor_t*actor, cc_list_t **attributes)
+static cc_result_t cc_actor_identity_get_attributes(cc_actor_t *actor, cc_list_t **managed_attributes)
 {
 	uint32_t size = 0;
 	char *dump = NULL, *last = NULL;
@@ -92,10 +97,9 @@ static cc_result_t cc_actor_identity_get_managed_attributes(cc_actor_t*actor, cc
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
-
 	cc_coder_encode_bool(dump, state->dump);
 
-	if (cc_list_add_n(attributes, "dump", 4, dump, size) != CC_SUCCESS) {
+	if (cc_list_add_n(managed_attributes, "dump", 4, dump, size) == NULL) {
 		cc_log_error("Failed to add 'dump' to managed list");
 		cc_platform_mem_free(dump);
 		return CC_FAIL;
@@ -106,10 +110,9 @@ static cc_result_t cc_actor_identity_get_managed_attributes(cc_actor_t*actor, cc
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
-
 	cc_coder_encode_nil(last);
 
-	if (cc_list_add_n(attributes, "last", 4, last, size) != CC_SUCCESS) {
+	if (cc_list_add_n(managed_attributes, "last", 4, last, size) == NULL) {
 		cc_log_error("Failed to add 'last' to managed list");
 		cc_platform_mem_free(last);
 		return CC_FAIL;
@@ -127,13 +130,15 @@ cc_result_t cc_actor_identity_register(cc_list_t **actor_types)
 		return CC_FAIL;
 	}
 
+	memset(type, 0, sizeof(cc_actor_type_t));
 	type->init = cc_actor_identity_init;
 	type->set_state = cc_actor_identity_set_state;
 	type->free_state = cc_actor_identity_free;
 	type->fire_actor = cc_actor_identity_fire;
-	type->get_managed_attributes = cc_actor_identity_get_managed_attributes;
-	type->will_migrate = NULL;
-	type->will_end = NULL;
-	type->did_migrate = NULL;
-	return cc_list_add_n(actor_types, "std.Identity", 12, type, sizeof(cc_actor_type_t *));
+	type->get_managed_attributes = cc_actor_identity_get_attributes;
+
+	if (cc_list_add_n(actor_types, "std.Identity", 12, type, sizeof(cc_actor_type_t *)) == NULL)
+		return CC_FAIL;
+
+	return CC_SUCCESS;
 }

@@ -76,7 +76,7 @@ static cc_result_t cc_transport_socket_discover_location(char *location)
 	sockname.sin_port = htons(CC_SSDP_PORT);
 	sockname.sin_addr.s_addr = inet_addr(CC_SSDP_MULTICAST);
 
-	cc_log("Sending ssdp request");
+	cc_log("transport_socket: Sending ssdp request");
 
 	ret = sendto(sock, buffer, len, 0, (struct sockaddr *) &sockname, sizeof(struct sockaddr_in));
 	if (ret != len) {
@@ -295,7 +295,7 @@ cc_transport_client_t *cc_transport_socket_create(cc_node_t *node, char *uri)
 			if (strncmp(uri, "ssdp", 4) == 0) {
 				if (cc_transport_socket_discover_proxy(discovery_result) == CC_SUCCESS) {
 					if (sscanf(discovery_result, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2) {
-						cc_log("SSDP response: ip '%s' port '%d'", transport_socket->ip, transport_socket->port);
+						cc_log("transport_socket: SSDP response: ip '%s' port '%d'", transport_socket->ip, transport_socket->port);
 						strncpy(transport_client->uri, discovery_result, CC_MAX_URI_LEN);
 						return transport_client;
 					}

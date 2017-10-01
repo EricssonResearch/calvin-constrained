@@ -26,27 +26,17 @@ class RegistryAttribute(Actor):
       value : The given attribute of this runtime, or null
     """
 
-    @manage(["attribute"])
+    @manage(["attribute", "registry"])
     def init(self, attribute):
         self.attribute = attribute
-        self.setup()
+        self.registry = calvinsys.open(self, "sys.attribute.indexed")
+        calvinsys.write(self.registry, self.attribute)
 
-    def did_migrate(self):
-        self.setup()
-
-    def setup(self):
-        self.registry_attribute = calvinsys.open(self, "sys.attribute.indexed")
-        # select attribute to read
-        calvinsys.write(self.registry_attribute, self.attribute)
-
-
-    @stateguard(lambda self: calvinsys.can_read(self.registry_attribute))
+    @stateguard(lambda self: calvinsys.can_read(self.registry))
     @condition(action_input=['trigger'], action_output=['value'])
     def read(self, _):
-
-        attr = calvinsys.read(self.registry_attribute)
+        attr = calvinsys.read(self.registry)
         return (attr,)
 
     action_priority = (read,)
-
     requires = ["sys.attribute.indexed"]

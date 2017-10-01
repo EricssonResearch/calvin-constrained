@@ -40,7 +40,7 @@ cc_link_t *cc_link_create(cc_node_t *node, const char *peer_id, uint32_t peer_id
 	strncpy(link->peer_id, peer_id, peer_id_len);
 	link->ref_count = 0;
 
-	if (cc_list_add(&node->links, link->peer_id, (void *)link, sizeof(cc_link_t)) != CC_SUCCESS) {
+	if (cc_list_add(&node->links, link->peer_id, (void *)link, sizeof(cc_link_t)) == NULL) {
 		cc_log_error("Failed to add link");
 		cc_platform_mem_free((void *)link);
 		return NULL;

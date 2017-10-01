@@ -24,7 +24,13 @@
 
 cc_tunnel_t *cc_tunnel_get_from_id(cc_node_t *node, const char *tunnel_id, uint32_t tunnel_id_len)
 {
-	return (cc_tunnel_t *)cc_list_get_n(node->tunnels, tunnel_id, tunnel_id_len);
+	cc_list_t *item = NULL;
+
+	item = cc_list_get_n(node->tunnels, tunnel_id, tunnel_id_len);
+	if (item != NULL)
+		return (cc_tunnel_t *)item->data;
+
+	return NULL;
 }
 
 cc_tunnel_t *cc_tunnel_get_from_peerid_and_type(cc_node_t *node, const char *peer_id, uint32_t peer_id_len, cc_tunnel_type_t type)
@@ -34,6 +40,8 @@ cc_tunnel_t *cc_tunnel_get_from_peerid_and_type(cc_node_t *node, const char *pee
 
 	while (tunnels != NULL) {
 		tunnel = (cc_tunnel_t *)tunnels->data;
+		if (tunnel == NULL || tunnel->link == NULL || tunnel->link->peer_id == NULL)
+			continue;
 		if (tunnel->type == type && strncmp(tunnel->link->peer_id, peer_id, peer_id_len) == 0)
 			return tunnel;
 		tunnels = tunnels->next;
@@ -119,8 +127,10 @@ cc_tunnel_t *cc_tunnel_create(cc_node_t *node, cc_tunnel_type_t type, cc_tunnel_
 	tunnel->ref_count = 0;
 	if (tunnel_id == NULL)
 		cc_gen_uuid(tunnel->id, "TUNNEL_");
-	else
+	else {
 		strncpy(tunnel->id, tunnel_id, tunnel_id_len);
+		tunnel->id[tunnel_id_len] = '\0';
+	}
 
 	if (state != CC_TUNNEL_ENABLED) {
 		if (cc_proto_send_tunnel_request(node, tunnel, tunnel_request_handler) == CC_SUCCESS)
@@ -131,7 +141,7 @@ cc_tunnel_t *cc_tunnel_create(cc_node_t *node, cc_tunnel_type_t type, cc_tunnel_
 		}
 	}
 
-	if (cc_list_add(&node->tunnels, tunnel->id, (void *)tunnel, sizeof(cc_tunnel_t)) != CC_SUCCESS) {
+	if (cc_list_add(&node->tunnels, tunnel->id, (void *)tunnel, sizeof(cc_tunnel_t)) == NULL) {
 		cc_log_error("Failed to add tunnel");
 		cc_platform_mem_free((void *)tunnel);
 		return NULL;

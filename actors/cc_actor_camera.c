@@ -15,46 +15,48 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include "cc_actor_camera.h"
 #include "../runtime/north/cc_actor.h"
 #include "../runtime/north/cc_actor_store.h"
 
-static cc_result_t cc_actor_camera_init(cc_actor_t**actor, cc_list_t *attributes)
+static cc_result_t cc_actor_camera_init(cc_actor_t **actor, cc_list_t *attributes)
 {
-	cc_calvinsys_obj_t* camera = cc_calvinsys_open((*actor)->calvinsys, "media.camerahandler", NULL, 0);
+	char *obj_ref = cc_calvinsys_open(*actor, "media.camerahandler", NULL, 0);
 
-	if (camera == NULL) {
-		cc_log_error("media.camerahandler not supported");
+	if (obj_ref == NULL) {
+		cc_log_error("'media.camerahandler' not supported");
 		return CC_FAIL;
 	}
 
-	(*actor)->instance_state = (void *)camera;
+	(*actor)->instance_state = (void *)obj_ref;
+
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_camera_set_state(cc_actor_t**actor, cc_list_t *attributes)
+static cc_result_t cc_actor_camera_set_state(cc_actor_t **actor, cc_list_t *attributes)
 {
 	return cc_actor_camera_init(actor, attributes);
 }
 
-static bool cc_actor_camera_fire(struct cc_actor_t*actor)
+static bool cc_actor_camera_fire(struct cc_actor_t *actor)
 {
 	if (actor->instance_state != NULL) {
-		cc_calvinsys_obj_t *camera = (cc_calvinsys_obj_t *)actor->instance_state;
+		char *obj_ref = (char *)actor->instance_state;
 		cc_port_t *inport = (cc_port_t *)actor->in_ports->data, *outport = (cc_port_t *)actor->out_ports->data;
 
-		if(camera != NULL && cc_fifo_tokens_available(inport->fifo, 1)) {
+		if (obj_ref != NULL && cc_fifo_tokens_available(inport->fifo, 1)) {
 			cc_fifo_peek(inport->fifo);
-			if (camera->write(camera, (char *)"trigger", 7) != CC_SUCCESS) {
+			if (cc_calvinsys_write(actor->calvinsys, obj_ref, (char *)"trigger", 7) != CC_SUCCESS) {
 				return false;
 			} else {
 				cc_fifo_commit_read(inport->fifo, false);
 				return true;
 			}
-		} else if (camera != NULL && camera->can_read(camera) == true) {
+		} else if (obj_ref != NULL && cc_calvinsys_can_read(actor->calvinsys, obj_ref) == true) {
 			char* sys_data;
 			size_t sys_data_size;
-			camera->read(camera, &sys_data, &sys_data_size);
+			cc_calvinsys_read(actor->calvinsys, obj_ref, &sys_data, &sys_data_size);
 			cc_log_debug("Read data from camera sys with size %d!", sys_data_size);
 			if (cc_fifo_slots_available(outport->fifo, 1)) {
 				if (cc_fifo_write(outport->fifo, sys_data, sys_data_size) != CC_SUCCESS) {
@@ -70,11 +72,6 @@ static bool cc_actor_camera_fire(struct cc_actor_t*actor)
 	return false;
 }
 
-void cc_actor_camera_free(cc_actor_t*actor)
-{
-	cc_calvinsys_close((cc_calvinsys_obj_t *)actor->instance_state);
-}
-
 cc_result_t cc_actor_camera_register(cc_list_t **actor_types)
 {
 	cc_actor_type_t *type = NULL;
@@ -84,14 +81,15 @@ cc_result_t cc_actor_camera_register(cc_list_t **actor_types)
 		return CC_FAIL;
 	}
 
+	memset(type, 0, sizeof(cc_actor_type_t));
 	type->init = cc_actor_camera_init;
 	type->set_state = cc_actor_camera_set_state;
-	type->free_state = cc_actor_camera_free;
 	type->fire_actor = cc_actor_camera_fire;
-	type->get_managed_attributes = NULL;
-	type->will_migrate = NULL;
-	type->will_end = NULL;
-	type->did_migrate = NULL;
 
-	return cc_list_add_n(actor_types, "media.Camera", 12, type, sizeof(cc_actor_type_t *));
+	if (cc_list_add_n(actor_types, "media.Camera", 12, type, sizeof(cc_actor_type_t *)) == NULL) {
+		cc_log_error("Failed to register 'media.Camera'");
+		return CC_FAIL;
+	}
+
+	return CC_SUCCESS;
 }

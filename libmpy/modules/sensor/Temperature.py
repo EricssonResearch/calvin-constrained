@@ -25,32 +25,19 @@ class Temperature(Actor):
         centigrade :  temperature, in centigrade
     """
 
-    @manage(['frequency'])
+    @manage(['frequency', 'timer', 'temperature'])
     def init(self, frequency):
         self.frequency = frequency
-        self.setup()
+        self.temperature = calvinsys.open(self, "io.temperature")
+        self.timer = calvinsys.open(self, "sys.timer.once")
+        calvinsys.write(self.timer, 1/self.frequency)
 
-    def setup(self):
-        self._temperature = calvinsys.open(self, "io.temperature")
-        self._timer = calvinsys.open(self, "sys.timer.once", timeout=(int)(1.0/self.frequency))
-
-    def will_migrate(self):
-        calvinsys.close(self._temperature)
-        calvinsys.close(self._timer)
-
-    def did_migrate(self):
-        self.setup()
-
-    def will_end(self):
-        calvinsys.close(self._temperature)
-        calvinsys.close(self._timer)
-
-    @stateguard(lambda self: self._timer and calvinsys.can_read(self._timer))
+    @stateguard(lambda self: self.timer and calvinsys.can_read(self.timer))
     @condition([], ['centigrade'])
     def read_measurement(self):
-        calvinsys.read(self._timer)
-        calvinsys.write(self._timer, True)
-        return (calvinsys.read(self._temperature),)
+        calvinsys.read(self.timer)
+        calvinsys.write(self.timer, True)
+        return (calvinsys.read(self.temperature),)
 
     action_priority = (read_measurement, )
     requires =  ['io.temperature', 'sys.timer.once']

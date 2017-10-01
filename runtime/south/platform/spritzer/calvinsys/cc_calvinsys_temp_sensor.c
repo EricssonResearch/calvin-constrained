@@ -36,7 +36,8 @@ static cc_result_t cc_calvinsys_temp_sensor_read(struct cc_calvinsys_obj_t *obj,
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
-	*data = cc_coder_encode_float(*data, temp);
+
+	cc_coder_encode_float(*data, temp);
 
 	return CC_SUCCESS;
 }

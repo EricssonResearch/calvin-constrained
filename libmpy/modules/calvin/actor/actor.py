@@ -33,7 +33,6 @@ def manage(include=None, exclude=None):
             if not include:
                 # include set not given, so construct the implicit include set
                 include.update(instance.__dict__)
-                include.remove('_managed')
                 include.difference_update(exclude)
             instance._managed = list(include)
             return r
@@ -113,6 +112,18 @@ def stateguard(action_guard):
         return guard_wrapper
     return wrap
 
+
+calvinsys_ref = None
+
+def set_calvinsys(ref):
+    global calvinsys_ref
+    if calvinsys_ref is None:
+        calvinsys_ref = ref
+
+def get_calvinsys():
+    global calvinsys_ref
+    return calvinsys_ref
+
 class calvinsys(object):
 
     """
@@ -126,7 +137,7 @@ class calvinsys(object):
     @staticmethod
     def can_write(obj):
         try:
-            data = obj.can_write()
+            data = cc_mp_calvinsys.can_write(get_calvinsys(), obj)
         except Exception as e:
             _log.exception("'can_write' failed, exception={}".format(e))
         return data
@@ -134,14 +145,14 @@ class calvinsys(object):
     @staticmethod
     def write(obj, data):
         try:
-            obj.write(data)
+            cc_mp_calvinsys.write(get_calvinsys(), obj, data)
         except Exception as e:
             _log.exception("'write()' failed, exception={}".format(e))
 
     @staticmethod
     def can_read(obj):
         try:
-            data = obj.can_read()
+            data = cc_mp_calvinsys.can_read(get_calvinsys(), obj)
         except Exception as e:
             _log.exception("'can_read()' failed, exception={}".format(e))
         return data
@@ -149,14 +160,14 @@ class calvinsys(object):
     @staticmethod
     def read(obj):
         try:
-            data = obj.read()
+            data = cc_mp_calvinsys.read(get_calvinsys(), obj)
         except Exception as e:
             _log.exception("'read()' failed, exception={}".format(e))
         return data
 
     @staticmethod
     def close(obj):
-        cc_mp_calvinsys.close(obj)
+        cc_mp_calvinsys.close(get_calvinsys(), obj)
 
 class Actor(object):
     """
@@ -166,11 +177,12 @@ class Actor(object):
     # Class variable controls action priority order
     action_priority = tuple()
 
-    def __init__(self, actor_ref):
+    def __init__(self, actor_ref, calvinsys_ref):
         """Should _not_ be overridden in subclasses."""
         super(Actor, self).__init__()
         self.actor_ref = actor_ref
-        self._managed = set(('id', 'name', '_deployment_requirements', '_signature', 'subject_attributes', 'migration_info'))
+        set_calvinsys(calvinsys_ref)
+        self._managed = []
 
     def init(self):
         raise Exception("Implementing 'init()' is mandatory.")
@@ -193,18 +205,12 @@ class Actor(object):
 
         return actor_did_fire
 
-    def state(self):
-        state = {}
-        # Manual state handling
-        # Not available until after __init__ completes
-        state['_managed'] = list(self._managed)
-        # Managed state handling
-        for key in self._managed:
-            obj = self.__dict__[key]
-            if _implements_state(obj):
-                state[key] = obj.state()
-            else:
-                state[key] = obj
+    def _managed_state(self):
+        """
+        Serialize managed state.
+        Managed state can only contain objects that can be JSON-serialized.
+        """
+        state = {key: self.__dict__[key] for key in self._managed}
         return state
 
     def exception_handler(self, action, args, context):

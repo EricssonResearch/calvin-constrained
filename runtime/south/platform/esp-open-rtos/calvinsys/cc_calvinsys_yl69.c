@@ -43,49 +43,9 @@ static cc_result_t cc_calvinsys_yl69_read(struct cc_calvinsys_obj_t *obj, char *
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_calvinsys_yl69_close(struct cc_calvinsys_obj_t *obj)
+cc_result_t cc_calvinsys_yl69_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
 {
-	return CC_SUCCESS;
-}
-
-static cc_calvinsys_obj_t *cc_calvinsys_yl69_open(cc_calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
-{
-	cc_calvinsys_obj_t *obj = NULL;
-
-	if (cc_platform_mem_alloc((void **)&obj, sizeof(cc_calvinsys_obj_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return NULL;
-	}
-
-	obj->can_write = NULL;
-	obj->write = NULL;
 	obj->can_read = cc_calvinsys_yl69_can_read;
 	obj->read = cc_calvinsys_yl69_read;
-	obj->close = cc_calvinsys_yl69_close;
-	obj->handler = handler;
-	obj->next = NULL;
-	obj->state = NULL;
-	handler->objects = obj; // assume only one object
-
-	return obj;
-}
-
-cc_result_t cc_calvinsys_yl69_create(cc_calvinsys_t **calvinsys, const char *name)
-{
-	cc_calvinsys_handler_t *handler = NULL;
-
-	if (cc_platform_mem_alloc((void **)&handler, sizeof(cc_calvinsys_handler_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
-	}
-
-	handler->open = cc_calvinsys_yl69_open;
-	handler->objects = NULL;
-	handler->next = NULL;
-
-	cc_calvinsys_add_handler(calvinsys, handler);
-	if (cc_calvinsys_register_capability(*calvinsys, name, handler, NULL) != CC_SUCCESS)
-		return CC_FAIL;
-
 	return CC_SUCCESS;
 }

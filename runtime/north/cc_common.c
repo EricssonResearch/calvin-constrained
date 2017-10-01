@@ -56,13 +56,13 @@ bool cc_uuid_is_higher(char *id1, size_t len1, char *id2, size_t len2)
 	return false;
 }
 
-static cc_result_t cc__list_add(cc_list_t **head, char *id, bool free_id, void *data, uint32_t data_len)
+static cc_list_t *cc__list_add(cc_list_t **head, char *id, bool free_id, void *data, uint32_t data_len)
 {
 	cc_list_t *new_item = NULL, *tmp = NULL;
 
 	if (cc_platform_mem_alloc((void **)&new_item, sizeof(cc_list_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
+		return NULL;
 	}
 
 	new_item->id = id;
@@ -81,30 +81,32 @@ static cc_result_t cc__list_add(cc_list_t **head, char *id, bool free_id, void *
 		tmp->next = new_item;
 	}
 
-	return CC_SUCCESS;
+	return new_item;
 }
 
-cc_result_t cc_list_add_n(cc_list_t **head, const char *id, uint32_t len, void *data, uint32_t data_len)
+cc_list_t *cc_list_add_n(cc_list_t **head, const char *id, uint32_t len, void *data, uint32_t data_len)
 {
 	char *name = NULL;
+	cc_list_t *item = NULL;
 
 	if (cc_platform_mem_alloc((void **)&name, sizeof(char) * (len + 1)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
+		return NULL;
 	}
 
 	strncpy(name, id, len);
 	name[len] = '\0';
 
-	if (cc__list_add(head, name, true, data, data_len) == CC_FAIL) {
+	item = cc__list_add(head, name, true, data, data_len);
+	if (item == NULL) {
 		cc_platform_mem_free(name);
-		return CC_FAIL;
+		return NULL;
 	}
 
-	return CC_SUCCESS;
+	return item;
 }
 
-cc_result_t cc_list_add(cc_list_t **head, char *id, void *data, uint32_t data_len)
+cc_list_t *cc_list_add(cc_list_t **head, char *id, void *data, uint32_t data_len)
 {
 	return cc__list_add(head, id, false, data, data_len);
 }
@@ -145,26 +147,26 @@ uint32_t cc_list_count(cc_list_t *list)
 	return count;
 }
 
-void *cc_list_get_n(cc_list_t *list, const char *id, uint32_t id_len)
+cc_list_t *cc_list_get_n(cc_list_t *list, const char *id, uint32_t id_len)
 {
 	cc_list_t *tmp = list;
 
 	while (tmp != NULL) {
 		if (strncmp(tmp->id, id, id_len) == 0)
-			return (void *)tmp->data;
+			return tmp;
 		tmp = tmp->next;
 	}
 
 	return NULL;
 }
 
-void *cc_list_get(cc_list_t *list, const char *id)
+cc_list_t *cc_list_get(cc_list_t *list, const char *id)
 {
 	cc_list_t *tmp = list;
 
 	while (tmp != NULL) {
-		if (strncmp(tmp->id, id, strlen(tmp->id)) == 0)
-			return (void *)tmp->data;
+		if (strncmp(tmp->id, id, tmp->id_len) == 0)
+			return tmp;
 		tmp = tmp->next;
 	}
 
