@@ -25,10 +25,9 @@ class Light(Actor):
       on : true if light should be on, false if turned off
     """
 
-    @manage(include = ["text", "button"])
+    @manage(include = ["light"])
     def init(self):
-        self.light= None
-        self.setup()
+        self.light = calvinsys.open(self, "io.light")
 
     @stateguard(lambda self: self.light and calvinsys.can_write(self.light))
     @condition(action_input=("on",))

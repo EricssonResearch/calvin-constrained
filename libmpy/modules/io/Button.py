@@ -26,7 +26,6 @@ class Button(Actor):
 
     @manage(include = ["text", "button"])
     def init(self, text="Button"):
-        self.button = None
         self.text = text
         self.button = calvinsys.open(self, "io.button", text=self.text)
 
