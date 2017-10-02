@@ -37,7 +37,17 @@ static cc_result_t cc_actor_light_init(cc_actor_t **actor, cc_list_t *managed_at
 
 static cc_result_t cc_actor_light_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
-	return cc_actor_light_init(actor, managed_attributes);
+	cc_list_t *item = NULL;
+
+	item = cc_list_get(managed_attributes, "io.light");
+	if (item == NULL) {
+		cc_log_error("Failed to get 'io.light'");
+		return CC_FAIL;
+	}
+
+	(*actor)->instance_state = (void *)item->id;
+
+	return CC_SUCCESS;
 }
 
 static bool cc_actor_light_fire(struct cc_actor_t *actor)
@@ -60,6 +70,36 @@ static bool cc_actor_light_fire(struct cc_actor_t *actor)
 	return true;
 }
 
+static cc_result_t cc_actor_light_get_attributes(cc_actor_t *actor, cc_list_t **managed_attributes)
+{
+	char *obj_ref = NULL, *buffer = NULL, *w = NULL;
+	uint32_t buffer_len = 0;
+
+	if (actor->instance_state == NULL) {
+		cc_log_error("Actor does not have a state");
+		return CC_FAIL;
+	}
+
+	obj_ref = (char *)actor->instance_state;
+	buffer_len = cc_coder_sizeof_str(strlen(obj_ref));
+
+	if (cc_platform_mem_alloc((void **)&buffer, buffer_len) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+
+	w = buffer;
+	w = cc_coder_encode_str(w, obj_ref, strlen(obj_ref));
+
+	if (cc_list_add_n(managed_attributes, "light", 6, buffer, w - buffer) == NULL) {
+		cc_log_error("Failed to add 'light' to managed attributes");
+		cc_platform_mem_free(buffer);
+		return CC_FAIL;
+	}
+
+	return CC_SUCCESS;
+}
+
 cc_result_t cc_actor_light_register(cc_list_t **actor_types)
 {
 	cc_actor_type_t *type = NULL;
@@ -73,6 +113,7 @@ cc_result_t cc_actor_light_register(cc_list_t **actor_types)
 	type->init = cc_actor_light_init;
 	type->set_state = cc_actor_light_set_state;
 	type->fire_actor = cc_actor_light_fire;
+	type->get_managed_attributes = cc_actor_light_get_attributes;
 
 	if (cc_list_add_n(actor_types, "io.Light", 8, type, sizeof(cc_actor_type_t *)) == NULL) {
 		cc_log_error("Failed to register 'io.Light'");

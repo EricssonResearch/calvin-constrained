@@ -23,27 +23,15 @@
 #include "../runtime/north/coder/cc_coder.h"
 #include "../calvinsys/cc_calvinsys.h"
 
+typedef struct cc_actor_registry_state_t {
+	char registry[CC_UUID_BUFFER_SIZE];
+} cc_actor_registry_state_t;
+
 static cc_result_t cc_actor_registry_attribute_init(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
   cc_list_t *item = NULL;
   char *obj_ref = NULL;
-  uint32_t obj_ref_len = 0;
-
-  item = cc_list_get(managed_attributes, "registry");
-  if (item != NULL) {
-    if (cc_coder_decode_str((char *)item->data, &obj_ref, &obj_ref_len) != CC_SUCCESS) {
-      cc_log_error("Failed to decode 'registry'");
-      return CC_FAIL;
-    }
-
-    (*actor)->instance_state = cc_calvinsys_get_obj_ref((*actor)->calvinsys, obj_ref, obj_ref_len);
-    if ((*actor)->instance_state == NULL) {
-      cc_log_error("Failed to get object reference");
-      return CC_FAIL;
-    }
-
-    return CC_SUCCESS;
-  }
+  cc_actor_registry_state_t *state = NULL;
 
   item = cc_list_get(managed_attributes, "attribute");
   if (item == NULL) {
@@ -62,14 +50,46 @@ static cc_result_t cc_actor_registry_attribute_init(cc_actor_t **actor, cc_list_
     return CC_FAIL;
   }
 
-	(*actor)->instance_state = (void *)obj_ref;
+  if (cc_platform_mem_alloc((void **)&state, sizeof(cc_actor_registry_state_t)) != CC_SUCCESS) {
+    cc_log_error("Failed to allocate memory");
+    return CC_FAIL;
+  }
+  strcpy(state->registry, obj_ref);
+
+	(*actor)->instance_state = (void *)state;
 
 	return CC_SUCCESS;
 }
 
 static cc_result_t cc_actor_registry_attribute_set_state(cc_actor_t**actor, cc_list_t *managed_attributes)
 {
-	return cc_actor_registry_attribute_init(actor, managed_attributes);
+  cc_list_t *item = NULL;
+  char *obj_ref = NULL;
+  uint32_t obj_ref_len = 0;
+  cc_actor_registry_state_t *state = NULL;
+
+  item = cc_list_get(managed_attributes, "registry");
+  if (item == NULL) {
+    cc_log_error("Failed to get 'registry'");
+    return CC_FAIL;
+  }
+
+  if (cc_coder_decode_str((char *)item->data, &obj_ref, &obj_ref_len) != CC_SUCCESS) {
+    cc_log_error("Failed to decode 'registry'");
+    return CC_FAIL;
+  }
+
+  if (cc_platform_mem_alloc((void **)&state, sizeof(cc_actor_registry_state_t)) != CC_SUCCESS) {
+    cc_log_error("Failed to allocate memory");
+    return CC_FAIL;
+  }
+
+  strncpy(state->registry, obj_ref, obj_ref_len);
+  state->registry[obj_ref_len] = '\0';
+
+  (*actor)->instance_state = (void *)state->registry;
+
+  return CC_SUCCESS;
 }
 
 static bool cc_actor_registry_attribute_fire(struct cc_actor_t*actor)
@@ -79,8 +99,16 @@ static bool cc_actor_registry_attribute_fire(struct cc_actor_t*actor)
   char *obj_ref = (char *)actor->instance_state;
   char *data = NULL;
   size_t size = 0;
+  cc_actor_registry_state_t *state = NULL;
 
-	if (!cc_calvinsys_can_read(actor->calvinsys, obj_ref))
+  if (actor->instance_state == NULL) {
+    cc_log_error("Actor does not have a state");
+    return CC_FAIL;
+  }
+
+  state = (cc_actor_registry_state_t *)actor->instance_state;
+
+	if (!cc_calvinsys_can_read(actor->calvinsys, state->registry))
     return false;
 
   if (!cc_fifo_tokens_available(inport->fifo, 1))
@@ -104,15 +132,23 @@ static bool cc_actor_registry_attribute_fire(struct cc_actor_t*actor)
 
 static cc_result_t cc_actor_registry_attribute_get_attributes(cc_actor_t *actor, cc_list_t **managed_attributes)
 {
-	char *obj_ref = (char *)actor->instance_state;
 	char *buffer = NULL, *w = NULL;
+  cc_actor_registry_state_t *state = NULL;
 
-	if (cc_platform_mem_alloc((void **)&buffer, cc_coder_sizeof_str(strlen(obj_ref))) != CC_SUCCESS) {
+  if (actor->instance_state == NULL) {
+    cc_log_error("Actor does not have a state");
+    return CC_FAIL;
+  }
+
+  state = (cc_actor_registry_state_t *)actor->instance_state;
+
+	if (cc_platform_mem_alloc((void **)&buffer, cc_coder_sizeof_str(strlen(state->registry))) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
-	w = buffer;
-	w = cc_coder_encode_str(w, obj_ref, strlen(obj_ref));
+
+  w = buffer;
+	w = cc_coder_encode_str(w, state->registry, strlen(state->registry));
 
 	if (cc_list_add_n(managed_attributes, "registry", 8, buffer, w - buffer) == NULL) {
 		cc_log_error("Failed to add 'registry' to managed attributes");
@@ -121,6 +157,12 @@ static cc_result_t cc_actor_registry_attribute_get_attributes(cc_actor_t *actor,
 	}
 
 	return CC_SUCCESS;
+}
+
+static void cc_actor_registry_attribute_free(cc_actor_t *actor)
+{
+	if (actor->instance_state != NULL)
+		cc_platform_mem_free((void *)actor->instance_state);
 }
 
 cc_result_t cc_actor_registry_attribute_register(cc_list_t **actor_types)
@@ -137,6 +179,7 @@ cc_result_t cc_actor_registry_attribute_register(cc_list_t **actor_types)
 	type->set_state = cc_actor_registry_attribute_set_state;
 	type->fire_actor = cc_actor_registry_attribute_fire;
   type->get_managed_attributes = cc_actor_registry_attribute_get_attributes;
+  type->free_state = cc_actor_registry_attribute_free;
 
 	if (cc_list_add_n(actor_types, "context.RegistryAttribute", 25, type, sizeof(cc_actor_type_t *)) == NULL) {
     cc_log_error("Failed to register 'context.RegistryAttribute'");

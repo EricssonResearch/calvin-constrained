@@ -19,18 +19,18 @@ from calvin.actor.actor import Actor, manage, condition, stateguard, calvinsys
 class Temperature(Actor):
 
     """
-    Measure temperature. Takes the frequency of measurements, in Hz, as input.
+    Measure temperature. Takes the period of measurements, in seconds, as input.
 
     Outputs:
         centigrade :  temperature, in centigrade
     """
 
-    @manage(['frequency', 'timer', 'temperature'])
-    def init(self, frequency):
-        self.frequency = frequency
+    @manage(['period', 'timer', 'temperature'])
+    def init(self, period):
+        self.period = period
         self.temperature = calvinsys.open(self, "io.temperature")
         self.timer = calvinsys.open(self, "sys.timer.once")
-        calvinsys.write(self.timer, 1/self.frequency)
+        calvinsys.write(self.timer, self.period)
 
     @stateguard(lambda self: self.timer and calvinsys.can_read(self.timer))
     @condition([], ['centigrade'])

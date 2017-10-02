@@ -365,7 +365,7 @@ def testTemperatureActor():
 
     script_name = "testTemperatureActor"
     script = """
-    temp : sensor.Temperature(frequency=1)
+    temp : sensor.Temperature(period=1)
     snk : test.Sink(store_tokens=1, quiet=1)
     temp.centigrade > snk.token
     """
@@ -608,7 +608,7 @@ def testSleepWithTimer():
 
     script_name = "testSleepWithTimer"
     script = """
-    temp : sensor.Temperature(frequency=0.3)
+    temp : sensor.Temperature(period=3)
     snk : test.Sink(store_tokens=1, quiet=1)
     temp.centigrade > snk.token
     """

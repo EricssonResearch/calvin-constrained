@@ -22,13 +22,13 @@
 #include "../runtime/north/coder/cc_coder.h"
 #include "../runtime/south/platform/cc_platform.h"
 
-typedef struct state_identity_t {
+typedef struct cc_actor_identity_state_t {
 	bool dump;
-} state_identity_t;
+} cc_actor_identity_state_t;
 
 static cc_result_t cc_actor_identity_init(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
-	state_identity_t *state = NULL;
+	cc_actor_identity_state_t *state = NULL;
 	bool dump = false;
 	cc_list_t *item = NULL;
 
@@ -41,7 +41,7 @@ static cc_result_t cc_actor_identity_init(cc_actor_t **actor, cc_list_t *managed
 	if (cc_coder_decode_bool((char *)item->data, &dump) != CC_SUCCESS)
 		return CC_FAIL;
 
-	if (cc_platform_mem_alloc((void **)&state, sizeof(state_identity_t)) != CC_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&state, sizeof(cc_actor_identity_state_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
@@ -89,32 +89,42 @@ static void cc_actor_identity_free(cc_actor_t *actor)
 static cc_result_t cc_actor_identity_get_attributes(cc_actor_t *actor, cc_list_t **managed_attributes)
 {
 	uint32_t size = 0;
-	char *dump = NULL, *last = NULL;
-	state_identity_t *state = (state_identity_t *)actor->instance_state;
+	char *buffer = NULL, *w = NULL;
+	cc_actor_identity_state_t *state = NULL;
+
+	if (actor->instance_state == NULL) {
+		cc_log_error("Actor does not have a state");
+		return CC_FAIL;
+	}
+
+	state = (cc_actor_identity_state_t *)actor->instance_state;
 
 	size = cc_coder_sizeof_bool(state->dump);
-	if (cc_platform_mem_alloc((void **)&dump, size) != CC_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&buffer, size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
-	cc_coder_encode_bool(dump, state->dump);
 
-	if (cc_list_add_n(managed_attributes, "dump", 4, dump, size) == NULL) {
+	w = buffer;
+	w = cc_coder_encode_bool(w, state->dump);
+
+	if (cc_list_add_n(managed_attributes, "dump", 4, buffer, w - buffer) == NULL) {
 		cc_log_error("Failed to add 'dump' to managed list");
-		cc_platform_mem_free(dump);
+		cc_platform_mem_free(buffer);
 		return CC_FAIL;
 	}
 
 	size = cc_coder_sizeof_nil();
-	if (cc_platform_mem_alloc((void **)&last, size) != CC_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&buffer, size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
-	cc_coder_encode_nil(last);
+	w = buffer;
+	w = cc_coder_encode_nil(w);
 
-	if (cc_list_add_n(managed_attributes, "last", 4, last, size) == NULL) {
+	if (cc_list_add_n(managed_attributes, "last", 4, buffer, w - buffer) == NULL) {
 		cc_log_error("Failed to add 'last' to managed list");
-		cc_platform_mem_free(last);
+		cc_platform_mem_free(buffer);
 		return CC_FAIL;
 	}
 
