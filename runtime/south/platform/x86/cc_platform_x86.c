@@ -320,6 +320,21 @@ void cc_platform_deepsleep(uint32_t time_in_us)
 #endif
 
 #ifdef CC_STORAGE_ENABLED
+size_t cc_platform_node_state_size()
+{
+	FILE *fp = NULL;
+	size_t size = 0;
+
+	fp = fopen(CC_CONFIG_FILE, "r+");
+	if (fp != NULL) {
+		fseek(fp, 0, SEEK_END);
+		size = ftell(fp);
+		fclose(fp);
+	}
+
+	return size;
+}
+
 void cc_platform_write_node_state(cc_node_t *node, char *buffer, size_t size)
 {
 	FILE *fp = NULL;
@@ -337,17 +352,20 @@ void cc_platform_write_node_state(cc_node_t *node, char *buffer, size_t size)
 		cc_log_error("Failed to open %s for writing", CC_CONFIG_FILE);
 }
 
-cc_result_t cc_platform_read_node_state(cc_node_t *node, char buffer[], size_t size)
+cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char *buffer, size_t size)
 {
 	FILE *fp = NULL;
+	size_t read = 0;
 
 	fp = fopen(CC_CONFIG_FILE, "r+");
 	if (fp != NULL) {
-		fread(buffer, 1, size, fp);
+		read = fread(buffer, 1, size, fp);
 		fclose(fp);
-		return CC_SUCCESS;
 	}
 
-	return CC_FAIL;
+	if (read != size)
+		return CC_FAIL;
+
+	return CC_SUCCESS;
 }
 #endif

@@ -38,15 +38,23 @@
 #ifdef CC_STORAGE_ENABLED
 static cc_result_t cc_node_get_state(cc_node_t *node)
 {
-	char buffer[CC_RUNTIME_STATE_BUFFER_SIZE], *value = NULL, *array_value = NULL;
+	char *buffer = NULL, *value = NULL, *array_value = NULL;
 	uint32_t i = 0, value_len = 0, array_size = 0, state = 0;
 	cc_link_t *link = NULL;
 	cc_tunnel_t *tunnel = NULL;
 	cc_actor_t*actor = NULL;
+	size_t size;
 
-	memset(buffer, 0, CC_RUNTIME_STATE_BUFFER_SIZE);
+	size = cc_platform_node_state_size();
 
-	if (cc_platform_read_node_state(node, buffer, CC_RUNTIME_STATE_BUFFER_SIZE) == CC_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&buffer, size) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+
+	memset(buffer, 0, size);
+
+	if (cc_platform_read_node_state(node, buffer, size) == CC_SUCCESS) {
 		if (cc_coder_decode_string_from_map(buffer, "id", &value, &value_len) != CC_SUCCESS) {
 			cc_log_error("Failed to decode 'id'");
 			return CC_FAIL;
@@ -57,11 +65,13 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 		if (node->attributes == NULL && cc_coder_has_key(buffer, "attributes")) {
 			if (cc_coder_decode_string_from_map(buffer, "attributes", &value, &value_len) != CC_SUCCESS) {
 				cc_log_error("Failed to decode 'attributes'");
+				cc_platform_mem_free(buffer);
 				return CC_FAIL;
 			}
 
 			if (cc_platform_mem_alloc((void **)&node->attributes, value_len + 1) != CC_SUCCESS) {
 				cc_log_error("Failed to allocate memory");
+				cc_platform_mem_free(buffer);
 				return CC_FAIL;
 			}
 
@@ -81,6 +91,7 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 					if (cc_coder_decode_string_from_array(array_value, i, &value, &value_len) == CC_SUCCESS) {
 						if (cc_list_add_n(&node->proxy_uris, value, value_len, NULL, 0) == NULL) {
 							cc_log_error("Failed to add uri");
+							cc_platform_mem_free(buffer);
 							return CC_FAIL;
 						}
 					}
@@ -94,9 +105,10 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 				for (i = 0; i < array_size; i++) {
 					if (cc_coder_get_value_from_array(array_value, i, &value) == CC_SUCCESS) {
 						link = cc_link_deserialize(node, value);
-						if (link == NULL)
+						if (link == NULL) {
+							cc_platform_mem_free(buffer);
 							return CC_FAIL;
-						else {
+						} else {
 							if (link->is_proxy)
 								node->proxy_link = link;
 						}
@@ -111,9 +123,10 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 				for (i = 0; i < array_size; i++) {
 					if (cc_coder_get_value_from_array(array_value, i, &value) == CC_SUCCESS) {
 						tunnel = cc_tunnel_deserialize(node, value);
-						if (tunnel == NULL)
+						if (tunnel == NULL) {
+							cc_platform_mem_free(buffer);
 							return CC_FAIL;
-						else {
+						} else {
 							if (tunnel->type == CC_TUNNEL_TYPE_STORAGE)
 								node->storage_tunnel = tunnel;
 						}
@@ -128,14 +141,21 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 				for (i = 0; i < array_size; i++) {
 					if (cc_coder_get_value_from_array(array_value, i, &value) == CC_SUCCESS) {
 						actor = cc_actor_create(node, value);
-						if (actor == NULL)
+						if (actor == NULL) {
+							cc_platform_mem_free(buffer);
 							return CC_FAIL;
+						}
 					}
 				}
 			}
 		}
+
+		cc_platform_mem_free(buffer);
+
 		return CC_SUCCESS;
 	}
+
+	cc_platform_mem_free(buffer);
 
 	return CC_FAIL;
 }
@@ -205,7 +225,6 @@ void cc_node_set_state(cc_node_t *node)
 
 static void cc_node_reset(cc_node_t *node, bool remove_actors)
 {
-	int i = 0;
 	cc_list_t *tmp_list = NULL;
 
 	cc_log("Node: Resetting state");
@@ -237,78 +256,61 @@ static void cc_node_reset(cc_node_t *node, bool remove_actors)
 	node->links = NULL;
 	node->proxy_link = NULL;
 
-	for (i = 0; i < CC_MAX_PENDING_MSGS; i++) {
-		node->pending_msgs[i].handler = NULL;
-		node->pending_msgs[i].msg_data = NULL;
+	while (node->pending_msgs != NULL) {
+		tmp_list = node->pending_msgs;
+		node->pending_msgs = node->pending_msgs->next;
+		cc_platform_mem_free(tmp_list->data);
+		cc_platform_mem_free(tmp_list->id);
+		cc_platform_mem_free(tmp_list);
 	}
+	node->pending_msgs = NULL;
 
 #ifdef CC_STORAGE_ENABLED
 	cc_node_set_state(node);
 #endif
 }
 
-cc_result_t cc_node_add_pending_msg(cc_node_t *node, char *msg_uuid, uint32_t msg_uuid_len, cc_result_t (*handler)(cc_node_t *node, char *data, size_t data_len, void *msg_data), void *msg_data)
+cc_result_t cc_node_add_pending_msg(cc_node_t *node, char *msg_uuid, cc_result_t (*handler)(cc_node_t *node, char *data, size_t data_len, void *msg_data), void *msg_data)
 {
-	int i = 0;
+	cc_pending_msg_t *msg = NULL;
 
-	for (i = 0; i < CC_MAX_PENDING_MSGS; i++) {
-		if (node->pending_msgs[i].handler == NULL) {
-			strncpy(node->pending_msgs[i].msg_uuid, msg_uuid, msg_uuid_len);
-			node->pending_msgs[i].handler = handler;
-			node->pending_msgs[i].msg_data = msg_data;
-			return CC_SUCCESS;
-		}
+	if (cc_platform_mem_alloc((void **)&msg, sizeof(cc_pending_msg_t)) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
 	}
 
-	cc_log_error("Pending msg queue is full");
-	return CC_FAIL;
+	msg->handler = handler;
+	msg->msg_data = msg_data;
+
+	if (cc_list_add_n(&node->pending_msgs, msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE), (void *)msg, sizeof(cc_pending_msg_t)) == NULL) {
+		cc_log_error("Failed to add pending msg");
+		cc_platform_mem_free(msg);
+		return CC_FAIL;
+	}
+
+	return CC_SUCCESS;
 }
 
-cc_result_t cc_node_remove_pending_msg(cc_node_t *node, char *msg_uuid, uint32_t msg_uuid_len)
+void cc_node_remove_pending_msg(cc_node_t *node, char *msg_uuid)
 {
-	int i = 0;
+	cc_list_t *item = NULL;
 
-	for (i = 0; i < CC_MAX_PENDING_MSGS; i++) {
-		if (node->pending_msgs[i].handler != NULL) {
-			if (strncmp(node->pending_msgs[i].msg_uuid, msg_uuid, msg_uuid_len) == 0) {
-				node->pending_msgs[i].handler = NULL;
-				node->pending_msgs[i].msg_data = NULL;
-				return CC_SUCCESS;
-			}
-		}
+	item = cc_list_get_n(node->pending_msgs, msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+	if (item != NULL) {
+		cc_platform_mem_free(item->data);
+		cc_list_remove(&node->pending_msgs, msg_uuid);
 	}
-
-	cc_log_error("No pending msg with id '%s'", msg_uuid);
-	return CC_FAIL;
 }
 
-cc_result_t cc_node_get_pending_msg(cc_node_t *node, const char *msg_uuid, uint32_t msg_uuid_len, cc_pending_msg_t *pending_msg)
+cc_pending_msg_t *cc_node_get_pending_msg(cc_node_t *node, const char *msg_uuid)
 {
-	int i = 0;
+	cc_list_t *item = NULL;
 
-	for (i = 0; i < CC_MAX_PENDING_MSGS; i++) {
-		if (node->pending_msgs[i].handler != NULL) {
-			if (strncmp(node->pending_msgs[i].msg_uuid, msg_uuid, msg_uuid_len) == 0) {
-				*pending_msg = node->pending_msgs[i];
-				return CC_SUCCESS;
-			}
-		}
-	}
+	item = cc_list_get_n(node->pending_msgs, msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+	if (item != NULL)
+		return (cc_pending_msg_t *)item->data;
 
-	cc_log_debug("No pending msg with id '%s'", msg_uuid);
-	return CC_FAIL;
-}
-
-bool cc_node_can_add_pending_msg(const cc_node_t *node)
-{
-	int i = 0;
-
-	for (i = 0; i < CC_MAX_PENDING_MSGS; i++) {
-		if (node->pending_msgs[i].handler == NULL)
-			return true;
-	}
-
-	return false;
+	return NULL;
 }
 
 static cc_result_t cc_node_setup_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
@@ -469,10 +471,11 @@ static cc_result_t cc_node_setup(cc_node_t *node)
 #endif
 
 #ifdef CC_STORAGE_ENABLED
-	if (cc_node_get_state(node) == CC_SUCCESS)
-		return CC_SUCCESS;
-	else
+	if (cc_platform_node_state_size() > 0) {
+		if (cc_node_get_state(node) == CC_SUCCESS)
+			return CC_SUCCESS;
 		cc_node_reset(node, false);
+	}
 #endif
 
 	cc_gen_uuid(node->id, NULL);
@@ -744,6 +747,14 @@ static void cc_node_free(cc_node_t *node)
 
 	if (node->storage_dir != NULL)
 		cc_platform_mem_free((void *)node->storage_dir);
+
+	while (node->pending_msgs != NULL) {
+		item = node->pending_msgs;
+		node->pending_msgs = node->pending_msgs->next;
+		cc_platform_mem_free(item->data);
+		cc_platform_mem_free(item->id);
+		cc_platform_mem_free(item);
+	}
 
 	cc_platform_mem_free((void *)node);
 }

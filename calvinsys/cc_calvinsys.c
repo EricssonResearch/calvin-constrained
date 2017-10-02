@@ -303,7 +303,7 @@ cc_result_t cc_calvinsys_deserialize(struct cc_actor_t *actor, char *buffer)
 
 		item = cc_list_get_n(actor->calvinsys->capabilities, name, name_len);
 		if (item == NULL) {
-			cc_log_error("Capability '%.*s' not registered", name, name_len);
+			cc_log_error("Capability not registered");
 			return CC_FAIL;
 		}
 
@@ -331,19 +331,20 @@ cc_result_t cc_calvinsys_deserialize(struct cc_actor_t *actor, char *buffer)
 
 		if (capability->deserialize != NULL) {
 			if (capability->deserialize(object, obj) != CC_SUCCESS) {
-				cc_log_error("Failed to open '%.*s'", name_len, name);
+				cc_log_error("Failed to deserialize '%s'", capability->name);
 				cc_platform_mem_free((void *)object);
 				return CC_FAIL;
 			}
 		}
 
-		if (cc_list_add_n(&actor->calvinsys->objects, key, key_len, object, sizeof(cc_calvinsys_t)) == NULL) {
-			cc_log_error("Failed to add '%.*s'", key_len, key);
+		item = cc_list_add_n(&actor->calvinsys->objects, key, key_len, object, sizeof(cc_calvinsys_t));
+		if (item == NULL) {
+			cc_log_error("Failed to add '%s'", capability->name);
 			cc_platform_mem_free((void *)object);
 			return CC_FAIL;
 		}
 
-		cc_log("CalvinSys: Deserialized '%.*s' with id '%.*s'", name_len, name, key_len, key);
+		cc_log("CalvinSys: Deserialized '%s' with id '%s'", capability->name, item->id);
 		cc_coder_decode_map_next(&buffer);
 	}
 

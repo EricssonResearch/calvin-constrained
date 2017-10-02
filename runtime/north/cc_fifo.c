@@ -42,7 +42,7 @@ cc_fifo_t *cc_fifo_init(char *obj_fifo)
 		return NULL;
 
 	if (strncmp("fanout_fifo", queuetype, queuetype_len) != 0) {
-		cc_log_error("Queue type '%.*s' not supported", (int)queuetype_len, queuetype);
+		cc_log_error("Queue type not supported");
 		return NULL;
 	}
 

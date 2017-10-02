@@ -125,7 +125,7 @@ static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32
 		return actor;
 #endif
 
-	cc_log_error("Actor type '%.*s' not supported", type_len, type);
+	cc_log_error("Actor type '%s' not supported", actor->type);
 	cc_platform_mem_free((void *)actor->type);
 	cc_platform_mem_free((void *)actor);
 

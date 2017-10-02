@@ -366,7 +366,7 @@ cc_result_t cc_port_handle_connect(cc_node_t *node, const char *port_id, uint32_
 
 	port = cc_port_get(node, port_id, port_id_len);
 	if (port == NULL) {
-		cc_log_error("No port with '%.*s'", (int)port_id_len, port_id);
+		cc_log_error("Failed to get port");
 		return CC_FAIL;
 	}
 
@@ -381,7 +381,7 @@ cc_result_t cc_port_handle_connect(cc_node_t *node, const char *port_id, uint32_
 
 	port->tunnel = cc_tunnel_get_from_id(node, tunnel_id, tunnel_id_len);
 	if (port->tunnel == NULL) {
-		cc_log_error("No tunnel with '%.*s'", (int)tunnel_id_len, tunnel_id);
+		cc_log_error("Failed to get tunnel");
 		return CC_FAIL;
 	}
 
@@ -399,7 +399,7 @@ cc_result_t cc_port_handle_disconnect(cc_node_t *node, const char *port_id, uint
 
 	port = cc_port_get(node, port_id, port_id_len);
 	if (port == NULL) {
-		cc_log_error("No port with '%.*s'", (int)port_id_len, port_id);
+		cc_log_error("Failed to get port");
 		return CC_FAIL;
 	}
 

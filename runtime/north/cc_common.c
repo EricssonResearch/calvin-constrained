@@ -247,7 +247,7 @@ cc_result_t cc_get_json_dict_value(char *buffer, size_t buffer_len, char *key, s
 			pos++;
 		}
 	} else
-		cc_log_error("Failed to get '%.*s' from '%.*s'", key_len, key, buffer_len, buffer);
+		cc_log_error("Failed to parse");
 
 	return CC_FAIL;
 }

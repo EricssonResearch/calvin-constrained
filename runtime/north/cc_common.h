@@ -20,15 +20,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define CC_MAX_PENDING_MSGS		20
-#define CC_STORAGE_TUNNEL		"storage"
-#define CC_TOKEN_TUNNEL			"token"
-#define CC_UUID_BUFFER_SIZE		50
+#define CC_STORAGE_TUNNEL					"storage"
+#define CC_TOKEN_TUNNEL						"token"
+#define CC_UUID_BUFFER_SIZE				50
 #define CC_ATTRIBUTE_BUFFER_SIZE	1024
-#define CC_MAX_URI_LEN			50
-#define CC_MAX_ATTRIBUTES_LEN		1024
-#define CC_MAX_DIR_PATH			100
-#define CC_CONFIG_FILE			"calvin.msgpack"
+#define CC_MAX_URI_LEN						50
+#define CC_MAX_ATTRIBUTES_LEN			1024
+#define CC_MAX_DIR_PATH						100
+#define CC_CONFIG_FILE						"calvin.msgpack"
 
 typedef enum {
 	CC_SUCCESS,

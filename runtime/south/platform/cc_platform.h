@@ -133,6 +133,13 @@ void cc_platform_deepsleep(uint32_t time_in_us);
 
 #ifdef CC_STORAGE_ENABLED
 /**
+ * cc_platform_node_state_size() - Get size of node state file.
+ *
+ * Return: size of state file
+ */
+ size_t cc_platform_node_state_size();
+
+/**
  * cc_platform_write_node_state() - Write serialized node state to nonvolatile memory.
  * @buffer the serialized data to write
  * @size the size of the serialized dat
@@ -146,7 +153,7 @@ void cc_platform_write_node_state(struct cc_node_t *node, char *buffer, size_t s
  *
  * Return: SUCCESS/FAILURE
  */
-cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char buffer[], size_t size);
+cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char *buffer, size_t size);
 #endif
 
 #ifdef MBEDTLS_NO_PLATFORM_ENTROPY

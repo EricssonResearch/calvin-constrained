@@ -82,9 +82,10 @@ static cc_result_t tunnel_request_handler(cc_node_t *node, char *data, size_t da
 
 	if (status == 200) {
 		if (tunnel != NULL) {
-			cc_log_debug("Tunnel '%.*s' connected", (int)tunnel_id_len, tunnel_id);
 			strncpy(tunnel->id, tunnel_id, tunnel_id_len);
+			tunnel->id[tunnel_id_len] = '\0';
 			tunnel->state = CC_TUNNEL_ENABLED;
+			cc_log_debug("Tunnel '%s' connected", tunnel->id);
 		}
 	} else {
 		if (tunnel != NULL) {
@@ -109,7 +110,7 @@ cc_tunnel_t *cc_tunnel_create(cc_node_t *node, cc_tunnel_type_t type, cc_tunnel_
 	if (link == NULL) {
 		link = cc_link_create(node, peer_id, peer_id_len, strncmp(node->proxy_link->peer_id, peer_id, peer_id_len) == 0);
 		if (link == NULL) {
-			cc_log_error("Failed to create link to '%.*s'", peer_id_len, peer_id);
+			cc_log_error("Failed to create link");
 			return NULL;
 		}
 	}

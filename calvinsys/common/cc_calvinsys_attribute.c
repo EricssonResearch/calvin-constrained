@@ -101,7 +101,7 @@ static cc_result_t cc_calvinsys_attribute_get_attribute_value(char *attributes, 
 		category_len,
 		&category_data,
 		&category_data_len) != CC_SUCCESS) {
-			cc_log_error("Failed to get '%.*s' from '%.*s'", category_len, category, indexed_public_len, indexed_public);
+			cc_log_error("Failed to parse indexed public");
 			return CC_FAIL;
 	}
 
