@@ -826,7 +826,7 @@ cc_result_t cc_node_run(cc_node_t *node)
 			cc_node_set_state(node);
 #endif
 #ifdef CC_DEEPSLEEP_ENABLED
-			cc_platform_deepsleep(60);
+			cc_platform_deepsleep(CC_SLEEP_TIME);
 #endif
 			break;
 		} else
