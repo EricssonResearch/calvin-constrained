@@ -38,7 +38,7 @@ static cc_result_t cc_calvinsys_gpio_write(struct cc_calvinsys_obj_t *obj, char 
 	return CC_FAIL;
 }
 
-cc_result_t cc_calvinsys_gpio_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
+static cc_result_t cc_calvinsys_gpio_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
 {
 	cc_calvinsys_gpio_state_t *gpio_state = (cc_calvinsys_gpio_state_t *)obj->capability->state;
 
@@ -53,4 +53,18 @@ cc_result_t cc_calvinsys_gpio_open(cc_calvinsys_obj_t *obj, char *data, size_t l
 	obj->write = cc_calvinsys_gpio_write;
 
 	return CC_SUCCESS;
+}
+
+static cc_result_t cc_calvinsys_gpio_deserialize(cc_calvinsys_obj_t *obj, char *buffer)
+{
+	return cc_calvinsys_gpio_open(obj, buffer, 0);
+}
+
+cc_result_t cc_calvinsys_gpio_create(cc_calvinsys_t **calvinsys, const char *name, cc_calvinsys_gpio_state_t *state)
+{
+	return cc_calvinsys_create_capability(*calvinsys,
+		name,
+		cc_calvinsys_gpio_open,
+		cc_calvinsys_gpio_deserialize,
+		NULL);
 }

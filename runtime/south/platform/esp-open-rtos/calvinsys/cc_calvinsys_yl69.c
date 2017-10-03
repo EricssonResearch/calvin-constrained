@@ -29,6 +29,7 @@ static cc_result_t cc_calvinsys_yl69_read(struct cc_calvinsys_obj_t *obj, char *
 {
 	uint16_t adc_value = sdk_system_adc_read();
 	float humidity = 1024 - adc_value;
+	char *w = NULL;
 
 	humidity = humidity / 1024;
 	humidity = humidity * 100;
@@ -38,14 +39,30 @@ static cc_result_t cc_calvinsys_yl69_read(struct cc_calvinsys_obj_t *obj, char *
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
-	*data = cc_coder_encode_float(*data, humidity);
+	w = *data;
+	w = cc_coder_encode_float(w, humidity);
 
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_calvinsys_yl69_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
+static cc_result_t cc_calvinsys_yl69_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
 {
 	obj->can_read = cc_calvinsys_yl69_can_read;
 	obj->read = cc_calvinsys_yl69_read;
+
 	return CC_SUCCESS;
+}
+
+static cc_result_t cc_calvinsys_yl69_deserialize(cc_calvinsys_obj_t *obj, char *buffer)
+{
+	return cc_calvinsys_yl69_open(obj, buffer, 0);
+}
+
+cc_result_t cc_calvinsys_yl69_create(cc_calvinsys_t **calvinsys, const char *name)
+{
+	return cc_calvinsys_create_capability(*calvinsys,
+		name,
+		cc_calvinsys_yl69_open,
+		cc_calvinsys_yl69_deserialize,
+		NULL);
 }

@@ -150,13 +150,13 @@ cc_result_t cc_platform_create_calvinsys(cc_calvinsys_t **calvinsys)
 	state_light->pin = 4;
 	state_light->direction = CC_GPIO_OUT;
 
-	if (cc_calvinsys_create_capability(*calvinsys, "io.light", cc_calvinsys_gpio_open, NULL, state_light) != CC_SUCCESS)
+	if (cc_calvinsys_gpio_create(calvinsys, "io.light", state_light) != CC_SUCCESS)
 		return CC_FAIL;
 
-	if (cc_calvinsys_create_capability(*calvinsys, "io.temperature", cc_calvinsys_ds18b20_open, NULL, NULL) != CC_SUCCESS)
+	if (cc_calvinsys_ds18b20_create(calvinsys, "io.temperature") != CC_SUCCESS)
 		return CC_FAIL;
 
-	if (cc_calvinsys_create_capability(*calvinsys, "io.soil_moisture", cc_calvinsys_yl69_open, NULL, NULL) != CC_SUCCESS)
+	if (cc_calvinsys_yl69_create(calvinsys, "io.soil_moisture") != CC_SUCCESS)
 		return CC_FAIL;
 
 	return CC_SUCCESS;
@@ -234,7 +234,16 @@ cc_result_t cc_platform_node_started(struct cc_node_t *node)
 	return CC_SUCCESS;
 }
 
-void cc_platform_write_node_state(struct cc_node_t *node, char *buffer, size_t size)
+size_t cc_platform_node_state_size()
+{
+	spiffs_stat s;
+
+	SPIFFS_stat(&fs, CC_CONFIG_FILE, &s);
+
+	return s.size;
+}
+
+void cc_platform_write_node_state(cc_node_t *node, char *buffer, size_t size)
 {
 	spiffs_file fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	int res = 0;
@@ -246,8 +255,9 @@ void cc_platform_write_node_state(struct cc_node_t *node, char *buffer, size_t s
 	SPIFFS_close(&fs, fd);
 }
 
-cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char buffer[], size_t size)
+cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char *buffer, size_t size)
 {
+	size_t read = 0;
 	spiffs_file fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_RDONLY, 0);
 
 	if (fd < 0) {
@@ -255,16 +265,19 @@ cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char buffer[], s
 		return CC_FAIL;
 	}
 
-	SPIFFS_read(&fs, fd, buffer, size);
+	read = SPIFFS_read(&fs, fd, buffer, size);
 	SPIFFS_close(&fs, fd);
+
+	if (read != size)
+		return CC_FAIL;
 
 	return CC_SUCCESS;
 }
 
 #ifdef CC_DEEPSLEEP_ENABLED
-void cc_platform_deepsleep(uint32_t time_in_us)
+void cc_platform_deepsleep(uint32_t time)
 {
-	sdk_system_deep_sleep(time_in_us);
+	sdk_system_deep_sleep(time * 1000 * 1000);
 	vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 #endif
@@ -275,7 +288,7 @@ void cc_platform_init(void)
 
 uint32_t cc_platform_get_time()
 {
-	return sdk_system_get_time();
+	return sdk_system_get_time() / 1000000;
 }
 
 static cc_result_t cc_platform_esp_get_config(void)
@@ -467,8 +480,10 @@ void calvin_task(void *pvParameters)
 	spiffs_stat s;
 	bool startAP = false;
 	cc_result_t result = CC_SUCCESS;
+	uint32_t total, used;
 
 	uart_set_baud(0, 115200);
+	esp_spiffs_init();
 
 	cc_log("----------------------------------------");
 	cc_log("SDK version:%s", sdk_system_get_sdk_version());
@@ -483,11 +498,8 @@ void calvin_task(void *pvParameters)
 	// reset config pin
 	gpio_enable(CC_ESP_RESET_PIN, GPIO_INPUT);
 
-	esp_spiffs_init();
-	cc_log("Mounting filesystem");
 	if (esp_spiffs_mount() != SPIFFS_OK) {
 		SPIFFS_unmount(&fs);
-		cc_log("Formatting filesystem");
 		if (SPIFFS_format(&fs) == SPIFFS_OK)
 			cc_log("Filesystem formatted");
 		else {
@@ -502,20 +514,16 @@ void calvin_task(void *pvParameters)
 	}
 
 	if (result == CC_SUCCESS) {
-		if (gpio_read(CC_ESP_RESET_PIN) == 1) {
-			cc_log("Forcing AP mode");
+		if (gpio_read(CC_ESP_RESET_PIN) == 1)
 			startAP = true;
-		}
 
 		if (SPIFFS_stat(&fs, CC_ESP_WIFI_CONFIG_FILE, &s) != SPIFFS_OK) {
 			cc_log("No WiFi config found");
 			startAP = true;
 		}
 
-		if (startAP) {
-			cc_log("Starting in AP mode");
+		if (startAP)
 			result = cc_platform_esp_get_config();
-		}
 	}
 
 	if (result != CC_SUCCESS) {
@@ -523,6 +531,8 @@ void calvin_task(void *pvParameters)
 		SPIFFS_remove(&fs, CC_ESP_WIFI_CONFIG_FILE);
 		SPIFFS_remove(&fs, CC_CONFIG_FILE);
 	} else {
+		SPIFFS_info(&fs, &total, &used);
+		cc_log("SPIFFS size: %d bytes, used: %d bytes", total, used);
 		result = cc_platform_esp_start_station_mode();
 		if (result == CC_SUCCESS) {
 			if (cc_api_runtime_init(&node, NULL, NULL, NULL) == CC_SUCCESS)

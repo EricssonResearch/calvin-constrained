@@ -19,6 +19,6 @@
 #include "../../../../../runtime/north/cc_common.h"
 #include "../../../../../calvinsys/cc_calvinsys.h"
 
-cc_result_t cc_calvinsys_ds18b20_open(cc_calvinsys_obj_t *obj, char *data, size_t len);
+cc_result_t cc_calvinsys_ds18b20_create(cc_calvinsys_t **calvinsys, const char *name);
 
 #endif /* CC_CALVINSYS_DS18B20_H */

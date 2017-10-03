@@ -26,6 +26,16 @@ typedef struct cc_calvinsys_ds18b20_state_t {
 	ds18b20_addr_t addr;
 } cc_calvinsys_ds18b20_state_t;
 
+static bool cc_calvinsys_ds18b20_can_write(struct cc_calvinsys_obj_t *obj)
+{
+	return true;
+}
+
+static cc_result_t cc_calvinsys_ds18b20_write(cc_calvinsys_obj_t *obj, char *data, size_t size)
+{
+	return CC_SUCCESS;
+}
+
 static bool cc_calvinsys_ds18b20_can_read(struct cc_calvinsys_obj_t *obj)
 {
 	return true;
@@ -35,6 +45,7 @@ static cc_result_t cc_calvinsys_ds18b20_read(struct cc_calvinsys_obj_t *obj, cha
 {
 	float temp;
 	cc_calvinsys_ds18b20_state_t *state = (cc_calvinsys_ds18b20_state_t *)obj->state;
+	char *w = NULL;
 
 	temp = ds18b20_measure_and_read(CC_DS18B20_SENSOR_GPIO, state->addr);
 
@@ -43,7 +54,8 @@ static cc_result_t cc_calvinsys_ds18b20_read(struct cc_calvinsys_obj_t *obj, cha
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
-	*data = cc_coder_encode_float(*data, temp);
+	w = *data;
+	w = cc_coder_encode_float(w, temp);
 
 	return CC_SUCCESS;
 }
@@ -54,7 +66,7 @@ static cc_result_t cc_calvinsys_ds18b20_close(struct cc_calvinsys_obj_t *obj)
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_calvinsys_ds18b20_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
+static cc_result_t cc_calvinsys_ds18b20_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
 {
 	int sensor_count = 0;
 	cc_calvinsys_ds18b20_state_t *state = NULL;
@@ -73,10 +85,26 @@ cc_result_t cc_calvinsys_ds18b20_open(cc_calvinsys_obj_t *obj, char *data, size_
 		return CC_FAIL;
 	}
 
+	obj->can_write = cc_calvinsys_ds18b20_can_write;
+	obj->write = cc_calvinsys_ds18b20_write;
 	obj->can_read = cc_calvinsys_ds18b20_can_read;
 	obj->read = cc_calvinsys_ds18b20_read;
 	obj->close = cc_calvinsys_ds18b20_close;
 	obj->state = state;
 
 	return CC_SUCCESS;
+}
+
+static cc_result_t cc_calvinsys_ds18b20_deserialize(cc_calvinsys_obj_t *obj, char *buffer)
+{
+	return cc_calvinsys_ds18b20_open(obj, buffer, 0);
+}
+
+cc_result_t cc_calvinsys_ds18b20_create(cc_calvinsys_t **calvinsys, const char *name)
+{
+	return cc_calvinsys_create_capability(*calvinsys,
+		name,
+		cc_calvinsys_ds18b20_open,
+		cc_calvinsys_ds18b20_deserialize,
+		NULL);
 }
