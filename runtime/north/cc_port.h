@@ -52,14 +52,14 @@ typedef struct cc_port_t {
 	cc_tunnel_t *tunnel;
 	cc_port_state_t state;
 	cc_fifo_t *fifo;
-	struct cc_actor_t*actor;
+	struct cc_actor_t *actor;
 } cc_port_t;
 
-cc_port_t *cc_port_create(struct cc_node_t *node, struct cc_actor_t*actor, char *obj_port, char *obj_prev_connections, cc_port_direction_t direction);
+cc_port_t *cc_port_create(struct cc_node_t *node, struct cc_actor_t *actor, char *obj_port, char *obj_prev_connections, cc_port_direction_t direction);
 void cc_port_free(struct cc_node_t *node, cc_port_t *port, bool remove_from_registry);
 char *cc_port_get_peer_id(const struct cc_node_t *node, cc_port_t *port);
 cc_port_t *cc_port_get(struct cc_node_t *node, const char *port_id, uint32_t port_id_len);
-cc_port_t *cc_port_get_from_name(struct cc_actor_t*actor, const char *name, size_t name_len, cc_port_direction_t direction);
+cc_port_t *cc_port_get_from_name(struct cc_actor_t *actor, const char *name, size_t name_len, cc_port_direction_t direction);
 cc_result_t cc_port_handle_disconnect(struct cc_node_t *node, const char *port_id, uint32_t port_id_len);
 cc_result_t cc_port_handle_connect(struct cc_node_t *node, const char *port_id, uint32_t port_id_len, const char *tunnel_id, uint32_t tunnel_id_len);
 void cc_port_disconnect(struct cc_node_t *node, cc_port_t *port);

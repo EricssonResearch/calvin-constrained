@@ -142,6 +142,8 @@ void port_set_state(cc_port_t *port, cc_port_state_t state)
 {
 	cc_log_debug("Port '%s' state '%d' -> '%d'", port->id, port->state, state);
 	port->state = state;
+	if (port->state == CC_PORT_ENABLED)
+		cc_actor_port_enabled(port->actor);
 }
 
 cc_port_t *cc_port_create(cc_node_t *node, cc_actor_t *actor, char *obj_port, char *obj_prev_connections, cc_port_direction_t direction)
