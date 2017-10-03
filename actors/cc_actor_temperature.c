@@ -82,6 +82,8 @@ static cc_result_t cc_actor_temperature_set_state(cc_actor_t **actor, cc_list_t 
 		return CC_FAIL;
 	}
 
+	memset(state, 0, sizeof(cc_actor_temperature_state_t));
+
 	item = cc_list_get(managed_attributes, "temperature");
 	if (item == NULL) {
 		cc_log_error("Failed to get 'temperature'");
@@ -94,7 +96,8 @@ static cc_result_t cc_actor_temperature_set_state(cc_actor_t **actor, cc_list_t 
 		cc_platform_mem_free(state);
 		return CC_FAIL;
 	}
-	strncpy(state->temperature, obj_ref, strnlen(obj_ref, CC_UUID_BUFFER_SIZE));
+	strncpy(state->temperature, obj_ref, obj_ref_len);
+	state->temperature[obj_ref_len] = '\0';
 
 	item = cc_list_get(managed_attributes, "timer");
 	if (item == NULL) {
@@ -107,7 +110,8 @@ static cc_result_t cc_actor_temperature_set_state(cc_actor_t **actor, cc_list_t 
 		cc_platform_mem_free(state);
 		return CC_FAIL;
 	}
-	strncpy(state->timer, obj_ref, strnlen(obj_ref, CC_UUID_BUFFER_SIZE));
+	strncpy(state->timer, obj_ref, obj_ref_len);
+	state->timer[obj_ref_len] = '\0';
 
 	(*actor)->instance_state = (void *)state;
 
