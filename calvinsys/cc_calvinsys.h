@@ -52,7 +52,6 @@ cc_result_t cc_calvinsys_write(cc_calvinsys_t *calvinsys, char *id, char *data, 
 bool cc_calvinsys_can_read(cc_calvinsys_t *calvinsys, char *id);
 cc_result_t cc_calvinsys_read(cc_calvinsys_t *calvinsys, char *id, char **data, size_t *data_size);
 void cc_calvinsys_close(cc_calvinsys_t *calvinsys, char *id);
-char *cc_calvinsys_get_obj_ref(cc_calvinsys_t *calvinsys, char *id, uint32_t id_len);
 cc_result_t cc_calvinsys_get_attributes(cc_calvinsys_t *calvinsys, struct cc_actor_t *actor, cc_list_t **private_attributes);
 cc_result_t cc_calvinsys_deserialize(struct cc_actor_t *actor, char *buffer);
 

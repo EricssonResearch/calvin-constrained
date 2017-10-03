@@ -80,6 +80,11 @@ char *cc_calvinsys_open(cc_actor_t *actor, const char *name, char *data, size_t 
 
 	capability = (cc_calvinsys_capability_t *)item->data;
 
+	if (capability->open == NULL) {
+		cc_log_error("Capability does not have a open method");
+		return NULL;
+	}
+
 	if (cc_platform_mem_alloc((void **)&obj, sizeof(cc_calvinsys_obj_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return NULL;
@@ -122,7 +127,8 @@ bool cc_calvinsys_can_write(cc_calvinsys_t *calvinsys, char *id)
 	item = cc_list_get(calvinsys->objects, id);
 	if (item != NULL) {
 		obj = (cc_calvinsys_obj_t *)item->data;
-		return obj->can_write(obj);
+		if (obj->can_write != NULL)
+			return obj->can_write(obj);
 	}
 
 	return false;
@@ -136,7 +142,8 @@ cc_result_t cc_calvinsys_write(cc_calvinsys_t *calvinsys, char *id, char *data, 
 	item = cc_list_get(calvinsys->objects, id);
 	if (item != NULL) {
 		obj = (cc_calvinsys_obj_t *)item->data;
-		return obj->write(obj, data, data_size);
+		if (obj->write != NULL)
+			return obj->write(obj, data, data_size);
 	}
 
 	return CC_FAIL;
@@ -150,7 +157,8 @@ bool cc_calvinsys_can_read(cc_calvinsys_t *calvinsys, char *id)
 	item = cc_list_get(calvinsys->objects, id);
 	if (item != NULL) {
 		obj = (cc_calvinsys_obj_t *)item->data;
-		return obj->can_read(obj);
+		if (obj->can_read != NULL)
+			return obj->can_read(obj);
 	}
 
 	return false;
@@ -164,7 +172,8 @@ cc_result_t cc_calvinsys_read(cc_calvinsys_t *calvinsys, char *id, char **data, 
 	item = cc_list_get(calvinsys->objects, id);
 	if (item != NULL) {
 		obj = (cc_calvinsys_obj_t *)item->data;
-		return obj->read(obj, data, data_size);
+		if (obj->read != NULL)
+			return obj->read(obj, data, data_size);
 	}
 
 	return CC_FAIL;
@@ -178,25 +187,12 @@ void cc_calvinsys_close(cc_calvinsys_t *calvinsys, char *id)
 	item = cc_list_get(calvinsys->objects, id);
 	if (item != NULL) {
 		obj = (cc_calvinsys_obj_t *)item->data;
-		cc_log("CalvinSys: Closed '%s'", id);
 		if (obj->close != NULL)
 			obj->close(obj);
+		cc_log("CalvinSys: Closed '%s'", id);
 		cc_list_remove(&calvinsys->objects, id);
 		cc_platform_mem_free((void *)obj);
 	}
-}
-
-char *cc_calvinsys_get_obj_ref(cc_calvinsys_t *calvinsys, char *id, uint32_t id_len)
-{
-	cc_list_t *item = calvinsys->objects;
-
-	while (item != NULL) {
-		if (strncmp(item->id, id, id_len) == 0)
-			return item->id;
-		item = item->next;
-	}
-
-	return NULL;
 }
 
 static uint32_t cc_calvinsys_get_number_of_attributes(cc_calvinsys_t *calvinsys, cc_actor_t *actor)
