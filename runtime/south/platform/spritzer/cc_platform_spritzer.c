@@ -244,17 +244,17 @@ void cc_platform_mem_free(void *buffer)
   free(buffer);
 }
 
-uint32_t cc_platform_get_seconds(cc_node_t *node)
+uint32_t cc_platform_get_time(void)
 {
-  struct timeval value;
+	struct timeval value;
 
-  gettimeofday(&value, NULL);
+	gettimeofday(&value, NULL);
 
-  return value.tv_sec;
+	return value.tv_sec;
 }
 
 #ifdef CC_DEEPSLEEP_ENABLED
-void cc_platform_deepsleep(cc_node_t *node, uint32_t time)
+void cc_platform_deepsleep(uint32_t time_in_us)
 {
   // TODO: Set RTC alarm and enter PM_SLEEP_DEEP
   // and calvin should be started at OS boot
@@ -263,35 +263,53 @@ void cc_platform_deepsleep(cc_node_t *node, uint32_t time)
 #endif
 
 #ifdef CC_STORAGE_ENABLED
-void cc_platform_write_node_state(cc_node_t *node, char *buffer, size_t size)
+size_t cc_platform_node_state_size()
 {
-  FILE *fp = NULL;
-  int len = 0;
+	FILE *fp = NULL;
+	size_t size = 0;
 
-  fp = fopen(CC_CONFIG_FILE, "w+");
-  if (fp != NULL) {
-    len = fwrite(buffer, 1, size, fp);
-    if (len != size)
-      cc_log_error("Failed to write node config");
-    else
-      cc_log_debug("Wrote runtime state '%d' bytes", len);
-    fclose(fp);
-  } else
-    cc_log("Failed to open %s for writing", CC_CONFIG_FILE);
+	fp = fopen(CC_CONFIG_FILE, "r+");
+	if (fp != NULL) {
+		fseek(fp, 0, SEEK_END);
+		size = ftell(fp);
+		fclose(fp);
+	}
+
+	return size;
 }
 
-cc_result_t cc_platform_read_node_state(cc_node_t *node, char buffer[], size_t size)
+void cc_platform_write_node_state(cc_node_t *node, char *buffer, size_t size)
 {
-  FILE *fp = NULL;
+	FILE *fp = NULL;
+	int len = 0;
 
-  fp = fopen(CC_CONFIG_FILE, "r+");
-  if (fp != NULL) {
-    fread(buffer, 1, size, fp);
-    fclose(fp);
-    return CC_SUCCESS;
-  }
+	fp = fopen(CC_CONFIG_FILE, "w+");
+	if (fp != NULL) {
+		len = fwrite(buffer, 1, size, fp);
+		if (len != size)
+			cc_log_error("Failed to write node config");
+		else
+			cc_log_debug("Wrote runtime state '%d' bytes", len);
+		fclose(fp);
+	} else
+		cc_log_error("Failed to open %s for writing", CC_CONFIG_FILE);
+}
 
-  return CC_FAIL;
+cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char *buffer, size_t size)
+{
+	FILE *fp = NULL;
+	size_t read = 0;
+
+	fp = fopen(CC_CONFIG_FILE, "r+");
+	if (fp != NULL) {
+		read = fread(buffer, 1, size, fp);
+		fclose(fp);
+	}
+
+	if (read != size)
+		return CC_FAIL;
+
+	return CC_SUCCESS;
 }
 #endif
 

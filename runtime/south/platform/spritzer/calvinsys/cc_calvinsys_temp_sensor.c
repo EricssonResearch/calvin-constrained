@@ -26,7 +26,8 @@ static bool cc_calvinsys_temp_sensor_can_read(struct cc_calvinsys_obj_t *obj)
 
 static cc_result_t cc_calvinsys_temp_sensor_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
-	float temp = 0.0;
+	float temp = 15.5;
+	char *w = NULL;
 
 	// TODO: Include temp sensor and uncomment:
 //	temp = temperature_sensor_get(void);
@@ -37,54 +38,42 @@ static cc_result_t cc_calvinsys_temp_sensor_read(struct cc_calvinsys_obj_t *obj,
 		return CC_FAIL;
 	}
 
-	cc_coder_encode_float(*data, temp);
+	w = *data;
+	w = cc_coder_encode_float(w, temp);
 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_calvinsys_temp_sensor_close(struct cc_calvinsys_obj_t *obj)
+static bool cc_calvinsys_temp_sensor_can_write(struct cc_calvinsys_obj_t *obj)
 {
-	cc_platform_mem_free((void *)obj->state);
+	return true;
+}
+
+static cc_result_t cc_calvinsys_temp_sensor_write(cc_calvinsys_obj_t *obj, char *data, size_t size)
+{
 	return CC_SUCCESS;
 }
 
-static cc_calvinsys_obj_t *cc_calvinsys_temp_sensor_open(cc_calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char *capability_name)
+static cc_result_t cc_calvinsys_temp_sensor_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
 {
-	cc_calvinsys_obj_t *obj = NULL;
-
-	if (cc_platform_mem_alloc((void **)&obj, sizeof(cc_calvinsys_obj_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return NULL;
-	}
-
-	obj->can_write = NULL;
-	obj->write = NULL;
+	obj->can_write = cc_calvinsys_temp_sensor_can_write;
+	obj->write = cc_calvinsys_temp_sensor_write;
 	obj->can_read = cc_calvinsys_temp_sensor_can_read;
 	obj->read = cc_calvinsys_temp_sensor_read;
-	obj->close = cc_calvinsys_temp_sensor_close;
-	obj->handler = handler;
-	obj->next = NULL;
-	obj->state = NULL;
 
-	return obj;
+	return CC_SUCCESS;
+}
+
+static cc_result_t cc_calvinsys_sensor_temp_deserialize(cc_calvinsys_obj_t *obj, char *buffer)
+{
+	return cc_calvinsys_temp_sensor_open(obj, buffer, 0);
 }
 
 cc_result_t cc_calvinsys_temp_sensor_create(cc_calvinsys_t **calvinsys, const char *name)
 {
-	cc_calvinsys_handler_t *handler = NULL;
-
-	if (cc_platform_mem_alloc((void **)&handler, sizeof(cc_calvinsys_handler_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
-	}
-
-	handler->open = cc_calvinsys_temp_sensor_open;
-	handler->objects = NULL;
-	handler->next = NULL;
-
-	cc_calvinsys_add_handler(calvinsys, handler);
-	if (cc_calvinsys_register_capability(*calvinsys, name, handler, NULL) != CC_SUCCESS)
-		return CC_FAIL;
-
-	return CC_SUCCESS;
+	return cc_calvinsys_create_capability(*calvinsys,
+		"io.temperature",
+		cc_calvinsys_temp_sensor_open,
+		cc_calvinsys_sensor_temp_deserialize,
+		NULL);
 }
