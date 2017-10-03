@@ -337,12 +337,12 @@ cc_result_t cc_coder_decode_uint(char *buffer, uint32_t *value)
 	case MP_DOUBLE:
 	{
 		double d;
-		d = mp_decode_float((const char **)&r);
+		d = mp_decode_double((const char **)&r);
 		*value = (uint32_t)d;
 		return CC_SUCCESS;
 	}
 	default:
-		cc_log_error("Unknown type");
+		cc_log_error("Unknown type %d", mp_typeof(*r));
 	}
 
 	return CC_FAIL;
