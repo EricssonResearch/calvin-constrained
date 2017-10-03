@@ -181,15 +181,13 @@ bool cc_fifo_tokens_available(const cc_fifo_t *fifo, uint32_t length)
 
 cc_result_t cc_fifo_write(cc_fifo_t *fifo, char *data, const size_t size)
 {
-	cc_result_t result = CC_SUCCESS;
-
 	if (!cc_fifo_slots_available(fifo, 1))
 		return CC_FAIL;
 
 	cc_token_set_data(&fifo->tokens[fifo->write_pos % fifo->size], data, size);
 	fifo->write_pos++;
 
-	return result;
+	return CC_SUCCESS;
 }
 
 void cc_fifo_com_peek(cc_fifo_t *fifo, cc_token_t **token, uint32_t *sequence_nbr)
