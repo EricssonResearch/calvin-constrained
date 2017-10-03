@@ -143,14 +143,25 @@ cc_result_t cc_calvinsys_timer_deserialize(cc_calvinsys_obj_t *obj, char *buffer
 	cc_calvinsys_timer_t *timer = NULL;
 	uint32_t timeout = 0, nexttrigger = 0;
 	bool repeats = false;
+	char *value;
 
-	if (cc_coder_decode_uint_from_map(buffer, "timeout", &timeout) != CC_SUCCESS) {
-		cc_log_error("Failed to get attribute 'timeout'");
+	if (cc_coder_get_value_from_map(buffer, "timeout", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'timeout'");
 		return CC_FAIL;
 	}
 
-	if (cc_coder_decode_uint_from_map(buffer, "nexttrigger", &nexttrigger) != CC_SUCCESS) {
-		cc_log_error("Failed to get attribute 'nexttriger'");
+	if (cc_coder_decode_uint(value, &timeout) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'timeout'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_get_value_from_map(buffer, "nexttrigger", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'nexttrigger'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_uint(value, &nexttrigger) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'nexttrigger'");
 		return CC_FAIL;
 	}
 
