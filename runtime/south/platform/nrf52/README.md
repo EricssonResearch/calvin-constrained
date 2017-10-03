@@ -1,5 +1,7 @@
 ## Nordic Semiconductors NRF52 DK
 
+### !!! CURRENTLY NOT MAINTAINED !!!
+
 ### Setup environment
 
 Install gcc-arm-none-eabi:
