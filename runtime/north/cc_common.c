@@ -152,7 +152,7 @@ cc_list_t *cc_list_get_n(cc_list_t *list, const char *id, uint32_t id_len)
 	cc_list_t *tmp = list;
 
 	while (tmp != NULL) {
-		if (strncmp(tmp->id, id, id_len) == 0)
+		if (strnlen(tmp->id, CC_UUID_BUFFER_SIZE) == id_len && strncmp(tmp->id, id, id_len) == 0)
 			return tmp;
 		tmp = tmp->next;
 	}
@@ -165,7 +165,7 @@ cc_list_t *cc_list_get(cc_list_t *list, const char *id)
 	cc_list_t *tmp = list;
 
 	while (tmp != NULL) {
-		if (strncmp(tmp->id, id, tmp->id_len) == 0)
+		if (strnlen(tmp->id, CC_UUID_BUFFER_SIZE) == strnlen(id, CC_UUID_BUFFER_SIZE) && strncmp(tmp->id, id, tmp->id_len) == 0)
 			return tmp;
 		tmp = tmp->next;
 	}

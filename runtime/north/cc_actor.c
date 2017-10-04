@@ -522,7 +522,7 @@ cc_actor_t *cc_actor_get(cc_node_t *node, const char *actor_id, uint32_t actor_i
 {
 	cc_list_t *item = NULL;
 
-	item = cc_list_get(node->actors, actor_id);
+	item = cc_list_get_n(node->actors, actor_id, actor_id_len);
 	if (item != NULL)
 		return (cc_actor_t *)item->data;
 
