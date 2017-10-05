@@ -315,7 +315,7 @@ uint32_t cc_platform_get_time(void)
 #ifdef CC_DEEPSLEEP_ENABLED
 void cc_platform_deepsleep(uint32_t time_in_us)
 {
-	cc_log("Platformx86: Enterring deepsleep");
+	exit(0);
 }
 #endif
 
