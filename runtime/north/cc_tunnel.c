@@ -150,7 +150,7 @@ cc_tunnel_t *cc_tunnel_create(cc_node_t *node, cc_tunnel_type_t type, cc_tunnel_
 
 	cc_link_add_ref(link);
 
-	cc_log_debug("Tunnel created, id '%s' peer_id '%s'", tunnel->id, tunnel->link->peer_id);
+	cc_log_debug("Created '%s', peer_id '%s' type '%d'", tunnel->id, tunnel->link->peer_id, tunnel->type);
 
 	return tunnel;
 }
@@ -190,10 +190,11 @@ cc_tunnel_t *cc_tunnel_deserialize(struct cc_node_t *node, char *buffer)
 
 void cc_tunnel_free(cc_node_t *node, cc_tunnel_t *tunnel)
 {
-	cc_log_debug("Deleting tunnel '%s'", tunnel->id);
-	cc_list_remove(&node->tunnels, tunnel->id);
-	cc_link_remove_ref(node, tunnel->link);
-	cc_platform_mem_free((void *)tunnel);
+	if (tunnel != NULL) {
+		cc_log_debug("Deleting '%s'", tunnel->id);
+		cc_list_remove(&node->tunnels, tunnel->id);
+		cc_platform_mem_free((void *)tunnel);
+	}
 }
 
 void cc_tunnel_add_ref(cc_tunnel_t *tunnel)
@@ -208,8 +209,10 @@ void cc_tunnel_remove_ref(cc_node_t *node, cc_tunnel_t *tunnel)
 		tunnel->ref_count--;
 		cc_log_debug("Tunnel ref removed '%s' ref: %d", tunnel->id, tunnel->ref_count);
 		if (tunnel->ref_count == 0) {
-			if (cc_proto_send_tunnel_destroy(node, tunnel, tunnel_destroy_handler) != CC_SUCCESS)
-				cc_log_debug("Failed to destroy tunnel '%s'", tunnel->id);
+			if (node->state != CC_NODE_DO_SLEEP) {
+				if (cc_proto_send_tunnel_destroy(node, tunnel, tunnel_destroy_handler) != CC_SUCCESS)
+					cc_log_debug("Failed to destroy tunnel '%s'", tunnel->id);
+			}
 			cc_tunnel_free(node, tunnel);
 		}
 	}
