@@ -50,6 +50,9 @@
 #ifdef CC_ACTOR_REGISTRY_ATTIBUTE
 #include "../../actors/cc_actor_registry_attribute.h"
 #endif
+#ifdef CC_ACTOR_TEMPERATURE_TAGGED
+#include "../../actors/cc_actor_temperature_tagged.h"
+#endif
 
 cc_result_t cc_actor_store_init(cc_list_t **actor_types)
 {
@@ -110,6 +113,11 @@ cc_result_t cc_actor_store_init(cc_list_t **actor_types)
 
 #ifdef CC_ACTOR_REGISTRY_ATTIBUTE
 	if (cc_actor_registry_attribute_register(actor_types) != CC_SUCCESS)
+		return CC_FAIL;
+#endif
+
+#ifdef CC_ACTOR_TEMPERATURE_TAGGED
+	if (cc_actor_temperature_tagged_register(actor_types) != CC_SUCCESS)
 		return CC_FAIL;
 #endif
 
