@@ -38,7 +38,7 @@ static cc_result_t cc_calvinsys_timer_read(struct cc_calvinsys_obj_t *obj, char 
 
 	if (timer->repeats) {
 		now = cc_node_get_time(obj->capability->calvinsys->node);
-		timer->nexttrigger = cc_node_get_time(obj->capability->calvinsys->node) + timer->timeout;
+		timer->nexttrigger = now + timer->timeout;
 		cc_log_debug("Timer '%s' set, now '%ld' nexttrigger '%ld'", obj->id, now, timer->nexttrigger);
 	} else {
 		cc_log_debug("Timer '%s' cleared", obj->id);
