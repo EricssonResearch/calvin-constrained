@@ -25,9 +25,10 @@ typedef struct cc_calvinsys_timer_t {
 	uint32_t timeout;
   uint32_t nexttrigger;
 	bool repeats;
+	bool active;
 } cc_calvinsys_timer_t;
 
 cc_result_t cc_calvinsys_timer_create(cc_calvinsys_t **calvinsys);
-cc_result_t cc_calvinsys_timer_get_seconds_to_next_trigger(struct cc_node_t *node, uint32_t *time);
+cc_result_t cc_calvinsys_timer_get_nexttrigger(struct cc_node_t *node, uint32_t *nexttrigger);
 
 #endif /* CC_CALVINSYS_TIMER_H */

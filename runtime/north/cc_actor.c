@@ -442,7 +442,7 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 	}
 
 	if (result == CC_SUCCESS) {
-		cc_log("Actor: Created '%s' with id '%s'", actor->type, actor->id);
+		cc_log("Actor: Created '%s', type '%s'", actor->id, actor->type);
 	} else {
 		cc_log_error("Failed to create actor");
 		cc_actor_free(node, actor, false);
@@ -471,7 +471,7 @@ void cc_actor_free(cc_node_t *node, cc_actor_t *actor, bool remove_from_registry
 		tmp_list = list;
 		list = list->next;
 		obj = (cc_calvinsys_obj_t *)tmp_list->data;
-		if (obj->actor == actor)
+		if (obj != NULL && obj->actor != NULL && obj->actor == actor)
 			cc_calvinsys_close(actor->calvinsys, tmp_list->id);
 	}
 

@@ -608,7 +608,7 @@ def testSleepWithTimer():
 
     script_name = "testSleepWithTimer"
     script = """
-    temp : sensor.Temperature(period=3)
+    temp : sensor.Temperature(period=4)
     snk : test.Sink(store_tokens=1, quiet=1)
     temp.centigrade > snk.token
     """
