@@ -26,6 +26,7 @@ typedef struct cc_calvinsys_obj_t {
 	cc_result_t (*close)(struct cc_calvinsys_obj_t *obj);
 	char *(*serialize)(char *id, struct cc_calvinsys_obj_t *obj, char *buffer);
 	void *state;
+	char *id;
 	struct cc_actor_t *actor;
 	struct cc_calvinsys_capability_t *capability;
 } cc_calvinsys_obj_t;

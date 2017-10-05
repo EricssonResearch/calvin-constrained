@@ -100,12 +100,6 @@ char *cc_calvinsys_open(cc_actor_t *actor, const char *name, char *data, size_t 
 	obj->capability = capability;
 	obj->actor = actor;
 
-	if (capability->open(obj, data, size) != CC_SUCCESS) {
-		cc_log_error("Failed to open '%s'", name);
-		cc_platform_mem_free((void *)obj);
-		return NULL;
-	}
-
 	cc_gen_uuid(id, NULL);
 	item = cc_list_add_n(&actor->calvinsys->objects, id, strlen(id) + 1, obj, sizeof(cc_calvinsys_t));
 	if (item == NULL) {
@@ -113,8 +107,15 @@ char *cc_calvinsys_open(cc_actor_t *actor, const char *name, char *data, size_t 
 		cc_platform_mem_free((void *)obj);
 		return NULL;
 	}
+	obj->id = item->id;
 
-	cc_log("CalvinSys: Opened '%s' with id '%s'", name, item->id);
+	if (capability->open(obj, data, size) != CC_SUCCESS) {
+		cc_log_error("Failed to open '%s'", name);
+		cc_platform_mem_free((void *)obj);
+		return NULL;
+	}
+
+	cc_log("calvinsys: Opened '%s', capability '%s'", item->id, name);
 
 	return item->id;
 }
@@ -189,7 +190,7 @@ void cc_calvinsys_close(cc_calvinsys_t *calvinsys, char *id)
 		obj = (cc_calvinsys_obj_t *)item->data;
 		if (obj->close != NULL)
 			obj->close(obj);
-		cc_log("CalvinSys: Closed '%s'", id);
+		cc_log("calvinsys: Closed '%s'", id);
 		cc_list_remove(&calvinsys->objects, id);
 		cc_platform_mem_free((void *)obj);
 	}
@@ -325,6 +326,14 @@ cc_result_t cc_calvinsys_deserialize(struct cc_actor_t *actor, char *buffer)
 		object->capability = capability;
 		object->actor = actor;
 
+		item = cc_list_add_n(&actor->calvinsys->objects, key, key_len, object, sizeof(cc_calvinsys_t));
+		if (item == NULL) {
+			cc_log_error("Failed to add '%s'", capability->name);
+			cc_platform_mem_free((void *)object);
+			return CC_FAIL;
+		}
+		object->id = item->id;
+
 		if (capability->deserialize != NULL) {
 			if (capability->deserialize(object, obj) != CC_SUCCESS) {
 				cc_log_error("Failed to deserialize '%s'", capability->name);
@@ -333,14 +342,7 @@ cc_result_t cc_calvinsys_deserialize(struct cc_actor_t *actor, char *buffer)
 			}
 		}
 
-		item = cc_list_add_n(&actor->calvinsys->objects, key, key_len, object, sizeof(cc_calvinsys_t));
-		if (item == NULL) {
-			cc_log_error("Failed to add '%s'", capability->name);
-			cc_platform_mem_free((void *)object);
-			return CC_FAIL;
-		}
-
-		cc_log("CalvinSys: Deserialized '%s' with id '%s'", capability->name, item->id);
+		cc_log("calvinsys: Deserialized '%s', capability '%s'", item->id, capability->name);
 		cc_coder_decode_map_next(&buffer);
 	}
 
