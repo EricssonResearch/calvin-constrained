@@ -129,9 +129,6 @@ cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t time_to_sleep,
 
 	memset(buffer, 0, 1000);
 
-	if (node->transport_client == NULL)
-		return CC_FAIL;
-
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
 	w = buffer + node->transport_client->prefix_len;
@@ -158,9 +155,6 @@ cc_result_t cc_proto_send_tunnel_request(cc_node_t *node, cc_tunnel_t *tunnel, c
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
 	memset(buffer, 0, 1000);
-
-	if (node->transport_client == NULL)
-		return CC_FAIL;
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
@@ -190,9 +184,6 @@ cc_result_t cc_proto_send_tunnel_destroy(cc_node_t *node, cc_tunnel_t *tunnel, c
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
 	memset(buffer, 0, 1000);
-
-	if (node->transport_client == NULL)
-		return CC_FAIL;
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
@@ -329,9 +320,6 @@ cc_result_t cc_proto_send_port_connect_reply(const cc_node_t *node, char *msg_uu
 
 	memset(buffer, 0, 1000);
 
-	if (node->transport_client == NULL)
-		return CC_FAIL;
-
 	w = buffer + node->transport_client->prefix_len;
 	w = cc_coder_encode_map(w, 5);
 	{
@@ -360,14 +348,11 @@ cc_result_t cc_proto_send_port_connect_reply(const cc_node_t *node, char *msg_uu
 	return cc_transport_send(node->transport_client, buffer, w - buffer);
 }
 
-cc_result_t cc_proto_send_cc_port_disconnect_reply(const cc_node_t *node, char *msg_uuid, uint32_t msg_uuid_len, char *to_rt_uuid, uint32_t to_rt_uuid_len, uint32_t status)
+cc_result_t cc_proto_send_port_disconnect_reply(const cc_node_t *node, char *msg_uuid, uint32_t msg_uuid_len, char *to_rt_uuid, uint32_t to_rt_uuid_len, uint32_t status)
 {
 	char buffer[1000], *w = NULL;
 
 	memset(buffer, 0, 1000);
-
-	if (node->transport_client == NULL)
-		return CC_FAIL;
 
 	w = buffer + node->transport_client->prefix_len;
 	w = cc_coder_encode_map(w, 5);
@@ -400,21 +385,14 @@ cc_result_t cc_proto_send_cc_port_disconnect_reply(const cc_node_t *node, char *
 
 cc_result_t cc_proto_send_token(const cc_node_t *node, cc_port_t *port, cc_token_t *token, uint32_t sequencenbr)
 {
-	char buffer[1000], *w = NULL, *peer_id = NULL;
+	char buffer[1000], *w = NULL;
 
 	memset(buffer, 0, 1000);
-
-	if (node->transport_client == NULL)
-		return CC_FAIL;
-
-	peer_id = cc_port_get_peer_id(node, port);
-	if (peer_id == NULL)
-		return CC_FAIL;
 
 	w = buffer + node->transport_client->prefix_len;
 	w = cc_coder_encode_map(w, 5);
 	{
-		w = cc_coder_encode_kv_str(w, "to_rt_uuid", peer_id, strnlen(peer_id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", port->peer_id, strnlen(port->peer_id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
 		w = cc_coder_encode_kv_str(w, "tunnel_id", port->tunnel->id, strnlen(port->tunnel->id, CC_UUID_BUFFER_SIZE));
@@ -433,23 +411,14 @@ cc_result_t cc_proto_send_token(const cc_node_t *node, cc_port_t *port, cc_token
 
 cc_result_t cc_proto_send_token_reply(const cc_node_t *node, cc_port_t *port, uint32_t sequencenbr, bool ack)
 {
-	char buffer[1000], *w = NULL, *peer_id = NULL;
+	char buffer[1000], *w = NULL;
 
 	memset(buffer, 0, 1000);
-
-	if (node->transport_client == NULL)
-		return CC_FAIL;
-
-	peer_id = cc_port_get_peer_id(node, port);
-	if (peer_id == NULL) {
-		cc_log_error("Port has no peer");
-		return CC_FAIL;
-	}
 
 	w = buffer + node->transport_client->prefix_len;
 	w = cc_coder_encode_map(w, 5);
 	{
-		w = cc_coder_encode_kv_str(w, "to_rt_uuid", peer_id, strnlen(peer_id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", port->peer_id, strnlen(port->peer_id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
 		w = cc_coder_encode_kv_str(w, "tunnel_id", port->tunnel->id, strnlen(port->tunnel->id, CC_UUID_BUFFER_SIZE));
@@ -468,23 +437,16 @@ cc_result_t cc_proto_send_token_reply(const cc_node_t *node, cc_port_t *port, ui
 
 cc_result_t cc_proto_send_port_connect(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
 {
-	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE], *peer_id = NULL;
+	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
 	memset(buffer, 0, 1000);
-
-	if (node->transport_client == NULL)
-		return CC_FAIL;
-
-	peer_id = cc_port_get_peer_id(node, port);
-	if (peer_id == NULL)
-		return CC_FAIL;
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
 	w = buffer + node->transport_client->prefix_len;
 	w = cc_coder_encode_map(w, 11);
 	{
-		w = cc_coder_encode_kv_str(w, "to_rt_uuid", peer_id, strnlen(peer_id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", port->peer_id, strnlen(port->peer_id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "tunnel_id", port->tunnel->id, strnlen(port->tunnel->id, CC_UUID_BUFFER_SIZE));
@@ -509,25 +471,18 @@ cc_result_t cc_proto_send_port_connect(cc_node_t *node, cc_port_t *port, cc_resu
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_cc_port_disconnect(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_port_disconnect(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
 {
-	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE], *peer_id = NULL;
+	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
 	memset(buffer, 0, 1000);
-
-	if (node->transport_client == NULL)
-		return CC_FAIL;
-
-	peer_id = cc_port_get_peer_id(node, port);
-	if (peer_id == NULL)
-		return CC_FAIL;
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
 	w = buffer + node->transport_client->prefix_len;
 	w = cc_coder_encode_map(w, 10);
 	{
-		w = cc_coder_encode_kv_str(w, "to_rt_uuid", peer_id, strnlen(peer_id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", port->peer_id, strnlen(port->peer_id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "tunnel_id", port->tunnel->id, strnlen(port->tunnel->id, CC_UUID_BUFFER_SIZE));
@@ -556,9 +511,6 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 	cc_port_t *port = NULL;
 
 	memset(buffer, 0, 1000);
-
-	if (node->transport_client == NULL)
-		return CC_FAIL;
 
 	key_len = snprintf(key, 50, "actor-%s", actor->id);
 
@@ -641,9 +593,6 @@ cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_res
 
 	memset(buffer, 0, 1000);
 
-	if (node->transport_client == NULL)
-		return CC_FAIL;
-
 	key_len = snprintf(key, 50, "actor-%s", actor->id);
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
@@ -675,25 +624,20 @@ cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_res
 
 cc_result_t cc_proto_send_set_port(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
 {
-	char buffer[2000], *w = NULL, key[50] = "", data[1000] = "", msg_uuid[CC_UUID_BUFFER_SIZE], *peer_id = NULL;
+	char buffer[2000], *w = NULL, key[50] = "", data[1000] = "", msg_uuid[CC_UUID_BUFFER_SIZE];
 	int key_len = 0, data_len = 0;
 
 	memset(buffer, 0, 2000);
 
-	if (node->transport_client == NULL)
-		return CC_FAIL;
-
 	cc_gen_uuid(msg_uuid, "MSGID_");
-
-	peer_id = cc_port_get_peer_id(node, port);
 
 	key_len = snprintf(key, 50, "port-%s", port->id);
 
-	if (peer_id != NULL)
+	if (strnlen(port->peer_id, CC_UUID_BUFFER_SIZE) > 0)
 		data_len = snprintf(data,
 			1000,
 			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%s\"}",
-			peer_id,
+			port->peer_id,
 			port->peer_port_id,
 			port->direction == CC_PORT_DIRECTION_IN ? STRING_IN : STRING_OUT,
 			port->name,
@@ -744,9 +688,6 @@ cc_result_t cc_proto_send_get_port(cc_node_t *node, char *port_id, cc_result_t (
 
 	memset(buffer, 0, 1000);
 
-	if (node->transport_client == NULL)
-		return CC_FAIL;
-
 	key_len = snprintf(key, 50, "port-%s", port_id);
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
@@ -781,9 +722,6 @@ cc_result_t cc_proto_send_remove_port(cc_node_t *node, cc_port_t *port, cc_resul
 
 	memset(buffer, 0, 1000);
 
-	if (node->transport_client == NULL)
-		return CC_FAIL;
-
 	key_len = snprintf(key, 50, "port-%s", port->id);
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
@@ -817,9 +755,6 @@ cc_result_t cc_proto_send_actor_new(cc_node_t *node, cc_actor_t *actor, char *to
 	char buffer[2000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
 	memset(buffer, 0, 2000);
-
-	if (node->transport_client == NULL)
-		return CC_FAIL;
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
@@ -1118,9 +1053,9 @@ static cc_result_t proto_parse_cc_port_disconnect(cc_node_t *node, char *root, s
 	result = cc_port_handle_disconnect(node, peer_port_id, peer_port_id_len);
 
 	if (result == CC_SUCCESS)
-		result = cc_proto_send_cc_port_disconnect_reply(node, msg_uuid, msg_uuid_len, from_rt_uuid, from_rt_uuid_len, 200);
+		result = cc_proto_send_port_disconnect_reply(node, msg_uuid, msg_uuid_len, from_rt_uuid, from_rt_uuid_len, 200);
 	else
-		result = cc_proto_send_cc_port_disconnect_reply(node, msg_uuid, msg_uuid_len, from_rt_uuid, from_rt_uuid_len, 500);
+		result = cc_proto_send_port_disconnect_reply(node, msg_uuid, msg_uuid_len, from_rt_uuid, from_rt_uuid_len, 500);
 
 	return result;
 }
@@ -1235,7 +1170,9 @@ static cc_result_t proto_handle_join_reply(cc_node_t *node, char *buffer, uint32
 		return CC_FAIL;
 	}
 
+	memset(node->transport_client->peer_id, 0, CC_UUID_BUFFER_SIZE);
 	strncpy(node->transport_client->peer_id, value, value_len);
+	node->transport_client->peer_id[value_len] = '\0';
 	node->transport_client->state = CC_TRANSPORT_ENABLED;
 
 	return CC_SUCCESS;

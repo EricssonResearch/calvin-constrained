@@ -210,10 +210,8 @@ cc_result_t cc_fifo_com_write(cc_fifo_t *fifo, char *data, size_t size, uint32_t
 
 void cc_fifo_com_commit_read(cc_fifo_t *fifo, uint32_t sequence_nbr)
 {
-	if (sequence_nbr >= fifo->tentative_read_pos) {
-		cc_log_error("Invalid commit");
+	if (sequence_nbr >= fifo->tentative_read_pos)
 		return;
-	}
 
 	if (fifo->read_pos < fifo->tentative_read_pos) {
 		if (sequence_nbr == fifo->read_pos) {

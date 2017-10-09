@@ -35,6 +35,7 @@ typedef enum {
 	CC_PORT_DISCONNECTED,
 	CC_PORT_ENABLED,
 	CC_PORT_PENDING,
+	CC_PORT_DO_DELETE
 } cc_port_state_t;
 
 typedef enum {
@@ -47,22 +48,24 @@ typedef struct cc_port_t {
 	char id[CC_UUID_BUFFER_SIZE];
 	char name[CC_MAX_PORT_NAME_LENGTH];
 	char peer_port_id[CC_UUID_BUFFER_SIZE];
+	char peer_id[CC_UUID_BUFFER_SIZE];
 	cc_port_direction_t direction;
 	struct cc_port_t *peer_port;
 	cc_tunnel_t *tunnel;
 	cc_port_state_t state;
 	cc_fifo_t *fifo;
+	uint8_t retries;
 	struct cc_actor_t *actor;
 } cc_port_t;
 
 cc_port_t *cc_port_create(struct cc_node_t *node, struct cc_actor_t *actor, char *obj_port, char *obj_prev_connections, cc_port_direction_t direction);
+void cc_port_connect(struct cc_node_t *node, cc_port_t *port);
 void cc_port_free(struct cc_node_t *node, cc_port_t *port, bool remove_from_registry);
-char *cc_port_get_peer_id(const struct cc_node_t *node, cc_port_t *port);
 cc_port_t *cc_port_get(struct cc_node_t *node, const char *port_id, uint32_t port_id_len);
 cc_port_t *cc_port_get_from_name(struct cc_actor_t *actor, const char *name, size_t name_len, cc_port_direction_t direction);
 cc_result_t cc_port_handle_disconnect(struct cc_node_t *node, const char *port_id, uint32_t port_id_len);
 cc_result_t cc_port_handle_connect(struct cc_node_t *node, const char *port_id, uint32_t port_id_len, const char *tunnel_id, uint32_t tunnel_id_len);
-void cc_port_disconnect(struct cc_node_t *node, cc_port_t *port);
+void cc_port_disconnect(struct cc_node_t *node, cc_port_t *port, bool unref_tunnel);
 void cc_port_transmit(struct cc_node_t *node, cc_port_t *port);
 char *cc_port_serialize_prev_connections(char *buffer, cc_port_t *port, const struct cc_node_t *node);
 char *cc_port_serialize_port(char *buffer, cc_port_t *port, bool include_state);

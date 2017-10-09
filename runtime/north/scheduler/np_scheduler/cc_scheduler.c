@@ -23,11 +23,17 @@ bool fire_actors(cc_node_t *node)
 {
 	bool fired = false;
 	cc_list_t *actors = NULL, *ports = NULL;
-	cc_actor_t*actor = NULL;
+	cc_actor_t *actor = NULL;
 
 	actors = node->actors;
 	while (actors != NULL) {
-		actor = (cc_actor_t*)actors->data;
+		actor = (cc_actor_t *)actors->data;
+		if (actor->state == CC_ACTOR_DO_DELETE) {
+			actors = actors->next;
+			cc_actor_free(node, actor, true);
+			continue;
+		}
+
 		if (actor->state == CC_ACTOR_ENABLED) {
 			if (actor->fire(actor)) {
 				cc_log("Scheduler: Fired '%s', time '%ld'", actor->id, cc_node_get_time(node));

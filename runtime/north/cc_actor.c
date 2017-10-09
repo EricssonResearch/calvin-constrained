@@ -80,6 +80,8 @@ static cc_result_t actor_set_reply_handler(cc_node_t *node, char *data, size_t d
 void cc_actor_set_state(cc_actor_t *actor, cc_actor_state_t state)
 {
 	cc_log_debug("Actor '%s' state '%d' -> '%d'", actor->id, actor->state, state);
+	if (state == CC_ACTOR_ENABLED && actor->state != CC_ACTOR_ENABLED)
+		cc_log("Actor: Enabled '%s'", actor->id);
 	actor->state = state;
 }
 
@@ -266,6 +268,35 @@ static cc_result_t cc_actor_create_ports(cc_node_t *node, cc_actor_t *actor, cha
 	return CC_SUCCESS;
 }
 
+void cc_actor_connect_ports(cc_node_t *node, cc_actor_t *actor)
+{
+	cc_list_t *list = NULL;
+	cc_port_t *port = NULL;
+	cc_actor_state_t state = CC_ACTOR_ENABLED;
+
+	list = actor->in_ports;
+	while (list != NULL) {
+		port = (cc_port_t *)list->data;
+		if (port->state != CC_PORT_ENABLED) {
+			cc_port_connect(node, port);
+			state = CC_ACTOR_PENDING;
+		}
+		list = list->next;
+	}
+
+	list = actor->out_ports;
+	while (list != NULL) {
+		port = (cc_port_t *)list->data;
+		if (port->state != CC_PORT_ENABLED) {
+			cc_port_connect(node, port);
+			state = CC_ACTOR_PENDING;
+		}
+		list = list->next;
+	}
+
+	cc_actor_set_state(actor, state);
+}
+
 cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 {
 	cc_result_t result = CC_SUCCESS;
@@ -443,6 +474,7 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 
 	if (result == CC_SUCCESS) {
 		cc_log("Actor: Created '%s', type '%s'", actor->id, actor->type);
+		cc_actor_connect_ports(node, actor);
 	} else {
 		cc_log_error("Failed to create actor");
 		cc_actor_free(node, actor, false);
@@ -529,25 +561,41 @@ cc_actor_t *cc_actor_get(cc_node_t *node, const char *actor_id, uint32_t actor_i
 	return NULL;
 }
 
-void cc_actor_port_enabled(cc_actor_t *actor)
+void cc_actor_port_state_changed(cc_actor_t *actor)
 {
 	cc_list_t *list = NULL;
+	cc_actor_state_t actor_state = CC_ACTOR_ENABLED;
+	cc_port_state_t port_state = CC_PORT_DISCONNECTED;
 
 	list = actor->in_ports;
 	while (list != NULL) {
-		if (((cc_port_t *)list->data)->state != CC_PORT_ENABLED)
-			return;
+		port_state = ((cc_port_t *)list->data)->state;
+		if (port_state == CC_PORT_DO_DELETE) {
+			actor_state = CC_ACTOR_DO_DELETE;
+			break;
+		} else if (port_state != CC_PORT_ENABLED) {
+			actor_state = CC_ACTOR_PENDING;
+			break;
+		}
 		list = list->next;
 	}
 
-	list = actor->out_ports;
-	while (list != NULL) {
-		if (((cc_port_t *)list->data)->state != CC_PORT_ENABLED)
-			return;
-		list = list->next;
+	if (actor_state == CC_ACTOR_ENABLED) {
+		list = actor->out_ports;
+		while (list != NULL) {
+			port_state = ((cc_port_t *)list->data)->state;
+			if (port_state == CC_PORT_DO_DELETE) {
+				actor_state = CC_ACTOR_DO_DELETE;
+				break;
+			} else if (port_state != CC_PORT_ENABLED) {
+				actor_state = CC_ACTOR_PENDING;
+				break;
+			}
+			list = list->next;
+		}
 	}
 
-	cc_actor_set_state(actor, CC_ACTOR_ENABLED);
+	cc_actor_set_state(actor, actor_state);
 }
 
 void cc_actor_port_disconnected(cc_actor_t *actor)
@@ -555,19 +603,19 @@ void cc_actor_port_disconnected(cc_actor_t *actor)
 	cc_actor_set_state(actor, CC_ACTOR_PENDING);
 }
 
-void cc_actor_disconnect(cc_node_t *node, cc_actor_t *actor)
+void cc_actor_disconnect(cc_node_t *node, cc_actor_t *actor, bool unref_tunnel)
 {
 	cc_list_t *list = NULL;
 
 	list = actor->in_ports;
 	while (list != NULL) {
-		cc_port_disconnect(node, (cc_port_t *)list->data);
+		cc_port_disconnect(node, (cc_port_t *)list->data, unref_tunnel);
 		list = list->next;
 	}
 
 	list = actor->out_ports;
 	while (list != NULL) {
-		cc_port_disconnect(node, (cc_port_t *)list->data);
+		cc_port_disconnect(node, (cc_port_t *)list->data, unref_tunnel);
 		list = list->next;
 	}
 
@@ -583,13 +631,13 @@ cc_result_t cc_actor_migrate(cc_node_t *node, cc_actor_t *actor, char *to_rt_uui
 
 	list = actor->in_ports;
 	while (list != NULL) {
-		cc_port_disconnect(node, (cc_port_t *)list->data);
+		cc_port_disconnect(node, (cc_port_t *)list->data, true);
 		list = list->next;
 	}
 
 	list = actor->out_ports;
 	while (list != NULL) {
-		cc_port_disconnect(node, (cc_port_t *)list->data);
+		cc_port_disconnect(node, (cc_port_t *)list->data, true);
 		list = list->next;
 	}
 

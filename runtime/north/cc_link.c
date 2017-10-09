@@ -46,7 +46,10 @@ cc_link_t *cc_link_create(cc_node_t *node, const char *peer_id, uint32_t peer_id
 		return NULL;
 	}
 
-	cc_log_debug("Link created, peer id '%s' is_proxy '%s'", link->peer_id, link->is_proxy ? "yes" : "no");
+	if (link->is_proxy)
+		cc_log("Link: Created to proxy '%s'", link->peer_id);
+	else
+		cc_log("Link: Created to '%s'", link->peer_id);
 
 	return link;
 }
@@ -79,7 +82,7 @@ cc_link_t *cc_link_deserialize(cc_node_t *node, char *buffer)
 
 void cc_link_free(cc_node_t *node, cc_link_t *link)
 {
-	cc_log_debug("Deleting link to '%s'", link->peer_id);
+	cc_log("Link: Deleting link to '%s'", link->peer_id);
 	cc_list_remove(&node->links, link->peer_id);
 	cc_platform_mem_free((void *)link);
 }

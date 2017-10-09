@@ -26,7 +26,8 @@ struct cc_node_t;
 
 typedef enum {
 	CC_ACTOR_PENDING,
-	CC_ACTOR_ENABLED
+	CC_ACTOR_ENABLED,
+	CC_ACTOR_DO_DELETE
 } cc_actor_state_t;
 
 typedef struct cc_actor_t{
@@ -53,9 +54,9 @@ typedef struct cc_actor_t{
 cc_actor_t *cc_actor_create(struct cc_node_t *node, char *root);
 void cc_actor_free(struct cc_node_t *node, cc_actor_t *actor, bool remove_from_registry);
 cc_actor_t *cc_actor_get(struct cc_node_t *node, const char *actor_id, uint32_t actor_id_len);
-void cc_actor_port_enabled(cc_actor_t *actor);
-void cc_actor_port_disconnected(cc_actor_t *actor);
-void cc_actor_disconnect(struct cc_node_t *node, cc_actor_t *actor);
+void cc_actor_port_state_changed(cc_actor_t *actor);
+void cc_actor_disconnect(struct cc_node_t *node, cc_actor_t *actor, bool unref_tunnel);
+void cc_actor_connect_ports(struct cc_node_t *node, cc_actor_t *actor);
 cc_result_t cc_actor_migrate(struct cc_node_t *node, cc_actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len);
 char *cc_actor_serialize(const struct cc_node_t *node, cc_actor_t *actor, char *buffer, bool include_state);
 

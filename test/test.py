@@ -345,6 +345,10 @@ def testMigration():
         }
     }
     """
+    # verify data
+    wait_for_tokens(request_handler, rt1, resp['actor_map'][script_name + ':snk'], 5, 20)
+    actual = request_handler.report(rt1, resp['actor_map'][script_name + ':snk'])
+    assert len(actual) >= 5
     request_handler.migrate_app_use_req(rt1,
                                         resp['application_id'],
                                         json.loads(deploy_info))
@@ -352,6 +356,11 @@ def testMigration():
 
     # verify placement
     assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], rt1.id)
+
+    wait_for_tokens(request_handler, rt1, resp['actor_map'][script_name + ':snk'], 10, 20)
+    actual = request_handler.report(rt1, resp['actor_map'][script_name + ':snk'])
+    assert len(actual) >= 10
+    request_handler.migrate_app_use_req(rt1, resp['application_id'], json.loads(deploy_info))
 
     # delete application
     request_handler.delete_application(rt1, resp['application_id'])
@@ -456,6 +465,8 @@ def testLightActor():
 
     # verify actor placement
     assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':led'], constrained_id)
+
+    time.sleep(2)
 
     # destroy application
     request_handler.delete_application(rt1, resp['application_id'])

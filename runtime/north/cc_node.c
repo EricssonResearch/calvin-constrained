@@ -227,7 +227,6 @@ void cc_node_set_state(cc_node_t *node)
 
 	cc_platform_write_node_state(node, buffer, tmp - buffer);
 }
-#endif
 
 static void cc_node_reset(cc_node_t *node)
 {
@@ -243,7 +242,7 @@ static void cc_node_reset(cc_node_t *node)
 	while (node->tunnels != NULL) {
 		tmp_list = node->tunnels;
 		node->tunnels = node->tunnels->next;
-		cc_tunnel_free(node, (cc_tunnel_t *)tmp_list->data);
+		cc_tunnel_free(node, (cc_tunnel_t *)tmp_list->data, false);
 	}
 	node->tunnels = NULL;
 	node->storage_tunnel = NULL;
@@ -265,10 +264,9 @@ static void cc_node_reset(cc_node_t *node)
 	}
 	node->pending_msgs = NULL;
 
-#ifdef CC_STORAGE_ENABLED
 	cc_node_set_state(node);
-#endif
 }
+#endif
 
 cc_result_t cc_node_add_pending_msg(cc_node_t *node, char *msg_uuid, cc_result_t (*handler)(cc_node_t *node, char *data, size_t data_len, void *msg_data), void *msg_data)
 {
@@ -472,6 +470,7 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 {
 	char *peer_id = NULL;
 	size_t peer_id_len = 0;
+	cc_list_t *tmp_list = NULL;
 
 	if (node->transport_client == NULL) {
 		node->transport_client = cc_transport_create(node, uri);
@@ -501,16 +500,33 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 	peer_id_len = strnlen(peer_id, CC_UUID_BUFFER_SIZE);
 
 	if (node->proxy_link != NULL && strncmp(node->proxy_link->peer_id, peer_id, peer_id_len) != 0) {
-		cc_log("Node: New proxy, resetting node");
-		cc_node_reset(node);
+		while (node->tunnels != NULL) {
+			tmp_list = node->tunnels;
+			node->tunnels = node->tunnels->next;
+			cc_tunnel_free(node, (cc_tunnel_t *)tmp_list->data, false);
+		}
+		node->tunnels = NULL;
+		node->storage_tunnel = NULL;
+
+		while (node->links != NULL) {
+			tmp_list = node->links;
+			node->links = node->links->next;
+			cc_link_free(node, (cc_link_t *)tmp_list->data);
+		}
+		node->links = NULL;
+		node->proxy_link = NULL;
+
+		tmp_list = node->actors;
+		while (tmp_list != NULL) {
+			cc_actor_disconnect(node, (cc_actor_t *)tmp_list->data, false);
+			tmp_list = tmp_list->next;
+		}
 	}
 
+	node->proxy_link = cc_link_create(node, peer_id, peer_id_len, true);
 	if (node->proxy_link == NULL) {
-		node->proxy_link = cc_link_create(node, peer_id, peer_id_len, true);
-		if (node->proxy_link == NULL) {
-			cc_log_error("Failed to create proxy link");
-			return CC_FAIL;
-		}
+		cc_log_error("Failed to create proxy link");
+		return CC_FAIL;
 	}
 
 	if (node->storage_tunnel == NULL) {
@@ -531,6 +547,12 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 	if (node->state != CC_NODE_STARTED) {
 		cc_log_error("Failed connect to proxy");
 		return CC_FAIL;
+	}
+
+	tmp_list = node->actors;
+	while (tmp_list != NULL) {
+		cc_actor_connect_ports(node, (cc_actor_t *)tmp_list->data);
+		tmp_list = tmp_list->next;
 	}
 
 	return CC_SUCCESS;
@@ -708,7 +730,7 @@ static void cc_node_free(cc_node_t *node)
 	while (item != NULL) {
 		tmp_item = item;
 		item = item->next;
-		cc_tunnel_free(node, (cc_tunnel_t *)tmp_item->data);
+		cc_tunnel_free(node, (cc_tunnel_t *)tmp_item->data, false);
 	}
 
 	item = node->links;

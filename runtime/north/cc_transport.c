@@ -131,6 +131,11 @@ void cc_transport_set_length_prefix(char *buffer, size_t size)
 
 cc_result_t cc_transport_send(cc_transport_client_t *transport_client, char *buffer, int size)
 {
+	if (transport_client == NULL) {
+		cc_log_error("Transport client is NULL");
+		return CC_FAIL;
+	}
+
 	cc_transport_set_length_prefix(buffer, size - CC_TRANSPORT_LEN_PREFIX_SIZE);
 
 #ifdef CC_TLS_ENABLED

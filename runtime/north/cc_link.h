@@ -35,6 +35,5 @@ void cc_link_free(struct cc_node_t *node, cc_link_t *link);
 void cc_link_add_ref(cc_link_t *link);
 void cc_link_remove_ref(struct cc_node_t *node, cc_link_t *link);
 cc_link_t *cc_link_get(struct cc_node_t *node, const char *peer_id, uint32_t peer_id_len);
-void cc_link_transmit(struct cc_node_t *node, cc_link_t *link);
 
 #endif /* C_CLINK_H */

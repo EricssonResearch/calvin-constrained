@@ -52,6 +52,7 @@ cc_tunnel_t *cc_tunnel_get_from_peerid_and_type(cc_node_t *node, const char *pee
 
 static cc_result_t tunnel_destroy_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
+	// No action
 	return CC_SUCCESS;
 }
 
@@ -59,39 +60,43 @@ static cc_result_t tunnel_request_handler(cc_node_t *node, char *data, size_t da
 {
 	uint32_t status = 0, tunnel_id_len = 0;
 	char *value = NULL, *tunnel_id = NULL, *data_value = NULL;
-	cc_result_t result = CC_FAIL;
 	cc_tunnel_t *tunnel = NULL;
 
 
-	result = cc_coder_get_value_from_map(data, "value", &value);
-	if (result == CC_SUCCESS)
-		result = cc_coder_get_value_from_map(value, "data", &data_value);
+	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'value'");
+		return CC_FAIL;
+	}
 
-	if (result == CC_SUCCESS)
-		result = cc_coder_decode_string_from_map(data_value, "tunnel_id", &tunnel_id, &tunnel_id_len);
+	if (cc_coder_get_value_from_map(value, "data", &data_value) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'data'");
+		return CC_FAIL;
+	}
 
-	if (result == CC_SUCCESS)
-		result = cc_coder_decode_uint_from_map(value, "status", &status);
+	if (cc_coder_decode_string_from_map(data_value, "tunnel_id", &tunnel_id, &tunnel_id_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'tunnel_id'");
+		return CC_FAIL;
+	}
 
-	if (result != CC_SUCCESS) {
-		cc_log_error("Failed to parse reply");
+	if (cc_coder_decode_uint_from_map(value, "status", &status) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'status'");
 		return CC_FAIL;
 	}
 
 	tunnel = cc_tunnel_get_from_id(node, tunnel_id, tunnel_id_len);
+	if (tunnel == NULL) {
+		cc_log_error("Unknown tunnel");
+		return CC_FAIL;
+	}
 
 	if (status == 200) {
-		if (tunnel != NULL) {
-			strncpy(tunnel->id, tunnel_id, tunnel_id_len);
-			tunnel->id[tunnel_id_len] = '\0';
-			tunnel->state = CC_TUNNEL_ENABLED;
-			cc_log_debug("Tunnel '%s' connected", tunnel->id);
-		}
+		strncpy(tunnel->id, tunnel_id, tunnel_id_len);
+		tunnel->id[tunnel_id_len] = '\0';
+		tunnel->state = CC_TUNNEL_ENABLED;
+		cc_log_debug("Tunnel '%s' connected", tunnel->id);
 	} else {
-		if (tunnel != NULL) {
-			cc_log_error("Failed to connect tunnel");
-			tunnel->state = CC_TUNNEL_DISCONNECTED;
-		}
+		cc_log_error("Failed to connect tunnel '%s'", tunnel->id);
+		tunnel->state = CC_TUNNEL_DISCONNECTED;
 	}
 
 	return CC_SUCCESS;
@@ -127,7 +132,7 @@ cc_tunnel_t *cc_tunnel_create(cc_node_t *node, cc_tunnel_type_t type, cc_tunnel_
 	tunnel->state = state;
 	tunnel->ref_count = 0;
 	if (tunnel_id == NULL)
-		cc_gen_uuid(tunnel->id, "TUNNEL_");
+		cc_gen_uuid(tunnel->id, NULL);
 	else {
 		strncpy(tunnel->id, tunnel_id, tunnel_id_len);
 		tunnel->id[tunnel_id_len] = '\0';
@@ -137,6 +142,7 @@ cc_tunnel_t *cc_tunnel_create(cc_node_t *node, cc_tunnel_type_t type, cc_tunnel_
 		if (cc_proto_send_tunnel_request(node, tunnel, tunnel_request_handler) == CC_SUCCESS)
 			tunnel->state = CC_TUNNEL_PENDING;
 		else {
+			cc_log_error("Failed to send tunnel request");
 			cc_platform_mem_free((void *)tunnel);
 			return NULL;
 		}
@@ -150,7 +156,10 @@ cc_tunnel_t *cc_tunnel_create(cc_node_t *node, cc_tunnel_type_t type, cc_tunnel_
 
 	cc_link_add_ref(link);
 
-	cc_log_debug("Created '%s', peer_id '%s' type '%d'", tunnel->id, tunnel->link->peer_id, tunnel->type);
+	if (tunnel->type == CC_TUNNEL_TYPE_STORAGE)
+		cc_log("Tunnel: Created '%s', type 'storage' peer '%s'", tunnel->id, tunnel->link->peer_id);
+	else
+		cc_log("Tunnel: Created '%s', type 'token' peer '%s'", tunnel->id, tunnel->link->peer_id);
 
 	return tunnel;
 }
@@ -173,25 +182,35 @@ cc_tunnel_t *cc_tunnel_deserialize(struct cc_node_t *node, char *buffer)
 	char *id = NULL, *peer_id = NULL;
 	uint32_t len_id = 0, len_peer_id = 0, state = 0, type = 0;
 
-	if (cc_coder_decode_string_from_map(buffer, "id", &id, &len_id) != CC_SUCCESS)
+	if (cc_coder_decode_string_from_map(buffer, "id", &id, &len_id) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'id'");
 		return NULL;
+	}
 
-	if (cc_coder_decode_string_from_map(buffer, "peer_id", &peer_id, &len_peer_id) != CC_SUCCESS)
+	if (cc_coder_decode_string_from_map(buffer, "peer_id", &peer_id, &len_peer_id) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'peer_id'");
 		return NULL;
+	}
 
-	if (cc_coder_decode_uint_from_map(buffer, "state", &state) != CC_SUCCESS)
+	if (cc_coder_decode_uint_from_map(buffer, "state", &state) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'state'");
 		return NULL;
+	}
 
-	if (cc_coder_decode_uint_from_map(buffer, "type", &type) != CC_SUCCESS)
+	if (cc_coder_decode_uint_from_map(buffer, "type", &type) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'state'");
 		return NULL;
+	}
 
 	return cc_tunnel_create(node, (cc_tunnel_type_t)type, (cc_tunnel_state_t)state, peer_id, len_peer_id, id, len_id);
 }
 
-void cc_tunnel_free(cc_node_t *node, cc_tunnel_t *tunnel)
+void cc_tunnel_free(cc_node_t *node, cc_tunnel_t *tunnel, bool unref_link)
 {
 	if (tunnel != NULL) {
-		cc_log_debug("Deleting '%s'", tunnel->id);
+		cc_log("Tunnel: Deleting '%s'", tunnel->id);
+		if (unref_link && tunnel->link != NULL)
+			cc_link_remove_ref(node, tunnel->link);
 		cc_list_remove(&node->tunnels, tunnel->id);
 		cc_platform_mem_free((void *)tunnel);
 	}
@@ -213,7 +232,7 @@ void cc_tunnel_remove_ref(cc_node_t *node, cc_tunnel_t *tunnel)
 				if (cc_proto_send_tunnel_destroy(node, tunnel, tunnel_destroy_handler) != CC_SUCCESS)
 					cc_log_debug("Failed to destroy tunnel '%s'", tunnel->id);
 			}
-			cc_tunnel_free(node, tunnel);
+			cc_tunnel_free(node, tunnel, true);
 		}
 	}
 }
