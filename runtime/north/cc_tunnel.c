@@ -40,7 +40,7 @@ cc_tunnel_t *cc_tunnel_get_from_peerid_and_type(cc_node_t *node, const char *pee
 
 	while (tunnels != NULL) {
 		tunnel = (cc_tunnel_t *)tunnels->data;
-		if (tunnel == NULL || tunnel->link == NULL || tunnel->link->peer_id == NULL)
+		if (tunnel == NULL || tunnel->link == NULL)
 			continue;
 		if (tunnel->type == type && strncmp(tunnel->link->peer_id, peer_id, peer_id_len) == 0)
 			return tunnel;
