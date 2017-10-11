@@ -245,7 +245,7 @@ cc_result_t cc_platform_create(cc_node_t *node)
 	return CC_SUCCESS;
 }
 
-bool cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
+cc_platform_evt_wait_status_t cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
 {
 	fd_set fds;
 	int fd = 0;
@@ -266,14 +266,16 @@ bool cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
 		select(fd + 1, &fds, NULL, NULL, tv_ref);
 
 		if (FD_ISSET(fd, &fds)) {
-			if (cc_transport_handle_data(node, node->transport_client, cc_node_handle_message) != CC_SUCCESS)
+			if (cc_transport_handle_data(node, node->transport_client, cc_node_handle_message) != CC_SUCCESS) {
 				cc_log_error("Failed to handle received data");
-			return true;
+				return CC_PLATFORM_EVT_WAIT_FAIL;
+			}
+			return CC_PLATFORM_EVT_WAIT_DATA_READ;
 		}
 	} else
 		select(0, NULL, NULL, NULL, tv_ref);
 
-	return false;
+	return CC_PLATFORM_EVT_WAIT_TIMEOUT;
 }
 
 cc_result_t cc_platform_mem_alloc(void **buffer, uint32_t size)

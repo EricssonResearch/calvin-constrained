@@ -147,7 +147,7 @@ cc_result_t cc_platform_create_calvinsys(cc_calvinsys_t **calvinsys)
 		return CC_FAIL;
 	}
 
-	state_light->pin = 4;
+	state_light->pin = 0;
 	state_light->direction = CC_GPIO_OUT;
 
 	if (cc_calvinsys_gpio_create(calvinsys, "io.light", state_light) != CC_SUCCESS)
@@ -189,7 +189,7 @@ void cc_platform_mem_free(void *buffer)
 	free(buffer);
 }
 
-bool cc_platform_evt_wait(struct cc_node_t *node, uint32_t timeout_seconds)
+cc_platform_evt_wait_status_t cc_platform_evt_wait(struct cc_node_t *node, uint32_t timeout_seconds)
 {
 	fd_set fds;
 	int fd = 0;
@@ -213,15 +213,16 @@ bool cc_platform_evt_wait(struct cc_node_t *node, uint32_t timeout_seconds)
 			if (cc_transport_handle_data(node, node->transport_client, cc_node_handle_message) != CC_SUCCESS) {
 				cc_log_error("Failed to read data from transport");
 				node->transport_client->state = CC_TRANSPORT_DISCONNECTED;
+				return CC_PLATFORM_EVT_WAIT_FAIL;
 			}
-			return true;
+			return CC_PLATFORM_EVT_WAIT_DATA_READ;
 		}
 	} else {
 		if (timeout_seconds > 0)
 			vTaskDelay((timeout_seconds * 1000) / portTICK_PERIOD_MS);
 	}
 
-	return false;
+	return CC_PLATFORM_EVT_WAIT_TIMEOUT;
 }
 
 cc_result_t cc_platform_stop(struct cc_node_t *node)
@@ -483,7 +484,6 @@ void calvin_task(void *pvParameters)
 	uint32_t total, used;
 
 	uart_set_baud(0, 115200);
-	esp_spiffs_init();
 
 	cc_log("----------------------------------------");
 	cc_log("SDK version:%s", sdk_system_get_sdk_version());
@@ -497,6 +497,8 @@ void calvin_task(void *pvParameters)
 
 	// reset config pin
 	gpio_enable(CC_ESP_RESET_PIN, GPIO_INPUT);
+
+	esp_spiffs_init();
 
 	if (esp_spiffs_mount() != SPIFFS_OK) {
 		SPIFFS_unmount(&fs);
@@ -514,8 +516,10 @@ void calvin_task(void *pvParameters)
 	}
 
 	if (result == CC_SUCCESS) {
-		if (gpio_read(CC_ESP_RESET_PIN) == 1)
+		if (gpio_read(CC_ESP_RESET_PIN) == 1) {
+			cc_log("Forcing AP");
 			startAP = true;
+		}
 
 		if (SPIFFS_stat(&fs, CC_ESP_WIFI_CONFIG_FILE, &s) != SPIFFS_OK) {
 			cc_log("No WiFi config found");

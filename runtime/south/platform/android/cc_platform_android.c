@@ -188,7 +188,7 @@ void cc_platform_deepsleep(cc_node_t *node)
 }
 #endif
 
-bool cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
+cc_platform_evt_wait_status_t cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
 {
 	android_platform_t *platform = (android_platform_t *)node->platform;
 	int poll_result;
@@ -212,14 +212,14 @@ bool cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
 		}
 	} else {
 		sleep(10);
-		return false;
+		return CC_PLATFORM_EVT_WAIT_TIMEOUT;
 	}
 
 	poll_result = ALooper_pollOnce(timeout_seconds == CC_INDEFINITELY_TIMEOUT ? -1 : timeout_seconds, NULL, NULL, NULL);
 	if (poll_result == ALOOPER_POLL_CALLBACK || poll_result == ALOOPER_POLL_TIMEOUT)
-		return true;
+		return CC_PLATFORM_EVT_WAIT_DATA_READ;
 
-	return false;
+	return CC_PLATFORM_EVT_WAIT_TIMEOUT;
 }
 
 void cc_platform_print(const char *fmt, ...)

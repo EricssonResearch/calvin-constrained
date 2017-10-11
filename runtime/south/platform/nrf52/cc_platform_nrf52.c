@@ -301,22 +301,25 @@ void cc_platform_init(void)
 	cc_log("Platform initialized");
 }
 
-bool cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
+cc_platform_evt_wait_status_t cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
 {
-	if (sd_app_evt_wait() != ERR_OK)
+	if (sd_app_evt_wait() != ERR_OK) {
 		cc_log_error("Failed to wait for event");
+		return CC_PLATFORM_EVT_WAIT_FAIL;
+	}
 
 	if (node != NULL && node->transport_client != NULL && node->transport_client->state == CC_TRANSPORT_ENABLED) {
 		if (cc_transport_lwip_has_data(node->transport_client)) {
 			if (cc_transport_handle_data(node, node->transport_client, cc_node_handle_message) != CC_SUCCESS) {
 				cc_log_error("Failed to read data from transport");
 				node->transport_client->state = CC_TRANSPORT_DISCONNECTED;
-				return;
+				return CC_PLATFORM_EVT_WAIT_FAIL;
 			}
-			return true;
+			return CC_PLATFORM_EVT_WAIT_DATA_READ;
 		}
 	}
-	return false;
+
+	return CC_PLATFORM_EVT_WAIT_TIMEOUT;
 }
 
 cc_result_t cc_platform_mem_alloc(void **buffer, uint32_t size)

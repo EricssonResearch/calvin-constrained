@@ -25,6 +25,12 @@
 struct cc_node_t;
 struct cc_transport_client_t;
 
+typedef enum {
+	CC_PLATFORM_EVT_WAIT_DATA_READ,
+	CC_PLATFORM_EVT_WAIT_FAIL,
+  CC_PLATFORM_EVT_WAIT_TIMEOUT
+} cc_platform_evt_wait_status_t;
+
 /**
  * cc_platform_init() - Initialize the platform.
  *
@@ -91,14 +97,13 @@ void cc_platform_mem_free(void *buffer);
  * @timeout_seconds time in seconds to block waiting for an event
  *
  * The call should block waiting for:
- * - Data is available on a transport interface, received data from a transport interface is
- *   handled by calling transport_handle_data defined in transport.h.
+ * - Data is available on a transport interface, received data handled by calling transport_handle_data defined in transport.h.
  * - A event from a platform function has triggered (such as a timer expiring or a digitial input toggling).
  * - The timeout expires.
  *
- * Return: true if triggered, false if timeout triggered
+ * Return: CC_PLATFORM_EVT_WAIT_DATA_READ if data was read, CC_PLATFORM_EVT_WAIT_FAIL on error, CC_PLATFORM_EVT_WAIT_TIMEOUT on timeout
  */
-bool cc_platform_evt_wait(struct cc_node_t *node, uint32_t timeout_seconds);
+cc_platform_evt_wait_status_t cc_platform_evt_wait(struct cc_node_t *node, uint32_t timeout_seconds);
 
 /**
  * cc_platform_stop() - Called when the platform stops

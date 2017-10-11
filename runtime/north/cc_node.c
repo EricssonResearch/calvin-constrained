@@ -57,6 +57,8 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 	memset(buffer, 0, size);
 
 	if (cc_platform_read_node_state(node, buffer, size) == CC_SUCCESS) {
+		cc_log("Node: Starting from state");
+
 		if (cc_coder_decode_string_from_map(buffer, "id", &value, &value_len) != CC_SUCCESS) {
 			cc_log_error("Failed to decode 'id'");
 			return CC_FAIL;
@@ -479,19 +481,19 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 	}
 
 	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_INTERFACE_DOWN)
-		cc_platform_evt_wait(node, 0);
+		cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
 
-	if (node->state == CC_NODE_STOP || node->transport_client->connect(node, node->transport_client) != CC_SUCCESS)
+	if (node->transport_client->connect(node, node->transport_client) != CC_SUCCESS)
 		return CC_FAIL;
 
 	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_PENDING)
-		cc_platform_evt_wait(node, 0);
+		cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
 
 	if (cc_transport_join(node, node->transport_client) != CC_SUCCESS)
 		return CC_FAIL;
 
 	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_PENDING)
-		cc_platform_evt_wait(node, 0);
+		cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
 
 	if (node->state == CC_NODE_STOP || node->transport_client->state != CC_TRANSPORT_ENABLED)
 		return CC_FAIL;
@@ -541,8 +543,8 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 	if (cc_proto_send_node_setup(node, cc_node_setup_reply_handler) != CC_SUCCESS)
 		return CC_FAIL;
 
-	while (node->state != CC_NODE_STARTED && node->state != CC_NODE_STOP)
-		cc_platform_evt_wait(node, 0);
+	while (node->state != CC_NODE_STARTED && node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_ENABLED)
+		cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
 
 	if (node->state != CC_NODE_STARTED) {
 		cc_log_error("Failed connect to proxy");
@@ -816,10 +818,11 @@ cc_result_t cc_node_run(cc_node_t *node)
 {
 	cc_list_t *item = NULL;
 	uint32_t timeout = 0, timer_timeout = 0;
-	uint8_t connect_failures = 0;
 #ifdef CC_DEEPSLEEP_ENABLED
+	uint8_t connect_failures = 0;
 	uint32_t seconds_to_sleep = 0;
 #endif
+	cc_platform_evt_wait_status_t waitstatus = CC_PLATFORM_EVT_WAIT_DATA_READ;
 
 	if (node->fire_actors == NULL) {
 		cc_log_error("No actor scheduler set");
@@ -830,8 +833,11 @@ cc_result_t cc_node_run(cc_node_t *node)
 		item = node->proxy_uris;
 		while (item != NULL && node->state != CC_NODE_STOP) {
 			node->state = CC_NODE_DO_START;
+			cc_log("Node: Connecting with '%s'", item->id);
 			if (cc_node_connect_to_proxy(node, item->id) == CC_SUCCESS) {
+#ifdef CC_DEEPSLEEP_ENABLED
 				connect_failures = 0;
+#endif
 				while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_ENABLED) {
 					if (node->state != CC_NODE_STARTED || node->actors == NULL) {
 						cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
@@ -849,10 +855,11 @@ cc_result_t cc_node_run(cc_node_t *node)
 						}
 					}
 
-					if (cc_platform_evt_wait(node, timeout)) {
-						// event triggered, continue execution
+					waitstatus = cc_platform_evt_wait(node, timeout);
+					if (waitstatus == CC_PLATFORM_EVT_WAIT_FAIL)
+						break;
+					else if (waitstatus == CC_PLATFORM_EVT_WAIT_DATA_READ)
 						continue;
-					}
 
 					cc_log_debug("Idle for '%ld' seconds", timeout);
 
@@ -868,8 +875,11 @@ cc_result_t cc_node_run(cc_node_t *node)
 					cc_node_enter_sleep(node, seconds_to_sleep);
 #endif
 				}
-			} else
+			} else {
+#ifdef CC_DEEPSLEEP_ENABLED
 				connect_failures++;
+#endif
+			}
 
 			if (node->transport_client != NULL) {
 				node->transport_client->disconnect(node, node->transport_client);
@@ -879,17 +889,15 @@ cc_result_t cc_node_run(cc_node_t *node)
 			item = item->next;
 		}
 
-		if (connect_failures >= 5) {
-			cc_log("Node: No proxy found");
-#ifdef CC_STORAGE_ENABLED
-			cc_node_set_state(node);
-#endif
 #ifdef CC_DEEPSLEEP_ENABLED
+		if (connect_failures >= 5) {
+			cc_log("Node: No proxy found, enterring sleep");
+			cc_node_set_state(node);
 			cc_platform_deepsleep(CC_SLEEP_TIME);
+		}
 #endif
-			break;
-		} else
-			cc_platform_evt_wait(node, CC_RECONNECT_TIMEOUT);
+		cc_log("Node: No proxy found, waiting '%d' seconds", CC_RECONNECT_TIMEOUT);
+		cc_platform_evt_wait(node, CC_RECONNECT_TIMEOUT);
 	}
 
 	cc_platform_stop(node);
