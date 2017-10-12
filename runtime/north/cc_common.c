@@ -251,22 +251,3 @@ cc_result_t cc_get_json_dict_value(char *buffer, size_t buffer_len, char *key, s
 
 	return CC_FAIL;
 }
-
-#ifdef CC_ADD_STRNSTR
-char* strnstr(const char* buffer, const char* token, size_t n)
-{
-	const char* p;
-	int len = (int)strlen(token);
-
-	if (len == 0) {
-		return (char *)buffer;
-	}
-
-	for (p = buffer; *p && (p + len <= buffer + n); p++) {
-		if ((*p == *token) && (strncmp(p, token, len) == 0)) {
-			return (char *)p;
-		}
-	}
-	return NULL;
-}
-#endif

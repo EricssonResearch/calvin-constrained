@@ -55,8 +55,5 @@ cc_list_t *cc_list_get_n(cc_list_t *list, const char *id, uint32_t id_len);
 cc_list_t *cc_list_get(cc_list_t *list, const char *id);
 cc_result_t cc_get_json_string_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len);
 cc_result_t cc_get_json_dict_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len);
-#ifdef CC_ADD_STRNSTR
-char* strnstr(const char* buffer, const char* token, size_t n);
-#endif
 
 #endif /* CC_COMMON_H */

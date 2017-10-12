@@ -34,8 +34,7 @@
 #include "../../../south/platform/cc_platform.h"
 #include "../../../north/cc_node.h"
 
-#ifdef CC_TRANSPORT_SOCKET_SSDP_ENABLED
-#define CC_LOCATION_SIZE	100
+#define CC_LOCATION_SIZE	200
 #define CC_URL_SIZE	100
 #define CC_ADDRESS_SIZE	20
 #define CC_SSDP_MULTICAST	"239.255.255.250"
@@ -46,9 +45,8 @@
 static cc_result_t cc_transport_socket_discover_location(char *location)
 {
 	int sock = 0;
-	size_t ret = 0;
 	unsigned int socklen = 0;
-	int len = 0;
+	int len = 0, ret = 0;
 	struct sockaddr_in sockname;
 	struct sockaddr clientsock;
 	char buffer[CC_RECV_BUF_SIZE];
@@ -108,10 +106,10 @@ static cc_result_t cc_transport_socket_discover_location(char *location)
 			return CC_FAIL;
 		}
 
-		location_start = strnstr(buffer, "LOCATION:", len);
+		location_start = strstr(buffer, "LOCATION:");
 		if (location_start != NULL) {
 			location_start = location_start + 10;
-			location_end = strnstr(location_start, "\r\n", location_start - buffer);
+			location_end = strstr(location_start, "\r\n");
 			if (location_end != NULL) {
 				len = location_end - location_start;
 				if (len + 1 > CC_LOCATION_SIZE) {
@@ -132,14 +130,12 @@ static cc_result_t cc_transport_socket_discover_location(char *location)
 	return CC_FAIL;
 }
 
-static cc_result_t cc_transport_socket_get_ip_uri(const char *address, int port, const char *url, char *uri)
+static cc_result_t cc_transport_socket_get_ip_uri(char *uri, char *ip, int ip_len, int port, char *path)
 {
 	struct sockaddr_in server;
 	int fd, len;
 	char buffer[CC_RECV_BUF_SIZE];
 	char *uri_start = NULL, *uri_end = NULL;
-
-	len = snprintf(buffer, CC_RECV_BUF_SIZE, "GET /%s HTTP/1.0\r\n\r\n", url);
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
@@ -147,7 +143,9 @@ static cc_result_t cc_transport_socket_get_ip_uri(const char *address, int port,
 		return CC_FAIL;
 	}
 
-	server.sin_addr.s_addr = inet_addr(address);
+	strncpy(buffer, ip, ip_len);
+	buffer[ip_len] = '\0';
+	server.sin_addr.s_addr = inet_addr(buffer);
 	server.sin_family = AF_INET;
 	server.sin_port = htons(port);
 
@@ -156,12 +154,15 @@ static cc_result_t cc_transport_socket_get_ip_uri(const char *address, int port,
 		return CC_FAIL;
 	}
 
+	memset(buffer, 0, CC_RECV_BUF_SIZE);
+	len = snprintf(buffer, CC_RECV_BUF_SIZE, "GET %s HTTP/1.0\r\n\r\n", path);
+
 	if (send(fd, buffer, len, 0) < 0) {
 		cc_log_error("Failed to send data");
 		return CC_FAIL;
 	}
 
-	memset(&buffer, 0, CC_RECV_BUF_SIZE);
+	memset(buffer, 0, CC_RECV_BUF_SIZE);
 	len = recv(fd, buffer, CC_RECV_BUF_SIZE, 0);
 	close(fd);
 
@@ -173,17 +174,17 @@ static cc_result_t cc_transport_socket_get_ip_uri(const char *address, int port,
 	buffer[len] = '\0';
 
 	if (strncmp(buffer, "HTTP/1.0 200 OK", 15) != 0) {
-		cc_log_error("Bad response");
+		cc_log_error("Bad response '%s'", buffer);
 		return CC_FAIL;
 	}
 
-	uri_start = strnstr(buffer, "calvinip://", len);
+	uri_start = strstr(buffer, "calvinip://");
 	if (uri_start == NULL) {
 		cc_log_error("No calvinip interface");
 		return CC_FAIL;
 	}
 
-	uri_end = strnstr(uri_start, "\"", uri_start - buffer);
+	uri_end = strchr(uri_start, '"');
 	if (uri_end == NULL) {
 		cc_log_error("Failed to parse interface");
 		return CC_FAIL;
@@ -197,19 +198,50 @@ static cc_result_t cc_transport_socket_get_ip_uri(const char *address, int port,
 
 static cc_result_t cc_transport_socket_discover_proxy(char *uri)
 {
-	int control_port;
+	int pos = 7, location_len = 0, ip_len = 0, port = 0;
 	char location[CC_LOCATION_SIZE];
-	char address[CC_ADDRESS_SIZE];
-	char url[CC_URL_SIZE];
+	char *ip = NULL, *path_start = NULL, *end = NULL;
 
-	if (cc_transport_socket_discover_location(location) == CC_SUCCESS) {
-		if (sscanf(location, "http://%99[^:]:%99d/%99[^\n]", address, &control_port, url) == 3)
-			return cc_transport_socket_get_ip_uri(address, control_port, url, uri);
+	memset(location, 0, CC_LOCATION_SIZE);
+
+	if (cc_transport_socket_discover_location(location) != CC_SUCCESS)
+		return CC_FAIL;
+
+	location_len = strnlen(location, CC_LOCATION_SIZE);
+
+	if (strncmp(location, "http://", 7) != 0) {
+		cc_log_error("Failed to parse ssdp response");
+		return CC_FAIL;
 	}
 
-	return CC_FAIL;
+	while (pos < location_len) {
+		if (location[pos] == ':') {
+			ip = location + 7;
+			ip_len = pos - 7;
+			break;
+		}
+		pos++;
+	}
+
+	if (ip == NULL) {
+		cc_log_error("Failed to parse ssdp response");
+		return CC_FAIL;
+	}
+
+	path_start = strchr(ip, '/');
+	if (path_start == NULL) {
+		cc_log_error("Failed to parse ssdp response");
+		return CC_FAIL;
+	}
+
+	port = strtol(ip + ip_len + 1, &end, 10);
+	if (end == ip + ip_len + 1) {
+		cc_log_error("Failed to parse ssdp response");
+		return CC_FAIL;
+	}
+
+	return cc_transport_socket_get_ip_uri(uri, ip, ip_len, port, path_start);
 }
-#endif
 
 static int cc_transport_socket_send(cc_transport_client_t *transport_client, char *data, size_t size)
 {
@@ -267,56 +299,87 @@ static cc_result_t cc_transport_socket_connect(cc_node_t *node, cc_transport_cli
 	return CC_SUCCESS;
 }
 
+static cc_result_t cc_transport_socket_parse_uri(char *uri, char **ip, size_t *ip_len, int *port)
+{
+	size_t pos = strlen(uri);
+	char *end = NULL;
+	cc_result_t result = CC_FAIL;
+
+	if (strncmp(uri, "calvinip://", 11) != 0) {
+		cc_log_error("Failed to parse calvinip URI '%s'", uri);
+		return CC_FAIL;
+	}
+
+	while (pos > 11) {
+		if (uri[pos] == ':') {
+			result = CC_SUCCESS;
+			break;
+		}
+		pos--;
+	}
+
+	if (result == CC_SUCCESS) {
+		*ip = uri + 11;
+		*ip_len = pos - 11;
+		*port = strtol(uri + pos + 1, &end, 10);
+	}
+
+	return result;
+}
+
 cc_transport_client_t *cc_transport_socket_create(cc_node_t *node, char *uri)
 {
-#ifdef CC_TRANSPORT_SOCKET_SSDP_ENABLED
-	char discovery_result[100];
-#endif
+	char ssdpuri[100];
 	cc_transport_client_t *transport_client = NULL;
 	cc_transport_socket_client_t *transport_socket = NULL;
+	char *ip = NULL;
+	int port = 0;
+	size_t ip_len = 0;
 
-	if (cc_platform_mem_alloc((void **)&transport_client, sizeof(cc_transport_client_t)) == CC_SUCCESS) {
-		memset(transport_client, 0, sizeof(cc_transport_client_t));
-		transport_client->transport_type = CC_TRANSPORT_SOCKET_TYPE;
-		transport_client->state = CC_TRANSPORT_INTERFACE_UP;
-		transport_client->rx_buffer.buffer = NULL;
-		transport_client->rx_buffer.pos = 0;
-		transport_client->rx_buffer.size = 0;
-		transport_client->connect = cc_transport_socket_connect;
-		transport_client->send = cc_transport_socket_send;
-		transport_client->recv = cc_transport_socket_recv;
-		transport_client->disconnect = cc_transport_socket_disconnect;
-		transport_client->free = cc_transport_socket_free;
-		transport_client->prefix_len = CC_TRANSPORT_LEN_PREFIX_SIZE;
+	if (strncmp(uri, "ssdp", 4) == 0) {
+		if (cc_transport_socket_discover_proxy(ssdpuri) != CC_SUCCESS) {
+			cc_log_error("Failed to parse ssdp response");
+			return NULL;
+		}
 
-		if (cc_platform_mem_alloc((void **)&transport_socket, sizeof(cc_transport_socket_client_t)) == CC_SUCCESS) {
-			transport_client->client_state = transport_socket;
-#ifdef CC_TRANSPORT_SOCKET_SSDP_ENABLED
-			if (strncmp(uri, "ssdp", 4) == 0) {
-				if (cc_transport_socket_discover_proxy(discovery_result) == CC_SUCCESS) {
-					if (sscanf(discovery_result, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2) {
-						cc_log("transport_socket: SSDP response: ip '%s' port '%d'", transport_socket->ip, transport_socket->port);
-						strncpy(transport_client->uri, discovery_result, CC_MAX_URI_LEN);
-						return transport_client;
-					}
-					cc_log_error("Failed to parse uri '%s'", discovery_result);
-				}
-			} else {
-#endif
-				if (sscanf(uri, "calvinip://%99[^:]:%99d", transport_socket->ip, &transport_socket->port) == 2) {
-					strncpy(transport_client->uri, uri, CC_MAX_URI_LEN);
-					return transport_client;
-				}
-				cc_log_error("Failed to parse uri '%s'", uri);
-#ifdef CC_TRANSPORT_SOCKET_SSDP_ENABLED
-			}
-#endif
-			cc_platform_mem_free((void *)transport_socket);
-		} else
-			cc_log_error("Failed to allocate memory");
-		cc_platform_mem_free((void *)transport_client);
-	} else
+		if (cc_transport_socket_parse_uri(ssdpuri, &ip, &ip_len, &port) != CC_SUCCESS) {
+			cc_log_error("Failed to parse uri '%s'", uri);
+			return NULL;
+		}
+	} else {
+		if (cc_transport_socket_parse_uri(uri, &ip, &ip_len, &port) != CC_SUCCESS) {
+			cc_log_error("Failed to parse uri '%s'", uri);
+			return NULL;
+		}
+	}
+
+	if (cc_platform_mem_alloc((void **)&transport_client, sizeof(cc_transport_client_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
+		return NULL;
+	}
 
-	return NULL;
+	if (cc_platform_mem_alloc((void **)&transport_socket, sizeof(cc_transport_socket_client_t)) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return NULL;
+	}
+
+	memset(transport_client, 0, sizeof(cc_transport_client_t));
+	transport_client->transport_type = CC_TRANSPORT_SOCKET_TYPE;
+	transport_client->state = CC_TRANSPORT_INTERFACE_UP;
+	transport_client->rx_buffer.buffer = NULL;
+	transport_client->rx_buffer.pos = 0;
+	transport_client->rx_buffer.size = 0;
+	transport_client->connect = cc_transport_socket_connect;
+	transport_client->send = cc_transport_socket_send;
+	transport_client->recv = cc_transport_socket_recv;
+	transport_client->disconnect = cc_transport_socket_disconnect;
+	transport_client->free = cc_transport_socket_free;
+	transport_client->prefix_len = CC_TRANSPORT_LEN_PREFIX_SIZE;
+	strncpy(transport_client->uri, uri, CC_MAX_URI_LEN);
+	strncpy(transport_socket->ip, ip, ip_len);
+	transport_socket->ip[ip_len] = '\0';
+	transport_socket->port = port;
+	transport_client->client_state = transport_socket;
+
+	return transport_client;
 }

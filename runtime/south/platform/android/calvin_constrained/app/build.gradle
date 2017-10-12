@@ -38,7 +38,6 @@ android {
                 cFlags "-DCC_ACTOR_BUTTON"
                 cFlags "-DCC_ACTOR_CAMERA"
                 cFlags "-DCC_ACTOR_REGISTRY_ATTIBUTE"
-                cFlags "-DCC_ADD_STRNSTR"
                 cFlags "-Wno-deprecated-declarations"
                 cFlags "--std=gnu99"
             }
