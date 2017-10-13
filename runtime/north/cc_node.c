@@ -59,13 +59,6 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 	if (cc_platform_read_node_state(node, buffer, size) == CC_SUCCESS) {
 		cc_log("Node: Starting from state");
 
-		if (cc_coder_decode_string_from_map(buffer, "id", &value, &value_len) != CC_SUCCESS) {
-			cc_log_error("Failed to decode 'id'");
-			return CC_FAIL;
-		}
-		strncpy(node->id, value, value_len);
-		node->id[value_len] = '\0';
-
 		if (node->attributes == NULL && cc_coder_has_key(buffer, "attributes")) {
 			if (cc_coder_decode_string_from_map(buffer, "attributes", &value, &value_len) != CC_SUCCESS) {
 				cc_log_error("Failed to decode 'attributes'");
@@ -83,15 +76,6 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 			node->attributes[value_len] = '\0';
 		}
 
-		if (cc_coder_has_key(buffer, "state")) {
-			if (cc_coder_decode_uint_from_map(buffer, "state", &state) == CC_SUCCESS) {
-				if (state == CC_NODE_DO_SLEEP)
-					node->state = CC_NODE_STARTED;
-				else
-					node->state = (cc_node_state_t)state;
-			}
-		}
-
 		if (cc_coder_has_key(buffer, "proxy_uris") && node->proxy_uris == NULL) {
 			if (cc_coder_get_value_from_map(buffer, "proxy_uris", &array_value) == CC_SUCCESS) {
 				array_size = cc_coder_get_size_of_array(array_value);
@@ -104,6 +88,31 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 						}
 					}
 				}
+			}
+		}
+
+		array_size = 0;
+		if (cc_coder_get_value_from_map(buffer, "actors", &array_value) == CC_SUCCESS)
+			array_size = cc_coder_get_size_of_array(array_value);
+
+		if (array_size == 0) {
+			cc_gen_uuid(node->id, NULL);
+			return CC_SUCCESS;
+		}
+
+		if (cc_coder_decode_string_from_map(buffer, "id", &value, &value_len) != CC_SUCCESS) {
+			cc_log_error("Failed to decode 'id'");
+			return CC_FAIL;
+		}
+		strncpy(node->id, value, value_len);
+		node->id[value_len] = '\0';
+
+		if (cc_coder_has_key(buffer, "state")) {
+			if (cc_coder_decode_uint_from_map(buffer, "state", &state) == CC_SUCCESS) {
+				if (state == CC_NODE_DO_SLEEP)
+					node->state = CC_NODE_STARTED;
+				else
+					node->state = (cc_node_state_t)state;
 			}
 		}
 
@@ -170,12 +179,16 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 
 void cc_node_set_state(cc_node_t *node)
 {
-	char buffer[CC_RUNTIME_STATE_BUFFER_SIZE];
-	char *tmp = buffer;
+	char *buffer = NULL, *tmp = NULL;
 	int nbr_of_items = 0;
 	cc_list_t *item = NULL;
 
+	if (cc_platform_mem_alloc((void **)&buffer, CC_RUNTIME_STATE_BUFFER_SIZE) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return;
+	}
 	memset(buffer, 0, CC_RUNTIME_STATE_BUFFER_SIZE);
+	tmp = buffer;
 
 	tmp = cc_coder_encode_map(tmp, 7);
 	{
@@ -226,8 +239,8 @@ void cc_node_set_state(cc_node_t *node)
 	}
 
 	cc_log("Node: Serialized state");
-
 	cc_platform_write_node_state(node, buffer, tmp - buffer);
+	cc_platform_mem_free(buffer);
 }
 
 static void cc_node_reset(cc_node_t *node)
@@ -480,20 +493,26 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 			return CC_FAIL;
 	}
 
-	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_INTERFACE_DOWN)
-		cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
+	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_INTERFACE_DOWN) {
+		if (cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
+			return CC_FAIL;
+	}
 
 	if (node->transport_client->connect(node, node->transport_client) != CC_SUCCESS)
 		return CC_FAIL;
 
-	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_PENDING)
-		cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
+	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_PENDING) {
+		if (cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
+			return CC_FAIL;
+	}
 
 	if (cc_transport_join(node, node->transport_client) != CC_SUCCESS)
 		return CC_FAIL;
 
-	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_PENDING)
-		cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
+	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_PENDING) {
+		if (cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
+			return CC_FAIL;
+	}
 
 	if (node->state == CC_NODE_STOP || node->transport_client->state != CC_TRANSPORT_ENABLED)
 		return CC_FAIL;
@@ -543,8 +562,10 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 	if (cc_proto_send_node_setup(node, cc_node_setup_reply_handler) != CC_SUCCESS)
 		return CC_FAIL;
 
-	while (node->state != CC_NODE_STARTED && node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_ENABLED)
-		cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
+	while (node->state != CC_NODE_STARTED && node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_ENABLED) {
+		if (cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
+			return CC_FAIL;
+	}
 
 	if (node->state != CC_NODE_STARTED) {
 		cc_log_error("Failed connect to proxy");
@@ -649,6 +670,11 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 				cc_log_error("URI to big");
 			uri = strtok(NULL, " ");
 		}
+	}
+
+	if (cc_list_count(node->proxy_uris) == 0) {
+		cc_log_error("No proxy(s) set");
+		return CC_FAIL;
 	}
 
 	cc_log("Node: Initialized");
@@ -840,8 +866,11 @@ cc_result_t cc_node_run(cc_node_t *node)
 #endif
 				while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_ENABLED) {
 					if (node->state != CC_NODE_STARTED || node->actors == NULL) {
-						cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
-						continue;
+						waitstatus = cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
+						if (waitstatus == CC_PLATFORM_EVT_WAIT_FAIL)
+							break;
+						else
+							continue;
 					}
 
 					if (node->fire_actors(node))
