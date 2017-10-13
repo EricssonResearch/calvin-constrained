@@ -285,6 +285,7 @@ void cc_platform_deepsleep(uint32_t time)
 
 void cc_platform_init(void)
 {
+	srand(sdk_system_get_time());
 }
 
 uint32_t cc_platform_get_time()
