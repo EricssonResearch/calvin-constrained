@@ -38,19 +38,30 @@ static cc_result_t cc_calvinsys_gpio_write(struct cc_calvinsys_obj_t *obj, char 
 	return CC_FAIL;
 }
 
-static cc_result_t cc_calvinsys_gpio_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
+static cc_result_t cc_calvinsys_gpio_close(struct cc_calvinsys_obj_t *obj)
 {
 	cc_calvinsys_gpio_state_t *gpio_state = (cc_calvinsys_gpio_state_t *)obj->capability->state;
 
-	if (gpio_state->direction == CC_GPIO_OUT)
-		gpio_enable(gpio_state->pin, GPIO_OUTPUT);
-	else {
+	gpio_disable(gpio_state->pin);
+
+	return CC_SUCCESS;
+}
+
+static cc_result_t cc_calvinsys_gpio_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
+{
+	cc_calvinsys_gpio_state_t *state = (cc_calvinsys_gpio_state_t *)obj->capability->state;
+
+	if (state->direction == CC_GPIO_OUT) {
+		gpio_enable(state->pin, GPIO_OUTPUT);
+		gpio_write(((cc_calvinsys_gpio_state_t *)obj->capability->state)->pin, 0);
+	} else {
 		cc_log_error("Unsupported direction");
 		return CC_FAIL;
 	}
 
 	obj->can_write = cc_calvinsys_gpio_can_write;
 	obj->write = cc_calvinsys_gpio_write;
+	obj->close = cc_calvinsys_gpio_close;
 
 	return CC_SUCCESS;
 }
@@ -66,5 +77,5 @@ cc_result_t cc_calvinsys_gpio_create(cc_calvinsys_t **calvinsys, const char *nam
 		name,
 		cc_calvinsys_gpio_open,
 		cc_calvinsys_gpio_deserialize,
-		NULL);
+		state);
 }
