@@ -15,6 +15,7 @@
  */
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include "cc_port.h"
 #include "cc_node.h"
 #include "cc_proto.h"
@@ -40,18 +41,12 @@ static cc_result_t cc_port_disconnect_reply_handler(cc_node_t *node, char *data,
 
 static cc_result_t cc_port_store_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
-	char *value = NULL, *key = NULL;
-	uint32_t key_len = 0;
-	bool status = false;
+	char *value = NULL, *response = NULL, *key = NULL;
+	uint32_t key_len = 0, status = 0;
 	cc_port_t *port = NULL;
 
 	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
 		cc_log_error("Failed to get 'value'");
-		return CC_FAIL;
-	}
-
-	if (cc_coder_decode_bool_from_map(value, "value", &status) != CC_SUCCESS) {
-		cc_log_error("Failed to decode 'value'");
 		return CC_FAIL;
 	}
 
@@ -66,12 +61,23 @@ static cc_result_t cc_port_store_reply_handler(cc_node_t *node, char *data, size
 	}
 
 	port = cc_port_get(node, key + 5, key_len - 5);
-	if (port != NULL) {
-		if (status)
-			cc_log_debug("Stored '%s'", port->id);
-		else
-			cc_log_error("Failed to store '%s'", port->id);
+	if (port == NULL)
+		return CC_SUCCESS;
+
+	if (cc_coder_get_value_from_map(value, "response", &response) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'response'");
+		return CC_FAIL;
 	}
+
+	if (cc_coder_decode_uint_from_map(response, "status", &status) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'status'");
+		return CC_FAIL;
+	}
+
+	if (status == 200)
+		cc_log_debug("Stored '%s'", port->id);
+	else
+		cc_log_error("Failed to store '%s'", port->id);
 
 	return CC_SUCCESS;
 }
@@ -79,9 +85,8 @@ static cc_result_t cc_port_store_reply_handler(cc_node_t *node, char *data, size
 static cc_result_t cc_port_get_peer_port_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	cc_port_t *port = NULL;
-	char *value = NULL, *key = NULL, *node_id = NULL;
-	uint32_t value_len = 0, key_len = 0;
-	size_t node_id_len = 0;
+	char *value = NULL, *value_value = NULL, *key = NULL, *node_id = NULL;
+	uint32_t key_len = 0, node_id_len = 0;
 
 	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
 		cc_log_error("Failed to get 'value'");
@@ -104,15 +109,15 @@ static cc_result_t cc_port_get_peer_port_reply_handler(cc_node_t *node, char *da
 		return CC_SUCCESS;
 	}
 
-	if (cc_coder_decode_string_from_map(value, "value", &value, &value_len) != CC_SUCCESS) {
+	if (cc_coder_get_value_from_map(value, "value", &value_value) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'value'");
 		return CC_FAIL;
 	}
 
-	if (cc_get_json_string_value(value, value_len, (char *)"node_id", 7, &node_id, &node_id_len) != CC_SUCCESS) {
-		cc_log_debug("No peer found for '%s', actor will be deleted", port->id);
+	if (cc_coder_decode_string_from_map(value_value, "node_id", &node_id, &node_id_len) != CC_SUCCESS) {
+		cc_log_debug("Failed to decode 'node_id'");
 		cc_port_set_state(port, CC_PORT_DO_DELETE);
-		return CC_SUCCESS;
+		return CC_FAIL;
 	}
 
 	strncpy(port->peer_id, node_id, node_id_len);

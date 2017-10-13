@@ -62,19 +62,45 @@ static cc_result_t cc_actor_migrate_reply_handler(cc_node_t *node, char *data, s
 
 static cc_result_t actor_set_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
-	char *value = NULL;
-	bool status = false;
+	char *value = NULL, *response = NULL, *key = NULL;
+	uint32_t key_len = 0, status = 0;
+	cc_actor_t *actor = NULL;
 
-	if (cc_coder_get_value_from_map(data, "value", &value) == CC_SUCCESS) {
-		if (cc_coder_decode_bool_from_map(value, "value", &status) == CC_SUCCESS) {
-			if (status != true)
-				cc_log_error("Failed to store actor '%s'", (char *)msg_data);
-			return CC_SUCCESS;
-		}
+	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'value'");
+		return CC_FAIL;
 	}
 
-	cc_log_error("Failed to decode data");
-	return CC_FAIL;
+	if (cc_coder_decode_string_from_map(value, "key", &key, &key_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'key'");
+		return CC_FAIL;
+	}
+
+	if (strncmp(key, "actor-", 6) != 0) {
+		cc_log_error("Unexpected key");
+		return CC_FAIL;
+	}
+
+	actor = cc_actor_get(node, key + 6, key_len - 6);
+	if (actor == NULL)
+		return CC_SUCCESS;
+
+	if (cc_coder_get_value_from_map(value, "response", &response) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'response'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_uint_from_map(response, "status", &status) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'status'");
+		return CC_FAIL;
+	}
+
+	if (status == 200)
+		cc_log_debug("Stored '%s'", actor->id);
+	else
+		cc_log_error("Failed to store '%s'", actor->id);
+
+	return CC_SUCCESS;
 }
 
 void cc_actor_set_state(cc_actor_t *actor, cc_actor_state_t state)

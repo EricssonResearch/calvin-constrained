@@ -505,10 +505,11 @@ cc_result_t cc_proto_send_port_disconnect(cc_node_t *node, cc_port_t *port, cc_r
 
 cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
 {
-	int data_len = 0, inports_len = 0, outports_len = 0, key_len = 0;
-	char buffer[1000], *w = NULL, key[50] = "", data[400] = "", inports[200] = "", outports[200] = "", msg_uuid[CC_UUID_BUFFER_SIZE];
+	int key_len = 0;
+	char buffer[1000], *w = NULL, key[50] = "", msg_uuid[CC_UUID_BUFFER_SIZE];
 	cc_list_t *list = NULL;
 	cc_port_t *port = NULL;
+	uint32_t ninports = 0, noutports = 0;
 
 	memset(buffer, 0, 1000);
 
@@ -516,50 +517,8 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
-	list = actor->in_ports;
-	while (list != NULL) {
-		port = (cc_port_t *)list->data;
-		if (list->next != NULL)
-			inports_len += snprintf(inports + inports_len,
-				200,
-				"{\"id\": \"%s\", \"name\": \"%s\"}, ",
-				port->id,
-				port->name);
-		else
-			inports_len += snprintf(inports + inports_len,
-				200,
-				"{\"id\": \"%s\", \"name\": \"%s\"}",
-				port->id,
-				port->name);
-		list = list->next;
-	}
-
-	list = actor->out_ports;
-	while (list != NULL) {
-		port = (cc_port_t *)list->data;
-		if (list->next != NULL)
-			outports_len += snprintf(outports + outports_len,
-				200,
-				"{\"id\": \"%s\", \"name\": \"%s\"}, ",
-				port->id,
-				port->name);
-		else
-			outports_len += snprintf(outports + outports_len,
-				200,
-				"{\"id\": \"%s\", \"name\": \"%s\"}",
-				port->id,
-				port->name);
-		list = list->next;
-	}
-
-	data_len = snprintf(data,
-		400,
-		"{\"is_shadow\": false, \"name\": \"%s\", \"node_id\": \"%s\", \"type\": \"%s\", \"inports\": [%s], \"outports\": [%s]}",
-		actor->name,
-		node->id,
-		actor->type,
-		inports,
-		outports);
+	ninports = cc_list_count(actor->in_ports);
+	noutports = cc_list_count(actor->out_ports);
 
 	w = buffer + node->transport_client->prefix_len;
 	w = cc_coder_encode_map(w, 5);
@@ -570,10 +529,38 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 		w = cc_coder_encode_kv_str(w, "tunnel_id", node->storage_tunnel->id, strnlen(node->storage_tunnel->id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_map(w, "value", 4);
 		{
+			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
 			w = cc_coder_encode_kv_str(w, "cmd", "SET", 3);
 			w = cc_coder_encode_kv_str(w, "key", key, key_len);
-			w = cc_coder_encode_kv_str(w, "value", data, data_len);
-			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+			w = cc_coder_encode_kv_map(w, "value", 6);
+			{
+				w = cc_coder_encode_kv_bool(w, "is_shadow", false);
+				w = cc_coder_encode_kv_str(w, "name", actor->name, strlen(actor->name));
+				w = cc_coder_encode_kv_str(w, "node_id", node->id, strlen(node->id));
+				w = cc_coder_encode_kv_str(w, "type", actor->type, strlen(actor->type));
+				w = cc_coder_encode_kv_array(w, "inports", ninports);
+				{
+					list = actor->in_ports;
+					while (list != NULL) {
+						port = (cc_port_t *)list->data;
+						w = cc_coder_encode_map(w, 2);
+						w = cc_coder_encode_kv_str(w, "id", port->id, strlen(port->id));
+						w = cc_coder_encode_kv_str(w, "name", port->name, strlen(port->name));
+						list = list->next;
+					}
+				}
+				w = cc_coder_encode_kv_array(w, "outports", noutports);
+				{
+					list = actor->out_ports;
+					while (list != NULL) {
+						port = (cc_port_t *)list->data;
+						w = cc_coder_encode_map(w, 2);
+						w = cc_coder_encode_kv_str(w, "id", port->id, strlen(port->id));
+						w = cc_coder_encode_kv_str(w, "name", port->name, strlen(port->name));
+						list = list->next;
+					}
+				}
+			}
 		}
 	}
 
@@ -604,11 +591,10 @@ cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_res
 		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
 		w = cc_coder_encode_kv_str(w, "tunnel_id", node->storage_tunnel->id, strnlen(node->storage_tunnel->id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_map(w, "value", 4);
+		w = cc_coder_encode_kv_map(w, "value", 3);
 		{
-			w = cc_coder_encode_kv_str(w, "cmd", "SET", 3);
+			w = cc_coder_encode_kv_str(w, "cmd", "DELETE", 6);
 			w = cc_coder_encode_kv_str(w, "key", key, key_len);
-			w = cc_coder_encode_kv_nil(w, "value");
 			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
 		}
 	}
@@ -624,37 +610,14 @@ cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_res
 
 cc_result_t cc_proto_send_set_port(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
 {
-	char buffer[2000], *w = NULL, key[50] = "", data[1000] = "", msg_uuid[CC_UUID_BUFFER_SIZE];
-	int key_len = 0, data_len = 0;
+	char buffer[2000], *w = NULL, key[50] = "", msg_uuid[CC_UUID_BUFFER_SIZE];
+	int key_len = 0;
 
 	memset(buffer, 0, 2000);
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
 	key_len = snprintf(key, 50, "port-%s", port->id);
-
-	if (strnlen(port->peer_id, CC_UUID_BUFFER_SIZE) > 0)
-		data_len = snprintf(data,
-			1000,
-			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%s\"}",
-			port->peer_id,
-			port->peer_port_id,
-			port->direction == CC_PORT_DIRECTION_IN ? STRING_IN : STRING_OUT,
-			port->name,
-			node->id,
-			STRING_TRUE,
-			port->actor->id);
-	else
-		data_len = snprintf(data,
-			1000,
-			"{\"peers\": [[\"%s\", \"%s\"]], \"properties\": {\"direction\": \"%s\", \"routing\": \"default\", \"nbr_peers\": 1}, \"name\": \"%s\", \"node_id\": \"%s\", \"connected\": %s, \"actor_id\": \"%s\"}",
-			"null",
-			port->peer_port_id,
-			port->direction == CC_PORT_DIRECTION_IN ? STRING_IN : STRING_OUT,
-			port->name,
-			node->id,
-			STRING_TRUE,
-			port->actor->id);
 
 	w = buffer + node->transport_client->prefix_len;
 	w = cc_coder_encode_map(w, 5);
@@ -665,10 +628,39 @@ cc_result_t cc_proto_send_set_port(cc_node_t *node, cc_port_t *port, cc_result_t
 		w = cc_coder_encode_kv_str(w, "tunnel_id", node->storage_tunnel->id, strnlen(node->storage_tunnel->id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_map(w, "value", 4);
 		{
+			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
 			w = cc_coder_encode_kv_str(w, "cmd", "SET", 3);
 			w = cc_coder_encode_kv_str(w, "key", key, key_len);
-			w = cc_coder_encode_kv_str(w, "value", data, data_len);
-			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+			w = cc_coder_encode_kv_map(w, "value", 6);
+			{
+				w = cc_coder_encode_kv_array(w, "peers", 1);
+				{
+					w = cc_coder_encode_array(w, 2);
+					{
+						if (strnlen(port->peer_id, CC_UUID_BUFFER_SIZE) > 0)
+							w = cc_coder_encode_str(w, port->peer_id, strlen(port->peer_id));
+						else
+							w = cc_coder_encode_nil(w);
+						w = cc_coder_encode_str(w, port->peer_port_id, strlen(port->peer_port_id));
+					}
+				}
+				w = cc_coder_encode_kv_map(w, "properties", 3);
+				{
+					if (port->direction == CC_PORT_DIRECTION_IN)
+						w = cc_coder_encode_kv_str(w, "direction", "in", 2);
+					else
+						w = cc_coder_encode_kv_str(w, "direction", "out", 3);
+					w = cc_coder_encode_kv_str(w, "routing", "default", 7);
+					w = cc_coder_encode_kv_uint(w, "nbr_peers", 1);
+				}
+				w = cc_coder_encode_kv_str(w, "name", port->name, strlen(port->name));
+				w = cc_coder_encode_kv_str(w, "node_id", node->id, strlen(node->id));
+				if (port->state == CC_PORT_ENABLED)
+					w = cc_coder_encode_kv_str(w, "connected", "true", 4);
+				else
+					w = cc_coder_encode_kv_str(w, "connected", "false", 5);
+				w = cc_coder_encode_kv_str(w, "actor_id", port->actor->id, strlen(port->actor->id));
+			}
 		}
 	}
 
@@ -732,11 +724,10 @@ cc_result_t cc_proto_send_remove_port(cc_node_t *node, cc_port_t *port, cc_resul
 		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
 		w = cc_coder_encode_kv_str(w, "tunnel_id", node->storage_tunnel->id, strnlen(node->storage_tunnel->id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_map(w, "value", 4);
+		w = cc_coder_encode_kv_map(w, "value", 3);
 		{
-			w = cc_coder_encode_kv_str(w, "cmd", "SET", 3);
+			w = cc_coder_encode_kv_str(w, "cmd", "DELETE", 6);
 			w = cc_coder_encode_kv_str(w, "key", key, key_len);
-			w = cc_coder_encode_kv_nil(w, "value");
 			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
 		}
 	}
