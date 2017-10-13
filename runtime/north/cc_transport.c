@@ -51,74 +51,54 @@ static int cc_transport_recv(cc_transport_client_t *transport_client, char *buff
 	return transport_client->recv(transport_client, buffer, size);
 }
 
-static void cc_transport_free_transport_buffer(cc_transport_buffer_t *buffer)
-{
-	cc_platform_mem_free((void *)buffer->buffer);
-	buffer->buffer = NULL;
-	buffer->pos = 0;
-	buffer->size = 0;
-}
-
 cc_result_t cc_transport_handle_data(cc_node_t *node, cc_transport_client_t *transport_client, cc_result_t (*handler)(cc_node_t *node, char *data, size_t size))
 {
-	char *rx_data = NULL, rx_buffer[CC_TRANSPORT_RX_BUFFER_SIZE];
-	int read = 0, read_pos = 0, msg_size = 0, to_read = 0;
+	char prefix_buffer[4];
+	int read = 0, msg_size = 0, to_read = 0;
 	cc_result_t result = CC_SUCCESS;
 
-	memset(rx_buffer, 0, CC_TRANSPORT_RX_BUFFER_SIZE);
+	memset(prefix_buffer, 0, 4);
 
-	// read until atleast one complete message has been received
 	while (true) {
-		if (read_pos == 0) {
-			if (transport_client->rx_buffer.buffer != NULL) {
-				rx_data = transport_client->rx_buffer.buffer + transport_client->rx_buffer.pos;
-				to_read = transport_client->rx_buffer.size - transport_client->rx_buffer.pos;
-			} else {
-				rx_data = rx_buffer;
-				to_read = CC_TRANSPORT_RX_BUFFER_SIZE;
-			}
-
-			read = cc_transport_recv(transport_client, rx_data, to_read);
-			if (read <= 0) {
-				cc_log_error("Failed to read data from transport");
-				transport_client->state = CC_TRANSPORT_DISCONNECTED;
+		if (transport_client->rx_buffer.buffer != NULL)
+			to_read = transport_client->rx_buffer.size - transport_client->rx_buffer.pos;
+		else {
+			read = cc_transport_recv(transport_client, prefix_buffer, 4);
+			if (read < 4) {
+				cc_log_error("Failed to read packet header, status '%d'", read);
 				return CC_FAIL;
 			}
+			msg_size = cc_transport_get_message_len(prefix_buffer);
+
+			if (cc_platform_mem_alloc((void **)&transport_client->rx_buffer.buffer, msg_size) != CC_SUCCESS) {
+				cc_log_error("Failed to allocate memory");
+				return CC_FAIL;
+			}
+
+			transport_client->rx_buffer.pos = 0;
+			transport_client->rx_buffer.size = msg_size;
+			to_read = msg_size;
 		}
 
-		if (transport_client->rx_buffer.buffer != NULL) {
-			transport_client->rx_buffer.pos += read;
-			// TODO: Handle trailing data
-			if (transport_client->rx_buffer.size == transport_client->rx_buffer.pos) {
-				result = handler(node, transport_client->rx_buffer.buffer, msg_size);
-				cc_transport_free_transport_buffer(&transport_client->rx_buffer);
-				return result;
-			}
-		} else {
-			msg_size = cc_transport_get_message_len(rx_data + read_pos);
-			read_pos += CC_TRANSPORT_LEN_PREFIX_SIZE;
-			if (msg_size == (read - read_pos)) {
-				return handler(node, rx_data + read_pos, msg_size);
-			} else if (msg_size > (read - read_pos)) {
-				if (cc_platform_mem_alloc((void **)&transport_client->rx_buffer.buffer, msg_size) != CC_SUCCESS) {
-					cc_log_error("Failed to allocate memory");
-					return CC_FAIL;
-				}
-
-				memcpy(transport_client->rx_buffer.buffer, rx_buffer + read_pos, read - read_pos);
-				transport_client->rx_buffer.size = msg_size;
-				transport_client->rx_buffer.pos = read - read_pos;
-				read_pos = 0;
-				read = 0;
-			} else {
-				if (handler(node, rx_data + read_pos, msg_size) != CC_SUCCESS)
-					return CC_FAIL;
-				read_pos += msg_size;
-			}
+		read = cc_transport_recv(transport_client, transport_client->rx_buffer.buffer + transport_client->rx_buffer.pos, to_read);
+		if (read <= 0){
+			cc_log_error("Failed to read payload, status '%d'", read);
+			return CC_FAIL;
 		}
+
+		transport_client->rx_buffer.pos = transport_client->rx_buffer.pos + read;
+
+		if (transport_client->rx_buffer.pos == transport_client->rx_buffer.size) {
+			cc_log_debug("Transport: Packet received '%d' bytes", transport_client->rx_buffer.size);
+			result = handler(node, transport_client->rx_buffer.buffer, transport_client->rx_buffer.size);
+			cc_platform_mem_free(transport_client->rx_buffer.buffer);
+			transport_client->rx_buffer.pos = 0;
+			transport_client->rx_buffer.size = 0;
+			transport_client->rx_buffer.buffer = NULL;
+			return result;
+		} else
+			cc_log_debug("Transport: Fragment received");
 	}
-
-	return result;
 }
 
 void cc_transport_set_length_prefix(char *buffer, size_t size)
@@ -183,27 +163,36 @@ cc_result_t cc_transport_join(cc_node_t *node, cc_transport_client_t *transport_
 
 cc_transport_client_t *cc_transport_create(cc_node_t *node, char *uri)
 {
+	cc_transport_client_t *client = NULL;
+
 #ifdef CC_TRANSPORT_SOCKET
-	if (strncmp(uri, "calvinip://", 11) == 0 || strncmp(uri, "ssdp", 4) == 0)
-		return cc_transport_socket_create(node, uri);
+	if (strncmp(uri, "calvinip://", 11) == 0 || strncmp(uri, "ssdp", 4) == 0) {
+		client = cc_transport_socket_create(node, uri);
+	}
 #endif
 
 #ifdef CC_TRANSPORT_SPRITZER
 	if (strncmp(uri, "calvinip://", 11) == 0)
-		return cc_transport_spritzer_create(node, uri);
+		client = cc_transport_spritzer_create(node, uri);
 #endif
 
 #ifdef CC_TRANSPORT_LWIP
 	if (strncmp(uri, "lwip", 4) == 0)
-		return cc_transport_lwip_create(node);
+		client = cc_transport_lwip_create(node);
 #endif
 
 #ifdef CC_TRANSPORT_FCM
 	if (strncmp(uri, "calvinfcm://", 12) == 0)
-		return transport_fcm_create(node, uri);
+		client = transport_fcm_create(node, uri);
 #endif
 
-	cc_log_error("No transport for '%s'", uri);
+	if (client == NULL)
+		cc_log_error("No transport for '%s'", uri);
+	else {
+		client->rx_buffer.pos = 0;
+		client->rx_buffer.size = 0;
+		client->rx_buffer.buffer = NULL;
+	}
 
-	return NULL;
+	return client;
 }

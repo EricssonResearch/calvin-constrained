@@ -9,8 +9,8 @@ CC_ACTOR_TEMPERATURE ?= 1
 CC_ACTOR_REGISTRY_ATTIBUTE ?= 1
 CC_ACTOR_TEMPERATURE_TAGGED ?= 1
 
-CFLAGS  = -g -Wall
-CFLAGS += -fsanitize=address -O1 -fno-omit-frame-pointer
+CFLAGS  = -Wall
+#CFLAGS += -g -fsanitize=address -O1 -fno-omit-frame-pointer
 CFLAGS += --std=gnu99
 ifneq ($(PLATFORM), Darwin)
 CFLAGS += -lrt

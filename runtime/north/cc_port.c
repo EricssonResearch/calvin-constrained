@@ -23,7 +23,7 @@
 
 static cc_port_t *cc_port_get_from_peer_port_id(struct cc_node_t *node, const char *peer_port_id, uint32_t peer_port_id_len);
 static void cc_port_set_state(cc_port_t *port, cc_port_state_t state);
-static cc_result_t cc_port_request_tunnel(cc_node_t *node, cc_port_t *port);
+static cc_result_t cc_port_get_tunnel(cc_node_t *node, cc_port_t *port);
 static cc_result_t cc_port_connect_local(cc_node_t *node, cc_port_t *port);
 
 static cc_result_t cc_port_remove_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
@@ -95,8 +95,8 @@ static cc_result_t cc_port_get_peer_port_reply_handler(cc_node_t *node, char *da
 
 	port = cc_port_get_from_peer_port_id(node, key + 5, key_len - 5);
 	if (port == NULL) {
-		cc_log_error("Unknown port");
-		return CC_FAIL;
+		cc_log_debug("Unknown port");
+		return CC_SUCCESS;
 	}
 
 	if (port->state == CC_PORT_ENABLED) {
@@ -110,7 +110,7 @@ static cc_result_t cc_port_get_peer_port_reply_handler(cc_node_t *node, char *da
 	}
 
 	if (cc_get_json_string_value(value, value_len, (char *)"node_id", 7, &node_id, &node_id_len) != CC_SUCCESS) {
-		cc_log("Port: No peer found for '%s', actor will be deleted", port->id);
+		cc_log_debug("No peer found for '%s', actor will be deleted", port->id);
 		cc_port_set_state(port, CC_PORT_DO_DELETE);
 		return CC_SUCCESS;
 	}
@@ -118,6 +118,7 @@ static cc_result_t cc_port_get_peer_port_reply_handler(cc_node_t *node, char *da
 	strncpy(port->peer_id, node_id, node_id_len);
 	port->peer_id[node_id_len] = '\0';
 
+	cc_log_debug("Got peer port respose, connecting '%s'", port->id);
 	cc_port_connect(node, port);
 
 	return CC_SUCCESS;
@@ -260,6 +261,7 @@ cc_port_t *cc_port_create(cc_node_t *node, cc_actor_t *actor, char *obj_port, ch
 	}
 
 	memset(port, 0, sizeof(cc_port_t));
+	port->retries = 0;
 	port->direction = direction;
 	port->state = CC_PORT_DISCONNECTED;
 	port->actor = actor;
@@ -431,7 +433,7 @@ cc_result_t cc_port_handle_connect(cc_node_t *node, const char *port_id, uint32_
 	cc_port_set_state(port, CC_PORT_ENABLED);
 	memset(port->peer_id, 0, CC_UUID_BUFFER_SIZE);
 	strncpy(port->peer_id, port->tunnel->link->peer_id, strnlen(port->tunnel->link->peer_id, CC_UUID_BUFFER_SIZE));
-	cc_log_debug("Port '%s' connected by remote on tunnel %s", port->id, port->tunnel->id);
+	cc_log_debug("'%s' connected by remote on tunnel '%s'", port->id, port->tunnel->id);
 
 	return CC_SUCCESS;
 }
@@ -455,15 +457,19 @@ cc_result_t cc_port_handle_disconnect(cc_node_t *node, const char *port_id, uint
 		port->tunnel = NULL;
 	}
 
-	cc_log("Port: '%s' disconnected by remote", port->id);
+	cc_log_debug("'%s' disconnected by remote", port->id);
 
 	return CC_SUCCESS;
 }
 
 static void cc_port_do_peer_lookup(cc_node_t *node, cc_port_t *port)
 {
-	if (cc_proto_send_get_port(node, port->peer_port_id, cc_port_get_peer_port_reply_handler, port->id) != CC_SUCCESS)
+	cc_log_debug("Getting peer port '%s' for '%s'", port->peer_port_id, port->id);
+	if (cc_proto_send_get_port(node, port->peer_port_id, cc_port_get_peer_port_reply_handler, port->id) != CC_SUCCESS) {
+		cc_port_set_state(port, CC_PORT_DISCONNECTED);
 		cc_log_error("Failed to send get port");
+	} else
+		cc_port_set_state(port, CC_PORT_PENDING_LOOKUP);
 }
 
 static cc_result_t cc_port_connect_local(cc_node_t *node, cc_port_t *port)
@@ -471,10 +477,8 @@ static cc_result_t cc_port_connect_local(cc_node_t *node, cc_port_t *port)
 	cc_port_t *peer_port = NULL;
 
 	peer_port = cc_port_get(node, port->peer_port_id, strnlen(port->peer_port_id, CC_UUID_BUFFER_SIZE));
-	if (peer_port == NULL) {
-		cc_log_error("No local endpoint");
+	if (peer_port == NULL)
 		return CC_FAIL;
-	}
 
 	if (port->tunnel != NULL) {
 		cc_tunnel_remove_ref(node, port->tunnel);
@@ -492,7 +496,8 @@ static cc_result_t cc_port_connect_local(cc_node_t *node, cc_port_t *port)
 	peer_port->peer_port = port;
 	strncpy(peer_port->peer_id, node->id, CC_UUID_BUFFER_SIZE);
 	cc_port_set_state(peer_port, CC_PORT_ENABLED);
-	cc_log_debug("Port: Local connection '%s' > '%s'", port->id, port->peer_port_id);
+
+	cc_log_debug("'%s' connected to '%s'", port->id, port->peer_port_id);
 
 	return CC_SUCCESS;
 }
@@ -500,20 +505,19 @@ static cc_result_t cc_port_connect_local(cc_node_t *node, cc_port_t *port)
 static cc_result_t cc_port_connect_with_pending_tunnel(cc_node_t *node, cc_port_t *port)
 {
 	if (port->tunnel->state == CC_TUNNEL_PENDING) {
-		cc_log_debug("Port waiting for pending tunnel");
+		cc_log_debug("'%s' waiting for pending tunnel", port->id);
 		return CC_SUCCESS;
 	}
 
 	if (port->tunnel->state == CC_TUNNEL_ENABLED) {
 		if (cc_proto_send_port_connect(node, port, cc_port_connect_reply_handler) == CC_SUCCESS) {
-			cc_port_set_state(port, CC_PORT_PENDING);
+			cc_port_set_state(port, CC_PORT_PENDING_CONNECT);
 			return CC_SUCCESS;
 		} else
 			cc_log_error("Failed to send port connect");
-	} else
-		cc_log_debug("Tunnel not connected");
+	}
 
-	cc_log_debug("Removing tunnel ref");
+	cc_log_debug("Port: Removing tunnel ref");
 
 	cc_tunnel_remove_ref(node, port->tunnel);
 	port->tunnel = NULL;
@@ -522,12 +526,9 @@ static cc_result_t cc_port_connect_with_pending_tunnel(cc_node_t *node, cc_port_
 	return CC_FAIL;
 }
 
-static cc_result_t cc_port_request_tunnel(cc_node_t *node, cc_port_t *port)
+static cc_result_t cc_port_get_tunnel(cc_node_t *node, cc_port_t *port)
 {
 	size_t peer_id_len = strnlen(port->peer_id, CC_UUID_BUFFER_SIZE);
-
-	if (peer_id_len == 0)
-		return CC_FAIL;
 
 	port->tunnel = cc_tunnel_get_from_peerid_and_type(node, port->peer_id, peer_id_len, CC_TUNNEL_TYPE_TOKEN);
 	if (port->tunnel == NULL)
@@ -538,8 +539,8 @@ static cc_result_t cc_port_request_tunnel(cc_node_t *node, cc_port_t *port)
 		return CC_FAIL;
 	}
 
-	cc_port_set_state(port, CC_PORT_PENDING);
 	cc_tunnel_add_ref(port->tunnel);
+	cc_port_set_state(port, CC_PORT_PENDING_TUNNEL);
 
 	return CC_SUCCESS;
 }
@@ -551,30 +552,33 @@ void cc_port_connect(cc_node_t *node, cc_port_t *port)
 		return;
 	}
 
-	cc_log_debug("Connect, retry %u", port->retries);
 	if (port->retries == 5) {
+		cc_log("Port: Max connect attempts, deleting '%s'", port->id);
 		cc_port_set_state(port, CC_PORT_DO_DELETE);
 		return;
 	}
 
 	port->retries++;
 
+	if (cc_port_connect_local(node, port) == CC_SUCCESS)
+		return;
+
+	if (port->tunnel == NULL) {
+		if (strnlen(port->peer_id, CC_UUID_BUFFER_SIZE) > 0) {
+			if (cc_port_get_tunnel(node, port) != CC_SUCCESS)
+				cc_log_error("Failed to get tunnel");
+		}
+	}
+
 	if (port->tunnel != NULL) {
 		if (cc_port_connect_with_pending_tunnel(node, port) == CC_SUCCESS)
 			return;
+		cc_tunnel_remove_ref(node, port->tunnel);
+		port->tunnel = NULL;
 	}
 
-	if (strncmp(port->peer_id, node->id, strnlen(port->id, CC_UUID_BUFFER_SIZE)) == 0) {
-		if (cc_port_connect_local(node, port) == CC_SUCCESS)
-			return;
-	}
-
-	if (cc_port_request_tunnel(node, port) == CC_SUCCESS)
-		return;
-
-	cc_port_set_state(port, CC_PORT_DISCONNECTED);
-	port->tunnel = NULL;
 	memset(port->peer_id, 0, CC_UUID_BUFFER_SIZE);
+	cc_port_set_state(port, CC_PORT_DISCONNECTED);
 
 	cc_port_do_peer_lookup(node, port);
 }
@@ -623,8 +627,10 @@ void cc_port_transmit(cc_node_t *node, cc_port_t *port)
 				}
 			}
 		}
-	} else if (port->state == CC_PORT_PENDING && port->tunnel != NULL && port->tunnel->state == CC_TUNNEL_ENABLED)
-		cc_port_connect(node, port);
+	} else if (port->state == CC_PORT_PENDING_TUNNEL) {
+		if (port->tunnel != NULL && port->tunnel->state == CC_TUNNEL_ENABLED)
+			cc_port_connect_with_pending_tunnel(node, port);
+	}
 }
 
 char *cc_port_serialize_prev_connections(char *buffer, cc_port_t *port, const cc_node_t *node)

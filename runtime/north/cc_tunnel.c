@@ -93,7 +93,7 @@ static cc_result_t tunnel_request_handler(cc_node_t *node, char *data, size_t da
 		strncpy(tunnel->id, tunnel_id, tunnel_id_len);
 		tunnel->id[tunnel_id_len] = '\0';
 		tunnel->state = CC_TUNNEL_ENABLED;
-		cc_log_debug("Tunnel '%s' connected", tunnel->id);
+		cc_log("Tunnel '%s' connected", tunnel->id);
 	} else {
 		cc_log_error("Failed to connect tunnel '%s'", tunnel->id);
 		tunnel->state = CC_TUNNEL_DISCONNECTED;
