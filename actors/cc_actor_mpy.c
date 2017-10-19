@@ -16,6 +16,7 @@
 
 #ifdef CC_PYTHON_ENABLED
 
+#include <stdio.h>
 #include <stddef.h>
 #include <string.h>
 #include "cc_actor_mpy.h"
@@ -121,7 +122,9 @@ cc_result_t cc_actor_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size
 		pos = *buffer;
 		pos = cc_coder_encode_float(pos, value);
 	} else if (MP_OBJ_IS_TYPE(input, &mp_type_bool)) {
-		bool value = mp_obj_new_bool(mp_obj_get_int(input));
+		bool value = false;
+		if (input == mp_const_true)
+			value = true;
 		to_alloc = cc_coder_sizeof_bool(value);
 		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
 			cc_log_error("Failed to allocate memory");
@@ -254,6 +257,8 @@ static cc_result_t cc_actor_mpy_get_attributes(cc_actor_t *actor, cc_list_t **ma
 		}
 
 		const char *attribute_name = mp_obj_str_get_str(managed_list->items[i]);
+
+		cc_log("Getting %s", attribute_name);
 
 		q_attr = qstr_from_strn(attribute_name, strlen(attribute_name));
 
