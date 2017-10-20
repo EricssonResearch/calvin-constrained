@@ -1,5 +1,6 @@
 {
   "global": {
+    "compiled_actors_path": "test/actors",
     "storage_type": "local"
   },
   "calvinsys": {

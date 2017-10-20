@@ -28,9 +28,10 @@ typedef struct cc_actor_mpy_state_t {
 	mp_obj_t actor_fire_method[2];
 } cc_actor_mpy_state_t;
 
-cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor);
 cc_result_t cc_actor_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value);
 cc_result_t cc_actor_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size_t *size);
+char *cc_actor_mpy_get_path_from_type(char *type, uint32_t type_len);
+cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor);
 
 #endif
 

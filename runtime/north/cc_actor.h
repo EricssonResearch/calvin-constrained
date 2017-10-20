@@ -26,6 +26,7 @@ struct cc_node_t;
 
 typedef enum {
 	CC_ACTOR_PENDING,
+	CC_ACTOR_PENDING_IMPL,
 	CC_ACTOR_ENABLED,
 	CC_ACTOR_DO_DELETE
 } cc_actor_state_t;
@@ -34,12 +35,14 @@ typedef struct cc_actor_t{
 	char *type;
 	char *id;
 	char *name;
+	bool was_shadow;
 	char migrate_to[CC_UUID_BUFFER_SIZE]; // id of rt to migrate to if requested
 	cc_actor_state_t state;
 	void *instance_state;
 	cc_list_t *in_ports;
 	cc_list_t *out_ports;
 	cc_list_t *private_attributes;
+	cc_list_t *managed_attributes;
 	cc_result_t (*init)(struct cc_actor_t **actor, cc_list_t *managed_attributes);
 	cc_result_t (*set_state)(struct cc_actor_t **actor, cc_list_t *managed_attributes);
 	bool (*fire)(struct cc_actor_t *actor);

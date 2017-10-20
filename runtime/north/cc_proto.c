@@ -123,6 +123,35 @@ cc_result_t cc_proto_send_node_setup(cc_node_t *node, cc_result_t (*handler)(cc_
 	return CC_FAIL;
 }
 
+cc_result_t cc_proto_send_get_actor_module(cc_node_t *node, const char *actor_type, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+{
+	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
+
+	memset(buffer, 0, 1000);
+
+	cc_gen_uuid(msg_uuid, "MSGID_");
+
+	w = buffer + node->transport_client->prefix_len;
+	w = cc_coder_encode_map(w, 6);
+	{
+		w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "cmd", "GET_ACTOR_MODULE", 16);
+		w = cc_coder_encode_kv_str(w, "actor_type", actor_type, strlen(actor_type));
+		w = cc_coder_encode_kv_str(w, "compiler", "mpy-cross", 9);
+		// TODO: Add version, feature flags...
+	}
+
+	if (cc_node_add_pending_msg(node, msg_uuid, handler, NULL) == CC_SUCCESS) {
+		if (cc_transport_send(node->transport_client, buffer, w - buffer) == CC_SUCCESS)
+			return CC_SUCCESS;
+		cc_node_remove_pending_msg(node, msg_uuid);
+	}
+
+	return CC_FAIL;
+}
+
 cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t time_to_sleep, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];

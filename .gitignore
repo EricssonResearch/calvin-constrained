@@ -1,5 +1,4 @@
 calvin_c
-calvin_c_mpy
 calvin_c.hex
 _build/
 calvin-base/
@@ -9,8 +8,8 @@ boards/pca10028/armgcc/_build/
 *.o
 libmpy/build
 *.a
-*.mpy
 *.log
 calvinconstrained.config
 .cache
+compiled_modules/
 

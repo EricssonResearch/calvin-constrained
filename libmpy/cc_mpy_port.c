@@ -23,10 +23,27 @@
 #include "../micropython/py/gc.h"
 #include "../micropython/py/runtime.h"
 
+static char *stack_top;
+
+typedef struct _mp_reader_cc_t {
+  const byte *beg;
+  const byte *cur;
+  const byte *end;
+} mp_reader_cc_t;
+
 void nlr_jump_fail(void *val)
 {
 	cc_log_error("FATAL: uncaught NLR %p", val);
 	mp_obj_print_exception(&mp_plat_print, (mp_obj_t)val);
+	while (1);
+}
+
+void gc_collect(void)
+{
+  void *dummy;
+  gc_collect_start();
+  gc_collect_root(&dummy, ((mp_uint_t)stack_top - (mp_uint_t)&dummy) / sizeof(mp_uint_t));
+  gc_collect_end();
 }
 
 STATIC void stderr_print_strn(void *env, const char *str, size_t len)
@@ -38,23 +55,101 @@ const mp_print_t mp_stderr_print = {NULL, stderr_print_strn};
 
 mp_import_stat_t mp_import_stat(const char *path)
 {
-	return 0; // return MP_IMPORT_STAT_NO_EXIST;
+	cc_stat_t stat = CC_STAT_NO_EXIST;
+  char *new_path = NULL;
+
+#ifdef CC_ACTOR_MODULES_DIR
+  int len = strlen(CC_ACTOR_MODULES_DIR);
+  if (cc_platform_mem_alloc((void **)&new_path, len + strlen(path) + 1) != CC_SUCCESS) {
+    cc_log_error("Failed to allocate memory");
+    return MP_IMPORT_STAT_NO_EXIST;
+  }
+  strncpy(new_path, CC_ACTOR_MODULES_DIR, strlen(CC_ACTOR_MODULES_DIR));
+  strncpy(new_path + strlen(CC_ACTOR_MODULES_DIR), path, strlen(path));
+  new_path[strlen(CC_ACTOR_MODULES_DIR) + strlen(path)] = '\0';
+#else
+  new_path = (char *)path;
+#endif
+
+  stat = cc_platform_file_stat(new_path);
+  if (stat == CC_STAT_DIR)
+		return MP_IMPORT_STAT_DIR;
+	else if(stat == CC_STAT_FILE)
+		return MP_IMPORT_STAT_FILE;
+
+	return MP_IMPORT_STAT_NO_EXIST;
 }
 
-bool cc_mpy_port_init(uint32_t heap_size)
+static mp_uint_t mp_reader_cc_readbyte(void *data)
 {
+  mp_reader_cc_t *reader = (mp_reader_cc_t *)data;
+
+	if (reader->cur < reader->end) {
+    return *reader->cur++;
+  }
+
+	return MP_READER_EOF;
+}
+
+static void mp_reader_cc_close(void *data)
+{
+  mp_reader_cc_t *reader = (mp_reader_cc_t *)data;
+
+	cc_platform_mem_free((void *)reader->beg);
+  m_del_obj(mp_reader_cc_t, reader);
+}
+
+void mp_reader_new_file(mp_reader_t *reader, const char *filename)
+{
+	mp_reader_cc_t *rm = NULL;
+	char *buffer = NULL, *path = NULL;
+	size_t size = 0;
+
+#ifdef CC_ACTOR_MODULES_DIR
+  if (cc_platform_mem_alloc((void **)&path, strlen(CC_ACTOR_MODULES_DIR) + strlen(filename) + 1) != CC_SUCCESS) {
+    cc_log_error("Failed to allocate memory");
+    return;
+  }
+  strncpy(path, CC_ACTOR_MODULES_DIR, strlen(CC_ACTOR_MODULES_DIR));
+  strncpy(path + strlen(CC_ACTOR_MODULES_DIR), filename, strlen(filename));
+  path[strlen(CC_ACTOR_MODULES_DIR) + strlen(filename)] = '\0';
+#else
+  path = (char *)filename;
+#endif
+
+	if (cc_platform_file_read(path, &buffer, &size) == CC_SUCCESS) {
+    rm = m_new_obj(mp_reader_cc_t);
+    rm->beg = (const byte *)buffer;
+    rm->cur = (const byte *)buffer;
+    rm->end = (const byte *)buffer + size;
+    reader->data = rm;
+    reader->readbyte = mp_reader_cc_readbyte;
+    reader->close = mp_reader_cc_close;
+  } else
+		cc_log_error("Failed to read '%s'", path);
+
+#ifdef CC_ACTOR_MODULES_DIR
+  cc_platform_mem_free(path);
+#endif
+}
+
+bool cc_mpy_port_init(uint32_t heapsize, uint32_t stacksize)
+{
+  int stack_dummy;
+  stack_top = (char*)&stack_dummy;
+
 	void *heap = NULL;
 
-	if (cc_platform_mem_alloc(&heap, heap_size) != CC_SUCCESS) {
-		cc_log_error("Failed allocate MicroPython heap");
+	if (cc_platform_mem_alloc(&heap, heapsize) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate MicroPython heap");
 		return false;
 	}
+	memset(heap, 0, heapsize);
 
-	memset(heap, 0, heap_size);
+  mp_stack_set_top(stack_top);
+  mp_stack_set_limit(stacksize);
 
-	mp_stack_set_limit(8192);
-	mp_stack_ctrl_init();
-	gc_init(heap, heap + heap_size);
+	gc_init(heap, heap + heapsize);
 	mp_init();
 
 	return true;

@@ -55,7 +55,6 @@ cc_result_t cc_transport_handle_data(cc_node_t *node, cc_transport_client_t *tra
 {
 	char prefix_buffer[4];
 	int read = 0, msg_size = 0, to_read = 0;
-	cc_result_t result = CC_SUCCESS;
 
 	memset(prefix_buffer, 0, 4);
 
@@ -90,12 +89,12 @@ cc_result_t cc_transport_handle_data(cc_node_t *node, cc_transport_client_t *tra
 
 		if (transport_client->rx_buffer.pos == transport_client->rx_buffer.size) {
 			cc_log_debug("Transport: Packet received '%d' bytes", transport_client->rx_buffer.size);
-			result = handler(node, transport_client->rx_buffer.buffer, transport_client->rx_buffer.size);
+			handler(node, transport_client->rx_buffer.buffer, transport_client->rx_buffer.size);
 			cc_platform_mem_free(transport_client->rx_buffer.buffer);
 			transport_client->rx_buffer.pos = 0;
 			transport_client->rx_buffer.size = 0;
 			transport_client->rx_buffer.buffer = NULL;
-			return result;
+			return CC_SUCCESS;
 		} else
 			cc_log_debug("Transport: Fragment received");
 	}
@@ -195,4 +194,16 @@ cc_transport_client_t *cc_transport_create(cc_node_t *node, char *uri)
 	}
 
 	return client;
+}
+
+void cc_transport_disconnect(struct cc_node_t *node, cc_transport_client_t *transport_client)
+{
+	transport_client->disconnect(node, transport_client);
+	transport_client->state = CC_TRANSPORT_DISCONNECTED;
+	transport_client->rx_buffer.pos = 0;
+	transport_client->rx_buffer.size = 0;
+	if (transport_client->rx_buffer.buffer != NULL) {
+		cc_platform_mem_free(transport_client->rx_buffer.buffer);
+		transport_client->rx_buffer.buffer = NULL;
+	}
 }

@@ -26,7 +26,7 @@ cc_result_t cc_api_runtime_init(cc_node_t **node, const char *attributes, const 
 	cc_platform_init();
 
 #ifdef CC_PYTHON_ENABLED
-	if (!cc_mpy_port_init(CC_PYTHON_HEAP_SIZE)) {
+	if (!cc_mpy_port_init(CC_PYTHON_HEAP_SIZE, CC_PYTHON_STACK_SIZE)) {
 		cc_log_error("Failed to initialize micropython lib");
 		return CC_FAIL;
 	}

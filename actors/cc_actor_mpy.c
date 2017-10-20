@@ -258,8 +258,6 @@ static cc_result_t cc_actor_mpy_get_attributes(cc_actor_t *actor, cc_list_t **ma
 
 		const char *attribute_name = mp_obj_str_get_str(managed_list->items[i]);
 
-		cc_log("Getting %s", attribute_name);
-
 		q_attr = qstr_from_strn(attribute_name, strlen(attribute_name));
 
 		mp_load_method(state->actor_class_instance, q_attr, mpy_attr);
@@ -358,6 +356,45 @@ static void cc_actor_mpy_did_migrate(cc_actor_t *actor)
 	mpy_did_migrate[1] = MP_OBJ_NULL;
 }
 
+char *cc_actor_mpy_get_path_from_type(char *type, uint32_t type_len)
+{
+	char *path = NULL;
+	int i = 0, len = 0;
+
+#ifdef CC_ACTOR_MODULES_DIR
+	  len = type_len + strlen(CC_ACTOR_MODULES_DIR);
+	  if (cc_platform_mem_alloc((void **)&path, len + 5) != CC_SUCCESS) {
+	    cc_log_error("Failed to allocate memory");
+	    return MP_IMPORT_STAT_NO_EXIST;
+	  }
+	  strncpy(path, CC_ACTOR_MODULES_DIR, strlen(CC_ACTOR_MODULES_DIR));
+	  strncpy(path + strlen(CC_ACTOR_MODULES_DIR), type, type_len);
+	  path[len] = '\0';
+#else
+	if (cc_platform_mem_alloc((void **)&path, type_len + 5) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return NULL;
+	}
+
+	memset(path, 0, type_len + 5);
+	strncpy(path, type, type_len);
+	len = type_len;
+#endif
+
+	while (i < len) {
+		if (path[i] == '.')
+			path[i] = '/';
+		i++;
+	}
+	path[len] = '.';
+	path[len + 1] = 'm';
+	path[len + 2] = 'p';
+	path[len + 3] = 'y';
+	path[len + 4] = '\0';
+
+	return path;
+}
+
 cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 {
 	char *type = actor->type, *class = NULL, instance_name[30];
@@ -389,6 +426,7 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 
 	if (class == NULL) {
 		cc_log_error("Expected '.' as class delimiter");
+		cc_platform_mem_free(state);
 		return CC_FAIL;
 	}
 
@@ -399,7 +437,13 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 	// you have to pass mp_const_true to the second argument in order to return reference
 	// to the module instance, otherwise it will return a reference to the top-level package
 	actor_module = mp_import_name(actor_type_qstr, mp_const_true, MP_OBJ_NEW_SMALL_INT(0));
-	mp_store_global(actor_type_qstr, actor_module);
+	if (actor_module != MP_OBJ_NULL) {
+		mp_store_global(qstr_from_strn(type, strlen(actor->type)), actor_module);
+	} else {
+		cc_log_error("No actor of type '%s'", actor->type);
+		cc_platform_mem_free(state);
+		return CC_FAIL;
+	}
 
 	// load the class
 	mp_load_method(actor_module, actor_class_qstr, actor_class_ref);

@@ -235,7 +235,7 @@ cc_result_t cc_platform_node_started(struct cc_node_t *node)
 	return CC_SUCCESS;
 }
 
-size_t cc_platform_node_state_size()
+cc_stat_t cc_platform_file_stat(const char *path)
 {
 	spiffs_stat s;
 
@@ -244,33 +244,47 @@ size_t cc_platform_node_state_size()
 	return s.size;
 }
 
-void cc_platform_write_node_state(cc_node_t *node, char *buffer, size_t size)
+cc_result_t cc_platform_file_write(const char *path, char *buffer, size_t size)
 {
+	cc_result_t result = CC_SUCCESS;
 	spiffs_file fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
 	int res = 0;
 
 	res = SPIFFS_write(&fs, fd, buffer, size);
-	if (res != size)
+	if (res != size) {
 		cc_log_error("Failed to write runtime state, status '%d'", res);
+		result = CC_FAIL;
+	}
 
 	SPIFFS_close(&fs, fd);
+	return result;
 }
 
-cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char *buffer, size_t size)
+cc_result_t cc_platform_file_read(const char *path, char **buffer, size_t *size)
 {
 	size_t read = 0;
-	spiffs_file fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_RDONLY, 0);
+	spiffs_file fd = SPIFFS_open(&fs, path, SPIFFS_RDONLY, 0);
+	spiffs_stat s;
 
 	if (fd < 0) {
 		cc_log_error("Error opening file");
 		return CC_FAIL;
 	}
 
-	read = SPIFFS_read(&fs, fd, buffer, size);
+	SPIFFS_stat(&fs, CC_CONFIG_FILE, &s);
+	if (cc_platform_mem_alloc((void **)buffer, s.size) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+
+	read = SPIFFS_read(&fs, fd, *buffer, s.size);
 	SPIFFS_close(&fs, fd);
 
-	if (read != size)
+	if (read != s.size) {
+		cc_platform_mem_free(*buffer);
 		return CC_FAIL;
+	}
+	*size = s.size;
 
 	return CC_SUCCESS;
 }

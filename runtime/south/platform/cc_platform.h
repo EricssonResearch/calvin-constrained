@@ -31,6 +31,14 @@ typedef enum {
   CC_PLATFORM_EVT_WAIT_TIMEOUT
 } cc_platform_evt_wait_status_t;
 
+#ifdef CC_STORAGE_ENABLED
+typedef enum {
+    CC_STAT_NO_EXIST,
+    CC_STAT_DIR,
+    CC_STAT_FILE
+} cc_stat_t;
+#endif
+
 /**
  * cc_platform_init() - Initialize the platform.
  *
@@ -138,27 +146,32 @@ void cc_platform_deepsleep(uint32_t time_in_us);
 
 #ifdef CC_STORAGE_ENABLED
 /**
- * cc_platform_node_state_size() - Get size of node state file.
+ * cc_platform_file_stat() - Get information about the file pointed by path
+ * @path the path
  *
- * Return: size of state file
+ * Return: CC_STAT_NO_EXIST, CC_STAT_FILE or CC_STAT_DIR
  */
- size_t cc_platform_node_state_size();
+cc_stat_t cc_platform_file_stat(const char *path);
 
 /**
- * cc_platform_write_node_state() - Write serialized node state to nonvolatile memory.
- * @buffer the serialized data to write
- * @size the size of the serialized dat
+ * cc_platform_file_read() - Allocate and read file content to buffer
+ * @path the path
+ * @buffer the buffer to allocate and read to
+ * @len bytes read
+ *
+ * Return: CC_SUCCESS if success or CC_FAIL on failure
  */
-void cc_platform_write_node_state(struct cc_node_t *node, char *buffer, size_t size);
+cc_result_t cc_platform_file_read(const char *path, char **buffer, size_t *len);
 
 /**
- * cc_platform_read_node_state() - Read serialized node state from persistent media.
- * @buffer the read serialized data
- * @size the size of the serialized data
+ * cc_platform_file_write() - Write to file pointed by path
+ * @path the path
+ * @buffer buffer to write
+ * @size size of the buffer
  *
- * Return: SUCCESS/FAILURE
+ * Return: CC_SUCCESS if success or CC_FAIL on failure
  */
-cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char *buffer, size_t size);
+cc_result_t cc_platform_file_write(const char *path, char *buffer, size_t size);
 #endif
 
 #ifdef MBEDTLS_NO_PLATFORM_ENTROPY

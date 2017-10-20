@@ -32,7 +32,7 @@ CROSS_COMPILE =
 INC +=  -I.
 INC +=  -I..
 INC +=  -I$(MPTOP)
-INC +=  -I$(MPTOP)/unix
+INC +=  -I$(MPTOP)/ports/unix
 INC +=  -I$(BUILD)
 
 CWARN = -Wall -Werror
@@ -40,7 +40,7 @@ CFLAGS = $(INC) $(CWARN) -ansi -std=gnu99 -DUNIX -nostdlib $(COPT)
 
 ifneq ($(FROZEN_MPY_DIR),)
 CFLAGS += -DMICROPY_QSTR_EXTRA_POOL=mp_qstr_frozen_const_pool
-CFLAGS += -DMICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE=0 # not supported
+#CFLAGS += -DMICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE=0 # not supported
 CFLAGS += -DMPZ_DIG_SIZE=16 # force 16 bits to work on both 32 and 64 bit archs
 endif
 
@@ -80,7 +80,7 @@ LDFLAGS = -nostdlib --cref
 LIBS =
 
 SRC_C += \
-	$(addprefix $(MPTOP)/unix/,\
+	$(addprefix $(MPTOP)/ports/unix/,\
 	gccollect.c \
 	) \
 

@@ -3,6 +3,7 @@
 rm calvin.msgpack
 rm cc_stderr.log
 rm calvin_c
+rm -rf compiled_modules
 
 cp test/calvin.confLOCAL calvin.conf
 PYTHONPATH=calvin-base python calvin-base/calvin/Tools/csruntime.py --name rt1 -n 127.0.0.1 -p 5000 -c 5001 &
@@ -31,7 +32,6 @@ mv cc_stderr.log cc_stderr_mpy.log
 # clean up
 kill -9 $RT1_PID
 kill -9 $RT2_PID
-rm calvin.msgpack
 cd calvin-base
 git checkout calvin/csparser/parsetab.py
 

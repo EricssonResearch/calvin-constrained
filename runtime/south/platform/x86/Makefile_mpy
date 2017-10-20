@@ -12,9 +12,10 @@ CFLAGS += -lrt
 endif
 CFLAGS += -DCC_GETOPT_ENABLED
 CFLAGS += -DCC_TRANSPORT_SOCKET -DCC_TRANSPORT_SOCKET_SSDP_ENABLED
-CFLAGS += -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=60 -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
-CFLAGS += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -DCC_PYTHON_ENABLED -DCC_PYTHON_HEAP_SIZE=20*1024
-EXT_SRC_C = $(addprefix libmpy/, cc_mpy_port.c cc_mpy_calvinsys.c)
+CFLAGS += -DCC_STORAGE_ENABLED -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
+CFLAGS += -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=60 -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
+CFLAGS += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -DCC_PYTHON_ENABLED -DCC_PYTHON_HEAP_SIZE=20*1024 -DCC_PYTHON_STACK_SIZE=8192
+CFLAGS += -DCC_ACTOR_MODULES_DIR=\""compiled_modules/\""
 
 C_SOURCE_FILES += \
 runtime/south/platform/x86/cc_platform_x86.c \
@@ -39,7 +40,8 @@ calvinsys/common/cc_calvinsys_attribute.c \
 runtime/north/coder/cc_coder_msgpuck.c \
 msgpuck/msgpuck.c \
 actors/cc_actor_mpy.c \
-$(EXT_SRC_C)
+libmpy/cc_mpy_port.c \
+libmpy/cc_mpy_calvinsys.c
 
 c_calvin: mpy-cross -lmicropython $(C_SOURCE_FILES)
 	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h

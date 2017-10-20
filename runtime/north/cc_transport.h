@@ -137,4 +137,11 @@ cc_result_t cc_transport_handle_data(struct cc_node_t *node, cc_transport_client
  */
 cc_result_t cc_transport_join(struct cc_node_t *node, cc_transport_client_t *transport_client);
 
+/**
+ * cc_transport_disconnect() - Disconnect transport
+ * @node the node
+ * @transport_client the transport client
+ */
+void cc_transport_disconnect(struct cc_node_t *node, cc_transport_client_t *transport_client);
+
 #endif /* CC_TRANSPORT_H */

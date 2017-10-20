@@ -255,16 +255,8 @@ static int cc_transport_socket_recv(cc_transport_client_t *transport_client, cha
 
 static void cc_transport_socket_disconnect(cc_node_t *node, cc_transport_client_t *transport_client)
 {
-	if (transport_client->state != CC_TRANSPORT_DISCONNECTED) {
+	if (transport_client->state != CC_TRANSPORT_DISCONNECTED)
 		close(((cc_transport_socket_client_t *)transport_client)->fd);
-		transport_client->state = CC_TRANSPORT_DISCONNECTED;
-	}
-
-	if (transport_client->rx_buffer.buffer != NULL)
-		cc_platform_mem_free((void *)transport_client->rx_buffer.buffer);
-	transport_client->rx_buffer.buffer = NULL;
-	transport_client->rx_buffer.pos = 0;
-	transport_client->rx_buffer.size = 0;
 }
 
 static void cc_transport_socket_free(cc_transport_client_t *transport_client)

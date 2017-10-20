@@ -25,6 +25,7 @@
 #include "coder/cc_coder.h"
 #include "cc_proto.h"
 #ifdef CC_PYTHON_ENABLED
+#include <stdio.h>
 #include "../../actors/cc_actor_mpy.h"
 #endif
 
@@ -111,6 +112,88 @@ void cc_actor_set_state(cc_actor_t *actor, cc_actor_state_t state)
 	actor->state = state;
 }
 
+#ifdef CC_PYTHON_ENABLED
+static void cc_actor_load_pending(cc_node_t *node, char *type, uint32_t type_len)
+{
+	cc_list_t *item = NULL;
+	cc_actor_t *actor = NULL;
+	cc_result_t result = CC_SUCCESS;
+
+	item = node->actors;
+	while (item != NULL) {
+		actor = (cc_actor_t*)item->data;
+		if (strncmp(actor->type, type, type_len) == 0) {
+			result = cc_actor_mpy_init_from_type(actor);
+			if (result == CC_SUCCESS) {
+				if (actor->was_shadow)
+					result = actor->init(&actor, actor->managed_attributes);
+				else {
+					result = actor->set_state(&actor, actor->managed_attributes);
+					if (result == CC_SUCCESS && actor->did_migrate != NULL)
+						actor->did_migrate(actor);
+				}
+			}
+
+			if (result == CC_SUCCESS) {
+				cc_log("Actor: Loaded '%s'", actor->id);
+				cc_actor_connect_ports(node, actor);
+			} else {
+				cc_log_error("Failed to load '%s'", actor->id);
+				if (cc_actor_migrate(node, actor, node->proxy_link->peer_id, strlen(node->proxy_link->peer_id)) != CC_SUCCESS)
+					cc_actor_free(node, actor, true);
+			}
+		}
+		item = item->next;
+	}
+}
+
+static cc_result_t cc_actor_get_compiled_actor_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
+{
+	uint32_t status = 0, type_len = 0, module_len = 0;
+	char *value = NULL, *module = NULL, *type = NULL, *path = NULL;
+
+	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'value'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_uint_from_map(value, "status", &status) != CC_SUCCESS) {
+		cc_log_error("Failed decode 'status'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_string_from_map(data, "actor_type", &type, &type_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'actor_type'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_string_from_map(data, "module", &module, &module_len) != CC_SUCCESS) {
+		cc_log_error("Failed get 'module'");
+		return CC_FAIL;
+	}
+
+	if (status == 200) {
+		path = cc_actor_mpy_get_path_from_type(type, type_len);
+		if (path != NULL) {
+			// TODO: Load actor direct from raw code and if storage is enabled
+			// write the actor to storage
+			if (cc_platform_file_write(path, module, module_len) == CC_SUCCESS) {
+				cc_log("Actor: Module '%s' written, loading pending actors", path);
+				cc_actor_load_pending(node, type, type_len);
+			} else
+				cc_log_error("Failed to write module '%s'", path);
+			cc_platform_mem_free(path);
+		} else
+			cc_log_error("Failed to get path");
+	} else {
+		cc_log_error("Failed to get '%.*s', status '%ld'", type_len, type, status);
+		// TODO: Remove pending actors of type
+	}
+
+	return CC_SUCCESS;
+}
+#endif
+
 static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32_t type_len)
 {
 	cc_actor_t *actor = NULL;
@@ -149,11 +232,26 @@ static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32
 	}
 
 #ifdef CC_PYTHON_ENABLED
-	if (cc_actor_mpy_init_from_type(actor) == CC_SUCCESS)
-		return actor;
+	char *path = cc_actor_mpy_get_path_from_type(type, type_len);
+	cc_result_t result = CC_SUCCESS;
+
+	if (path != NULL) {
+		if (cc_platform_file_stat(path) == CC_STAT_FILE)
+			result = cc_actor_mpy_init_from_type(actor);
+		else {
+			result = cc_proto_send_get_actor_module(node, actor->type, cc_actor_get_compiled_actor_reply_handler);
+			if (result == CC_SUCCESS)
+				actor->state = CC_ACTOR_PENDING_IMPL;
+		}
+
+		cc_platform_mem_free(path);
+
+		if (result == CC_SUCCESS)
+			return actor;
+	}
 #endif
 
-	cc_log_error("Actor type '%s' not supported", actor->type);
+	cc_log_error("Failed to load '%s'", actor->type);
 	cc_platform_mem_free((void *)actor->type);
 	cc_platform_mem_free((void *)actor);
 
@@ -331,7 +429,7 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 	char *obj_ports = NULL, *obj_private = NULL, *obj_managed = NULL, *obj_shadow_args = NULL;
 	char *obj_calvinsys = NULL, *id = NULL, *actor_type = NULL, *r = root;
 	uint32_t id_len = 0, actor_type_len = 0;
-	cc_list_t *managed_attributes = NULL, *item = NULL;
+	cc_list_t *item = NULL;
 
 	if (result == CC_SUCCESS && cc_coder_get_value_from_map(r, "state", &obj_state) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'state'");
@@ -407,7 +505,7 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 		result = CC_FAIL;
 	}
 
-	if (result == CC_SUCCESS && cc_actor_get_attributes(actor, obj_managed, &managed_attributes, false) != CC_SUCCESS) {
+	if (result == CC_SUCCESS && cc_actor_get_attributes(actor, obj_managed, &actor->managed_attributes, false) != CC_SUCCESS) {
 		cc_log_error("Failed to get managed attributes");
 		result = CC_FAIL;
 	}
@@ -424,38 +522,28 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 
 	if (result == CC_SUCCESS) {
 		if (cc_coder_has_key(obj_managed, "_shadow_args")) {
-			if (actor->init != NULL) {
-				if (cc_coder_get_value_from_map(obj_managed, "_shadow_args", &obj_shadow_args) != CC_SUCCESS) {
-					cc_log_error("Failed to decode '_shadow_args'");
-					result = CC_FAIL;
-				}
+			actor->was_shadow = true;
 
-				if (result == CC_SUCCESS && cc_actor_get_attributes(actor, obj_shadow_args, &managed_attributes, false) != CC_SUCCESS) {
-					cc_log_error("Failed to get shadow args");
-					result = CC_FAIL;
-				}
-
-				if (result == CC_SUCCESS && actor->init(&actor, managed_attributes) != CC_SUCCESS) {
-					cc_log_error("Actor init failed");
-					result = CC_FAIL;
-				}
-			} else {
-				cc_log_error("Shadow actor without init method");
+			if (cc_coder_get_value_from_map(obj_managed, "_shadow_args", &obj_shadow_args) != CC_SUCCESS) {
+				cc_log_error("Failed to decode '_shadow_args'");
 				result = CC_FAIL;
 			}
+
+			if (result == CC_SUCCESS && cc_actor_get_attributes(actor, obj_shadow_args, &actor->managed_attributes, false) != CC_SUCCESS) {
+				cc_log_error("Failed to get shadow args");
+				result = CC_FAIL;
+			}
+
+			if (result == CC_SUCCESS && actor->state != CC_ACTOR_PENDING_IMPL)
+			 	result = actor->init(&actor, actor->managed_attributes);
 		} else {
-			if (actor->set_state != NULL) {
-				if (actor->set_state(&actor, managed_attributes) != CC_SUCCESS) {
-					cc_log_error("Actor set_state failed");
-					result = CC_FAIL;
-				}
-			} else {
-				cc_log_error("Actor without a set_state");
-				result = CC_FAIL;
-			}
+			actor->was_shadow = false;
 
-			if (result == CC_SUCCESS && actor->did_migrate != NULL)
-				actor->did_migrate(actor);
+			if (actor->state != CC_ACTOR_PENDING_IMPL) {
+				result = actor->set_state(&actor, actor->managed_attributes);
+				if (result == CC_SUCCESS && actor->did_migrate != NULL)
+					actor->did_migrate(actor);
+			}
 		}
 	}
 
@@ -466,9 +554,8 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 		}
 	}
 
-	// managed attributes should now be handled by the actor
-	if (managed_attributes != NULL)
-		cc_actor_free_attribute_list(managed_attributes);
+	if (actor->managed_attributes != NULL && (result != CC_SUCCESS || actor->state != CC_ACTOR_PENDING_IMPL))
+		cc_actor_free_attribute_list(actor->managed_attributes);
 
 	if (actor != NULL && actor->private_attributes != NULL) {
 		// _calvinsys is written when the actor is serialized
@@ -499,8 +586,12 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 	}
 
 	if (result == CC_SUCCESS) {
-		cc_log("Actor: Created '%s', type '%s'", actor->id, actor->type);
-		cc_actor_connect_ports(node, actor);
+		if (actor->state == CC_ACTOR_PENDING_IMPL)
+			cc_log("Actor: Created '%s', type '%s' with pending implementation", actor->id, actor->type);
+		else {
+			cc_log("Actor: Created '%s', type '%s'", actor->id, actor->type);
+			cc_actor_connect_ports(node, actor);
+		}
 	} else {
 		cc_log_error("Failed to create actor");
 		cc_actor_free(node, actor, false);
