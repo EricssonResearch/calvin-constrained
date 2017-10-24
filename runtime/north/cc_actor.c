@@ -428,7 +428,8 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 	char *obj_state = NULL, *obj_actor_state = NULL, *obj_prev_connections = NULL;
 	char *obj_ports = NULL, *obj_private = NULL, *obj_managed = NULL, *obj_shadow_args = NULL;
 	char *obj_calvinsys = NULL, *id = NULL, *actor_type = NULL, *r = root;
-	uint32_t id_len = 0, actor_type_len = 0;
+	char *obj_replication_data = NULL, *replication_master = NULL;
+	uint32_t id_len = 0, actor_type_len = 0, replication_master_len = 0;
 	cc_list_t *item = NULL;
 
 	if (result == CC_SUCCESS && cc_coder_get_value_from_map(r, "state", &obj_state) != CC_SUCCESS) {
@@ -478,6 +479,17 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 	if (result == CC_SUCCESS && cc_coder_get_value_from_map(obj_state, "prev_connections", &obj_prev_connections) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'prev_connections'");
 		result = CC_FAIL;
+	}
+
+	if (result == CC_SUCCESS) {
+		if (cc_coder_get_value_from_map(obj_private, "_replication_data", &obj_replication_data) == CC_SUCCESS) {
+			if (cc_coder_decode_string_from_map(obj_replication_data, "master", &replication_master, &replication_master_len) == CC_SUCCESS) {
+				if (replication_master_len == id_len && strncmp(id, replication_master, id_len) == 0) {
+					cc_log_error("Replication masters not supported");
+					result = CC_FAIL;
+				}
+			}
+		}
 	}
 
 	if (result == CC_SUCCESS && cc_coder_get_value_from_map(obj_private, "inports", &obj_ports) != CC_SUCCESS) {
