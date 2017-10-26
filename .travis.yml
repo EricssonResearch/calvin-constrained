@@ -9,6 +9,5 @@ install:
 script:
   - ../dmce/dmce-launcher -n 2
   - ./test/test.sh
-  - ./test/test_mpy.sh
-  - cat cc_stderr_no_mpy.log cc_stderr_mpy.log > coverage.log
-  - ../dmce/dmce-summary coverage.log
+  - ./test/test.sh mpy
+  - ../dmce/dmce-summary cc_stderr.log

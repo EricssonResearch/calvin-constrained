@@ -1,10 +1,18 @@
 ## x86
 
 ### Build
+Without MicroPython:
 
 ```
 cd calvin-constrained
 make -f runtime/south/platform/x86/Makefile
+```
+
+With MicroPython:
+
+```
+cd calvin-constrained
+make -f runtime/south/platform/x86/Makefile mpy
 ```
 
 ### Run
