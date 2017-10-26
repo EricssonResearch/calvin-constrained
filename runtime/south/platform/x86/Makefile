@@ -74,6 +74,7 @@ CFLAGS += -DCC_ACTOR_TEMPERATURE_TAGGED
 endif
 
 # Python actors
+CFLAGSMPY = -std=gnu99
 CFLAGSMPY += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -DCC_PYTHON_ENABLED -DCC_PYTHON_HEAP_SIZE=20*1024 -DCC_PYTHON_STACK_SIZE=8192
 CFLAGSMPY += -DCC_ACTOR_MODULES_DIR=\""mpys/\""
 MP_LIB_DIR = libmpy
