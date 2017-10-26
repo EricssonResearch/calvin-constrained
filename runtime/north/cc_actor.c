@@ -29,6 +29,8 @@
 #include "../../actors/cc_actor_mpy.h"
 #endif
 
+static void cc_actor_free_attribute_list(cc_list_t *managed_attributes);
+
 static cc_result_t actor_remove_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	return CC_SUCCESS;
@@ -113,25 +115,47 @@ void cc_actor_set_state(cc_actor_t *actor, cc_actor_state_t state)
 }
 
 #ifdef CC_PYTHON_ENABLED
-static void cc_actor_load_pending(cc_node_t *node, char *type, uint32_t type_len)
+static void cc_actor_store_module(char *type, uint32_t type_len, char *data, uint32_t data_len)
+{
+	char *path = NULL;
+
+	path = cc_actor_mpy_get_path_from_type(type, type_len, ".mpy", true);
+	if (path != NULL) {
+		if (cc_platform_file_write(path, data, data_len) == CC_SUCCESS)
+			cc_log("Actor: '%s' written", path);
+		else
+			cc_log_error("Failed to write '%s'", path);
+		cc_platform_mem_free(path);
+	}
+}
+
+static void cc_actor_update_pending(cc_node_t *node, char *type, uint32_t type_len, uint32_t status)
 {
 	cc_list_t *item = NULL;
 	cc_actor_t *actor = NULL;
-	cc_result_t result = CC_SUCCESS;
+	cc_result_t result = CC_FAIL;
 
 	item = node->actors;
 	while (item != NULL) {
 		actor = (cc_actor_t*)item->data;
-		if (strncmp(actor->type, type, type_len) == 0) {
-			result = cc_actor_mpy_init_from_type(actor);
-			if (result == CC_SUCCESS) {
-				if (actor->was_shadow)
-					result = actor->init(&actor, actor->managed_attributes);
-				else {
-					result = actor->set_state(&actor, actor->managed_attributes);
-					if (result == CC_SUCCESS && actor->did_migrate != NULL)
-						actor->did_migrate(actor);
+		if (actor->state == CC_ACTOR_PENDING_IMPL && strncmp(actor->type, type, type_len) == 0) {
+			if (status == 200) {
+				result = cc_actor_mpy_init_from_type(actor);
+				if (result == CC_SUCCESS) {
+					if (actor->was_shadow)
+						result = actor->init(&actor, actor->managed_attributes);
+					else {
+						result = actor->set_state(&actor, actor->managed_attributes);
+						if (result == CC_SUCCESS && actor->did_migrate != NULL)
+							actor->did_migrate(actor);
+					}
 				}
+			} else
+				result = CC_FAIL;
+
+			if (actor->managed_attributes != NULL) {
+				cc_actor_free_attribute_list(actor->managed_attributes);
+				actor->managed_attributes = NULL;
 			}
 
 			if (result == CC_SUCCESS) {
@@ -150,7 +174,7 @@ static void cc_actor_load_pending(cc_node_t *node, char *type, uint32_t type_len
 static cc_result_t cc_actor_get_compiled_actor_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	uint32_t status = 0, type_len = 0, module_len = 0;
-	char *value = NULL, *module = NULL, *type = NULL, *path = NULL;
+	char *value = NULL, *module = NULL, *type = NULL;
 
 	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'value'");
@@ -172,23 +196,10 @@ static cc_result_t cc_actor_get_compiled_actor_reply_handler(cc_node_t *node, ch
 		return CC_FAIL;
 	}
 
-	if (status == 200) {
-		path = cc_actor_mpy_get_path_from_type(type, type_len);
-		if (path != NULL) {
-			// TODO: Load actor direct from raw code and if storage is enabled
-			// write the actor to storage
-			if (cc_platform_file_write(path, module, module_len) == CC_SUCCESS) {
-				cc_log("Actor: Module '%s' written, loading pending actors", path);
-				cc_actor_load_pending(node, type, type_len);
-			} else
-				cc_log_error("Failed to write module '%s'", path);
-			cc_platform_mem_free(path);
-		} else
-			cc_log_error("Failed to get path");
-	} else {
-		cc_log_error("Failed to get '%.*s', status '%ld'", type_len, type, status);
-		// TODO: Remove pending actors of type
-	}
+	if (status == 200)
+		cc_actor_store_module(type, type_len, module, module_len);
+
+	cc_actor_update_pending(node, type, type_len, status);
 
 	return CC_SUCCESS;
 }
@@ -232,21 +243,12 @@ static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32
 	}
 
 #ifdef CC_PYTHON_ENABLED
-	char *path = cc_actor_mpy_get_path_from_type(type, type_len);
-	cc_result_t result = CC_SUCCESS;
-
-	if (path != NULL) {
-		if (cc_platform_file_stat(path) == CC_STAT_FILE)
-			result = cc_actor_mpy_init_from_type(actor);
-		else {
-			result = cc_proto_send_get_actor_module(node, actor->type, cc_actor_get_compiled_actor_reply_handler);
-			if (result == CC_SUCCESS)
-				actor->state = CC_ACTOR_PENDING_IMPL;
-		}
-
-		cc_platform_mem_free(path);
-
-		if (result == CC_SUCCESS)
+	if (cc_actor_mpy_has_module(actor->type)) {
+		if (cc_actor_mpy_init_from_type(actor) == CC_SUCCESS)
+			return actor;
+	} else {
+		actor->state= CC_ACTOR_PENDING_IMPL;
+		if (cc_proto_send_get_actor_module(node, actor->type, cc_actor_get_compiled_actor_reply_handler) == CC_SUCCESS)
 			return actor;
 	}
 #endif

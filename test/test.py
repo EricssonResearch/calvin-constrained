@@ -17,6 +17,8 @@ request_handler = None
 constrained_id = None
 constrained_process = None
 output_file = None
+calvin_command = "exec ./calvin_c"
+#calvin_command = "exec valgrind --leak-check=full ./calvin_c"
 
 def verify_actor_placement(request_handler, rt, actor_id, rt_id):
     retry = 0
@@ -57,7 +59,7 @@ def setup_module(module):
     global output_file
 
     output_file = open("cc_stderr.log", "a")
-    constrained_process = subprocess.Popen("exec ./calvin_c -a '{\"indexed_public\": {\"node_name\": {\"name\": \"constrained\"}}}' -p 'calvinip://127.0.0.1:5000 ssdp'", shell=True, stderr=output_file)
+    constrained_process = subprocess.Popen(calvin_command + " -a '{\"indexed_public\": {\"node_name\": {\"name\": \"constrained\"}}}' -p 'calvinip://127.0.0.1:5000 ssdp'", shell=True, stderr=output_file)
 
     request_handler = RequestHandler()
     rt1 = RT("http://127.0.0.1:5001")
@@ -546,6 +548,7 @@ def testLocalConnections():
 
 def testSleepWithoutTimers():
     global constrained_process
+    global output_file
     assert rt1 is not None
     assert constrained_id is not None
 
@@ -596,7 +599,7 @@ def testSleepWithoutTimers():
 
     assert constrained_process.poll() is not None
 
-    constrained_process = subprocess.Popen("exec ./calvin_c", shell=True, stderr=output_file)
+    constrained_process = subprocess.Popen(calvin_command, shell=True, stderr=output_file)
 
     # verify data
     wait_for_tokens(request_handler,
@@ -614,6 +617,7 @@ def testSleepWithoutTimers():
 
 def testSleepWithTimer():
     global constrained_process
+    global output_file
     assert rt1 is not None
     assert constrained_id is not None
 
@@ -654,7 +658,7 @@ def testSleepWithTimer():
     # wait for constrained enterring sleep
     constrained_process.wait()
 
-    constrained_process = subprocess.Popen("exec ./calvin_c", shell=True, stderr=output_file)
+    constrained_process = subprocess.Popen(calvin_command, shell=True, stderr=output_file)
 
     # verify data
     wait_for_tokens(request_handler,
@@ -667,7 +671,7 @@ def testSleepWithTimer():
     # wait for constrained enterring sleep
     constrained_process.wait()
 
-    constrained_process = subprocess.Popen("exec ./calvin_c", shell=True, stderr=output_file)
+    constrained_process = subprocess.Popen(calvin_command, shell=True, stderr=output_file)
 
     # verify data
     wait_for_tokens(request_handler,

@@ -1,6 +1,7 @@
 PLATFORM := $(shell uname)
 CC = gcc
 PROJECT_NAME = calvin_c
+BUILD = build
 
 CC_ACTOR_IDENTITY ?= 1
 CC_ACTOR_LIGHT ?= 1
@@ -10,14 +11,12 @@ CC_ACTOR_REGISTRY_ATTIBUTE ?= 1
 CC_ACTOR_TEMPERATURE_TAGGED ?= 1
 
 CFLAGS  = -Wall
+CFLAGS += -Os -fdata-sections -ffunction-sections
 #CFLAGS += -g -fsanitize=address -O1 -fno-omit-frame-pointer
-CFLAGS += --std=gnu99
-ifneq ($(PLATFORM), Darwin)
-CFLAGS += -lrt
-endif
 CFLAGS += -DCC_GETOPT_ENABLED
 CFLAGS += -DCC_TRANSPORT_SOCKET -DCC_TRANSPORT_SOCKET_SSDP_ENABLED
 CFLAGS += -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=60 -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
+LDFLAGS += -Wl,--gc-sections
 
 C_SOURCE_FILES = \
 runtime/south/platform/x86/cc_platform_x86.c \
@@ -74,7 +73,7 @@ endif
 
 c_calvin: $(C_SOURCE_FILES)
 	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h
-	$(CC) -o $(PROJECT_NAME) $(C_SOURCE_FILES) $(CFLAGS) $(INC_PATHS)
+	$(CC) $(CFLAGS) $(C_SOURCE_FILES) -o $(PROJECT_NAME) $(LDFLAGS)
 
 clean:
 	rm -f $(PROJECT_NAME)

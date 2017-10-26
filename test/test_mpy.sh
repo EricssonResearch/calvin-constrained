@@ -3,7 +3,7 @@
 rm calvin.msgpack
 rm cc_stderr.log
 rm calvin_c
-rm -rf compiled_modules
+rm -rf mpys
 
 cp test/calvin.confLOCAL calvin.conf
 PYTHONPATH=calvin-base python calvin-base/calvin/Tools/csruntime.py --name rt1 -n 127.0.0.1 -p 5000 -c 5001 &
@@ -19,7 +19,7 @@ PYTHONPATH=calvin-base python test/verify_runtime.py http://127.0.0.1:5003
 exit_code+=$?
 rm calvin.conf
 
-# build and start calvin-constrained
+# build calvin-constrained
 make -f runtime/south/platform/x86/Makefile_mpy
 exit_code+=$?
 

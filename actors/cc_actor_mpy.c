@@ -356,41 +356,40 @@ static void cc_actor_mpy_did_migrate(cc_actor_t *actor)
 	mpy_did_migrate[1] = MP_OBJ_NULL;
 }
 
-char *cc_actor_mpy_get_path_from_type(char *type, uint32_t type_len)
+char *cc_actor_mpy_get_path_from_type(char *type, uint32_t type_len, const char *extension, bool add_modules_dir)
 {
 	char *path = NULL;
 	int i = 0, len = 0;
 
-#ifdef CC_ACTOR_MODULES_DIR
+	if (add_modules_dir) {
 	  len = type_len + strlen(CC_ACTOR_MODULES_DIR);
-	  if (cc_platform_mem_alloc((void **)&path, len + 5) != CC_SUCCESS) {
+	  if (cc_platform_mem_alloc((void **)&path, len + strlen(extension) + 1) != CC_SUCCESS) {
 	    cc_log_error("Failed to allocate memory");
 	    return MP_IMPORT_STAT_NO_EXIST;
 	  }
 	  strncpy(path, CC_ACTOR_MODULES_DIR, strlen(CC_ACTOR_MODULES_DIR));
 	  strncpy(path + strlen(CC_ACTOR_MODULES_DIR), type, type_len);
 	  path[len] = '\0';
-#else
-	if (cc_platform_mem_alloc((void **)&path, type_len + 5) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return NULL;
-	}
+	} else {
+		if (cc_platform_mem_alloc((void **)&path, type_len + strlen(extension) + 1) != CC_SUCCESS) {
+			cc_log_error("Failed to allocate memory");
+			return NULL;
+		}
 
-	memset(path, 0, type_len + 5);
-	strncpy(path, type, type_len);
-	len = type_len;
-#endif
+		strncpy(path, type, type_len);
+		path[type_len] = '\0';
+		len = type_len;
+	}
 
 	while (i < len) {
 		if (path[i] == '.')
 			path[i] = '/';
 		i++;
 	}
-	path[len] = '.';
-	path[len + 1] = 'm';
-	path[len + 2] = 'p';
-	path[len + 3] = 'y';
-	path[len + 4] = '\0';
+
+	for (i = 0; i < strlen(extension); i++)
+		path[len + i] = extension[i];
+	path[len + strlen(extension)] = '\0';
 
 	return path;
 }
@@ -471,6 +470,28 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 	actor->did_migrate = cc_actor_mpy_did_migrate;
 
 	return CC_SUCCESS;
+}
+
+bool cc_actor_mpy_has_module(char *type)
+{
+	char *path = NULL;
+	bool found = false;
+
+	path = cc_actor_mpy_get_path_from_type(type, strlen(type), ".py", false);
+	if (path != NULL) {
+		found = mp_frozen_stat(path) == MP_IMPORT_STAT_FILE;
+		cc_platform_mem_free(path);
+		if (found)
+			return true;
+	}
+
+	path = cc_actor_mpy_get_path_from_type(type, strlen(type), ".mpy", true);
+	if (path != NULL) {
+		found = cc_platform_file_stat(path) == CC_STAT_FILE;
+		cc_platform_mem_free(path);
+	}
+
+	return found;
 }
 
 #endif

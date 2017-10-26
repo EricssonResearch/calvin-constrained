@@ -4,7 +4,9 @@ PROJECT_NAME = calvin_c
 #define the location where the micropython library is located (relative to here)
 MP_LIB_DIR = libmpy
 
-CFLAGS += -g -Wall
+CFLAGS += -Wall
+#CFLAGS += -g
+CFLAGS += -Os -fdata-sections -ffunction-sections
 CFLAGS += -Werror
 CFLAGS += --std=gnu99
 ifneq ($(PLATFORM), Darwin)
@@ -15,7 +17,8 @@ CFLAGS += -DCC_TRANSPORT_SOCKET -DCC_TRANSPORT_SOCKET_SSDP_ENABLED
 CFLAGS += -DCC_STORAGE_ENABLED -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
 CFLAGS += -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=60 -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
 CFLAGS += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy -DCC_PYTHON_ENABLED -DCC_PYTHON_HEAP_SIZE=20*1024 -DCC_PYTHON_STACK_SIZE=8192
-CFLAGS += -DCC_ACTOR_MODULES_DIR=\""compiled_modules/\""
+CFLAGS += -DCC_ACTOR_MODULES_DIR=\""mpys/\""
+LDFLAGS += -Wl,--gc-sections
 
 C_SOURCE_FILES += \
 runtime/south/platform/x86/cc_platform_x86.c \
@@ -45,7 +48,8 @@ libmpy/cc_mpy_calvinsys.c
 
 c_calvin: mpy-cross -lmicropython $(C_SOURCE_FILES)
 	@sed -i -e 's/mp_decode_uint/mpk_decode_uint/' msgpuck/msgpuck.h
-	@$(CC) -o $(PROJECT_NAME) $(C_SOURCE_FILES) $(CFLAGS)
+#	@$(CC) -o $(PROJECT_NAME) $(C_SOURCE_FILES) $(CFLAGS)
+	$(CC) $(C_SOURCE_FILES) -o $(PROJECT_NAME) $(CFLAGS) $(LDFLAGS)
 
 mpy-cross:
 	@echo "Building the MicroPython cross compiler"

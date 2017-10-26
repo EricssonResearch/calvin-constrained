@@ -32,7 +32,6 @@ CROSS_COMPILE =
 INC +=  -I.
 INC +=  -I..
 INC +=  -I$(MPTOP)
-INC +=  -I$(MPTOP)/ports/unix
 INC +=  -I$(BUILD)
 
 CWARN = -Wall -Werror
@@ -78,11 +77,6 @@ CFLAGS += -U _FORTIFY_SOURCE
 endif
 LDFLAGS = -nostdlib --cref
 LIBS =
-
-SRC_C += \
-	$(addprefix $(MPTOP)/ports/unix/,\
-	gccollect.c \
-	) \
 
 OBJ = $(PY_O)
 OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))

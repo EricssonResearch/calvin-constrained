@@ -1,32 +1,12 @@
 # Python actors
 
-The support to execute Python actors is built on  [MicroPython](https://github.com/micropython/micropython) and by including it as a statically linked library when building the runtime.
+The support to execute Python actors is built on [MicroPython](https://github.com/micropython/micropython) and by including it as a statically linked library when building the runtime.
 
-When building, all Python modules located in the libmpy/modules folder are cross-compiled to bytecode and included in the library.
+Python actors are included in firmware by:
 
-To enable support for Python actors, set the following in your Makefile and build the MicroPython cross-compiler and the MicroPython library before the runtime is built:
+- Adding the actor module to the libmpy/modules folder, all modules included libmpy/modules folder are included in the firmware as frozen modules.
+- Adding the actor compiled with mpy-cross compiler to the CC_ACTOR_MODULES_DIR folder on the filesystem.
 
-```
-# location of the micropython library
-MP_LIB_DIR = libmpy
+If an actor isn't found in any of the above the constrained runtime will request the actor module from the calvin-base runtime acting as n proxy and write the actor to the CC_ACTOR_MODULES_DIR folder and load the pending actors.
 
-# enable MicroPython and set its heap
-CFLAGS += -DMICROPYTHON -DMICROPYTHON_HEAP_SIZE=20*1024
-
-# set paths, include the library and depending libraries
-CFLAGS += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy
-
-# add sources of bindings for c to/from python
-SRC_C += actors/cc_actor_mpy.c
-SRC_C += $(addprefix libmpy/, cc_mpy_port.c cc_mpy_gpiohandler.c cc_mpy_environmental.c)
-
-# build the MicroPython cross compiler, should be called before building the runtime
-mpy-cross:
-	$(MAKE) -C micropython/mpy-cross
-
-# build the MicroPython lib, should be called before building the runtime
--lmicropython:
-	$(MAKE) lib -C $(MP_LIB_DIR)
-```
-
-The MicroPython heap is alloacted using the cc_platform_mem_alloc() function and the size should be configured to handle actors included in library. And the default configuration of MicroPython, libmpy/mpconfigport.h, is configured to enable a limited set of Python functionality to minimize the size. Adding new actors can imply enabling functionality.
+Look at the runtime/south/platform/x86/Makefile_mpy for an example on how to include support for Python actors.
