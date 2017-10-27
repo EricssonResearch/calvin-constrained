@@ -17,7 +17,7 @@
 #define SCHEDULER_H
 
 #include <stdbool.h>
-#include "../cc_node.h"
+#include "runtime/north/cc_node.h"
 
 bool fire_actors(cc_node_t *node);
 

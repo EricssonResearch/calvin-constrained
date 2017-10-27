@@ -16,7 +16,7 @@
 #ifndef CC_CALVINSYS_H
 #define CC_CALVINSYS_H
 
-#include "../runtime/north/cc_common.h"
+#include "runtime/north/cc_common.h"
 
 typedef struct cc_calvinsys_obj_t {
 	bool (*can_write)(struct cc_calvinsys_obj_t *obj);

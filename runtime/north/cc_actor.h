@@ -19,8 +19,8 @@
 #include <stdbool.h>
 #include "cc_common.h"
 #include "cc_port.h"
-#include "../south/platform/cc_platform.h"
-#include "../../calvinsys/cc_calvinsys.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "calvinsys/cc_calvinsys.h"
 
 struct cc_node_t;
 

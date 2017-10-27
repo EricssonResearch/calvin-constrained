@@ -16,8 +16,8 @@
 #ifndef CC_TRANSPORT_SPRITZER_H
 #define CC_TRANSPORT_SPRITZER_H
 
-#include "../../../north/cc_transport.h"
-#include "../../../north/cc_node.h"
+#include "runtime/north/cc_transport.h"
+#include "runtime/north/cc_node.h"
 
 typedef struct cc_transport_spritzer_t {
 	int fd;

@@ -16,7 +16,7 @@
 #ifndef CC_ACTOR_ACCELEROMETER_H
 #define CC_ACTOR_ACCELEROMETER_H
 
-#include "../runtime/north/cc_common.h"
+#include "runtime/north/cc_common.h"
 
 cc_result_t cc_actor_accelerometer_register(cc_list_t **actor_types);
 

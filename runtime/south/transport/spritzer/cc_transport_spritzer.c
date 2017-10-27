@@ -18,9 +18,9 @@
 //#include "lwip/sys.h"
 //#include "lwip/netdb.h"
 #include "cc_transport_spritzer.h"
-#include "../../../north/cc_transport.h"
-#include "../../../south/platform/cc_platform.h"
-#include "../../../north/cc_node.h"
+#include "runtime/north/cc_transport.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "runtime/north/cc_node.h"
 
 static cc_result_t cc_transport_spritzer_parse_uri(char *uri, char **ip, size_t *ip_len, int *port)
 {

@@ -19,10 +19,10 @@
 #include "lwip/ip6_addr.h"
 #include "lwip/netif.h"
 #include "cc_transport_lwip.h"
-#include "../../../north/cc_transport.h"
-#include "../../platform/cc_platform.h"
-#include "../../../north/cc_node.h"
-#include "../../../north/cc_common.h"
+#include "runtime/north/cc_transport.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "runtime/north/cc_node.h"
+#include "runtime/north/cc_common.h"
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 

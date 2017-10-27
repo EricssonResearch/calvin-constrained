@@ -16,8 +16,8 @@
 #ifndef CALVINSYS_STEPCOUNTER_H
 #define CALVINSYS_STEPCOUNTER_H
 
-#include "../../../../../runtime/north/cc_common.h"
-#include "../../../../../calvinsys/cc_calvinsys.h"
+#include "runtime/north/cc_common.h"
+#include "calvinsys/cc_calvinsys.h"
 
 cc_result_t calvinsys_stepcounter_create(cc_calvinsys_t **calvinsys, const char *name);
 

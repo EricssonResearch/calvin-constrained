@@ -23,8 +23,8 @@
 #include "cc_actor.h"
 #include "cc_port.h"
 #include "cc_link.h"
-#include "../../calvinsys/cc_calvinsys.h"
-#include "../south/platform/cc_platform.h"
+#include "calvinsys/cc_calvinsys.h"
+#include "runtime/south/platform/cc_platform.h"
 
 #define CC_INDEFINITELY_TIMEOUT 0
 

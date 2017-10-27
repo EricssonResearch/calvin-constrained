@@ -23,12 +23,12 @@
 #include "cc_proto.h"
 #include "cc_transport.h"
 #include "coder/cc_coder.h"
-#include "../south/platform/cc_platform.h"
+#include "runtime/south/platform/cc_platform.h"
 #ifdef CC_TLS_ENABLED
-#include "../../crypto/cc_crypto.h"
+#include "crypto/cc_crypto.h"
 #endif
-#include "../../calvinsys/common/cc_calvinsys_timer.h"
-#include "../../calvinsys/common/cc_calvinsys_attribute.h"
+#include "calvinsys/common/cc_calvinsys_timer.h"
+#include "calvinsys/common/cc_calvinsys_attribute.h"
 
 #ifndef CC_RECONNECT_TIMEOUT
 #define CC_RECONNECT_TIMEOUT	5

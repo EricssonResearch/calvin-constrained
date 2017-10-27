@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #include <android/sensor.h>
-#include "../../../north/cc_transport.h"
+#include "runtime/north/cc_transport.h"
 
 #ifndef PLATFORM_ANDROID_H
 #define PLATFORM_ANDROID_H

@@ -19,8 +19,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/time.h>
-#include "../../north/cc_common.h"
-#include "../../../calvinsys/cc_calvinsys.h"
+#include "runtime/north/cc_common.h"
+#include "calvinsys/cc_calvinsys.h"
 
 struct cc_node_t;
 struct cc_transport_client_t;

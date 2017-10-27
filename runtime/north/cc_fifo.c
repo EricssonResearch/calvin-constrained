@@ -17,7 +17,7 @@
 #include <string.h>
 #include "cc_fifo.h"
 #include "coder/cc_coder.h"
-#include "../south/platform/cc_platform.h"
+#include "runtime/south/platform/cc_platform.h"
 
 cc_fifo_t *cc_fifo_init(char *obj_fifo)
 {

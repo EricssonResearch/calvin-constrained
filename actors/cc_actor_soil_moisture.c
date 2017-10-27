@@ -16,13 +16,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cc_actor_soil_moisture.h"
-#include "../runtime/north/cc_actor_store.h"
-#include "../runtime/north/coder/cc_coder.h"
-#include "../runtime/north/cc_fifo.h"
-#include "../runtime/north/cc_token.h"
-#include "../runtime/north/cc_port.h"
-#include "../runtime/north/cc_common.h"
-#include "../calvinsys/common/cc_calvinsys_timer.h"
+#include "runtime/north/cc_actor_store.h"
+#include "runtime/north/coder/cc_coder.h"
+#include "runtime/north/cc_fifo.h"
+#include "runtime/north/cc_token.h"
+#include "runtime/north/cc_port.h"
+#include "runtime/north/cc_common.h"
+#include "calvinsys/common/cc_calvinsys_timer.h"
 
 typedef struct cc_actor_soil_moisture_state_t {
 	char soilmoisture[CC_UUID_BUFFER_SIZE];

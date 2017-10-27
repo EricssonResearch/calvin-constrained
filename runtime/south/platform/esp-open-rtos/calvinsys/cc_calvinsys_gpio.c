@@ -16,10 +16,10 @@
 #include <espressif/esp_common.h>
 #include "esp8266.h"
 #include "cc_calvinsys_gpio.h"
-#include "../../../../north/cc_node.h"
-#include "../../../../north/coder/cc_coder.h"
-#include "../../cc_platform.h"
-#include "../../../../../calvinsys/cc_calvinsys.h"
+#include "runtime/north/cc_node.h"
+#include "runtime/north/coder/cc_coder.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "calvinsys/cc_calvinsys.h"
 
 static bool cc_calvinsys_gpio_can_write(struct cc_calvinsys_obj_t *obj)
 {

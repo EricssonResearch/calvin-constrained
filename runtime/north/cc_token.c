@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include "cc_token.h"
 #include "cc_common.h"
-#include "../south/platform/cc_platform.h"
+#include "runtime/south/platform/cc_platform.h"
 #include "coder/cc_coder.h"
 
 void cc_token_set_data(cc_token_t *token, char *data, const size_t size)

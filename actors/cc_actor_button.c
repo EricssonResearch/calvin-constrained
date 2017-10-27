@@ -16,12 +16,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cc_actor_button.h"
-#include "../runtime/north/cc_actor.h"
-#include "../runtime/north/cc_actor_store.h"
-#include "../runtime/north/cc_port.h"
-#include "../runtime/north/cc_token.h"
-#include "../runtime/north/coder/cc_coder.h"
-#include "../calvinsys/cc_calvinsys.h"
+#include "runtime/north/cc_actor.h"
+#include "runtime/north/cc_actor_store.h"
+#include "runtime/north/cc_port.h"
+#include "runtime/north/cc_token.h"
+#include "runtime/north/coder/cc_coder.h"
+#include "calvinsys/cc_calvinsys.h"
 
 static cc_result_t cc_actor_button_init(cc_actor_t **actor, cc_list_t *managed_attributes)
 {

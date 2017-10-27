@@ -17,7 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "cc_common.h"
-#include "../south/platform/cc_platform.h"
+#include "runtime/south/platform/cc_platform.h"
 
 // TODO: Generate a proper uuid
 void cc_gen_uuid(char *buffer, const char *prefix)

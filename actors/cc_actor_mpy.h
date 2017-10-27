@@ -18,7 +18,7 @@
 
 #ifdef CC_PYTHON_ENABLED
 
-#include "../runtime/north/cc_actor.h"
+#include "runtime/north/cc_actor.h"
 #include "py/runtime.h"
 #include "py/objstr.h"
 #include "py/lexer.h"

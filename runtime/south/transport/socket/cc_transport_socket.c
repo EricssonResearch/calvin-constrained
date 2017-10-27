@@ -30,9 +30,9 @@
 #endif
 #include <string.h>
 #include "cc_transport_socket.h"
-#include "../../../north/cc_transport.h"
-#include "../../../south/platform/cc_platform.h"
-#include "../../../north/cc_node.h"
+#include "runtime/north/cc_transport.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "runtime/north/cc_node.h"
 
 #define CC_LOCATION_SIZE	200
 #define CC_URL_SIZE	100

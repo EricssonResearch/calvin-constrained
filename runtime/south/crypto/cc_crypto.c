@@ -17,8 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cc_crypto.h"
-#include "../platform/cc_platform.h"
-#include "../../north/cc_transport.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "runtime/north/cc_transport.h"
 
 #define CRYPTO_PARSE_BUF_SIZE 200
 #define CRYPTO_CERT_FILE "cert.pem"

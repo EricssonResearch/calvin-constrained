@@ -22,15 +22,15 @@
 #include <platform/android/calvinsys/cc_pressure.h>
 #include <platform/android/calvinsys/cc_pickupgesture.h>
 #include <platform/android/calvinsys/cc_stepcounter.h>
-#include "../../../../cc_api.h"
-#include "cc_platform_android.h"
-#include "../../transport/socket/cc_transport_socket.h"
-#include "../../../north/cc_proto.h"
-#include "../../../north/coder/cc_coder.h"
-#include "../../../../msgpuck/msgpuck.h"
-#include "../../transport/fcm/cc_transport_fcm.h"
-#include "../cc_platform.h"
-#include "../../../../actors/cc_actor_accelerometer.h"
+#include "cc_api.h"
+#include "runtime/south/platform/android/cc_platform_android.h"
+#include "runtime/south/transport/socket/cc_transport_socket.h"
+#include "runtime/north/cc_proto.h"
+#include "runtime/north/coder/cc_coder.h"
+#include "msgpuck/msgpuck.h"
+#include "runtime/south/transport/fcm/cc_transport_fcm.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "actors/cc_actor_accelerometer.h"
 
 static cc_result_t command_transport_connected(cc_node_t *node, char *payload_data, size_t size);
 static cc_result_t command_rt_stop(cc_node_t *node, char *payload_data, size_t size);

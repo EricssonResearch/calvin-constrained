@@ -11,14 +11,14 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <time.h>
-#include "../../../../cc_api.h"
-#include "../cc_platform.h"
-#include "../../transport/socket/cc_transport_socket.h"
-#include "../../../north/cc_transport.h"
-#include "../../../north/cc_node.h"
-#include "../../../north/cc_common.h"
-#include "../../../north/coder/cc_coder.h"
-#include "../../../../calvinsys/cc_calvinsys.h"
+#include "cc_api.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "runtime/south/transport/socket/cc_transport_socket.h"
+#include "runtime/north/cc_transport.h"
+#include "runtime/north/cc_node.h"
+#include "runtime/north/cc_common.h"
+#include "runtime/north/coder/cc_coder.h"
+#include "runtime/calvinsys/cc_calvinsys.h"
 #include "calvinsys/cc_calvinsys_temp_sensor.h"
 
 static LTECommand_System response_sys;

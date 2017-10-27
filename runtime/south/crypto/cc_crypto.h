@@ -21,7 +21,7 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #endif
-#include "../../north/cc_common.h"
+#include "runtime/north/cc_common.h"
 
 struct cc_node_t;
 struct cc_transport_client_t;

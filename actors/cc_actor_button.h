@@ -16,7 +16,7 @@
 #ifndef CC_ACTOR_BUTTON_H
 #define CC_ACTOR_BUTTON_H
 
-#include "../runtime/north/cc_common.h"
+#include "runtime/north/cc_common.h"
 
 cc_result_t cc_actor_button_register(cc_list_t **actor_types);
 

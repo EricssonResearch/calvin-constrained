@@ -18,8 +18,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "../../runtime/north/cc_common.h"
-#include "../cc_calvinsys.h"
+#include "runtime/north/cc_common.h"
+#include "calvinsys/cc_calvinsys.h"
 
 typedef struct cc_calvinsys_timer_t {
 	uint32_t timeout;

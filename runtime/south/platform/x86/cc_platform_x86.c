@@ -22,13 +22,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "../cc_platform.h"
-#include "../../transport/socket/cc_transport_socket.h"
-#include "../../../north/cc_transport.h"
-#include "../../../north/cc_node.h"
-#include "../../../north/cc_common.h"
-#include "../../../../calvinsys/cc_calvinsys.h"
-#include "../../../north/coder/cc_coder.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "runtime/south/transport/socket/cc_transport_socket.h"
+#include "runtime/north/cc_transport.h"
+#include "runtime/north/cc_node.h"
+#include "runtime/north/cc_common.h"
+#include "calvinsys/cc_calvinsys.h"
+#include "runtime/north/coder/cc_coder.h"
 
 typedef enum {
 	CC_GPIO_IN,

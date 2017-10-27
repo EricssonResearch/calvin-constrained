@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 #include "cc_calvinsys_ds18b20.h"
-#include "../../../../north/cc_node.h"
-#include "../../../../north/coder/cc_coder.h"
-#include "../../cc_platform.h"
-#include "../../../../../calvinsys/cc_calvinsys.h"
+#include "runtime/north/cc_node.h"
+#include "runtime/north/coder/cc_coder.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "calvinsys/cc_calvinsys.h"
 #include "ds18b20/ds18b20.h"
 
 #define CC_DS18B20_SENSOR_GPIO 5

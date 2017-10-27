@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 #include <string.h>
-#include "../runtime/north/cc_common.h"
-#include "../runtime/north/coder/cc_coder.h"
-#include "../runtime/north/cc_actor.h"
-#include "../runtime/south/platform/cc_platform.h"
+#include "runtime/north/cc_common.h"
+#include "runtime/north/coder/cc_coder.h"
+#include "runtime/north/cc_actor.h"
+#include "runtime/south/platform/cc_platform.h"
 #include "cc_calvinsys.h"
 
 cc_result_t cc_calvinsys_create_capability(cc_calvinsys_t *calvinsys, const char *name, cc_result_t (*open)(cc_calvinsys_obj_t*, char*, size_t), cc_result_t (*deserialize)(cc_calvinsys_obj_t*, char*), void *state)

@@ -18,11 +18,11 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/socket.h>
-#include "../../platform/cc_platform.h"
-#include "../../../north/cc_node.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "runtime/north/cc_node.h"
 #include "cc_transport_fcm.h"
-#include "../../../../cc_api.h"
-#include "../../platform/android/cc_platform_android.h"
+#include "cc_api.h"
+#include "runtime/south/platform/android/cc_platform_android.h"
 
 /*
  * This transport file is only used for pure calvin data messages,

@@ -16,9 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cc_actor_light.h"
-#include "../runtime/north/cc_actor_store.h"
-#include "../runtime/north/coder/cc_coder.h"
-#include "../runtime/north/cc_fifo.h"
+#include "runtime/north/cc_actor_store.h"
+#include "runtime/north/coder/cc_coder.h"
+#include "runtime/north/cc_fifo.h"
 
 static cc_result_t cc_actor_light_init(cc_actor_t **actor, cc_list_t *managed_attributes)
 {

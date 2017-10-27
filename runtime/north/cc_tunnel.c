@@ -20,7 +20,7 @@
 #include "cc_node.h"
 #include "cc_link.h"
 #include "coder/cc_coder.h"
-#include "../south/platform/cc_platform.h"
+#include "runtime/south/platform/cc_platform.h"
 
 cc_tunnel_t *cc_tunnel_get_from_id(cc_node_t *node, const char *tunnel_id, uint32_t tunnel_id_len)
 {

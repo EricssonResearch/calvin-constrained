@@ -18,12 +18,12 @@
 #include <unistd.h>
 #include <android/sensor.h>
 #include "cc_stepcounter.h"
-#include "../../../../../runtime/south/platform/cc_platform.h"
-#include "../../../../../runtime/south/platform/android/cc_platform_android.h"
-#include "../../../../../msgpuck/msgpuck.h"
-#include "../../../../../calvinsys/cc_calvinsys.h"
-#include "../../../../../runtime/north/cc_node.h"
-#include "../../../../../runtime/north/coder/cc_coder.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "runtime/south/platform/android/cc_platform_android.h"
+#include "msgpuck/msgpuck.h"
+#include "calvinsys/cc_calvinsys.h"
+#include "runtime/north/cc_node.h"
+#include "runtime/north/coder/cc_coder.h"
 
 static bool stepcounter_can_read(struct cc_calvinsys_obj_t *obj)
 {

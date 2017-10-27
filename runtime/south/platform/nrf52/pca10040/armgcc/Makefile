@@ -120,14 +120,7 @@ ASM_SOURCE_FILES  = $(abspath $(NORDIC_SDK_PATH)/components/toolchain/gcc/gcc_st
 LIBS  = $(abspath $(NORDIC_SDK_PATH)/components/iot/ble_6lowpan/lib/ble_6lowpan.a)
 
 #includes common to all targets
-INC_PATHS += -I$(abspath runtime/north)
-INC_PATHS += -I$(abspath runtime/north/coder)
-INC_PATHS += -I$(abspath runtime/south/platform/nrf52/config)
-INC_PATHS += -I$(abspath runtime/south/platform/nrf52/pca10040/armgcc)
-INC_PATHS += -I$(abspath msgpuck)
-INC_PATHS += -I$(abspath actors)
-INC_PATHS += -I$(abspath calvinsys)
-INC_PATHS += -I$(abspath calvinsys/common)
+INC_PATHS += -I.
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/iot/errno)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/softdevice/s1xx_iot/headers)
 INC_PATHS += -I$(abspath $(NORDIC_SDK_PATH)/components/drivers_nrf/common)

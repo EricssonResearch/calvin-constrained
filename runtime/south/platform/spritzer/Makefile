@@ -9,17 +9,7 @@ APPNAME = calvin
 PRIORITY = $(CONFIG_CALVIN_PRIORITY)
 STACKSIZE = $(CONFIG_CALVIN_STACKSIZE)
 
-CFLAGS += -I$(CC_PATH)/
-CFLAGS += -I$(CC_PATH)/msgpuck
-CFLAGS += -I$(CC_PATH)/calvinsys
-CFLAGS += -I$(CC_PATH)/calvinsys/common
-CFLAGS += -I$(CC_PATH)/runtime/north
-CFLAGS += -I$(CC_PATH)/runtime/north/coder
-CFLAGS += -I$(CC_PATH)/runtime/north/scheduler/np_scheduler
-CFLAGS += -I$(CC_PATH)/runtime/south/transport/spritzer
-CFLAGS += -I$(CC_PATH)/runtime/south/transport/spritzer/calvinsys
-CFLAGS += -I$(CC_PATH)/actors
-
+CFLAGS += -I$(CC_PATH)
 CFLAGS += -DCC_TRANSPORT_SPRITZER
 #CFLAGS += -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=60 -DCC_RUNTIME_STATE_BUFFER_SIZE=10000
 CFLAGS += -DCC_ACTOR_IDENTITY -DCC_ACTOR_TEMPERATURE
@@ -47,7 +37,6 @@ $(CC_PATH)/calvinsys/common/cc_calvinsys_timer.c \
 $(CC_PATH)/calvinsys/common/cc_calvinsys_attribute.c \
 $(CC_PATH)/actors/cc_actor_identity.c \
 $(CC_PATH)/actors/cc_actor_temperature.c \
-$(CC_PATH)/actors/cc_actor_registry_attribute.c \
 $(CC_PATH)/runtime/south/platform/spritzer/calvinsys/cc_calvinsys_temp_sensor.c
 CSRCS =
 

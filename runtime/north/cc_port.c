@@ -20,7 +20,7 @@
 #include "cc_node.h"
 #include "cc_proto.h"
 #include "coder/cc_coder.h"
-#include "../south/platform/cc_platform.h"
+#include "runtime/south/platform/cc_platform.h"
 
 static cc_port_t *cc_port_get_from_peer_port_id(struct cc_node_t *node, const char *peer_port_id, uint32_t peer_port_id_len);
 static void cc_port_set_state(cc_port_t *port, cc_port_state_t state);

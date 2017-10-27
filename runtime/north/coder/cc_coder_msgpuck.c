@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "../../../msgpuck/msgpuck.h"
+#include "msgpuck/msgpuck.h"
 #include "cc_coder.h"
-#include "../cc_common.h"
-#include "../../south/platform/cc_platform.h"
+#include "runtime/north/cc_common.h"
+#include "runtime/south/platform/cc_platform.h"
 
 cc_coder_type_t cc_coder_type_of(char *buffer)
 {

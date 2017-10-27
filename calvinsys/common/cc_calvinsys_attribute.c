@@ -15,9 +15,9 @@
  */
 #include <string.h>
 #include "cc_calvinsys_attribute.h"
-#include "../../runtime/north/cc_common.h"
-#include "../../runtime/north/cc_node.h"
-#include "../../runtime/north/coder/cc_coder.h"
+#include "runtime/north/cc_common.h"
+#include "runtime/north/cc_node.h"
+#include "runtime/north/coder/cc_coder.h"
 
 typedef struct cc_calvinsys_attribute_t {
 	char *attribute_name;

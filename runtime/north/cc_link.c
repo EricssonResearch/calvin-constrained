@@ -19,7 +19,7 @@
 #include "cc_node.h"
 #include "cc_proto.h"
 #include "coder/cc_coder.h"
-#include "../south/platform/cc_platform.h"
+#include "runtime/south/platform/cc_platform.h"
 
 cc_link_t *cc_link_create(cc_node_t *node, const char *peer_id, uint32_t peer_id_len, bool is_proxy)
 {

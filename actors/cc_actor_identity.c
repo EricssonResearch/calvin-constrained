@@ -16,11 +16,11 @@
 //#include <stdlib.h>
 #include <string.h>
 #include "cc_actor_identity.h"
-#include "../runtime/north/cc_actor_store.h"
-#include "../runtime/north/cc_port.h"
-#include "../runtime/north/cc_token.h"
-#include "../runtime/north/coder/cc_coder.h"
-#include "../runtime/south/platform/cc_platform.h"
+#include "runtime/north/cc_actor_store.h"
+#include "runtime/north/cc_port.h"
+#include "runtime/north/cc_token.h"
+#include "runtime/north/coder/cc_coder.h"
+#include "runtime/south/platform/cc_platform.h"
 
 typedef struct cc_actor_identity_state_t {
 	bool dump;

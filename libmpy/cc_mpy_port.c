@@ -15,13 +15,13 @@
  */
 #include <string.h>
 #include <stdlib.h>
-#include "../actors/cc_actor_mpy.h"
-#include "../runtime/north/cc_port.h"
-#include "../runtime/north/cc_fifo.h"
-#include "../runtime/south/platform/cc_platform.h"
-#include "../micropython/py/stackctrl.h"
-#include "../micropython/py/gc.h"
-#include "../micropython/py/runtime.h"
+#include "actors/cc_actor_mpy.h"
+#include "runtime/north/cc_port.h"
+#include "runtime/north/cc_fifo.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "micropython/py/stackctrl.h"
+#include "micropython/py/gc.h"
+#include "micropython/py/runtime.h"
 
 static char *stack_top;
 

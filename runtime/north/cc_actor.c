@@ -21,12 +21,12 @@
 #include "cc_actor_store.h"
 #include "cc_fifo.h"
 #include "cc_token.h"
-#include "../south/platform/cc_platform.h"
+#include "runtime/south/platform/cc_platform.h"
 #include "coder/cc_coder.h"
 #include "cc_proto.h"
 #ifdef CC_PYTHON_ENABLED
 #include <stdio.h>
-#include "../../actors/cc_actor_mpy.h"
+#include "actors/cc_actor_mpy.h"
 #endif
 
 static void cc_actor_free_attribute_list(cc_list_t *managed_attributes);

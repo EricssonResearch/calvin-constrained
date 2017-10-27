@@ -18,8 +18,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "../../runtime/north/cc_common.h"
-#include "../cc_calvinsys.h"
+#include "runtime/north/cc_common.h"
+#include "calvinsys/cc_calvinsys.h"
 
 cc_result_t cc_calvinsys_attribute_create(cc_calvinsys_t **calvinsys);
 

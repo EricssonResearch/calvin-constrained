@@ -16,8 +16,8 @@
 #ifndef CC_CALVINSYS_YL69_H
 #define CC_CALVINSYS_YL69_H
 
-#include "../../../../../runtime/north/cc_common.h"
-#include "../../../../../calvinsys/cc_calvinsys.h"
+#include "runtime/north/cc_common.h"
+#include "calvinsys/cc_calvinsys.h"
 
 cc_result_t cc_calvinsys_yl69_create(cc_calvinsys_t **calvinsys, const char *name);
 

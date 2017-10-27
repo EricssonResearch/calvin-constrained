@@ -20,9 +20,9 @@
 #include <unistd.h>
 #include "cc_jni_api.h"
 #include "cc_platform_android.h"
-#include "../cc_platform.h"
-#include "../../../../cc_api.h"
-#include "../../../north/cc_transport.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "cc_api.h"
+#include "runtime/north/cc_transport.h"
 
 jlong get_jlong_from_pointer(void *ptr)
 {

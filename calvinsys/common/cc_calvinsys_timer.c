@@ -15,10 +15,9 @@
  */
 #include <string.h>
 #include "cc_calvinsys_timer.h"
-#include "../../runtime/north/cc_common.h"
-#include "../../runtime/north/cc_node.h"
-#include "../../runtime/north/coder/cc_coder.h"
-#include "../cc_calvinsys.h"
+#include "runtime/north/cc_common.h"
+#include "runtime/north/cc_node.h"
+#include "runtime/north/coder/cc_coder.h"
 
 static bool cc_calvinsys_timer_can_read(struct cc_calvinsys_obj_t *obj)
 {

@@ -16,7 +16,7 @@
 #ifndef CC_ACTOR_STEPCOUNTER_H
 #define CC_ACTOR_STEPCOUNTER_H
 
-#include "../runtime/north/cc_common.h"
+#include "runtime/north/cc_common.h"
 
 typedef struct cc_actor_stepcounter_state_t {
 	char *obj_ref;

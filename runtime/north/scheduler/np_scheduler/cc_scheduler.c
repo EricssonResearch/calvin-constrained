@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "../cc_scheduler.h"
-#include "../../../../runtime/north/cc_actor.h"
-#include "../../../../runtime/north/cc_common.h"
+#include "runtime/north/scheduler/cc_scheduler.h"
+#include "runtime/north/cc_actor.h"
+#include "runtime/north/cc_common.h"
 
 /** Default non-preemptive logging actor scheduler
  */

@@ -15,7 +15,7 @@
  */
 #include <string.h>
 #include "cc_actor_pressure.h"
-#include "../runtime/north/cc_actor_store.h"
+#include "runtime/north/cc_actor_store.h"
 
 static cc_result_t cc_actor_pressure_init(cc_actor_t **actor, cc_list_t *attributes)
 {

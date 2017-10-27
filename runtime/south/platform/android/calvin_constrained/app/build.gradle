@@ -13,9 +13,6 @@ android {
         externalNativeBuild {
             cmake {
                 arguments "-DANDROID_TOOLCHAIN=gcc"
-                cFlags "-I" + projectDir + "/../../../../libmpy/build"
-                cFlags "-I" + projectDir + "/../../../../micropython"
-                cFlags "-I" + projectDir + "/../../../../libmpy"
                 cFlags "-I"+ projectDir + "/../../../../"
                 cFlags "-Werror"
                 cFlags "-g"

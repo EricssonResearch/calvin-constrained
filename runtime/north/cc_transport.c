@@ -19,18 +19,18 @@
 #include "cc_node.h"
 #include "coder/cc_coder.h"
 #include "cc_proto.h"
-#include "../south/platform/cc_platform.h"
+#include "runtime/south/platform/cc_platform.h"
 #ifdef CC_TRANSPORT_SOCKET
-#include "../south/transport/socket/cc_transport_socket.h"
+#include "runtime/south/transport/socket/cc_transport_socket.h"
 #endif
 #ifdef CC_TRANSPORT_LWIP
-#include "../south/transport/lwip/cc_transport_lwip.h"
+#include "runtime/south/transport/lwip/cc_transport_lwip.h"
 #endif
 #ifdef CC_TRANSPORT_FCM
-#include "../south/transport/fcm/cc_transport_fcm.h"
+#include "runtime/south/transport/fcm/cc_transport_fcm.h"
 #endif
 #ifdef CC_TRANSPORT_SPRITZER
-#include "../south/transport/spritzer/cc_transport_spritzer.h"
+#include "runtime/south/transport/spritzer/cc_transport_spritzer.h"
 #endif
 
 unsigned int cc_transport_get_message_len(const char *buffer)

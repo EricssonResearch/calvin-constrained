@@ -15,43 +15,43 @@
  */
 #include "cc_actor_store.h"
 #ifdef CC_ACTOR_BUTTON
-#include "../../actors/cc_actor_button.h"
+#include "actors/cc_actor_button.h"
 #endif
 #ifdef CC_ACTOR_IDENTITY
-#include "../../actors/cc_actor_identity.h"
+#include "actors/cc_actor_identity.h"
 #endif
 #ifdef CC_ACTOR_LIGHT
-#include "../../actors/cc_actor_light.h"
+#include "actors/cc_actor_light.h"
 #endif
 #ifdef CC_ACTOR_SOIL_MOISTURE
-#include "../../actors/cc_actor_soil_moisture.h"
+#include "actors/cc_actor_soil_moisture.h"
 #endif
 #ifdef CC_ACTOR_TEMPERATURE
-#include "../../actors/cc_actor_temperature.h"
+#include "actors/cc_actor_temperature.h"
 #endif
 #ifdef CC_ACTOR_CAMERA
-#include "../../actors/cc_actor_camera.h"
+#include "actors/cc_actor_camera.h"
 #endif
 #ifdef CC_ACTOR_ACCELEROMETER
-#include "../../actors/cc_actor_accelerometer.h"
+#include "actors/cc_actor_accelerometer.h"
 #endif
 #ifdef CC_ACTOR_GYROSCOPE
-#include "../../actors/cc_actor_gyroscope.h"
+#include "actors/cc_actor_gyroscope.h"
 #endif
 #ifdef CC_ACTOR_PRESSURE
-#include "../../actors/cc_actor_pressure.h"
+#include "actors/cc_actor_pressure.h"
 #endif
 #ifdef CC_ACTOR_PICKUPGESTURE
-#include "../../actors/cc_actor_pickupgesture.h"
+#include "actors/cc_actor_pickupgesture.h"
 #endif
 #ifdef CC_ACTOR_STEPCOUNTER
-#include "../../actors/cc_actor_stepcounter.h"
+#include "actors/cc_actor_stepcounter.h"
 #endif
 #ifdef CC_ACTOR_REGISTRY_ATTIBUTE
-#include "../../actors/cc_actor_registry_attribute.h"
+#include "actors/cc_actor_registry_attribute.h"
 #endif
 #ifdef CC_ACTOR_TEMPERATURE_TAGGED
-#include "../../actors/cc_actor_temperature_tagged.h"
+#include "actors/cc_actor_temperature_tagged.h"
 #endif
 
 cc_result_t cc_actor_store_init(cc_list_t **actor_types)

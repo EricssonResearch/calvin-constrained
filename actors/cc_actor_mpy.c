@@ -20,11 +20,11 @@
 #include <stddef.h>
 #include <string.h>
 #include "cc_actor_mpy.h"
-#include "../runtime/south/platform/cc_platform.h"
-#include "../runtime/north/coder/cc_coder.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "runtime/north/coder/cc_coder.h"
 #include "py/frozenmod.h"
 #include "py/gc.h"
-#include "../libmpy/cc_mpy_port.h"
+#include "libmpy/cc_mpy_port.h"
 
 cc_result_t cc_actor_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 {

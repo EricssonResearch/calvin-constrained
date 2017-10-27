@@ -16,7 +16,7 @@
 #ifndef CC_ACTOR_SOIL_HUMIDITY_H
 #define CC_ACTOR_SOIL_HUMIDITY_H
 
-#include "../runtime/north/cc_actor.h"
+#include "runtime/north/cc_actor.h"
 
 cc_result_t cc_actor_soil_moisture_register(cc_list_t **actor_types);
 

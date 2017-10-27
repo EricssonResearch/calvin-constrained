@@ -17,8 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cc_actor_camera.h"
-#include "../runtime/north/cc_actor.h"
-#include "../runtime/north/cc_actor_store.h"
+#include "runtime/north/cc_actor.h"
+#include "runtime/north/cc_actor_store.h"
 
 static cc_result_t cc_actor_camera_init(cc_actor_t **actor, cc_list_t *attributes)
 {

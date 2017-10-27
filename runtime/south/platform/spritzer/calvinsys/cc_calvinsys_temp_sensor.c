@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 #include "cc_calvinsys_temp_sensor.h"
-#include "../../../../north/cc_node.h"
-#include "../../../../north/coder/cc_coder.h"
-#include "../../cc_platform.h"
-#include "../../../../../calvinsys/cc_calvinsys.h"
+#include "runtime/north/cc_node.h"
+#include "runtime/north/coder/cc_coder.h"
+#include "runtime/south/platform/cc_platform.h"
+#include "calvinsys/cc_calvinsys.h"
 
 static bool cc_calvinsys_temp_sensor_can_read(struct cc_calvinsys_obj_t *obj)
 {

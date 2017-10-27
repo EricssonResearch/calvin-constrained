@@ -16,7 +16,7 @@
 #ifndef CC_TRANSPORT_SOCKET_H
 #define CC_TRANSPORT_SOCKET_H
 
-#include "../../../north/cc_transport.h"
+#include "runtime/north/cc_transport.h"
 
 struct cc_node_t;
 

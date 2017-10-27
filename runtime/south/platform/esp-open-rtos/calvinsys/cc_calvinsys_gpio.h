@@ -16,8 +16,8 @@
 #ifndef CC_CALVINSYS_GPIO_H
 #define CC_CALVINSYS_GPIO_H
 
-#include "../../../../../runtime/north/cc_common.h"
-#include "../../../../../calvinsys/cc_calvinsys.h"
+#include "runtime/north/cc_common.h"
+#include "calvinsys/cc_calvinsys.h"
 
 typedef enum {
 	CC_GPIO_IN,

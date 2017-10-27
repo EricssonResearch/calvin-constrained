@@ -17,7 +17,7 @@
 #define CC_CODER_H
 
 #include <stdbool.h>
-#include "../cc_common.h"
+#include "runtime/north/cc_common.h"
 
 typedef enum {
   CC_CODER_UNDEF,

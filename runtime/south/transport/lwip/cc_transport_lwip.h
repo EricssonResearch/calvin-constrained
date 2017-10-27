@@ -17,7 +17,7 @@
 #define CC_TRANSPORT_LWIP_H
 
 #include "lwip/tcp.h"
-#include "../../../north/cc_transport.h"
+#include "runtime/north/cc_transport.h"
 
 struct cc_node_t;
 

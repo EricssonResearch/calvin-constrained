@@ -21,7 +21,7 @@
 #include <stdbool.h>
 #include "cc_common.h"
 #ifdef CC_TLS_ENABLED
-#include "../../crypto/cc_crypto.h"
+#include "crypto/cc_crypto.h"
 #endif
 
 #define CC_TRANSPORT_LEN_PREFIX_SIZE	4

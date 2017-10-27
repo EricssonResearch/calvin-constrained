@@ -16,7 +16,7 @@
 #ifndef CC_ACTOR_IDENTITY_H
 #define CC_ACTOR_IDENTITY_H
 
-#include "../runtime/north/cc_actor.h"
+#include "runtime/north/cc_actor.h"
 
 cc_result_t cc_actor_identity_register(cc_list_t **actor_types);
 
