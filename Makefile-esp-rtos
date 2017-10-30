@@ -1,10 +1,32 @@
 PROGRAM ?= calvin-esp
 SDK_PATH ?= /home/qfrksvn/Source/esp-open-rtos
-EXTRA_CFLAGS ?= -I. -DCC_TRANSPORT_SOCKET -DCC_TRANSPORT_SOCKET_SSDP_ENABLED -DCC_LWIP_SOCKET -DCC_STORAGE_ENABLED -DCC_TRACK_TIME -DCC_DEEPSLEEP_ENABLED -DCC_INACTIVITY_TIMEOUT=1 -DCC_SLEEP_TIME=30 -DCC_RUNTIME_STATE_BUFFER_SIZE=4000 -DCC_ACTOR_IDENTITY -DCC_ACTOR_SOIL_MOISTURE -DCC_ACTOR_TEMPERATURE -DCC_ACTOR_LIGHT -DCC_ACTOR_REGISTRY_ATTIBUTE -DCC_ADD_STRNSTR
-PROGRAM_SRC_DIR ?= . runtime/south/platform/esp-open-rtos runtime/south/platform/esp-open-rtos/calvinsys runtime/south/transport/socket runtime/north runtime/north/coder runtime/north/scheduler/np_scheduler actors msgpuck calvinsys calvinsys/common
+
+CC_TRANSPORT_SOCKET=1
+CC_LWIP_SOCKET=1
+CC_DEEPSLEEP_ENABLED=1
+CC_ACTOR_IDENTITY=1
+CC_ACTOR_SOIL_MOISTURE=1
+CC_ACTOR_TEMPERATURE=1
+CC_ACTOR_LIGHT=1
+CC_ACTOR_REGISTRY_ATTIBUTE=1
+
+PROGRAM_SRC_FILES = \
+	main.c \
+	runtime/south/platform/esp-open-rtos/cc_platform_esp8266.c \
+	runtime/south/platform/esp-open-rtos/calvinsys/cc_calvinsys_ds18b20.c \
+	runtime/south/platform/esp-open-rtos/calvinsys/cc_calvinsys_gpio.c \
+	runtime/south/platform/esp-open-rtos/calvinsys/cc_calvinsys_yl69.c
+
+include calvin.mk
+
+PROGRAM_SRC_FILES += $(CC_SRC_C)
+EXTRA_CFLAGS += $(CC_CFLAGS)
+
+# extras/dhcpserver
+EXTRA_COMPONENTS += extras/dhcpserver
 
 # spiffs
-EXTRA_COMPONENTS+=extras/spiffs extras/dhcpserver
+EXTRA_COMPONENTS += extras/spiffs
 # 1MB config
 #FLASH_SIZE = 8
 #SPIFFS_BASE_ADDR = 0x6b000
@@ -14,6 +36,6 @@ SPIFFS_BASE_ADDR ?= 0x200000
 SPIFFS_SIZE ?= 0x010000
 
 # ds18b20
-EXTRA_COMPONENTS+=extras/onewire extras/ds18b20
+EXTRA_COMPONENTS += extras/onewire extras/ds18b20
 
 include $(SDK_PATH)/common.mk

@@ -1,5 +1,5 @@
 # runtime sources
-SRC_C += \
+CC_SRC_C += \
 	cc_api.c \
 	runtime/north/cc_common.c \
 	runtime/north/scheduler/np_scheduler/cc_scheduler.c \
@@ -21,7 +21,7 @@ SRC_C += \
 
 # features
 ifeq ($(CC_GETOPT_ENABLED),1)
-CFLAGS += -DCC_GETOPT_ENABLED
+CC_CFLAGS += -DCC_GETOPT_ENABLED
 endif
 
 ifeq ($(CC_DEEPSLEEP_ENABLED),1)
@@ -30,71 +30,74 @@ $(info CC_SLEEP_TIME not set, using default 60 seconds)
 CC_SLEEP_TIME=60
 endif
 # storage is required with sleep
-CFLAGS += -DCC_STORAGE_ENABLED
-CFLAGS += -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=$(CC_SLEEP_TIME)
+CC_CFLAGS += -DCC_STORAGE_ENABLED
+CC_CFLAGS += -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=$(CC_SLEEP_TIME)
 endif
 
 ifeq ($(CC_STORAGE_ENABLED),1)
-CFLAGS += -DCC_STORAGE_ENABLED
+CC_CFLAGS += -DCC_STORAGE_ENABLED
 endif
 
 # transports
 
 ifeq ($(CC_TRANSPORT_SOCKET),1)
-SRC_C += runtime/south/transport/socket/cc_transport_socket.c
-CFLAGS += -DCC_TRANSPORT_SOCKET
+CC_SRC_C += runtime/south/transport/socket/cc_transport_socket.c
+CC_CFLAGS += -DCC_TRANSPORT_SOCKET
+ifeq ($(CC_LWIP_SOCKET),1)
+CC_CFLAGS += -DCC_LWIP_SOCKET
+endif
 endif
 
 ifeq ($(CC_TRANSPORT_LWIP),1)
-SRC_C += runtime/south/transport/lwip/cc_transport_lwip.c
-CFLAGS += -DCC_TRANSPORT_LWIP
+CC_SRC_C += runtime/south/transport/lwip/cc_transport_lwip.c
+CC_CFLAGS += -DCC_TRANSPORT_LWIP
 endif
 
 ifeq ($(CC_TRANSPORT_FCM),1)
-SRC_C += runtime/south/transport/fcm/cc_transport_fcm.c
-CFLAGS += -DCC_TRANSPORT_FCM
+CC_SRC_C += runtime/south/transport/fcm/cc_transport_fcm.c
+CC_CFLAGS += -DCC_TRANSPORT_FCM
 endif
 
 ifeq ($(CC_TRANSPORT_SPRITZER),1)
-SRC_C += runtime/south/transport/spritzer/cc_transport_spritzer.c
-CFLAGS += -DCC_TRANSPORT_SPRITZER
+CC_SRC_C += runtime/south/transport/spritzer/cc_transport_spritzer.c
+CC_CFLAGS += -DCC_TRANSPORT_SPRITZER
 endif
 
 # C actors
 
 ifeq ($(CC_ACTOR_IDENTITY),1)
-SRC_C += actors/cc_actor_identity.c
-CFLAGS += -DCC_ACTOR_IDENTITY
+CC_SRC_C += actors/cc_actor_identity.c
+CC_CFLAGS += -DCC_ACTOR_IDENTITY
 endif
 
 ifeq ($(CC_ACTOR_LIGHT),1)
-SRC_C += actors/cc_actor_light.c
-CFLAGS += -DCC_ACTOR_LIGHT
+CC_SRC_C += actors/cc_actor_light.c
+CC_CFLAGS += -DCC_ACTOR_LIGHT
 endif
 
 ifeq ($(CC_ACTOR_BUTTON),1)
-SRC_C += actors/cc_actor_button.c
-CFLAGS += -DCC_ACTOR_BUTTON
+CC_SRC_C += actors/cc_actor_button.c
+CC_CFLAGS += -DCC_ACTOR_BUTTON
 endif
 
 ifeq ($(CC_ACTOR_TEMPERATURE),1)
-SRC_C += actors/cc_actor_temperature.c
-CFLAGS += -DCC_ACTOR_TEMPERATURE
+CC_SRC_C += actors/cc_actor_temperature.c
+CC_CFLAGS += -DCC_ACTOR_TEMPERATURE
 endif
 
 ifeq ($(CC_ACTOR_REGISTRY_ATTIBUTE),1)
-SRC_C += actors/cc_actor_registry_attribute.c
-CFLAGS += -DCC_ACTOR_REGISTRY_ATTIBUTE
+CC_SRC_C += actors/cc_actor_registry_attribute.c
+CC_CFLAGS += -DCC_ACTOR_REGISTRY_ATTIBUTE
 endif
 
 ifeq ($(CC_ACTOR_TEMPERATURE_TAGGED),1)
-SRC_C += actors/cc_actor_temperature_tagged.c
-CFLAGS += -DCC_ACTOR_TEMPERATURE_TAGGED
+CC_SRC_C += actors/cc_actor_temperature_tagged.c
+CC_CFLAGS += -DCC_ACTOR_TEMPERATURE_TAGGED
 endif
 
 # MicroPython config
-CFLAGSMPY = -std=gnu99
-CFLAGSMPY += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy
-CFLAGSMPY += -DCC_PYTHON_ENABLED -DCC_PYTHON_HEAP_SIZE=20*1024 -DCC_PYTHON_STACK_SIZE=8192
-CFLAGSMPY += -DCC_ACTOR_MODULES_DIR=\""mpys/\""
-SRC_C_MPY += actors/cc_actor_mpy.c libmpy/cc_mpy_port.c libmpy/cc_mpy_calvinsys.c
+CC_CFLAGSMPY = -std=gnu99
+CC_CFLAGSMPY += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy
+CC_CFLAGSMPY += -DCC_PYTHON_ENABLED -DCC_PYTHON_HEAP_SIZE=20*1024 -DCC_PYTHON_STACK_SIZE=8192
+CC_CFLAGSMPY += -DCC_ACTOR_MODULES_DIR=\""mpys/\""
+CC_SRC_C_MPY += actors/cc_actor_mpy.c libmpy/cc_mpy_port.c libmpy/cc_mpy_calvinsys.c

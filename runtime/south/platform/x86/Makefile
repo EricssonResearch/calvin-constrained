@@ -3,25 +3,25 @@ CC = gcc
 PROJECT_NAME = calvin_c
 BUILD = build
 
-CFLAGS  = -Wall
-CFLAGS += -Os -fdata-sections -ffunction-sections
-#CFLAGS += -g -fsanitize=address -O1 -fno-omit-frame-pointer
-CFLAGS += -I.
-LDFLAGS += -Wl,--gc-sections
+CC_CFLAGS  = -Wall
+CC_CFLAGS += -Os -fdata-sections -ffunction-sections
+#CC_CFLAGS += -g -fsanitize=address -O1 -fno-omit-frame-pointer
+CC_CFLAGS += -I.
+CC_LDFLAGS += -Wl,--gc-sections
 
 # platform sources
-SRC_C = main.c runtime/south/platform/x86/cc_platform_x86.c
+CC_SRC_C = main.c runtime/south/platform/x86/cc_platform_x86.c
 
 # calvin sources and parameters
 include calvin.mk
 
-calvin: rename_symbol $(SRC_C)
+calvin: rename_symbol $(CC_SRC_C)
 	@echo "Building calvin without MicroPython"
-	$(CC) $(CFLAGS) $(SRC_C) -o $(PROJECT_NAME) $(LDFLAGS)
+	$(CC) $(CC_CFLAGS) $(CC_SRC_C) -o $(PROJECT_NAME) $(CC_LDFLAGS)
 
-mpy: rename_symbol mpy-cross -lmicropython $(SRC_C) $(SRC_C_MPY)
+mpy: rename_symbol mpy-cross -lmicropython $(CC_SRC_C) $(CC_SRC_C_MPY)
 	@echo "Building calvin with MicroPython"
-	$(CC) $(SRC_C) $(SRC_C_MPY) -o $(PROJECT_NAME) $(CFLAGS) $(CFLAGSMPY) $(LDFLAGS)
+	$(CC) $(CC_SRC_C) $(CC_SRC_C_MPY) -o $(PROJECT_NAME) $(CC_CFLAGS) $(CC_CFLAGSMPY) $(CC_LDFLAGS)
 
 rename_symbol:
 	@echo "Renaming mp_decode_uint in msgpuck/msgpuck.h"
