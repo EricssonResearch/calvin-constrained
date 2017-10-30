@@ -24,9 +24,9 @@ rm calvin.conf
 
 # build calvin-constrained
 if [[ $1 == "mpy" ]]; then
-    make -f runtime/south/platform/x86/Makefile mpy
+    make -f runtime/south/platform/x86/Makefile mpy CC_GETOPT_ENABLED=1 CC_DEEPSLEEP_ENABLED=1 CC_TRANSPORT_SOCKET=1
 else
-    make -f runtime/south/platform/x86/Makefile CC_ACTOR_IDENTITY=1 CC_ACTOR_LIGHT=1 CC_ACTOR_BUTTON=1 CC_ACTOR_TEMPERATURE=1 CC_ACTOR_REGISTRY_ATTIBUTE=1
+    make -f runtime/south/platform/x86/Makefile CC_GETOPT_ENABLED=1 CC_DEEPSLEEP_ENABLED=1 CC_TRANSPORT_SOCKET=1 CC_ACTOR_IDENTITY=1 CC_ACTOR_LIGHT=1 CC_ACTOR_BUTTON=1 CC_ACTOR_TEMPERATURE=1 CC_ACTOR_REGISTRY_ATTIBUTE=1
 fi
 
 exit_code+=$?

@@ -1,18 +1,25 @@
 ## x86
 
 ### Build
-Without MicroPython:
+Example with
+
+- Parsing of command line options
+- Sleep
+- Socket transport
+- The C std.Identity actor
+
+enabled:
 
 ```
 cd calvin-constrained
-make -f runtime/south/platform/x86/Makefile
+make -f runtime/south/platform/x86/Makefile CC_GETOPT_ENABLED=1 CC_DEEPSLEEP_ENABLED=1 CC_TRANSPORT_SOCKET=1 CC_ACTOR_IDENTITY=1
 ```
 
-With MicroPython:
+Same as above but with support for Python actors and without the std.Identity C actor:
 
 ```
 cd calvin-constrained
-make -f runtime/south/platform/x86/Makefile mpy
+make -f runtime/south/platform/x86/Makefile mpy CC_GETOPT_ENABLED=1 CC_DEEPSLEEP_ENABLED=1 CC_TRANSPORT_SOCKET=1
 ```
 
 ### Run

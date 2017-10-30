@@ -172,12 +172,16 @@ void cc_node_set_state(cc_node_t *node)
 	char *buffer = NULL, *tmp = NULL;
 	int nbr_of_items = 0;
 	cc_list_t *item = NULL;
+	size_t buffer_size = 500;
 
-	if (cc_platform_mem_alloc((void **)&buffer, CC_RUNTIME_STATE_BUFFER_SIZE) != CC_SUCCESS) {
+	// TODO: Find better way to calculate buffer size
+	buffer_size += cc_list_count(node->actors) * 2000;
+
+	if (cc_platform_mem_alloc((void **)&buffer, buffer_size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return;
 	}
-	memset(buffer, 0, CC_RUNTIME_STATE_BUFFER_SIZE);
+	memset(buffer, 0, buffer_size);
 	tmp = buffer;
 
 	tmp = cc_coder_encode_map(tmp, 7);
