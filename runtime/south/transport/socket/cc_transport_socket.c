@@ -13,20 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifdef CC_LWIP_SOCKET
-#include "lwip/sockets.h"
-#include "lwip/sys.h"
-#include "lwip/netdb.h"
-#else
 #include <stdio.h>
 #include <stdlib.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <strings.h>
 #include <unistd.h>
 #ifdef CC_PLATFORM_ANDROID
 #include <sys/socket.h>
-#endif
 #endif
 #include <string.h>
 #include "cc_transport_socket.h"

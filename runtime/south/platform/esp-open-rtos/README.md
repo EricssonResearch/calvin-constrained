@@ -10,12 +10,12 @@ SDK_PATH = <ESP-OPEN-RTOS-PATH>
 
 ### Building and flash
 
-Build and flash the binary with:
+Build and flash the binary with SDK, example with sleep enabled, the io.Light c actor included and support for Python actors enabled:
 
 ```
 $ cd calvin-constrained
-$ sudo chmod a+rw /dev/ttyUSB0
-$ make flash -f Makefile-esp-rtos ESPPORT=/dev/ttyUSB0
+$ make esp8266 -C libmpy
+$ make flash -f Makefile-esp-rtos ESPPORT=/dev/ttyUSB0 sleep=1 io.Light=1 PYTHON=1
 ```
 
 ### Configure WiFi

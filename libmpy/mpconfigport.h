@@ -37,7 +37,6 @@
 #define MICROPY_PY_SYS_MODULES        (0)
 #define MICROPY_PY_SYS_EXIT           (0)
 #define MICROPY_PY_UERRNO_ERRORCODE   (0)
-
 #define MICROPY_PY_ARRAY              (0)
 #define MICROPY_PY_BUILTINS_ENUMERATE (0)
 #define MICROPY_PY_COLLECTIONS        (0)

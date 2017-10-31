@@ -695,7 +695,7 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 		}
 	}
 	if (node->actor_types != NULL) {
-		cc_log("Actor types:");
+		cc_log("C actor types:");
 		item = node->actor_types;
 		while (item != NULL) {
 			cc_log(" %s", item->id);

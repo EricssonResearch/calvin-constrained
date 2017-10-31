@@ -13,17 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "espressif/esp_common.h"
-#include "esp/uart.h"
+#include <unistd.h>
+#include <lwip/sockets.h>
+#include <lwip/inet.h>
+#include <lwip/netdb.h>
+#include <lwip/sys.h>
 #include <string.h>
 #include <stdarg.h>
-#include "FreeRTOS.h"
-#include "task.h"
-#include "dhcpserver.h"
-#include "lwip/sockets.h"
-#include "spiffs.h"
-#include "esp_spiffs.h"
-#include "espressif/esp_system.h"
+#include <espressif/esp_common.h>
+#include <esp/uart.h>
+#include <FreeRTOS.h>
+#include <task.h>
+#include <dhcpserver.h>
+#include <spiffs.h>
+#include <esp_spiffs.h>
+#include <espressif/esp_system.h>
 #include "cc_api.h"
 #include "runtime/north/cc_common.h"
 #include "runtime/north/cc_node.h"
@@ -33,27 +37,27 @@
 #include "calvinsys/cc_calvinsys_yl69.h"
 #include "calvinsys/cc_calvinsys_gpio.h"
 
-#define CC_ESP_WIFI_CONFIG_FILE	"cc_wifi.msgpack"
+#define CC_ESP_WIFI_CONFIG_FILE	"wifi.msgpack"
 #define CC_ESP_BUFFER_SIZE			1024
 #define CC_ESP_AP_SSID					"calvin-esp"
 #define CC_ESP_AP_PSK						"calvin-esp"
 #define CC_ESP_WIFI_STATUS_PIN	2
 #define CC_ESP_RESET_PIN				4
 
+#ifdef CC_PYTHON_ENABLED
+// TODO: Workaround to solve link error with missing function
+#include <math.h>
+double __ieee754_remainder(double x, double y) {
+	return x - y * floor(x/y);
+}
+#endif
 
 static cc_result_t cc_platform_esp_write_calvin_config(char *attributes, uint32_t attributes_len, char *proxy_uris, uint32_t proxy_uris_len)
 {
-	spiffs_file fd;
-	int res = 0, start = 0, read_pos = 0, nbr_uris = 1;
+	int start = 0, read_pos = 0, nbr_uris = 1;
 	char buffer[CC_ESP_BUFFER_SIZE], id[CC_UUID_BUFFER_SIZE];
 	char *tmp = buffer;
-	size_t size = 0;
-
-	fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
-	if (fd < 0) {
-		cc_log_error("Failed to open config file");
-		return CC_FAIL;
-	}
+	cc_result_t result = CC_FAIL;
 
 	cc_gen_uuid(id, NULL);
 
@@ -78,31 +82,18 @@ static cc_result_t cc_platform_esp_write_calvin_config(char *attributes, uint32_
 		}
 	}
 
-	size = tmp - buffer;
-	res = SPIFFS_write(&fs, fd, buffer, size);
-	SPIFFS_close(&fs, fd);
+	result = cc_platform_file_write(CC_CONFIG_FILE, buffer, tmp - buffer);
+	if (result == CC_SUCCESS)
+		cc_log("Config written to '%s'", CC_CONFIG_FILE);
 
-	if (res != size) {
-		cc_log_error("Failed to write runtime config, status '%d'", res);
-		return CC_FAIL;
-	}
-
-	return CC_SUCCESS;
+	return result;
 }
 
 static cc_result_t cc_platform_esp_write_wifi_config(char *ssid, uint32_t ssid_len, char *password, uint32_t password_len)
 {
-	spiffs_file fd;
-	int res = 0;
 	char buffer[CC_ESP_BUFFER_SIZE];
 	char *tmp = buffer;
-	size_t size = 0;
-
-	fd = SPIFFS_open(&fs, CC_ESP_WIFI_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
-	if (fd < 0) {
-		cc_log_error("Failed to open config file");
-		return CC_FAIL;
-	}
+	cc_result_t result = CC_FAIL;
 
 	tmp = cc_coder_encode_map(tmp, 2);
 	{
@@ -110,16 +101,11 @@ static cc_result_t cc_platform_esp_write_wifi_config(char *ssid, uint32_t ssid_l
 		tmp = cc_coder_encode_kv_str(tmp, "password", password, password_len);
 	}
 
-	size = tmp - buffer;
-	res = SPIFFS_write(&fs, fd, buffer, size);
-	SPIFFS_close(&fs, fd);
+	result = cc_platform_file_write(CC_ESP_WIFI_CONFIG_FILE, buffer, tmp - buffer);
+	if (result == CC_SUCCESS)
+		cc_log("WiFi config written to '%s'", CC_ESP_WIFI_CONFIG_FILE);
 
-	if (res != size) {
-		cc_log_error("Failed to write runtime wifi config, status '%d'", res);
-		return CC_FAIL;
-	}
-
-	return CC_SUCCESS;
+	return result;
 }
 
 void cc_platform_print(const char *fmt, ...)
@@ -237,41 +223,51 @@ cc_result_t cc_platform_node_started(struct cc_node_t *node)
 
 cc_stat_t cc_platform_file_stat(const char *path)
 {
+	int res = 0;
 	spiffs_stat s;
 
-	SPIFFS_stat(&fs, CC_CONFIG_FILE, &s);
+	res = SPIFFS_stat(&fs, path, &s);
+	if (res < 0)
+		return CC_STAT_NO_EXIST;
 
-	return s.size;
+	return CC_STAT_FILE;
 }
 
 cc_result_t cc_platform_file_write(const char *path, char *buffer, size_t size)
 {
 	cc_result_t result = CC_SUCCESS;
-	spiffs_file fd = SPIFFS_open(&fs, CC_CONFIG_FILE, SPIFFS_CREAT | SPIFFS_RDWR, 0);
+	spiffs_file fd;
 	int res = 0;
+
+	fd = SPIFFS_open(&fs, path, SPIFFS_CREAT | SPIFFS_RDWR, 0);
+	if (fd < 0) {
+		cc_log_error("Failed to open '%s'", path);
+		return CC_FAIL;
+	}
 
 	res = SPIFFS_write(&fs, fd, buffer, size);
 	if (res != size) {
-		cc_log_error("Failed to write runtime state, status '%d'", res);
+		cc_log_error("Failed to write '%s' status '%d'", path, res);
 		result = CC_FAIL;
 	}
-
 	SPIFFS_close(&fs, fd);
+
 	return result;
 }
 
 cc_result_t cc_platform_file_read(const char *path, char **buffer, size_t *size)
 {
 	size_t read = 0;
-	spiffs_file fd = SPIFFS_open(&fs, path, SPIFFS_RDONLY, 0);
+	spiffs_file fd;
 	spiffs_stat s;
 
+ 	fd = SPIFFS_open(&fs, path, SPIFFS_RDONLY, 0);
 	if (fd < 0) {
-		cc_log_error("Error opening file");
+		cc_log_error("Failed to open '%s'", path);
 		return CC_FAIL;
 	}
 
-	SPIFFS_stat(&fs, CC_CONFIG_FILE, &s);
+	SPIFFS_stat(&fs, path, &s);
 	if (cc_platform_mem_alloc((void **)buffer, s.size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
@@ -281,6 +277,7 @@ cc_result_t cc_platform_file_read(const char *path, char **buffer, size_t *size)
 	SPIFFS_close(&fs, fd);
 
 	if (read != s.size) {
+		cc_log_error("Failed to read '%s'", path);
 		cc_platform_mem_free(*buffer);
 		return CC_FAIL;
 	}
@@ -376,7 +373,7 @@ static cc_result_t cc_platform_esp_get_config(void)
 			continue;
 		}
 
-		cc_log("Config data received, %d bytes", len);
+		cc_log("Data received, %d bytes", len);
 
 		if (cc_get_json_dict_value(buffer, len, (char *)"attributes", 10, &attributes, &len_attributes) != CC_SUCCESS) {
 			cc_log_error("No attribute 'attributes'");
@@ -429,35 +426,30 @@ static cc_result_t cc_platform_esp_get_config(void)
 
 static cc_result_t cc_platform_esp_start_station_mode(void)
 {
-	spiffs_file fd;
-	char buffer[CC_ESP_BUFFER_SIZE], *ssid = NULL, *password = NULL;
+	char *buffer = NULL, *ssid = NULL, *password = NULL;
 	uint32_t ssid_len = 0, password_len = 0;
 	struct sdk_station_config config;
 	uint8_t status = 0, retries = 0;
+	size_t size;
 
-	fd = SPIFFS_open(&fs, CC_ESP_WIFI_CONFIG_FILE, SPIFFS_RDONLY, 0);
-	if (fd < 0) {
-		cc_log_error("Failed to open config file");
+	if (cc_platform_file_read(CC_ESP_WIFI_CONFIG_FILE, &buffer, &size) != CC_SUCCESS) {
+		cc_log_error("Failed to read %s", CC_ESP_WIFI_CONFIG_FILE);
 		return CC_FAIL;
 	}
-
-	if (SPIFFS_read(&fs, fd, buffer, CC_ESP_BUFFER_SIZE) < 0) {
-		cc_log_error("Failed to read file");
-		SPIFFS_close(&fs, fd);
-		return CC_FAIL;
-	}
-
-	SPIFFS_close(&fs, fd);
 
 	if (cc_coder_decode_string_from_map(buffer, "ssid", &ssid, &ssid_len) != CC_SUCCESS) {
 		cc_log_error("Failed to read 'ssid' from config");
+		cc_platform_mem_free(buffer);
 		return CC_FAIL;
 	}
 
 	if (cc_coder_decode_string_from_map(buffer, "password", &password, &password_len) != CC_SUCCESS) {
 		cc_log_error("Failed to read 'password' from config");
+		cc_platform_mem_free(buffer);
 		return CC_FAIL;
 	}
+
+	cc_platform_mem_free(buffer);
 
 	strncpy((char *)config.ssid, ssid, ssid_len);
 	config.ssid[ssid_len] = '\0';

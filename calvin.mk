@@ -20,27 +20,25 @@ CC_SRC_C += \
 	calvinsys/common/cc_calvinsys_attribute.c
 
 # features
-ifeq ($(CC_GETOPT_ENABLED),1)
+ifeq ($(GETOPT),1)
 CC_CFLAGS += -DCC_GETOPT_ENABLED
 endif
 
-ifeq ($(CC_DEEPSLEEP_ENABLED),1)
-ifndef CC_SLEEP_TIME
+ifeq ($(SLEEP),1)
+ifndef SLEEP_TIME
 $(info CC_SLEEP_TIME not set, using default 60 seconds)
-CC_SLEEP_TIME=60
+SLEEP_TIME=60
 endif
-# storage is required with sleep
-CC_CFLAGS += -DCC_STORAGE_ENABLED
-CC_CFLAGS += -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=$(CC_SLEEP_TIME)
+CC_CFLAGS += -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=$(SLEEP_TIME)
 endif
 
-ifeq ($(CC_STORAGE_ENABLED),1)
+ifeq ($(STORAGE),1)
 CC_CFLAGS += -DCC_STORAGE_ENABLED
 endif
 
 # transports
 
-ifeq ($(CC_TRANSPORT_SOCKET),1)
+ifeq ($(SOCKET),1)
 CC_SRC_C += runtime/south/transport/socket/cc_transport_socket.c
 CC_CFLAGS += -DCC_TRANSPORT_SOCKET
 ifeq ($(CC_LWIP_SOCKET),1)
@@ -48,51 +46,51 @@ CC_CFLAGS += -DCC_LWIP_SOCKET
 endif
 endif
 
-ifeq ($(CC_TRANSPORT_LWIP),1)
+ifeq ($(LWIP),1)
 CC_SRC_C += runtime/south/transport/lwip/cc_transport_lwip.c
 CC_CFLAGS += -DCC_TRANSPORT_LWIP
 endif
 
-ifeq ($(CC_TRANSPORT_FCM),1)
+ifeq ($(FCM),1)
 CC_SRC_C += runtime/south/transport/fcm/cc_transport_fcm.c
 CC_CFLAGS += -DCC_TRANSPORT_FCM
 endif
 
-ifeq ($(CC_TRANSPORT_SPRITZER),1)
+ifeq ($(SPRITZER),1)
 CC_SRC_C += runtime/south/transport/spritzer/cc_transport_spritzer.c
 CC_CFLAGS += -DCC_TRANSPORT_SPRITZER
 endif
 
 # C actors
 
-ifeq ($(CC_ACTOR_IDENTITY),1)
+ifeq ($(std.Identity),1)
 CC_SRC_C += actors/cc_actor_identity.c
 CC_CFLAGS += -DCC_ACTOR_IDENTITY
 endif
 
-ifeq ($(CC_ACTOR_LIGHT),1)
+ifeq ($(io.Light),1)
 CC_SRC_C += actors/cc_actor_light.c
 CC_CFLAGS += -DCC_ACTOR_LIGHT
 endif
 
-ifeq ($(CC_ACTOR_BUTTON),1)
+ifeq ($(io.Button),1)
 CC_SRC_C += actors/cc_actor_button.c
 CC_CFLAGS += -DCC_ACTOR_BUTTON
 endif
 
-ifeq ($(CC_ACTOR_TEMPERATURE),1)
+ifeq ($(sensor.Temperature),1)
 CC_SRC_C += actors/cc_actor_temperature.c
 CC_CFLAGS += -DCC_ACTOR_TEMPERATURE
 endif
 
-ifeq ($(CC_ACTOR_REGISTRY_ATTIBUTE),1)
-CC_SRC_C += actors/cc_actor_registry_attribute.c
-CC_CFLAGS += -DCC_ACTOR_REGISTRY_ATTIBUTE
-endif
-
-ifeq ($(CC_ACTOR_TEMPERATURE_TAGGED),1)
+ifeq ($(sensor.TemperatureTagged),1)
 CC_SRC_C += actors/cc_actor_temperature_tagged.c
 CC_CFLAGS += -DCC_ACTOR_TEMPERATURE_TAGGED
+endif
+
+ifeq ($(context.RegistryAttribute),1)
+CC_SRC_C += actors/cc_actor_registry_attribute.c
+CC_CFLAGS += -DCC_ACTOR_REGISTRY_ATTIBUTE
 endif
 
 # MicroPython config

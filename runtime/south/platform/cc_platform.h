@@ -33,9 +33,9 @@ typedef enum {
 
 #ifdef CC_STORAGE_ENABLED
 typedef enum {
-    CC_STAT_NO_EXIST,
-    CC_STAT_DIR,
-    CC_STAT_FILE
+  CC_STAT_NO_EXIST,
+  CC_STAT_DIR,
+  CC_STAT_FILE
 } cc_stat_t;
 #endif
 

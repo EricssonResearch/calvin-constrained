@@ -1,0 +1,77 @@
+
+# Copyright (c) 2016 Ericsson AB
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# include of pre-make files
+include $(MPTOP)/py/mkenv.mk
+
+MPY_CROSS = $(MPTOP)/mpy-cross/mpy-cross
+MPY_TOOL = $(MPTOP)/tools/mpy-tool.py
+PYTHON = PYTHONPATH=$(abspath $(MPTOP)/py) python
+
+# qstr definitions (must come before including py.mk)
+QSTR_DEFS = qstrdefsport.h
+
+# include py core make definitions
+include $(MPTOP)/py/py.mk
+all: lib
+
+CROSS_COMPILE = xtensa-lx106-elf-
+
+INC +=  -I.
+INC +=  -I..
+INC +=  -I$(MPTOP)
+INC +=  -I$(BUILD)
+
+CFLAGS_XTENSA = -Wdouble-promotion \
+	-D__ets__ -DICACHE_FLASH \
+	-fno-inline-functions \
+	-Wl,-EL -mlongcalls -mtext-section-literals -mforce-l32
+
+CFLAGS = $(INC) -Wall -Wpointer-arith -Werror -std=gnu99 -nostdlib \
+		$(CFLAGS_XTENSA) $(COPT)
+
+#CWARN = -Wall -Werror
+#CFLAGS_CORTEX_M4 = -mthumb -mtune=cortex-m4 -mabi=aapcs-linux -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -Wdouble-promotion
+#CFLAGS_CORTEX_M4 += -fno-builtin --short-enums
+#CFLAGS = $(INC) $(CWARN) -ansi -std=gnu99 -DUNIX -nostdlib $(COPT) $(CFLAGS_CORTEX_M4)
+
+ifneq ($(FROZEN_MPY_DIR),)
+CFLAGS += -DMICROPY_QSTR_EXTRA_POOL=mp_qstr_frozen_const_pool
+CFLAGS += -DMICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE=0 # not supported
+CFLAGS += -DMPZ_DIG_SIZE=16 # force 16 bits to work on both 32 and 64 bit archs
+endif
+LDFLAGS = -nostdlib --cref
+LIBS =
+
+# Debugging/Optimization
+ifeq ($(DEBUG), 1)
+CFLAGS += -g
+COPT = -O0
+else
+CFLAGS += -fdata-sections -ffunction-sections
+COPT += -Os -DNDEBUG
+LDFLAGS += --gc-sections
+endif
+
+OBJ = $(PY_O)
+OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(SRC_S:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(LIB_SRC_C:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(STMHAL_SRC_C:.c=.o))
+
+# List of sources for qstr extraction
+SRC_QSTR += $(SRC_C) $(LIB_SRC_C) $(EXT_SRC_C)
+
+include $(MPTOP)/py/mkrules.mk

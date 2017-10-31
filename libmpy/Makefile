@@ -43,6 +43,10 @@ lib:
 	@echo "Making micropython library for x86"
 	$(MAKE) -f Makefile.upylib MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
 
+esp8266:
+	@echo "Making micropython library for esp8266"
+	$(MAKE) -f Makefile.upylib.esp8266 MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
+
 android:
 	@echo "Making micropython library for android"
 	$(MAKE) -f Makefile.upylib.android MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"

@@ -1,15 +1,6 @@
 PROGRAM ?= calvin-esp
 SDK_PATH ?= /home/qfrksvn/Source/esp-open-rtos
 
-CC_TRANSPORT_SOCKET=1
-CC_LWIP_SOCKET=1
-CC_DEEPSLEEP_ENABLED=1
-CC_ACTOR_IDENTITY=1
-CC_ACTOR_SOIL_MOISTURE=1
-CC_ACTOR_TEMPERATURE=1
-CC_ACTOR_LIGHT=1
-CC_ACTOR_REGISTRY_ATTIBUTE=1
-
 PROGRAM_SRC_FILES = \
 	main.c \
 	runtime/south/platform/esp-open-rtos/cc_platform_esp8266.c \
@@ -17,10 +8,23 @@ PROGRAM_SRC_FILES = \
 	runtime/south/platform/esp-open-rtos/calvinsys/cc_calvinsys_gpio.c \
 	runtime/south/platform/esp-open-rtos/calvinsys/cc_calvinsys_yl69.c
 
+# esp-open-rtos runtime config
+SOCKET = 1
+STORAGE = 1
+
 include calvin.mk
 
 PROGRAM_SRC_FILES += $(CC_SRC_C)
 EXTRA_CFLAGS += $(CC_CFLAGS)
+
+ifeq ($(PYTHON),1)
+LIBS = hal m micropython
+EXTRA_LDFLAGS = -Llibmpy
+EXTRA_CFLAGS += -Ilibmpy/build -Imicropython -Ilibmpy
+EXTRA_CFLAGS += -DCC_PYTHON_ENABLED -DCC_PYTHON_HEAP_SIZE=10*1024 -DCC_PYTHON_STACK_SIZE=8192
+EXTRA_CFLAGS += -DCC_ACTOR_MODULES_DIR=\""mpys/\""
+PROGRAM_SRC_FILES += $(CC_SRC_C_MPY)
+endif
 
 # extras/dhcpserver
 EXTRA_COMPONENTS += extras/dhcpserver
