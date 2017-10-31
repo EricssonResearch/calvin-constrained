@@ -24,7 +24,7 @@ rm calvin.conf
 
 # build calvin-constrained
 if [[ $1 == "mpy" ]]; then
-    make -f runtime/south/platform/x86/Makefile mpy SLEEP=1
+    make -f runtime/south/platform/x86/Makefile mpy MPY=1 SLEEP=1
 else
     make -f runtime/south/platform/x86/Makefile SLEEP=1 std.Identity=1 io.Light=1 io.Button=1 sensor.Temperature=1 context.RegistryAttribute=1
 fi

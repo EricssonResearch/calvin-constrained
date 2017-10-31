@@ -1,7 +1,7 @@
 #include <ril/lte_if.h>
 #include <ril/lte_if_system.h>
 #include <errno.h>
-#include "net/lwip/net_lwip/lwip/sockets.h"
+#include <net/lwip/net_lwip/lwip/sockets.h>
 #include <nuttx/board.h>
 #include <arch/cxd56xx/pm.h>
 #include <arch/board/board.h>
@@ -18,7 +18,7 @@
 #include "runtime/north/cc_node.h"
 #include "runtime/north/cc_common.h"
 #include "runtime/north/coder/cc_coder.h"
-#include "runtime/calvinsys/cc_calvinsys.h"
+#include "calvinsys/cc_calvinsys.h"
 #include "calvinsys/cc_calvinsys_temp_sensor.h"
 
 static LTECommand_System response_sys;
@@ -221,7 +221,7 @@ cc_result_t cc_platform_mem_alloc(void **buffer, uint32_t size)
 {
   *buffer = malloc(size);
   if (*buffer == NULL) {
-    cc_log_error("Failed to allocate '%ld' memory", (unsigned long)size);
+    cc_log_error("Failed to allocate '%ld'", (unsigned long)size);
     return CC_FAIL;
   }
 
@@ -264,51 +264,99 @@ void cc_platform_deepsleep(uint32_t time_in_us)
 #endif
 
 #ifdef CC_STORAGE_ENABLED
-size_t cc_platform_node_state_size()
+cc_stat_t cc_platform_file_stat(const char *path)
 {
-	FILE *fp = NULL;
-	size_t size = 0;
+	struct stat statbuf;
 
-	fp = fopen(CC_CONFIG_FILE, "r+");
-	if (fp != NULL) {
-		fseek(fp, 0, SEEK_END);
-		size = ftell(fp);
-		fclose(fp);
+	if (stat(path, &statbuf) == 0) {
+		if (S_ISDIR(statbuf.st_mode))
+			return CC_STAT_DIR;
+		if (S_ISREG(statbuf.st_mode))
+			return CC_STAT_FILE;
 	}
 
-	return size;
+	return CC_STAT_NO_EXIST;
 }
 
-void cc_platform_write_node_state(cc_node_t *node, char *buffer, size_t size)
-{
-	FILE *fp = NULL;
-	int len = 0;
-
-	fp = fopen(CC_CONFIG_FILE, "w+");
-	if (fp != NULL) {
-		len = fwrite(buffer, 1, size, fp);
-		if (len != size)
-			cc_log_error("Failed to write node config");
-		else
-			cc_log_debug("Wrote runtime state '%d' bytes", len);
-		fclose(fp);
-	} else
-		cc_log_error("Failed to open %s for writing", CC_CONFIG_FILE);
-}
-
-cc_result_t cc_platform_read_node_state(struct cc_node_t *node, char *buffer, size_t size)
+cc_result_t cc_platform_file_read(const char *path, char **buffer, size_t *len)
 {
 	FILE *fp = NULL;
 	size_t read = 0;
 
-	fp = fopen(CC_CONFIG_FILE, "r+");
-	if (fp != NULL) {
-		read = fread(buffer, 1, size, fp);
-		fclose(fp);
+	fp = fopen(path, "r+");
+	if (fp == NULL) {
+		cc_log_error("Failed to open '%s'", path);
+		return CC_FAIL;
 	}
 
-	if (read != size)
+	fseek(fp, 0, SEEK_END);
+	*len = ftell(fp);
+
+	if (cc_platform_mem_alloc((void **)buffer, *len) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
+	}
+	memset(*buffer, 0, *len);
+
+	rewind(fp);
+	read = fread(*buffer, 1, *len, fp);
+	fclose(fp);
+
+	if (read != *len) {
+		cc_platform_mem_free(*buffer);
+		return CC_FAIL;
+	}
+
+	return CC_SUCCESS;
+}
+
+static cc_result_t cc_platform_create_dirs(const char *path)
+{
+	int i = 0, len = strlen(path);
+	char *tmp = NULL;
+
+	while (i < len) {
+		if (path[i] == '/') {
+			if (cc_platform_mem_alloc((void **)&tmp, i + 1) != CC_SUCCESS) {
+				cc_log_error("Failed to allocate memory");
+				return CC_FAIL;
+			}
+			strncpy(tmp, path, i);
+			tmp[i] = '\0';
+			if (cc_platform_file_stat(tmp) == CC_STAT_NO_EXIST) {
+				if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0) {
+					cc_log_error("Failed to create '%s'", tmp);
+					cc_platform_mem_free(tmp);
+					return CC_FAIL;
+				}
+			}
+			cc_platform_mem_free(tmp);
+		}
+		i++;
+	}
+	return CC_SUCCESS;
+}
+
+cc_result_t cc_platform_file_write(const char *path, char *buffer, size_t size)
+{
+	FILE *fp = NULL;
+	int len = 0;
+
+	if (cc_platform_create_dirs(path) != CC_SUCCESS)
+		return CC_FAIL;
+
+	fp = fopen(path, "w+");
+	if (fp == NULL)
+		return CC_FAIL;
+
+	len = fwrite(buffer, 1, size, fp);
+	if (len != size) {
+		cc_log_error("Failed to write node config");
+		fclose(fp);
+		return CC_FAIL;
+	}
+
+	fclose(fp);
 
 	return CC_SUCCESS;
 }

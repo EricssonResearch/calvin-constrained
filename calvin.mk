@@ -94,8 +94,21 @@ CC_CFLAGS += -DCC_ACTOR_REGISTRY_ATTIBUTE
 endif
 
 # MicroPython config
-CC_CFLAGSMPY = -std=gnu99
-CC_CFLAGSMPY += -Llibmpy -lmicropython -lm -Ilibmpy/build -Imicropython -Ilibmpy
-CC_CFLAGSMPY += -DCC_PYTHON_ENABLED -DCC_PYTHON_HEAP_SIZE=20*1024 -DCC_PYTHON_STACK_SIZE=8192
-CC_CFLAGSMPY += -DCC_ACTOR_MODULES_DIR=\""mpys/\""
-CC_SRC_C_MPY += actors/cc_actor_mpy.c libmpy/cc_mpy_port.c libmpy/cc_mpy_calvinsys.c
+ifeq ($(MPY),1)
+ifndef PYTHON_HEAP_SIZE
+PYTHON_HEAP_SIZE = 20*1024
+$(info PYTHON_HEAP_SIZE not set, using default $(PYTHON_HEAP_SIZE))
+endif
+ifndef PYTHON_STACK_SIZE
+PYTHON_STACK_SIZE = 8*1024
+$(info PYTHON_STACK_SIZE not set, using default $(PYTHON_STACK_SIZE))
+endif
+CC_LIBS += -lmicropython -lm
+CC_LDFLAGS += -Llibmpy
+CC_CFLAGS += -std=gnu99
+CC_CFLAGS += -Ilibmpy/build -Imicropython -Ilibmpy
+CC_CFLAGS += -DCC_PYTHON_ENABLED
+CC_CFLAGS += -DCC_PYTHON_HEAP_SIZE=$(PYTHON_HEAP_SIZE) -DCC_PYTHON_STACK_SIZE=$(PYTHON_STACK_SIZE)
+CC_CFLAGS += -DCC_ACTOR_MODULES_DIR=\""mpys/\""
+CC_SRC_C += actors/cc_actor_mpy.c libmpy/cc_mpy_port.c libmpy/cc_mpy_calvinsys.c
+endif

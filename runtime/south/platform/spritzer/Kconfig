@@ -6,7 +6,6 @@
 config CALVIN
 	bool "calvin"
 	select NET_LWIP
-	select NSH_LIBRARY
 	default n
 	---help---
 		Enable the Calvin runtime
@@ -27,6 +26,54 @@ config CALVIN_PRIORITY
 
 config CALVIN_STACKSIZE
 	int "Calvin runtime stack size"
-	default 2048
+	default 14336
+
+config CALVIN_PYTHON
+	bool "Enable Python actors"
+	default n
+
+if CALVIN_PYTHON
+config CALVIN_PYTHON_HEAPSIZE
+	int "MicroPython heap size"
+	default 10240
+
+config CALVIN_PYTHON_STACKSIZE
+	int "MicroPython stack size"
+	default 20480
+endif
+
+config CALVIN_SLEEP
+	bool "Enable platform sleep"
+	default n
+
+if CALVIN_SLEEP
+config CALVIN_SLEEP_TIME
+	int "Time, in seconds, to sleep if no timers active"
+	default 60
+endif
+
+config CALVIN_CACTORS
+	bool "C actors"
+	default n
+	---help---
+		Enable C actors
+
+if CALVIN_CACTORS
+config CALVIN_STD_IDENTITY
+	bool "std.Identity"
+	default n
+config CALVIN_IO_LIGHT
+	bool "io.Light"
+	default n
+config CALVIN_IO_BUTTON
+	bool "io.Button"
+	default n
+config CALVIN_SENSOR_TEMPERATURE
+	bool "sensor.Temperature"
+	default n
+config CALVIN_CONTEXT_REGISTRYATTRIBUTE
+	bool "context.RegistryAttribute"
+	default n
+endif
 
 endif

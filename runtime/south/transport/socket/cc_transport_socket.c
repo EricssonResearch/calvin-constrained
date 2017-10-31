@@ -360,10 +360,10 @@ cc_transport_client_t *cc_transport_socket_create(cc_node_t *node, char *uri)
 	transport_client->disconnect = cc_transport_socket_disconnect;
 	transport_client->free = cc_transport_socket_free;
 	transport_client->prefix_len = CC_TRANSPORT_LEN_PREFIX_SIZE;
-	strncpy(transport_client->uri, uri, CC_MAX_URI_LEN);
 	strncpy(transport_socket->ip, ip, ip_len);
 	transport_socket->ip[ip_len] = '\0';
 	transport_socket->port = port;
+	sprintf(transport_client->uri, "calvinip://%s:%d", transport_socket->ip, transport_socket->port);
 	transport_client->client_state = transport_socket;
 
 	return transport_client;

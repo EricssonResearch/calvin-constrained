@@ -11,19 +11,17 @@ PROGRAM_SRC_FILES = \
 # esp-open-rtos runtime config
 SOCKET = 1
 STORAGE = 1
+PYTHON_HEAP_SIZE = 8*1024
+PYTHON_STACK_SIZE = 2*1024
 
 include calvin.mk
 
 PROGRAM_SRC_FILES += $(CC_SRC_C)
 EXTRA_CFLAGS += $(CC_CFLAGS)
 
-ifeq ($(PYTHON),1)
+ifeq ($(MPY),1)
 LIBS = hal m micropython
-EXTRA_LDFLAGS = -Llibmpy
-EXTRA_CFLAGS += -Ilibmpy/build -Imicropython -Ilibmpy
-EXTRA_CFLAGS += -DCC_PYTHON_ENABLED -DCC_PYTHON_HEAP_SIZE=10*1024 -DCC_PYTHON_STACK_SIZE=8192
-EXTRA_CFLAGS += -DCC_ACTOR_MODULES_DIR=\""mpys/\""
-PROGRAM_SRC_FILES += $(CC_SRC_C_MPY)
+EXTRA_LDFLAGS = $(CC_LDFLAGS)
 endif
 
 # extras/dhcpserver

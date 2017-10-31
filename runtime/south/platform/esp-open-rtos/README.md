@@ -15,7 +15,7 @@ Build and flash the binary with SDK, example with sleep enabled, the io.Light c 
 ```
 $ cd calvin-constrained
 $ make esp8266 -C libmpy
-$ make flash -f Makefile-esp-rtos ESPPORT=/dev/ttyUSB0 sleep=1 io.Light=1 PYTHON=1
+$ make flash -f Makefile-esp-rtos ESPPORT=/dev/ttyUSB0 sleep=1 io.Light=1 MPY=1
 ```
 
 ### Configure WiFi

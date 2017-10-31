@@ -12,7 +12,7 @@ CC_LDFLAGS += -Wl,--gc-sections
 # platform sources
 CC_SRC_C = main.c runtime/south/platform/x86/cc_platform_x86.c
 
-# x86 runtime configs
+# default x86 runtime configs
 SOCKET = 1
 GETOPT = 1
 
@@ -23,9 +23,9 @@ calvin: rename_symbol $(CC_SRC_C)
 	@echo "Building calvin without MicroPython"
 	$(CC) $(CC_CFLAGS) $(CC_SRC_C) -o $(PROJECT_NAME) $(CC_LDFLAGS)
 
-mpy: rename_symbol mpy-cross -lmicropython $(CC_SRC_C) $(CC_SRC_C_MPY)
+mpy: rename_symbol mpy-cross -lmicropython $(CC_SRC_C)
 	@echo "Building calvin with MicroPython"
-	$(CC) $(CC_SRC_C) $(CC_SRC_C_MPY) -o $(PROJECT_NAME) $(CC_CFLAGS) $(CC_CFLAGSMPY) $(CC_LDFLAGS)
+	$(CC) $(CC_SRC_C) -o $(PROJECT_NAME) $(CC_CFLAGS) $(CC_LIBS) $(CC_LDFLAGS)
 
 rename_symbol:
 	@echo "Renaming mp_decode_uint in msgpuck/msgpuck.h"

@@ -152,7 +152,7 @@ cc_result_t cc_platform_mem_alloc(void **buffer, uint32_t size)
 {
 	*buffer = malloc(size);
 	if (*buffer == NULL) {
-		cc_log_error("Failed to allocate '%ld' memory", (unsigned long)size);
+		cc_log_error("Failed to allocate '%ld' bytes", (unsigned long)size);
 		return CC_FAIL;
 	}
 

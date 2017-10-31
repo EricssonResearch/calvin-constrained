@@ -87,6 +87,4 @@ OBJ += $(addprefix $(BUILD)/, $(STMHAL_SRC_C:.c=.o))
 # List of sources for qstr extraction
 SRC_QSTR += $(SRC_C) $(LIB_SRC_C) $(EXT_SRC_C)
 
-lib: LIBMICROPYTHON = libmicropython.a
-
 include $(MPTOP)/py/mkrules.mk
