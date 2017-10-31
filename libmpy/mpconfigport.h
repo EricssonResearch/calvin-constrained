@@ -53,6 +53,7 @@
 #define MICROPY_PY_CMATH              (0)
 #define MICROPY_USE_INTERNAL_PRINTF   (0)
 #define MICROPY_PERSISTENT_CODE_LOAD  (1)
+#define MICROPY_PERSISTENT_CODE_SAVE  (0)
 #define MICROPY_PY_BUILTINS_STR_UNICODE (1)
 
 extern const struct _mp_obj_module_t cc_mp_module_port;
