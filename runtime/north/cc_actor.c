@@ -846,8 +846,13 @@ char *cc_actor_serialize(const cc_node_t *node, cc_actor_t *actor, char *buffer,
 			}
 		}
 
-		buffer = cc_coder_encode_kv_map(buffer, "actor_state", 3);
+		buffer = cc_coder_encode_kv_map(buffer, "actor_state", 4);
 		{
+			buffer = cc_coder_encode_kv_map(buffer, "security", 1);
+			{
+				// TODO: Set proper value
+				buffer = cc_coder_encode_kv_nil(buffer, "_subject_attributes");
+			}
 			buffer = cc_coder_encode_kv_map(buffer, "custom", 0);
 			buffer = cc_coder_encode_kv_map(buffer, "managed", nbr_managed_attributes);
 			{
