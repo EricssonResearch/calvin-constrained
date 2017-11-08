@@ -32,24 +32,24 @@ struct command_handler_t {
 	cc_result_t (*handler)(cc_node_t *node, char *data, size_t data_len);
 };
 
-static cc_result_t proto_parse_reply(cc_node_t *node, char *data, size_t data_len);
-static cc_result_t proto_parse_tunnel_data(cc_node_t *node, char *data, size_t data_len);
-static cc_result_t proto_parse_actor_new(cc_node_t *node, char *data, size_t data_len);
-static cc_result_t proto_parse_app_destroy(cc_node_t *node, char *data, size_t data_len);
-static cc_result_t proto_parse_cc_port_disconnect(cc_node_t *node, char *data, size_t data_len);
-static cc_result_t proto_parse_port_connect(cc_node_t *node, char *data, size_t data_len);
-static cc_result_t proto_parse_tunnel_new(cc_node_t *node, char *data, size_t data_len);
-static cc_result_t proto_parse_cc_actor_migrate(cc_node_t *node, char *data, size_t data_len);
+static cc_result_t cc_proto_parse_reply(cc_node_t *node, char *data, size_t data_len);
+static cc_result_t cc_proto_parse_tunnel_data(cc_node_t *node, char *data, size_t data_len);
+static cc_result_t cc_proto_parse_actor_new(cc_node_t *node, char *data, size_t data_len);
+static cc_result_t cc_proto_parse_app_destroy(cc_node_t *node, char *data, size_t data_len);
+static cc_result_t cc_proto_parse_port_disconnect(cc_node_t *node, char *data, size_t data_len);
+static cc_result_t cc_proto_parse_port_connect(cc_node_t *node, char *data, size_t data_len);
+static cc_result_t cc_proto_parse_tunnel_new(cc_node_t *node, char *data, size_t data_len);
+static cc_result_t cc_proto_parse_actor_migrate(cc_node_t *node, char *data, size_t data_len);
 
 struct command_handler_t command_handlers[NBR_OF_COMMANDS] = {
-	{"REPLY", proto_parse_reply},
-	{"TUNNEL_DATA", proto_parse_tunnel_data},
-	{"ACTOR_NEW", proto_parse_actor_new},
-	{"APP_DESTROY", proto_parse_app_destroy},
-	{"PORT_DISCONNECT", proto_parse_cc_port_disconnect},
-	{"PORT_CONNECT", proto_parse_port_connect},
-	{"TUNNEL_NEW", proto_parse_tunnel_new},
-	{"ACTOR_MIGRATE", proto_parse_cc_actor_migrate}
+	{"REPLY", cc_proto_parse_reply},
+	{"TUNNEL_DATA", cc_proto_parse_tunnel_data},
+	{"ACTOR_NEW", cc_proto_parse_actor_new},
+	{"APP_DESTROY", cc_proto_parse_app_destroy},
+	{"PORT_DISCONNECT", cc_proto_parse_port_disconnect},
+	{"PORT_CONNECT", cc_proto_parse_port_connect},
+	{"TUNNEL_NEW", cc_proto_parse_tunnel_new},
+	{"ACTOR_MIGRATE", cc_proto_parse_actor_migrate}
 };
 
 cc_result_t cc_proto_send_join_request(const cc_node_t *node, cc_transport_client_t *transport_client, const char *serializer)
@@ -797,7 +797,7 @@ cc_result_t cc_proto_send_actor_new(cc_node_t *node, cc_actor_t *actor, char *to
 	return CC_FAIL;
 }
 
-static cc_result_t proto_parse_reply(cc_node_t *node, char *data, size_t data_len)
+static cc_result_t cc_proto_parse_reply(cc_node_t *node, char *data, size_t data_len)
 {
 	cc_result_t result = CC_SUCCESS;
 	char *tmp = NULL, *r = data, msg_uuid[CC_UUID_BUFFER_SIZE];
@@ -894,7 +894,7 @@ static cc_result_t proto_parse_token_reply(cc_node_t *node, char *root)
 	return CC_FAIL;
 }
 
-static cc_result_t proto_parse_tunnel_data(cc_node_t *node, char *root, size_t len)
+static cc_result_t cc_proto_parse_tunnel_data(cc_node_t *node, char *root, size_t len)
 {
 	char msg_uuid[CC_UUID_BUFFER_SIZE], *tmp = NULL, *value = NULL, *cmd = NULL, *r = root;
 	cc_pending_msg_t *pending_msg = NULL;
@@ -942,14 +942,14 @@ static cc_result_t proto_parse_tunnel_data(cc_node_t *node, char *root, size_t l
 	return CC_FAIL;
 }
 
-static cc_result_t proto_parse_actor_new(cc_node_t *node, char *root, size_t len)
+static cc_result_t cc_proto_parse_actor_new(cc_node_t *node, char *root, size_t len)
 {
 	cc_result_t result = CC_SUCCESS;
 	cc_actor_t *actor = NULL;
 	char *from_rt_uuid = NULL, msg_uuid[CC_UUID_BUFFER_SIZE], *tmp = NULL, *r = root;
 	uint32_t from_rt_uuid_len = 0, msg_uuid_len = 0;
 
-	cc_log_debug("proto_parse_actor_new");
+	cc_log_debug("cc_proto_parse_actor_new");
 
 	if (cc_coder_decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_SUCCESS)
 		return CC_FAIL;
@@ -974,7 +974,7 @@ static cc_result_t proto_parse_actor_new(cc_node_t *node, char *root, size_t len
 	return result;
 }
 
-static cc_result_t proto_parse_cc_actor_migrate(cc_node_t *node, char *root, size_t len)
+static cc_result_t cc_proto_parse_actor_migrate(cc_node_t *node, char *root, size_t len)
 {
 	cc_result_t result = CC_SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *actor_id = NULL, msg_uuid[CC_UUID_BUFFER_SIZE], *tmp = NULL;
@@ -1011,7 +1011,7 @@ static cc_result_t proto_parse_cc_actor_migrate(cc_node_t *node, char *root, siz
 	return result;
 }
 
-static cc_result_t proto_parse_app_destroy(cc_node_t *node, char *root, size_t len)
+static cc_result_t cc_proto_parse_app_destroy(cc_node_t *node, char *root, size_t len)
 {
 	cc_result_t result = CC_SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, msg_uuid[CC_UUID_BUFFER_SIZE], *tmp = NULL;
@@ -1019,7 +1019,7 @@ static cc_result_t proto_parse_app_destroy(cc_node_t *node, char *root, size_t l
 	uint32_t i = 0, size = 0, from_rt_uuid_len = 0, msg_uuid_len = 0, actor_id_len = 0;
 	cc_actor_t*actor = NULL;
 
-	cc_log_debug("proto_parse_app_destroy");
+	cc_log_debug("cc_proto_parse_app_destroy");
 
 	if (cc_coder_decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_SUCCESS)
 		return CC_FAIL;
@@ -1053,13 +1053,13 @@ static cc_result_t proto_parse_app_destroy(cc_node_t *node, char *root, size_t l
 	return result;
 }
 
-static cc_result_t proto_parse_cc_port_disconnect(cc_node_t *node, char *root, size_t len)
+static cc_result_t cc_proto_parse_port_disconnect(cc_node_t *node, char *root, size_t len)
 {
 	cc_result_t result = CC_SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL, *peer_port_id = NULL;
 	uint32_t from_rt_uuid_len = 0, msg_uuid_len = 0, peer_port_id_len = 0;
 
-	cc_log_debug("proto_parse_cc_port_disconnect");
+	cc_log_debug("cc_proto_parse_port_disconnect");
 
 	if (cc_coder_decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_SUCCESS)
 		return CC_FAIL;
@@ -1080,14 +1080,14 @@ static cc_result_t proto_parse_cc_port_disconnect(cc_node_t *node, char *root, s
 	return result;
 }
 
-static cc_result_t proto_parse_port_connect(cc_node_t *node, char *root, size_t len)
+static cc_result_t cc_proto_parse_port_connect(cc_node_t *node, char *root, size_t len)
 {
 	cc_result_t result = CC_SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL;
 	char *peer_port_id = NULL, *tunnel_id = NULL;
 	uint32_t peer_port_id_len = 0, tunnel_id_len = 0, from_rt_uuid_len = 0, msg_uuid_len = 0;
 
-	cc_log_debug("proto_parse_port_connect");
+	cc_log_debug("cc_proto_parse_port_connect");
 
 	if (cc_coder_decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_SUCCESS)
 		return CC_FAIL;
@@ -1111,7 +1111,7 @@ static cc_result_t proto_parse_port_connect(cc_node_t *node, char *root, size_t 
 	return result;
 }
 
-static cc_result_t proto_parse_tunnel_new(cc_node_t *node, char *root, size_t len)
+static cc_result_t cc_proto_parse_tunnel_new(cc_node_t *node, char *root, size_t len)
 {
 	cc_result_t result = CC_SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *msg_uuid = NULL;
@@ -1119,7 +1119,7 @@ static cc_result_t proto_parse_tunnel_new(cc_node_t *node, char *root, size_t le
 	uint32_t from_rt_uuid_len = 0, msg_uuid_len = 0, type_len = 0, tunnel_id_len = 0;
 	cc_link_t *link = NULL;
 
-	cc_log_debug("proto_parse_tunnel_new");
+	cc_log_debug("cc_proto_parse_tunnel_new");
 
 	if (cc_coder_decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_SUCCESS)
 		return CC_FAIL;
