@@ -81,7 +81,6 @@ cc_result_t cc_coder_decode_uint_from_map(char *buffer, const char *key, uint32_
 cc_result_t cc_coder_decode_bool_from_map(char *buffer, const char *key, bool *value);
 cc_result_t cc_coder_decode_float_from_map(char *buffer, const char *key, float *value);
 cc_result_t cc_coder_decode_double_from_map(char *buffer, const char *key, double *value);
-cc_result_t cc_coder_copy_value(char *buffer, const char *key, char **value, size_t *size);
 uint32_t cc_coder_decode_map(char **data);
 void cc_coder_decode_map_next(char **data);
 char *cc_coder_get_name(void);

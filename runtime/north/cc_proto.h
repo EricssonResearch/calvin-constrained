@@ -28,6 +28,7 @@
 cc_result_t cc_proto_send_join_request(const cc_node_t *node, cc_transport_client_t *transport_client, const char *serializer);
 cc_result_t cc_proto_send_node_setup(cc_node_t *node, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
 cc_result_t cc_proto_send_get_actor_module(cc_node_t *node, const char *actor_type, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
+cc_result_t cc_proto_send_req_match(cc_node_t *node, cc_actor_t *actor, char *requirements, uint32_t requirements_len, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
 cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t time_to_sleep, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
 cc_result_t cc_proto_send_tunnel_request(cc_node_t *node, cc_tunnel_t *tunnel, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));
 cc_result_t cc_proto_send_tunnel_destroy(cc_node_t *node, cc_tunnel_t *tunnel, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*));

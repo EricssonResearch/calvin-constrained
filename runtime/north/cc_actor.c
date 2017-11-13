@@ -31,6 +31,60 @@
 
 static void cc_actor_free_attribute_list(cc_list_t *managed_attributes);
 
+cc_result_t cc_actor_req_match_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
+{
+	char *value = NULL, *obj_data = NULL, *actor_id = NULL, *possible_placements = NULL, *peer_id = NULL;
+	uint32_t actor_id_len = 0, peer_id_len = 0;
+	cc_actor_t *actor = NULL;
+
+	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'value'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_get_value_from_map(value, "value", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'value'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_get_value_from_map(value, "data", &obj_data) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'data'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_string_from_map(obj_data, "actor_id", &actor_id, &actor_id_len) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'actor_id'");
+		return CC_FAIL;
+	}
+
+	actor = cc_actor_get(node, actor_id, actor_id_len);
+	if (actor == NULL) {
+		cc_log_error("No actor");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_get_value_from_map(obj_data, "possible_placements", &possible_placements) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'possible_placements'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_type_of(possible_placements) != CC_CODER_ARRAY) {
+		cc_log_error("'possible_placements' is not an array");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_get_size_of_array(possible_placements) > 0) {
+		if (cc_coder_decode_string_from_array(possible_placements, 0, &peer_id, &peer_id_len) != CC_SUCCESS) {
+			cc_log_error("Failed to decode 'possible_placements'");
+			return CC_FAIL;
+		}
+
+		return cc_actor_migrate(node, actor, peer_id, peer_id_len);
+	}
+
+	return CC_SUCCESS;
+}
+
 static cc_result_t actor_remove_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	return CC_SUCCESS;
@@ -38,28 +92,36 @@ static cc_result_t actor_remove_reply_handler(cc_node_t *node, char *data, size_
 
 static cc_result_t cc_actor_migrate_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
-	uint32_t status = 0;
-	char *value = NULL;
+	uint32_t status = 0, actor_id_len = 0;
+	char *value = NULL, *actor_id = NULL;
 	cc_actor_t *actor = NULL;
 
-	actor = cc_actor_get(node, (char *)msg_data, strnlen((char *)msg_data, CC_UUID_BUFFER_SIZE));
-	if (actor == NULL) {
-		cc_log_error("No actor with id '%s'", (char *)msg_data);
+	actor_id = (char *)msg_data;
+	actor_id_len = strnlen(actor_id, CC_UUID_BUFFER_SIZE);
+
+	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'value'");
 		return CC_FAIL;
 	}
 
-	if (cc_coder_get_value_from_map(data, "value", &value) == CC_SUCCESS) {
-		if (cc_coder_decode_uint_from_map(value, "status", &status) == CC_SUCCESS) {
-			if (status == 200) {
-				cc_log_debug("Actor '%s' migrated", (char *)msg_data);
-				cc_actor_free(node, actor, false);
-			} else
-				cc_log_error("Failed to migrate actor '%s'", (char *)msg_data);
-			return CC_SUCCESS;
-		}
+	if (cc_coder_decode_uint_from_map(value, "status", &status) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'status'");
+		return CC_FAIL;
 	}
 
-	cc_log_error("Failed to decode message");
+	actor = cc_actor_get(node, actor_id, actor_id_len);
+	if (actor == NULL) {
+		cc_log_error("No actor with id '%s'", actor_id);
+		return CC_FAIL;
+	}
+
+	if (status == 200) {
+		cc_log("Actor: '%s' migrated", actor_id);
+		cc_actor_free(node, actor, false);
+		return CC_SUCCESS;
+	}
+
+	cc_log_error("Failed to migrate actor '%s'", actor_id);
 	return CC_FAIL;
 }
 
@@ -174,9 +236,14 @@ static void cc_actor_update_pending(cc_node_t *node, char *type, uint32_t type_l
 static cc_result_t cc_actor_get_compiled_actor_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	uint32_t status = 0, type_len = 0, module_len = 0;
-	char *value = NULL, *module = NULL, *type = NULL;
+	char *value = NULL, *module = NULL, *type = NULL, *obj_data = NULL;
 
 	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'value'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_get_value_from_map(value, "value", &value) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'value'");
 		return CC_FAIL;
 	}
@@ -186,12 +253,17 @@ static cc_result_t cc_actor_get_compiled_actor_reply_handler(cc_node_t *node, ch
 		return CC_FAIL;
 	}
 
-	if (cc_coder_decode_string_from_map(data, "actor_type", &type, &type_len) != CC_SUCCESS) {
-		cc_log_error("Failed to decode 'actor_type'");
+	if (cc_coder_get_value_from_map(value, "data", &obj_data) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'data'");
 		return CC_FAIL;
 	}
 
-	if (cc_coder_decode_string_from_map(data, "module", &module, &module_len) != CC_SUCCESS) {
+	if (cc_coder_decode_string_from_map(obj_data, "actor_type", &type, &type_len) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'actor_id'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_string_from_map(obj_data, "module", &module, &module_len) != CC_SUCCESS) {
 		cc_log_error("Failed get 'module'");
 		return CC_FAIL;
 	}
@@ -772,12 +844,7 @@ cc_result_t cc_actor_migrate(cc_node_t *node, cc_actor_t *actor, char *to_rt_uui
 		list = list->next;
 	}
 
-	if (cc_proto_send_actor_new(node, actor, to_rt_uuid, to_rt_uuid_len, cc_actor_migrate_reply_handler) == CC_SUCCESS)
-		return CC_SUCCESS;
-
-	cc_log_error("Failed to migrate actor '%s'", actor->id);
-
-	return CC_FAIL;
+	return cc_proto_send_actor_new(node, actor, to_rt_uuid, to_rt_uuid_len, cc_actor_migrate_reply_handler);
 }
 
 char *cc_actor_serialize(const cc_node_t *node, cc_actor_t *actor, char *buffer, bool include_state)

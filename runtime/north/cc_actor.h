@@ -54,6 +54,7 @@ typedef struct cc_actor_t{
 	cc_calvinsys_t *calvinsys;
 } cc_actor_t;
 
+cc_result_t cc_actor_req_match_reply_handler(struct cc_node_t *node, char *data, size_t data_len, void *msg_data);
 cc_actor_t *cc_actor_create(struct cc_node_t *node, char *root);
 void cc_actor_free(struct cc_node_t *node, cc_actor_t *actor, bool remove_from_registry);
 cc_actor_t *cc_actor_get(struct cc_node_t *node, const char *actor_id, uint32_t actor_id_len);

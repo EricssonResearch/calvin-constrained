@@ -76,7 +76,7 @@ cc_result_t cc_proto_send_node_setup(cc_node_t *node, cc_result_t (*handler)(cc_
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 	cc_list_t *capabilities = node->calvinsys->capabilities;
-	uint32_t nbr_of_capabilities = 0, nbr_of_attributes = 7;
+	uint32_t nbr_of_capabilities = 0;
 
 	memset(buffer, 0, 1000);
 
@@ -91,27 +91,32 @@ cc_result_t cc_proto_send_node_setup(cc_node_t *node, cc_result_t (*handler)(cc_
 	}
 
 	w = buffer + node->transport_client->prefix_len;
-	w = cc_coder_encode_map(w, nbr_of_attributes);
+	w = cc_coder_encode_map(w, 5);
 	{
-		w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_tunnel->link->peer_id, strnlen(node->proxy_tunnel->link->peer_id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_str(w, "cmd", "PROXY_CONFIG", 12);
-		if (node->attributes != NULL)
-			w = cc_coder_encode_kv_str(w, "attributes", node->attributes, strnlen(node->attributes, CC_ATTRIBUTE_BUFFER_SIZE));
-		else
-			w = cc_coder_encode_kv_nil(w, "attributes");
-		w = cc_coder_encode_kv_array(w, "capabilities", nbr_of_capabilities);
+		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
+		w = cc_coder_encode_kv_str(w, "tunnel_id", node->proxy_tunnel->id, strnlen(node->proxy_tunnel->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_map(w, "value", 5);
 		{
-			capabilities = node->calvinsys->capabilities;
-			while (capabilities != NULL) {
-				cc_log_debug("Setting capability %s", capabilities->id);
-				w = cc_coder_encode_str(w, capabilities->id, strnlen(capabilities->id, CC_UUID_BUFFER_SIZE));
-				capabilities = capabilities->next;
+			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+			w = cc_coder_encode_kv_str(w, "cmd", "CONFIG", 6);
+			if (node->attributes != NULL)
+				w = cc_coder_encode_kv_str(w, "attributes", node->attributes, strnlen(node->attributes, CC_ATTRIBUTE_BUFFER_SIZE));
+			else
+				w = cc_coder_encode_kv_nil(w, "attributes");
+			w = cc_coder_encode_kv_array(w, "capabilities", nbr_of_capabilities);
+			{
+				capabilities = node->calvinsys->capabilities;
+				while (capabilities != NULL) {
+					cc_log_debug("Setting capability %s", capabilities->id);
+					w = cc_coder_encode_str(w, capabilities->id, strnlen(capabilities->id, CC_UUID_BUFFER_SIZE));
+						capabilities = capabilities->next;
+				}
 			}
+			w = cc_coder_encode_kv_str(w, "port_property_capability", "runtime.constrained.1", 21);
+			w = cc_coder_encode_kv_bool(w, "redeploy", 0);
 		}
-		w = cc_coder_encode_kv_str(w, "port_property_capability", "runtime.constrained.1", 21);
-		w = cc_coder_encode_kv_bool(w, "redeploy", 0);
 	}
 
 	if (cc_node_add_pending_msg(node, msg_uuid, handler, NULL) == CC_SUCCESS) {
@@ -132,15 +137,53 @@ cc_result_t cc_proto_send_get_actor_module(cc_node_t *node, const char *actor_ty
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
 	w = buffer + node->transport_client->prefix_len;
-	w = cc_coder_encode_map(w, 6);
+	w = cc_coder_encode_map(w, 5);
 	{
-		w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_tunnel->link->peer_id, strnlen(node->proxy_tunnel->link->peer_id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_str(w, "cmd", "GET_ACTOR_MODULE", 16);
-		w = cc_coder_encode_kv_str(w, "actor_type", actor_type, strlen(actor_type));
-		w = cc_coder_encode_kv_str(w, "compiler", "mpy-cross", 9);
-		// TODO: Add version, feature flags...
+		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
+		w = cc_coder_encode_kv_str(w, "tunnel_id", node->proxy_tunnel->id, strnlen(node->proxy_tunnel->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_map(w, "value", 4);
+		{
+			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+			w = cc_coder_encode_kv_str(w, "cmd", "GET_ACTOR_MODULE", 16);
+			w = cc_coder_encode_kv_str(w, "actor_type", actor_type, strlen(actor_type));
+			w = cc_coder_encode_kv_str(w, "compiler", "mpy-cross", 9);
+		}
+	}
+
+	if (cc_node_add_pending_msg(node, msg_uuid, handler, NULL) == CC_SUCCESS) {
+		if (cc_transport_send(node->transport_client, buffer, w - buffer) == CC_SUCCESS)
+			return CC_SUCCESS;
+		cc_node_remove_pending_msg(node, msg_uuid);
+	}
+
+	return CC_FAIL;
+}
+
+cc_result_t cc_proto_send_req_match(cc_node_t *node, cc_actor_t *actor, char *requirements, uint32_t requirements_len, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+{
+	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
+
+	memset(buffer, 0, 1000);
+
+	cc_gen_uuid(msg_uuid, "MSGID_");
+
+	w = buffer + node->transport_client->prefix_len;
+	w = cc_coder_encode_map(w, 5);
+	{
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_tunnel->link->peer_id, strnlen(node->proxy_tunnel->link->peer_id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
+		w = cc_coder_encode_kv_str(w, "tunnel_id", node->proxy_tunnel->id, strnlen(node->proxy_tunnel->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_map(w, "value", 5);
+		{
+			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+			w = cc_coder_encode_kv_str(w, "cmd", "REQ_MATCH", 9);
+			w = cc_coder_encode_kv_str(w, "actor_id", actor->id, strlen(actor->id));
+			w = cc_coder_encode_kv_value(w, "requirements", requirements, requirements_len);
+			w = cc_coder_encode_kv_uint(w, "max_placements", 1);
+		}
 	}
 
 	if (cc_node_add_pending_msg(node, msg_uuid, handler, NULL) == CC_SUCCESS) {
@@ -163,11 +206,16 @@ cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t time_to_sleep,
 	w = buffer + node->transport_client->prefix_len;
 	w = cc_coder_encode_map(w, 5);
 	{
-		w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_tunnel->link->peer_id, strnlen(node->proxy_tunnel->link->peer_id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_str(w, "cmd", "SLEEP_REQUEST", 13);
-		w = cc_coder_encode_kv_uint(w, "seconds_to_sleep", time_to_sleep);
+		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
+		w = cc_coder_encode_kv_str(w, "tunnel_id", node->proxy_tunnel->id, strnlen(node->proxy_tunnel->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_map(w, "value", 3);
+		{
+			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+			w = cc_coder_encode_kv_str(w, "cmd", "SLEEP_REQUEST", 13);
+			w = cc_coder_encode_kv_uint(w, "seconds_to_sleep", time_to_sleep);
+		}
 	}
 
 	if (cc_node_add_pending_msg(node, msg_uuid, handler, NULL) == CC_SUCCESS) {
@@ -181,9 +229,21 @@ cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t time_to_sleep,
 
 cc_result_t cc_proto_send_tunnel_request(cc_node_t *node, cc_tunnel_t *tunnel, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
 {
-	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
+	char buffer[1000], type[20], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
 	memset(buffer, 0, 1000);
+	memset(type, 0, 20);
+
+	if (tunnel->type == CC_TUNNEL_TYPE_STORAGE)
+		strncpy(type, "storage", 7);
+	else if (tunnel->type == CC_TUNNEL_TYPE_PROXY)
+		strncpy(type, "proxy", 5);
+	else if (tunnel->type == CC_TUNNEL_TYPE_TOKEN)
+		strncpy(type, "token", 5);
+	else {
+		cc_log_error("Uknown tunnel type '%d'", tunnel->type);
+		return CC_FAIL;
+	}
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
@@ -195,7 +255,7 @@ cc_result_t cc_proto_send_tunnel_request(cc_node_t *node, cc_tunnel_t *tunnel, c
 		w = cc_coder_encode_kv_str(w, "to_rt_uuid", tunnel->link->peer_id, strnlen(tunnel->link->peer_id, CC_UUID_BUFFER_SIZE));
 		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_NEW", 10);
 		w = cc_coder_encode_kv_str(w, "tunnel_id", tunnel->id, strnlen(tunnel->id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_str(w, "type", tunnel->type == CC_TUNNEL_TYPE_STORAGE ? CC_STORAGE_TUNNEL : CC_TOKEN_TUNNEL, tunnel->type == CC_TUNNEL_TYPE_STORAGE ? strlen(CC_STORAGE_TUNNEL) : strlen(CC_TOKEN_TUNNEL));
+		w = cc_coder_encode_kv_str(w, "type", type, strlen(type));
 		w = cc_coder_encode_kv_map(w, "policy", 0);
 	}
 
@@ -976,39 +1036,61 @@ static cc_result_t cc_proto_parse_actor_new(cc_node_t *node, char *root, size_t 
 
 static cc_result_t cc_proto_parse_actor_migrate(cc_node_t *node, char *root, size_t len)
 {
-	cc_result_t result = CC_SUCCESS;
 	char *r = root, *from_rt_uuid = NULL, *actor_id = NULL, msg_uuid[CC_UUID_BUFFER_SIZE], *tmp = NULL;
+	char *requirements = NULL, *peer_node_id = NULL;
 	cc_actor_t*actor = NULL;
-	uint32_t actor_id_len = 0, from_rt_uuid_len = 0, msg_uuid_len = 0;
+	uint32_t actor_id_len = 0, from_rt_uuid_len = 0, msg_uuid_len = 0, requirements_len = 0;
+	uint32_t peer_node_id_len = 0;
 
-	result = cc_coder_decode_string_from_map(r, "actor_id", &actor_id, &actor_id_len);
+	if (cc_coder_decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'from_rt_uuid'");
+		return CC_FAIL;
+	}
 
-	if (result == CC_SUCCESS)
-		result = cc_coder_decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len);
-
-	if (result == CC_SUCCESS)
-		result = cc_coder_decode_string_from_map(r, "msg_uuid", &tmp, &msg_uuid_len);
+	if (cc_coder_decode_string_from_map(r, "msg_uuid", &tmp, &msg_uuid_len) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'msg_uuid'");
+		return CC_FAIL;
+	}
 
 	strncpy(msg_uuid, tmp, msg_uuid_len);
 	msg_uuid[msg_uuid_len] = '\0';
 
-	if (result == CC_SUCCESS) {
-		actor = cc_actor_get(node, actor_id, actor_id_len);
-		if (actor != NULL) {
-			// TODO: Get correct rt to migrate to (not who sent the request)
-			result = cc_actor_migrate(node, actor, from_rt_uuid, from_rt_uuid_len);
-		} else {
-			cc_log_error("No actor with id '%s'", actor_id);
-			result = CC_FAIL;
-		}
+	if (cc_coder_decode_string_from_map(r, "actor_id", &actor_id, &actor_id_len) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'actor_id'");
+		proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 400);
+		return CC_FAIL;
 	}
 
-	if (result == CC_SUCCESS)
-		result = proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 200);
-	else
-		result = proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 500);
+	actor = cc_actor_get(node, actor_id, actor_id_len);
+	if (actor == NULL) {
+		cc_log_error("Non existing actor actor");
+		proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 404);
+		return CC_FAIL;
+	}
 
-	return result;
+	if (cc_coder_has_key(r, "peer_node_id")) {
+		if (cc_coder_decode_string_from_map(r, "peer_node_id", &peer_node_id, &peer_node_id_len) != CC_SUCCESS) {
+			cc_log_error("Failed to get 'peer_node_id'");
+			proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 500);
+			return CC_FAIL;
+		}
+
+		if (cc_actor_migrate(node, actor, peer_node_id, peer_node_id_len) == CC_SUCCESS)
+			return proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 200);
+		return proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 500);
+	}
+
+	if (cc_coder_get_value_from_map(r, "requirements", &requirements) != CC_SUCCESS) {
+		cc_log_error("Failed to get 'requirements'");
+		proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 400);
+		return CC_FAIL;
+	}
+	requirements_len = cc_coder_get_size_of_value(requirements);
+
+	if (cc_proto_send_req_match(node, actor, requirements, requirements_len, cc_actor_req_match_reply_handler) == CC_SUCCESS)
+		return proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 200);
+
+	return proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 500);
 }
 
 static cc_result_t cc_proto_parse_app_destroy(cc_node_t *node, char *root, size_t len)

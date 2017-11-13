@@ -29,7 +29,8 @@ typedef enum {
 
 typedef enum {
 	CC_TUNNEL_TYPE_STORAGE,
-	CC_TUNNEL_TYPE_TOKEN
+	CC_TUNNEL_TYPE_TOKEN,
+	CC_TUNNEL_TYPE_PROXY
 } cc_tunnel_type_t;
 
 typedef struct cc_tunnel_t {

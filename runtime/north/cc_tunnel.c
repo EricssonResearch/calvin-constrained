@@ -158,6 +158,8 @@ cc_tunnel_t *cc_tunnel_create(cc_node_t *node, cc_tunnel_type_t type, cc_tunnel_
 
 	if (tunnel->type == CC_TUNNEL_TYPE_STORAGE)
 		cc_log("Tunnel: Created '%s', type 'storage' peer '%s'", tunnel->id, tunnel->link->peer_id);
+	else if (tunnel->type == CC_TUNNEL_TYPE_PROXY)
+		cc_log("Tunnel: Created '%s', type 'proxy' peer '%s'", tunnel->id, tunnel->link->peer_id);
 	else
 		cc_log("Tunnel: Created '%s', type 'token' peer '%s'", tunnel->id, tunnel->link->peer_id);
 

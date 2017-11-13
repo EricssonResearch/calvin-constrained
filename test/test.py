@@ -322,7 +322,7 @@ def testMigration():
     # verify placement
     assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
 
-    # migrate back and verify placement
+    # migrate id to rt2 and verify placement
     deploy_info = """
     {
         "requirements": {
@@ -335,7 +335,7 @@ def testMigration():
             "id": [
                 {
                   "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "rt2"}]},
                     "type": "+"
                }],
             "snk": [
@@ -357,7 +357,7 @@ def testMigration():
 
 
     # verify placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], rt1.id)
+    assert verify_actor_placement(request_handler, rt2, resp['actor_map'][script_name + ':id'], rt2.id)
 
     wait_for_tokens(request_handler, rt1, resp['actor_map'][script_name + ':snk'], 10, 20)
     actual = request_handler.report(rt1, resp['actor_map'][script_name + ':snk'])
@@ -366,9 +366,6 @@ def testMigration():
 
     # delete application
     request_handler.delete_application(rt1, resp['application_id'])
-
-    # verify removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id'])
 
 def testTemperatureActor():
     assert rt1 is not None

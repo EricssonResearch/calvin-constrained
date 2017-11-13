@@ -51,6 +51,7 @@ typedef struct cc_node_t {
 	cc_link_t *proxy_link;
 	cc_list_t *links;
 	cc_tunnel_t *storage_tunnel;
+	cc_tunnel_t *proxy_tunnel;
 	cc_list_t *tunnels;
 	cc_list_t *actor_types;
 	cc_list_t *actors;

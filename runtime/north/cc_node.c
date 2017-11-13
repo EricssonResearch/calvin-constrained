@@ -141,6 +141,8 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 					} else {
 						if (tunnel->type == CC_TUNNEL_TYPE_STORAGE)
 							node->storage_tunnel = tunnel;
+						else if (tunnel->type == CC_TUNNEL_TYPE_PROXY)
+							node->proxy_tunnel = tunnel;
 					}
 				}
 			}
@@ -257,6 +259,7 @@ static void cc_node_reset(cc_node_t *node)
 	}
 	node->tunnels = NULL;
 	node->storage_tunnel = NULL;
+	node->proxy_tunnel = NULL;
 
 	while (node->links != NULL) {
 		tmp_list = node->links;
@@ -325,10 +328,15 @@ cc_pending_msg_t *cc_node_get_pending_msg(cc_node_t *node, const char *msg_uuid)
 static cc_result_t cc_node_setup_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	uint32_t status;
-	char *value = NULL, *obj_time = NULL;
+	char *value = NULL, *obj_time = NULL, *obj_data = NULL;
 	cc_coder_type_t type = CC_CODER_UNDEF;
 
 	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'value'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_get_value_from_map(value, "value", &value) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'value'");
 		return CC_FAIL;
 	}
@@ -338,7 +346,12 @@ static cc_result_t cc_node_setup_reply_handler(cc_node_t *node, char *data, size
 		return CC_FAIL;
 	}
 
-	if (cc_coder_get_value_from_map(data, "time", &obj_time) != CC_SUCCESS) {
+	if (cc_coder_get_value_from_map(value, "data", &obj_data) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'data'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_get_value_from_map(obj_data, "time", &obj_time) != CC_SUCCESS) {
 		cc_log_error("Failed to get 'time'");
 		return CC_FAIL;
 	}
@@ -387,18 +400,24 @@ static cc_result_t cc_node_enter_sleep_reply_handler(cc_node_t *node, char *data
 	uint32_t status = 0;
 	char *value = NULL;
 
-	if (cc_coder_get_value_from_map(data, "value", &value) == CC_SUCCESS) {
-		if (cc_coder_decode_uint_from_map(value, "status", &status) == CC_SUCCESS) {
-			if (status == 200)
-				node->state = CC_NODE_DO_SLEEP;
-			else
-				node->state = CC_NODE_STARTED;
-			return CC_SUCCESS;
-		}
+	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'value'");
+		return CC_FAIL;
 	}
 
-	cc_log_error("Failed to decode SLEEP_REQUEST reply");
-	return CC_FAIL;
+	if (cc_coder_get_value_from_map(value, "value", &value) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'value'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_uint_from_map(value, "status", &status) == CC_SUCCESS) {
+		if (status == 200)
+			node->state = CC_NODE_DO_SLEEP;
+		else
+			node->state = CC_NODE_STARTED;
+	}
+
+	return CC_SUCCESS;
 }
 #endif
 
@@ -524,6 +543,7 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 		}
 		node->tunnels = NULL;
 		node->storage_tunnel = NULL;
+		node->proxy_tunnel = NULL;
 
 		while (node->links != NULL) {
 			tmp_list = node->links;
@@ -553,6 +573,15 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 			return CC_FAIL;
 		}
 		cc_tunnel_add_ref(node->storage_tunnel);
+	}
+
+	if (node->proxy_tunnel == NULL) {
+		node->proxy_tunnel = cc_tunnel_create(node, CC_TUNNEL_TYPE_PROXY, CC_TUNNEL_DISCONNECTED, peer_id, peer_id_len, NULL, 0);
+		if (node->proxy_tunnel == NULL) {
+			cc_log_error("Failed to create proxy tunnel");
+			return CC_FAIL;
+		}
+		cc_tunnel_add_ref(node->proxy_tunnel);
 	}
 
 	if (cc_proto_send_node_setup(node, cc_node_setup_reply_handler) != CC_SUCCESS)
@@ -590,6 +619,7 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 	node->platform = NULL;
 	node->links = NULL;
 	node->storage_tunnel = NULL;
+	node->proxy_tunnel = NULL;
 	node->tunnels = NULL;
 	node->actors = NULL;
 	node->seconds_since_epoch = 0;
