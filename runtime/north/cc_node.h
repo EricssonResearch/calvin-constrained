@@ -61,6 +61,9 @@ typedef struct cc_node_t {
 	uint32_t seconds_since_epoch;
 	uint32_t time_at_sync;
 	bool (*fire_actors)(struct cc_node_t *node);
+#ifdef CC_PYTHON_ENABLED
+	void *mpy_heap;
+#endif
 } cc_node_t;
 
 cc_result_t cc_node_add_pending_msg(cc_node_t *node, char *msg_uuid, cc_result_t (*handler)(cc_node_t *node, char *data, size_t data_len, void *msg_data), void *msg_data);

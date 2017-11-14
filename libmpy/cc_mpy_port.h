@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 
-bool cc_mpy_port_init(uint32_t heap_size, uint32_t stack_size);
+bool cc_mpy_port_init(void *heap, uint32_t heap_size, uint32_t stack_size);
+void cc_mpy_port_deinit();
 
 #endif /* CC_MPY_PORT_H */

@@ -131,20 +131,17 @@ void mp_reader_new_file(mp_reader_t *reader, const char *filename)
 		cc_log_error("Failed to read '%s'", path);
 }
 
-bool cc_mpy_port_init(uint32_t heapsize, uint32_t stacksize)
+bool cc_mpy_port_init(void *heap, uint32_t heapsize, uint32_t stacksize)
 {
-  void *heap = NULL;
-
-	if (cc_platform_mem_alloc(&heap, heapsize) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate MicroPython heap");
-		return false;
-	}
-	memset(heap, 0, heapsize);
-
 	gc_init(heap, heap + heapsize);
 	mp_init();
 
 	return true;
+}
+
+void cc_mpy_port_deinit()
+{
+  mp_deinit();
 }
 
 STATIC mp_obj_t mpy_port_ccmp_tokens_available(mp_obj_t mp_actor, mp_obj_t mp_port_name, mp_obj_t mp_nbr_of_tokens)

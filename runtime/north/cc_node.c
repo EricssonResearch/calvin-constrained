@@ -819,6 +819,11 @@ static void cc_node_free(cc_node_t *node)
 		cc_platform_mem_free(item);
 	}
 
+#ifdef CC_PYTHON_ENABLED
+	cc_mpy_port_deinit();
+	cc_platform_mem_free(node->mpy_heap);
+#endif
+
 	cc_platform_mem_free((void *)node);
 }
 
