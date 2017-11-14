@@ -23,8 +23,6 @@
 #include "micropython/py/gc.h"
 #include "micropython/py/runtime.h"
 
-static char *stack_top;
-
 typedef struct _mp_reader_cc_t {
   const byte *beg;
   const byte *cur;
@@ -41,9 +39,7 @@ void nlr_jump_fail(void *val)
 
 void gc_collect(void)
 {
-  void *dummy;
   gc_collect_start();
-  gc_collect_root(&dummy, ((mp_uint_t)stack_top - (mp_uint_t)&dummy) / sizeof(mp_uint_t));
   gc_collect_end();
 }
 
@@ -138,17 +134,12 @@ void mp_reader_new_file(mp_reader_t *reader, const char *filename)
 bool cc_mpy_port_init(uint32_t heapsize, uint32_t stacksize)
 {
   void *heap = NULL;
-  int stack_dummy;
 
 	if (cc_platform_mem_alloc(&heap, heapsize) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate MicroPython heap");
 		return false;
 	}
 	memset(heap, 0, heapsize);
-
-  stack_top = (char*)&stack_dummy;
-  mp_stack_set_top(stack_top);
-  mp_stack_set_limit(stacksize);
 
 	gc_init(heap, heap + heapsize);
 	mp_init();
