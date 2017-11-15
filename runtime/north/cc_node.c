@@ -29,6 +29,9 @@
 #endif
 #include "calvinsys/common/cc_calvinsys_timer.h"
 #include "calvinsys/common/cc_calvinsys_attribute.h"
+#ifdef CC_PYTHON_ENABLED
+#include "libmpy/cc_mpy_port.h"
+#endif
 
 #ifndef CC_RECONNECT_TIMEOUT
 #define CC_RECONNECT_TIMEOUT	5
