@@ -498,32 +498,6 @@ cc_result_t cc_proto_send_token(const cc_node_t *node, cc_port_t *port, cc_token
 	return cc_transport_send(node->transport_client, buffer, w - buffer);
 }
 
-cc_result_t cc_proto_send_token_reply(const cc_node_t *node, cc_port_t *port, uint32_t sequencenbr, bool ack)
-{
-	char buffer[1000], *w = NULL;
-
-	memset(buffer, 0, 1000);
-
-	w = buffer + node->transport_client->prefix_len;
-	w = cc_coder_encode_map(w, 5);
-	{
-		w = cc_coder_encode_kv_str(w, "to_rt_uuid", port->peer_id, strnlen(port->peer_id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
-		w = cc_coder_encode_kv_str(w, "tunnel_id", port->tunnel->id, strnlen(port->tunnel->id, CC_UUID_BUFFER_SIZE));
-		w = cc_coder_encode_kv_map(w, "value", 5);
-		{
-			w = cc_coder_encode_kv_str(w, "cmd", "TOKEN_REPLY", 11);
-			w = cc_coder_encode_kv_uint(w, "sequencenbr", sequencenbr);
-			w = cc_coder_encode_kv_str(w, "peer_port_id", port->id, strnlen(port->id, CC_UUID_BUFFER_SIZE));
-			w = cc_coder_encode_kv_str(w, "port_id", port->peer_port_id, strnlen(port->peer_port_id, CC_UUID_BUFFER_SIZE));
-			w = cc_coder_encode_kv_str(w, "value", ack ? "ACK" : "NACK", strnlen(ack ? "ACK" : "NACK", ack ? 3 : 4));
-		}
-	}
-
-	return cc_transport_send(node->transport_client, buffer, w - buffer);
-}
-
 cc_result_t cc_proto_send_port_connect(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
@@ -885,39 +859,82 @@ static cc_result_t cc_proto_parse_reply(cc_node_t *node, char *data, size_t data
 
 static cc_result_t proto_parse_token(cc_node_t *node, char *root)
 {
+	char respbuffer[400], *w = NULL;
 	char *obj_value = NULL, *obj_token = NULL, *obj_data = NULL;
-	char *port_id = NULL, *r = root;
-	uint32_t sequencenbr = 0, port_id_len = 0;
+	char *from_rt_uuid = NULL, *tunnel_id = NULL, *port_id = NULL;
+	char *peer_port_id = NULL, *r = root;
+	uint32_t sequencenbr = 0, port_id_len = 0, peer_port_id_len = 0;
+	uint32_t from_rt_uuid_len = 0, tunnel_id_len = 0;
 	size_t size = 0;
 	cc_port_t *port = NULL;
-	bool ack = true;
+	bool ack = false;
 
-	if (cc_coder_get_value_from_map(r, "value", &obj_value) != CC_SUCCESS)
-		return CC_FAIL;
-
-	if (cc_coder_decode_string_from_map(obj_value, "peer_port_id", &port_id, &port_id_len) != CC_SUCCESS)
-		return CC_FAIL;
-
-	if (cc_coder_decode_uint_from_map(obj_value, "sequencenbr", &sequencenbr) != CC_SUCCESS)
-		return CC_FAIL;
-
-	if (cc_coder_get_value_from_map(obj_value, "token", &obj_token) != CC_SUCCESS)
-		return CC_FAIL;
-
-	if (cc_coder_get_value_from_map(obj_token, "data", &obj_data) != CC_SUCCESS)
-		return CC_FAIL;
-
-	size = cc_coder_get_size_of_value(obj_data);
-
-	port = cc_port_get(node, port_id, port_id_len);
-	if (port == NULL) {
-		cc_log_error("Failed to get port");
+	if (cc_coder_decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'from_rt_uuid'");
 		return CC_FAIL;
 	}
 
-	ack = cc_node_handle_token(port, obj_data, size, sequencenbr) == CC_SUCCESS ? true : false;
+	if (cc_coder_decode_string_from_map(r, "tunnel_id", &tunnel_id, &tunnel_id_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'tunnel_id'");
+		return CC_FAIL;
+	}
 
-	return cc_proto_send_token_reply(node, port, sequencenbr, ack);
+	if (cc_coder_get_value_from_map(r, "value", &obj_value) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'value'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_string_from_map(obj_value, "peer_port_id", &port_id, &port_id_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'peer_port_id'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_string_from_map(obj_value, "port_id", &peer_port_id, &peer_port_id_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'port_id'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_uint_from_map(obj_value, "sequencenbr", &sequencenbr) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'sequencenbr'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_get_value_from_map(obj_value, "token", &obj_token) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'token'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_get_value_from_map(obj_token, "data", &obj_data) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'data'");
+		return CC_FAIL;
+	}
+
+	port = cc_port_get(node, port_id, port_id_len);
+	if (port != NULL) {
+		size = cc_coder_get_size_of_value(obj_data);
+		if (cc_node_handle_token(port, obj_data, size, sequencenbr) == CC_SUCCESS)
+			ack = true;
+	}
+
+	memset(respbuffer, 0, 400);
+	w = respbuffer + node->transport_client->prefix_len;
+	w = cc_coder_encode_map(w, 5);
+	{
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", from_rt_uuid, from_rt_uuid_len);
+		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
+		w = cc_coder_encode_kv_str(w, "tunnel_id", tunnel_id, tunnel_id_len);
+		w = cc_coder_encode_kv_map(w, "value", 5);
+		{
+			w = cc_coder_encode_kv_str(w, "cmd", "TOKEN_REPLY", 11);
+			w = cc_coder_encode_kv_uint(w, "sequencenbr", sequencenbr);
+			w = cc_coder_encode_kv_str(w, "peer_port_id", port_id, port_id_len);
+			w = cc_coder_encode_kv_str(w, "port_id", peer_port_id, peer_port_id_len);
+			w = cc_coder_encode_kv_str(w, "value", ack ? "ACK" : "NACK", ack ? 3 : 4);
+		}
+	}
+
+	return cc_transport_send(node->transport_client, respbuffer, w - respbuffer);
 }
 
 static cc_result_t proto_parse_token_reply(cc_node_t *node, char *root)
