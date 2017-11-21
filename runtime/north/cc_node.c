@@ -504,6 +504,7 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 	char *peer_id = NULL;
 	size_t peer_id_len = 0;
 	cc_list_t *tmp_list = NULL;
+	bool new_proxy = true;
 
 	if (node->transport_client == NULL) {
 		node->transport_client = cc_transport_create(node, uri);
@@ -538,28 +539,32 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 	peer_id = node->transport_client->peer_id;
 	peer_id_len = strnlen(peer_id, CC_UUID_BUFFER_SIZE);
 
-	if (node->proxy_link != NULL && strncmp(node->proxy_link->peer_id, peer_id, peer_id_len) != 0) {
-		while (node->tunnels != NULL) {
-			tmp_list = node->tunnels;
-			node->tunnels = node->tunnels->next;
-			cc_tunnel_free(node, (cc_tunnel_t *)tmp_list->data, false);
-		}
-		node->tunnels = NULL;
-		node->storage_tunnel = NULL;
-		node->proxy_tunnel = NULL;
+	if (node->proxy_link != NULL) {
+		if (strncmp(node->proxy_link->peer_id, peer_id, peer_id_len) == 0)
+			new_proxy = false;
+		else {
+			while (node->tunnels != NULL) {
+				tmp_list = node->tunnels;
+				node->tunnels = node->tunnels->next;
+				cc_tunnel_free(node, (cc_tunnel_t *)tmp_list->data, false);
+			}
+			node->tunnels = NULL;
+			node->storage_tunnel = NULL;
+			node->proxy_tunnel = NULL;
 
-		while (node->links != NULL) {
-			tmp_list = node->links;
-			node->links = node->links->next;
-			cc_link_free(node, (cc_link_t *)tmp_list->data);
-		}
-		node->links = NULL;
-		node->proxy_link = NULL;
+			while (node->links != NULL) {
+				tmp_list = node->links;
+				node->links = node->links->next;
+				cc_link_free(node, (cc_link_t *)tmp_list->data);
+			}
+			node->links = NULL;
+			node->proxy_link = NULL;
 
-		tmp_list = node->actors;
-		while (tmp_list != NULL) {
-			cc_actor_disconnect(node, (cc_actor_t *)tmp_list->data, false);
-			tmp_list = tmp_list->next;
+			tmp_list = node->actors;
+			while (tmp_list != NULL) {
+				cc_actor_disconnect(node, (cc_actor_t *)tmp_list->data, false);
+				tmp_list = tmp_list->next;
+			}
 		}
 	}
 
@@ -587,8 +592,13 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 		cc_tunnel_add_ref(node->proxy_tunnel);
 	}
 
-	if (cc_proto_send_node_setup(node, cc_node_setup_reply_handler) != CC_SUCCESS)
-		return CC_FAIL;
+	if (new_proxy) {
+		if (cc_proto_send_node_setup(node, cc_node_setup_reply_handler) != CC_SUCCESS)
+			return CC_FAIL;
+	} else {
+		if (cc_proto_send_wake_signal(node, cc_node_setup_reply_handler) != CC_SUCCESS)
+			return CC_FAIL;
+	}
 
 	while (node->state != CC_NODE_STARTED && node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_ENABLED) {
 		if (cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
@@ -755,7 +765,7 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 	return CC_SUCCESS;
 }
 
-static void cc_node_free(cc_node_t *node)
+static void cc_node_free(cc_node_t *node, bool cleanup)
 {
 	cc_list_t *item = NULL, *tmp_item = NULL;
 
@@ -780,7 +790,7 @@ static void cc_node_free(cc_node_t *node)
 	while (item != NULL) {
 		tmp_item = item;
 		item = item->next;
-		cc_actor_free(node, (cc_actor_t*)tmp_item->data, node->state != CC_NODE_DO_SLEEP);
+		cc_actor_free(node, (cc_actor_t*)tmp_item->data, cleanup);
 	}
 
 	item = node->tunnels;
@@ -869,7 +879,7 @@ static void cc_node_enter_sleep(cc_node_t *node, uint32_t seconds_to_sleep)
 	}
 
 	cc_platform_stop(node);
-	cc_node_free(node);
+	cc_node_free(node, false);
 	cc_platform_deepsleep(seconds_to_sleep);
 }
 #endif
@@ -952,19 +962,21 @@ cc_result_t cc_node_run(cc_node_t *node)
 			item = item->next;
 		}
 
+		if (node->state != CC_NODE_STOP) {
 #ifdef CC_DEEPSLEEP_ENABLED
-		if (connect_failures >= 5) {
-			cc_log("Node: No proxy found, enterring sleep");
-			cc_node_set_state(node);
-			cc_platform_deepsleep(CC_SLEEP_TIME);
-		}
+			if (connect_failures >= 5) {
+				cc_log("Node: No proxy found, enterring sleep");
+				cc_node_set_state(node);
+				cc_platform_deepsleep(CC_SLEEP_TIME);
+			}
 #endif
-		cc_log("Node: No proxy found, waiting '%d' seconds", CC_RECONNECT_TIMEOUT);
-		cc_platform_evt_wait(node, CC_RECONNECT_TIMEOUT);
+			cc_log("Node: No proxy found, waiting '%d' seconds", CC_RECONNECT_TIMEOUT);
+			cc_platform_evt_wait(node, CC_RECONNECT_TIMEOUT);
+		}
 	}
 
 	cc_platform_stop(node);
-	cc_node_free(node);
+	cc_node_free(node, false);
 	cc_log("Node: Stopped");
 
 	return CC_SUCCESS;

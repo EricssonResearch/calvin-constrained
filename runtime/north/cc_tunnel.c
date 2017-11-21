@@ -230,7 +230,7 @@ void cc_tunnel_remove_ref(cc_node_t *node, cc_tunnel_t *tunnel)
 		tunnel->ref_count--;
 		cc_log_debug("Tunnel ref removed '%s' ref: %d", tunnel->id, tunnel->ref_count);
 		if (tunnel->ref_count == 0) {
-			if (node->state != CC_NODE_DO_SLEEP) {
+			if (node->state != CC_NODE_DO_SLEEP && node->transport_client != NULL) {
 				if (cc_proto_send_tunnel_destroy(node, tunnel, tunnel_destroy_handler) != CC_SUCCESS)
 					cc_log_debug("Failed to destroy tunnel '%s'", tunnel->id);
 			}

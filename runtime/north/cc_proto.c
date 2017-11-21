@@ -128,6 +128,40 @@ cc_result_t cc_proto_send_node_setup(cc_node_t *node, cc_result_t (*handler)(cc_
 	return CC_FAIL;
 }
 
+cc_result_t cc_proto_send_wake_signal(cc_node_t *node, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+{
+	char buffer[500], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
+
+	memset(buffer, 0, 500);
+
+	if (node->transport_client == NULL)
+		return CC_FAIL;
+
+	cc_gen_uuid(msg_uuid, "MSGID_");
+
+	w = buffer + node->transport_client->prefix_len;
+	w = cc_coder_encode_map(w, 5);
+	{
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_tunnel->link->peer_id, strnlen(node->proxy_tunnel->link->peer_id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
+		w = cc_coder_encode_kv_str(w, "tunnel_id", node->proxy_tunnel->id, strnlen(node->proxy_tunnel->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_map(w, "value", 2);
+		{
+			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+			w = cc_coder_encode_kv_str(w, "cmd", "WAKEUP", 6);
+		}
+	}
+
+	if (cc_node_add_pending_msg(node, msg_uuid, handler, NULL) == CC_SUCCESS) {
+		if (cc_transport_send(node->transport_client, buffer, w - buffer) == CC_SUCCESS)
+			return CC_SUCCESS;
+		cc_node_remove_pending_msg(node, msg_uuid);
+	}
+
+	return CC_FAIL;
+}
+
 cc_result_t cc_proto_send_get_actor_module(cc_node_t *node, const char *actor_type, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
@@ -213,8 +247,8 @@ cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t time_to_sleep,
 		w = cc_coder_encode_kv_map(w, "value", 3);
 		{
 			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
-			w = cc_coder_encode_kv_str(w, "cmd", "SLEEP_REQUEST", 13);
-			w = cc_coder_encode_kv_uint(w, "seconds_to_sleep", time_to_sleep);
+			w = cc_coder_encode_kv_str(w, "cmd", "WILL_SLEEP", 10);
+			w = cc_coder_encode_kv_uint(w, "time", time_to_sleep);
 		}
 	}
 
@@ -971,6 +1005,72 @@ static cc_result_t proto_parse_token_reply(cc_node_t *node, char *root)
 	return CC_FAIL;
 }
 
+static cc_result_t proto_parse_destroy(cc_node_t *node, char *root)
+{
+	char *r = root, respbuffer[400], *w = NULL;
+	char *from_rt_uuid = NULL, *tunnel_id = NULL, *obj_value = NULL, *method = NULL;
+	uint32_t method_len = 0, from_rt_uuid_len = 0, tunnel_id_len = 0;
+	cc_list_t *item = NULL, *tmp_item = NULL;
+
+	if (cc_coder_decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'from_rt_uuid'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_string_from_map(r, "tunnel_id", &tunnel_id, &tunnel_id_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'tunnel_id'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_get_value_from_map(r, "value", &obj_value) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'value'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_string_from_map(obj_value, "method", &method, &method_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'method'");
+		return CC_FAIL;
+	}
+
+	memset(respbuffer, 0, 400);
+	w = respbuffer + node->transport_client->prefix_len;
+	w = cc_coder_encode_map(w, 5);
+	{
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", from_rt_uuid, from_rt_uuid_len);
+		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
+		w = cc_coder_encode_kv_str(w, "tunnel_id", tunnel_id, tunnel_id_len);
+		w = cc_coder_encode_kv_map(w, "value", 2);
+		{
+			w = cc_coder_encode_kv_str(w, "cmd", "DESTROY_REPLY", 13);
+			w = cc_coder_encode_kv_uint(w, "value", 200);
+		}
+	}
+
+	cc_log("Destroying node");
+
+	node->state = CC_NODE_STOP;
+	if (strncmp(method, "clean", 5) == 0) {
+		item = node->actors;
+		while (item != NULL) {
+			tmp_item = item;
+			item = item->next;
+			cc_actor_free(node, (cc_actor_t *)tmp_item->data, true);
+		}
+	} else if (strncmp(method, "migrate", 7) == 0) {
+		item = node->actors;
+		while (item != NULL) {
+			tmp_item = item;
+			item = item->next;
+			if (cc_actor_migrate(node, (cc_actor_t *)tmp_item->data, node->proxy_link->peer_id, strlen(node->proxy_link->peer_id)) != CC_SUCCESS)
+				cc_log_error("Failed to migrate '%s'", ((cc_actor_t *)tmp_item->data)->id);
+			cc_actor_free(node, (cc_actor_t *)tmp_item->data, false);
+		}
+	}
+
+	return cc_transport_send(node->transport_client, respbuffer, w - respbuffer);
+}
+
 static cc_result_t cc_proto_parse_tunnel_data(cc_node_t *node, char *root, size_t len)
 {
 	char msg_uuid[CC_UUID_BUFFER_SIZE], *tmp = NULL, *value = NULL, *cmd = NULL, *r = root;
@@ -1011,6 +1111,8 @@ static cc_result_t cc_proto_parse_tunnel_data(cc_node_t *node, char *root, size_
 			return proto_parse_token_reply(node, root);
 		else if (strncmp(cmd, "TOKEN", 5) == 0)
 			return proto_parse_token(node, root);
+		else if (strncmp(cmd, "DESTROY", 7) == 0)
+			return proto_parse_destroy(node, root);
 		cc_log_error("Unhandled tunnel cmd");
 		return CC_FAIL;
 	}
@@ -1080,7 +1182,7 @@ static cc_result_t cc_proto_parse_actor_migrate(cc_node_t *node, char *root, siz
 
 	actor = cc_actor_get(node, actor_id, actor_id_len);
 	if (actor == NULL) {
-		cc_log_error("Non existing actor actor");
+		cc_log_error("Non existing actor");
 		proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 404);
 		return CC_FAIL;
 	}

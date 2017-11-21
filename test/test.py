@@ -745,3 +745,54 @@ def testRegistryAttribute():
 
     # verify actor removal
     assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':snk'])
+
+def testAbolish():
+    assert rt1 is not None
+    assert constrained_id is not None
+
+    script_name = "testAbolish"
+    script = """
+    src : std.CountTimer(sleep=0.1)
+    id : std.Identity()
+    snk : test.Sink(store_tokens=1, quiet=1)
+    src.integer > id.token
+    id.token > snk.token
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "src": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "type": "+"
+               }],
+            "id": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                    "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "type": "+"
+                }]
+        }
+    }
+    """
+
+    resp = request_handler.deploy_application(rt1,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
+
+    request_handler.abolish_proxy_peer(rt1, constrained_id)
+
+    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], rt1.id)
+
+    request_handler.delete_application(rt1, resp['application_id'])
