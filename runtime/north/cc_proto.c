@@ -1010,7 +1010,6 @@ static cc_result_t proto_parse_destroy(cc_node_t *node, char *root)
 	char *r = root, respbuffer[400], *w = NULL;
 	char *from_rt_uuid = NULL, *tunnel_id = NULL, *obj_value = NULL, *method = NULL;
 	uint32_t method_len = 0, from_rt_uuid_len = 0, tunnel_id_len = 0;
-	cc_list_t *item = NULL, *tmp_item = NULL;
 
 	if (cc_coder_decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'from_rt_uuid'");
@@ -1032,6 +1031,12 @@ static cc_result_t proto_parse_destroy(cc_node_t *node, char *root)
 		return CC_FAIL;
 	}
 
+	node->state = CC_NODE_STOP;
+	if (strncmp(method, "migrate", 7) == 0)
+		node->stop_method = CC_NODE_STOP_MIGRATE;
+	else
+		node->stop_method = CC_NODE_STOP_CLEAN;
+
 	memset(respbuffer, 0, 400);
 	w = respbuffer + node->transport_client->prefix_len;
 	w = cc_coder_encode_map(w, 5);
@@ -1044,27 +1049,6 @@ static cc_result_t proto_parse_destroy(cc_node_t *node, char *root)
 		{
 			w = cc_coder_encode_kv_str(w, "cmd", "DESTROY_REPLY", 13);
 			w = cc_coder_encode_kv_uint(w, "value", 200);
-		}
-	}
-
-	cc_log("Destroying node");
-
-	node->state = CC_NODE_STOP;
-	if (strncmp(method, "clean", 5) == 0) {
-		item = node->actors;
-		while (item != NULL) {
-			tmp_item = item;
-			item = item->next;
-			cc_actor_free(node, (cc_actor_t *)tmp_item->data, true);
-		}
-	} else if (strncmp(method, "migrate", 7) == 0) {
-		item = node->actors;
-		while (item != NULL) {
-			tmp_item = item;
-			item = item->next;
-			if (cc_actor_migrate(node, (cc_actor_t *)tmp_item->data, node->proxy_link->peer_id, strlen(node->proxy_link->peer_id)) != CC_SUCCESS)
-				cc_log_error("Failed to migrate '%s'", ((cc_actor_t *)tmp_item->data)->id);
-			cc_actor_free(node, (cc_actor_t *)tmp_item->data, false);
 		}
 	}
 

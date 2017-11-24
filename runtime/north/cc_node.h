@@ -36,6 +36,11 @@ typedef enum {
 	CC_NODE_STOP
 } cc_node_state_t;
 
+typedef enum {
+	CC_NODE_STOP_CLEAN,
+	CC_NODE_STOP_MIGRATE
+} cc_node_stop_method_t;
+
 typedef struct cc_pending_msg_t {
 	cc_result_t (*handler)(struct cc_node_t *node, char *data, size_t data_len, void *msg_data);
 	void *msg_data;
@@ -43,6 +48,7 @@ typedef struct cc_pending_msg_t {
 
 typedef struct cc_node_t {
 	cc_node_state_t state;
+	cc_node_stop_method_t stop_method;
 	char id[CC_UUID_BUFFER_SIZE];
 	char *storage_dir;
 	char *attributes;
@@ -77,6 +83,6 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 uint32_t cc_node_get_time(cc_node_t *node);
 cc_result_t cc_node_run(cc_node_t *node);
 #ifdef CC_STORAGE_ENABLED
-void cc_node_set_state(cc_node_t *node);
+void cc_node_set_state(cc_node_t *node, bool include_state);
 #endif
 #endif /* CC_NODE_H */

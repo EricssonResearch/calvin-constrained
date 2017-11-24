@@ -67,7 +67,7 @@ cc_result_t cc_api_runtime_serialize_and_stop(cc_node_t *node)
 {
 #ifdef CC_STORAGE_ENABLED
 	if (node->state == CC_NODE_STARTED)
-		cc_node_set_state(node);
+		cc_node_set_state(node, true);
 #endif
 	return cc_api_runtime_stop(node);
 }
