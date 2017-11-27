@@ -107,7 +107,7 @@ CC_LIBS += -lmicropython -lm
 CC_LDFLAGS += -Llibmpy
 CC_CFLAGS += -std=gnu99
 CC_CFLAGS += -Ilibmpy/build -Imicropython -Ilibmpy
-CC_CFLAGS += -DCC_PYTHON_ENABLED
+CC_CFLAGS += -DCC_PYTHON_ENABLED -DCC_STORAGE_ENABLED
 CC_CFLAGS += -DCC_PYTHON_HEAP_SIZE=$(PYTHON_HEAP_SIZE) -DCC_PYTHON_STACK_SIZE=$(PYTHON_STACK_SIZE)
 CC_CFLAGS += -DCC_ACTOR_MODULES_DIR=\""mpys/\""
 CC_SRC_C += actors/cc_actor_mpy.c libmpy/cc_mpy_port.c libmpy/cc_mpy_calvinsys.c
