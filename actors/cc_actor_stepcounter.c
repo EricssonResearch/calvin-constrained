@@ -23,7 +23,7 @@ static cc_result_t cc_actor_stepcounter_init(cc_actor_t **actor, cc_list_t *attr
 	char *obj_ref = NULL;
 	cc_actor_stepcounter_state_t *instance_state = NULL;
 
-	obj_ref = cc_calvinsys_open(*actor, "io.stepcounter", NULL, 0);
+	obj_ref = cc_calvinsys_open(*actor, "io.stepcounter", NULL);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'io.stepcounter'");
 		return CC_FAIL;
@@ -81,25 +81,23 @@ static void cc_actor_stepcounter_free(cc_actor_t *actor)
 	cc_platform_mem_free(actor->instance_state);
 }
 
-cc_result_t cc_actor_stepcounter_register(cc_list_t **actor_types)
+cc_result_t cc_actor_stepcounter_get_requires(cc_actor_t *actor, cc_list_t **requires)
 {
-	cc_actor_type_t *type = NULL;
-
-	if (cc_platform_mem_alloc((void **)&type, sizeof(cc_actor_type_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
+	if (cc_list_add_n(requires, "io.stepcounter", 14, NULL, 0) == NULL) {
+		cc_log_error("Failed to add requires");
 		return CC_FAIL;
 	}
 
-	memset(type, 0, sizeof(cc_actor_type_t));
+	return CC_SUCCESS;
+}
+
+cc_result_t cc_actor_stepcounter_setup(cc_actor_type_t *type)
+{
 	type->init = cc_actor_stepcounter_init;
 	type->set_state = cc_actor_stepcounter_set_state;
 	type->free_state = cc_actor_stepcounter_free;
 	type->fire_actor = cc_actor_stepcounter_fire;
-
-	if (cc_list_add_n(actor_types, "sensor.TriggeredStepCounter", 27, type, sizeof(cc_actor_type_t *)) == NULL) {
-		cc_log_error("Failed to register 'sensor.TriggeredStepCounter'");
-		return CC_FAIL;
-	}
+	type->get_requires = cc_actor_stepcounter_get_requires;
 
 	return CC_SUCCESS;
 }

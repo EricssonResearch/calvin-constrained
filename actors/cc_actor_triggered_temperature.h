@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef CC_ACTOR_GYROSCOPE_H
-#define CC_ACTOR_GYROSCOPE_H
+#ifndef CC_ACTOR_TRIGGERED_TEMPERATURE_H
+#define CC_ACTOR_TRIGGERED_TEMPERATURE_H
 
 #include "runtime/north/cc_common.h"
 #include "runtime/north/cc_actor_store.h"
 
-cc_result_t cc_actor_gyroscope_setup(cc_actor_type_t *type);
+cc_result_t cc_actor_triggered_temperature_setup(cc_actor_type_t *type);
 
-#endif /* CC_ACTOR_GYROSCOPE_H */
+#endif /* CC_ACTOR_TRIGGERED_TEMPERATURE_H */

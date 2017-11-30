@@ -19,6 +19,10 @@
 #include "runtime/north/cc_common.h"
 #include "calvinsys/cc_calvinsys.h"
 
-cc_result_t cc_calvinsys_ds18b20_create(cc_calvinsys_t **calvinsys, const char *name);
+typedef struct cc_calvinsys_temperature_state_t {
+	uint8_t pin;
+} cc_calvinsys_temperature_state_t;
+
+cc_result_t cc_calvinsys_ds18b20_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
 
 #endif /* CC_CALVINSYS_DS18B20_H */

@@ -94,25 +94,33 @@ static cc_result_t cc_calvinsys_timer_close(struct cc_calvinsys_obj_t *obj)
 static char *cc_calvinsys_timer_serialize(char *id, cc_calvinsys_obj_t *obj, char *buffer)
 {
 	cc_calvinsys_timer_t *timer = (cc_calvinsys_timer_t *)obj->state;
+	uint32_t now = cc_node_get_time(obj->capability->calvinsys->node);
+	bool triggered = false;
 
-	buffer = cc_coder_encode_kv_map(buffer, "obj", 3);
+	if (timer->active && now >= timer->nexttrigger)
+		triggered = true;
+
+	buffer = cc_coder_encode_kv_map(buffer, "obj", 4);
 	{
 		buffer = cc_coder_encode_kv_uint(buffer, "nexttrigger", timer->nexttrigger);
 		buffer = cc_coder_encode_kv_bool(buffer, "repeats", timer->repeats);
 		buffer = cc_coder_encode_kv_uint(buffer, "timeout", timer->timeout);
+		buffer = cc_coder_encode_kv_bool(buffer, "triggered", triggered);
 	}
 
 	return buffer;
 }
 
-static cc_result_t cc_calvinsys_timer_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
+static cc_result_t cc_calvinsys_timer_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
 	cc_calvinsys_timer_t *timer = NULL;
 	uint32_t timeout = 0;
+	cc_list_t *item = NULL;
 
-	if (data != NULL) {
-		if (cc_coder_decode_uint(data, &timeout) != CC_SUCCESS) {
-			cc_log_error("Failed to get 'timeout'");
+	item = cc_list_get(kwargs, "period");
+	if (item != NULL) {
+		if (cc_coder_decode_uint(item->data, &timeout) != CC_SUCCESS) {
+			cc_log_error("Failed to decode 'period'");
 			return CC_FAIL;
 		}
 	}
@@ -149,37 +157,45 @@ static cc_result_t cc_calvinsys_timer_open(cc_calvinsys_obj_t *obj, char *data, 
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_calvinsys_timer_deserialize(cc_calvinsys_obj_t *obj, char *buffer)
+cc_result_t cc_calvinsys_timer_deserialize(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
 	cc_calvinsys_timer_t *timer = NULL;
 	uint32_t timeout = 0, nexttrigger = 0;
 	bool repeats = false;
-	char *value = NULL;
 	cc_coder_type_t type = CC_CODER_UNDEF;
+	cc_list_t *item = NULL;
 
-	if (cc_coder_get_value_from_map(buffer, "timeout", &value) != CC_SUCCESS) {
+	item = cc_list_get(kwargs, "timeout");
+	if (item == NULL) {
 		cc_log_error("Failed to get 'timeout'");
 		return CC_FAIL;
 	}
 
-	if (cc_coder_decode_uint(value, &timeout) != CC_SUCCESS) {
+	if (cc_coder_decode_uint(item->data, &timeout) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'timeout'");
 		return CC_FAIL;
 	}
 
-	if (cc_coder_get_value_from_map(buffer, "nexttrigger", &value) != CC_SUCCESS) {
+	item = cc_list_get(kwargs, "nexttrigger");
+	if (item == NULL) {
 		cc_log_error("Failed to get 'nexttrigger'");
 		return CC_FAIL;
 	}
 
-	type = cc_coder_type_of(value);
+	type = cc_coder_type_of(item->data);
 	if (type == CC_CODER_UNDEF || type == CC_CODER_NIL)
 		nexttrigger = 0;
 	else if (type == CC_CODER_FLOAT || type == CC_CODER_DOUBLE || type == CC_CODER_UINT)
-		cc_coder_decode_uint(value, &nexttrigger);
+		cc_coder_decode_uint(item->data, &nexttrigger);
 
-	if (cc_coder_decode_bool_from_map(buffer, "repeats", &repeats) != CC_SUCCESS) {
-		cc_log_error("Failed to get attribute 'repeats'");
+	item = cc_list_get(kwargs, "repeats");
+	if (item == NULL) {
+		cc_log_error("Failed to get 'repeats'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_bool(item->data, &repeats) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'repeats'");
 		return CC_FAIL;
 	}
 
@@ -205,7 +221,7 @@ cc_result_t cc_calvinsys_timer_deserialize(cc_calvinsys_obj_t *obj, char *buffer
 	obj->serialize = cc_calvinsys_timer_serialize;
 	obj->state = timer;
 
-	cc_log("Timer '%s' deserialized, active '%d' timeout '%ld'", obj->id, timer->active, timer->timeout);
+	cc_log_debug("Timer '%s' deserialized, active '%d' timeout '%ld'", obj->id, timer->active, timer->timeout);
 
 	return CC_SUCCESS;
 }
@@ -243,12 +259,15 @@ cc_result_t cc_calvinsys_timer_get_nexttrigger(cc_node_t *node, uint32_t *nexttr
 		obj = (cc_calvinsys_obj_t *)list->data;
 		if (strncmp(obj->capability->name, "sys.timer", 9) == 0) {
 			timer = (cc_calvinsys_timer_t *)obj->state;
-			if (!timer->active)
+			if (!timer->active) {
+				list = list->next;
 				continue;
+			}
 
 			if (!anyactive) {
 				min_nexttrigger = timer->nexttrigger;
 				anyactive = true;
+				list = list->next;
 				continue;
 			}
 

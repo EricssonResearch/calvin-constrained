@@ -551,13 +551,13 @@ ASensor *get_sensor_by_name(const char *name)
 	return NULL;
 }
 
-cc_result_t cc_platform_create_calvinsys(cc_calvinsys_t **calvinsys)
+cc_result_t cc_platform_add_capabilities(cc_calvinsys_t *calvinsys)
 {
 	ASensorManager *mgr;
 	ASensorList sensor_list;
 	int i, sensor_count;
 
-	android_platform_t *platform = (android_platform_t *)(*calvinsys)->node->platform;
+	android_platform_t *platform = (android_platform_t *)calvinsys->node->platform;
 
 	platform->looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
 

@@ -204,8 +204,12 @@ char *cc_coder_encode_kv_array(char *buffer, const char *key, int keys)
 char *cc_coder_encode_kv_value(char *buffer, const char *key, const char *value, size_t size)
 {
 	buffer = mp_encode_str(buffer, key, strlen(key));
-	memcpy(buffer, value, size);
-	buffer += size;
+	if (value == NULL)
+		buffer = cc_coder_encode_nil(buffer);
+	else {
+		memcpy(buffer, value, size);
+		buffer += size;
+	}
 
 	return buffer;
 }

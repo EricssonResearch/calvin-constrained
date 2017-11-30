@@ -30,6 +30,8 @@
 #include "calvinsys/cc_calvinsys.h"
 #include "runtime/north/coder/cc_coder.h"
 
+// Le CalvinSys x86 config
+
 typedef enum {
 	CC_GPIO_IN,
 	CC_GPIO_OUT
@@ -38,7 +40,23 @@ typedef enum {
 typedef struct cc_platformx86_gpio_state_t {
 	int pin;
 	cc_platformx86_gpio_direction direction;
+	uint32_t val;
+	uint8_t readings;
 } cc_platformx86_gpio_state_t;
+
+cc_platformx86_gpio_state_t light_state = {0, CC_GPIO_OUT, 0, 0};
+cc_platformx86_gpio_state_t button_state = {1, CC_GPIO_OUT, 0, 5};
+
+static cc_result_t cc_platformx86_temp_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
+static cc_result_t cc_platformx86_gpio_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
+
+cc_calvinsys_capability_t capabilities[] = {
+	{cc_platformx86_temp_open, NULL, NULL, NULL, false, "io.temperature"},
+	{cc_platformx86_gpio_open, NULL, NULL, &light_state, false, "io.light"},
+	{cc_platformx86_gpio_open, NULL, NULL, &button_state, false, "io.button"}
+};
+
+// end if CalvinSys typees
 
 void cc_platform_print(const char *fmt, ...)
 {
@@ -91,17 +109,7 @@ static cc_result_t cc_platformx86_temp_write(struct cc_calvinsys_obj_t *obj, cha
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_platformx86_temp_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
-{
-	obj->can_write = cc_platformx86_temp_can_write;
-	obj->write = cc_platformx86_temp_write;
-	obj->can_read = cc_platformx86_temp_can_read;
-	obj->read = cc_platformx86_temp_read;
-
-	return CC_SUCCESS;
-}
-
-cc_result_t cc_platformx86_temp_deserialize(cc_calvinsys_obj_t *obj, char *buffer)
+static cc_result_t cc_platformx86_temp_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
 	obj->can_write = cc_platformx86_temp_can_write;
 	obj->write = cc_platformx86_temp_write;
@@ -131,25 +139,29 @@ static cc_result_t cc_platformx86_gpio_write(struct cc_calvinsys_obj_t *obj, cha
 
 static bool cc_platformx86_gpio_can_read(struct cc_calvinsys_obj_t *obj)
 {
-	return true;
+	return ((cc_platformx86_gpio_state_t *)obj->capability->state)->readings < 5;
 }
 
 static cc_result_t cc_platformx86_gpio_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
-	static uint32_t value = 1;
+	cc_platformx86_gpio_state_t *state = (cc_platformx86_gpio_state_t *)obj->capability->state;
+	char *buffer = NULL, *w = NULL;
 
-	*size = cc_coder_sizeof_uint(value);
-	if (cc_platform_mem_alloc((void **)data, *size) != CC_SUCCESS) {
+	if (state->val == 1)
+		state->val = 0;
+	else
+		state->val = 0;
+
+	if (cc_platform_mem_alloc((void **)&buffer, cc_coder_sizeof_uint(state->val)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
 
-	cc_coder_encode_uint(*data, value);
-
-	if (value == 1)
-		value = 0;
-	else
-		value = 1;
+	w = buffer;
+	w = cc_coder_encode_uint(buffer, state->val);
+	*data = buffer;
+	*size = w - buffer;
+	state->readings++;
 
 	return CC_SUCCESS;
 }
@@ -160,29 +172,7 @@ static cc_result_t cc_platformx86_gpio_close(struct cc_calvinsys_obj_t *obj)
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_platformx86_gpio_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
-{
-	cc_platformx86_gpio_state_t *gpio_state = (cc_platformx86_gpio_state_t *)obj->capability->state;
-
-	if (gpio_state->direction == CC_GPIO_IN)
-		cc_log("Platformx86: Opened pin '%d' as input", gpio_state->pin);
-	else if (gpio_state->direction == CC_GPIO_OUT)
-		cc_log("Platformx86: Opened pin '%d' as output", gpio_state->pin);
-	else {
-		cc_log_error("Unknown direction");
-		return CC_FAIL;
-	}
-
-	obj->can_write = cc_platformx86_gpio_can_write;
-	obj->write = cc_platformx86_gpio_write;
-	obj->can_read = cc_platformx86_gpio_can_read;
-	obj->read = cc_platformx86_gpio_read;
-	obj->close = cc_platformx86_gpio_close;
-
-	return CC_SUCCESS;
-}
-
-cc_result_t cc_platformx86_gpio_deserialize(cc_calvinsys_obj_t *obj, char *buffer)
+static cc_result_t cc_platformx86_gpio_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
 	cc_platformx86_gpio_state_t *gpio_state = (cc_platformx86_gpio_state_t *)obj->capability->state;
 
@@ -206,36 +196,9 @@ cc_result_t cc_platformx86_gpio_deserialize(cc_calvinsys_obj_t *obj, char *buffe
 
 // end of calvinsys functions
 
-cc_result_t cc_platform_create_calvinsys(cc_calvinsys_t **calvinsys)
+cc_result_t cc_platform_add_capabilities(cc_calvinsys_t *calvinsys)
 {
-	cc_platformx86_gpio_state_t *state_light = NULL, *state_button = NULL;
-
-	if (cc_calvinsys_create_capability(*calvinsys, "io.temperature", cc_platformx86_temp_open, cc_platformx86_temp_deserialize, NULL) != CC_SUCCESS)
-		return CC_FAIL;
-
-	if (cc_platform_mem_alloc((void **)&state_light, sizeof(cc_platformx86_gpio_state_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
-	}
-
-	state_light->pin = 1;
-	state_light->direction = CC_GPIO_OUT;
-
-	if (cc_calvinsys_create_capability(*calvinsys, "io.light", cc_platformx86_gpio_open, cc_platformx86_gpio_deserialize, state_light) != CC_SUCCESS)
-		return CC_FAIL;
-
-	if (cc_platform_mem_alloc((void **)&state_button, sizeof(cc_platformx86_gpio_state_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
-	}
-
-	state_button->pin = 2;
-	state_button->direction = CC_GPIO_IN;
-
-	if (cc_calvinsys_create_capability(*calvinsys, "io.button", cc_platformx86_gpio_open, cc_platformx86_gpio_deserialize, state_button) != CC_SUCCESS)
-		return CC_FAIL;
-
-	return CC_SUCCESS;
+	return cc_calvinsys_add_capabilities(calvinsys, sizeof(capabilities) / sizeof(cc_calvinsys_capability_t), capabilities);
 }
 
 void cc_platform_init(void)

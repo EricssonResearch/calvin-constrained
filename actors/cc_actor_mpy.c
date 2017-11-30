@@ -281,6 +281,35 @@ static cc_result_t cc_actor_mpy_get_attributes(cc_actor_t *actor, cc_list_t **ma
 	return CC_SUCCESS;
 }
 
+static cc_result_t cc_actor_mpy_get_requires(cc_actor_t *actor, cc_list_t **requires)
+{
+	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)actor->instance_state;
+	mp_obj_t mpy_attr[2];
+	mp_obj_list_t *requires_list = NULL;
+	uint32_t i = 0;
+
+	mp_load_method_maybe(state->actor_class_instance, QSTR_FROM_STR_STATIC("requires"), mpy_attr);
+	if (mpy_attr[0] == MP_OBJ_NULL && mpy_attr[1] == MP_OBJ_NULL)
+		return CC_SUCCESS;
+
+	requires_list = MP_OBJ_TO_PTR(mpy_attr[0]);
+	for (i = 0; i < requires_list->len; i++) {
+		if (!MP_OBJ_IS_STR(requires_list->items[i])) {
+			cc_log_error("Requirement is not a string");
+			return CC_FAIL;
+		}
+
+		const char *name = mp_obj_str_get_str(requires_list->items[i]);
+
+		if (cc_list_add_n(requires, name, strlen(name), NULL, 0) == NULL) {
+			cc_log_error("Failed to add requirement");
+			return CC_FAIL;
+		}
+	}
+
+	return CC_SUCCESS;
+}
+
 static bool cc_actor_mpy_fire(cc_actor_t *actor)
 {
 	mp_obj_t res;
@@ -468,6 +497,7 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 	actor->will_migrate = cc_actor_mpy_will_migrate;
 	actor->will_end = cc_actor_mpy_will_end;
 	actor->did_migrate = cc_actor_mpy_did_migrate;
+	actor->get_requires = cc_actor_mpy_get_requires;
 
 	return CC_SUCCESS;
 }

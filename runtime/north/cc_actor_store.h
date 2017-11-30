@@ -21,14 +21,15 @@
 #include "cc_actor.h"
 
 typedef struct cc_actor_type_t {
-	cc_result_t (*init)(cc_actor_t**actor, cc_list_t *managed_attributes);
-	cc_result_t (*set_state)(cc_actor_t**actor, cc_list_t *managed_attributes);
-	void (*free_state)(cc_actor_t*actor);
-	bool (*fire_actor)(cc_actor_t*actor);
-	cc_result_t (*get_managed_attributes)(cc_actor_t*actor, cc_list_t **attributes);
-	void (*will_migrate)(cc_actor_t*actor);
-	void (*will_end)(cc_actor_t*actor);
-	void (*did_migrate)(cc_actor_t*actor);
+	cc_result_t (*init)(cc_actor_t **actor, cc_list_t *managed_attributes);
+	cc_result_t (*set_state)(cc_actor_t **actor, cc_list_t *managed_attributes);
+	void (*free_state)(cc_actor_t *actor);
+	bool (*fire_actor)(cc_actor_t *actor);
+	cc_result_t (*get_managed_attributes)(cc_actor_t *actor, cc_list_t **attributes);
+	void (*will_migrate)(cc_actor_t *actor);
+	void (*will_end)(cc_actor_t *actor);
+	void (*did_migrate)(cc_actor_t *actor);
+	cc_result_t (*get_requires)(cc_actor_t *actor, cc_list_t **requires);
 } cc_actor_type_t;
 
 cc_result_t cc_actor_store_init(cc_list_t **actor_types);

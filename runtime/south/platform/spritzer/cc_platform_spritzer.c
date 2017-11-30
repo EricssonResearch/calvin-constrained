@@ -27,6 +27,11 @@ static int com_id = 0;
 static LTECommand command;
 static LTECommand_System command_sys;
 
+// Spritzer capabilities
+cc_calvinsys_capability_t capabilities[] = {
+	{cc_calvinsys_temp_sensor_open, NULL, NULL, NULL, false, "io.temperature"}
+};
+
 static int cc_platform_spritzer_wait_recv(void)
 {
   int count;
@@ -151,14 +156,9 @@ cc_result_t cc_platform_node_started(struct cc_node_t *node)
   return CC_SUCCESS;
 }
 
-cc_result_t cc_platform_create_calvinsys(cc_calvinsys_t **calvinsys)
+cc_result_t cc_platform_add_capabilities(cc_calvinsys_t *calvinsys)
 {
-  if (cc_calvinsys_temp_sensor_create(calvinsys, "io.temperature") != CC_SUCCESS) {
-    cc_log_error("Failed to create 'io.temperature'");
-    return CC_FAIL;
-  }
-
-  return CC_SUCCESS;
+  return cc_calvinsys_add_capabilities(calvinsys, sizeof(capabilities) / sizeof(cc_calvinsys_capability_t), capabilities);
 }
 
 void cc_platform_init(void)

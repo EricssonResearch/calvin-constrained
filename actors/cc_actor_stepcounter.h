@@ -17,6 +17,7 @@
 #define CC_ACTOR_STEPCOUNTER_H
 
 #include "runtime/north/cc_common.h"
+#include "runtime/north/cc_actor_store.h"
 
 typedef struct cc_actor_stepcounter_state_t {
 	char *obj_ref;
@@ -24,6 +25,6 @@ typedef struct cc_actor_stepcounter_state_t {
 	size_t stepcount_size;
 } cc_actor_stepcounter_state_t;
 
-cc_result_t cc_actor_stepcounter_register(cc_list_t **actor_types);
+cc_result_t cc_actor_stepcounter_setup(cc_actor_type_t *type);
 
 #endif /* CC_ACTOR_STEPCOUNTER_H */

@@ -17,7 +17,8 @@
 #define CC_ACTOR_BUTTON_H
 
 #include "runtime/north/cc_common.h"
+#include "runtime/north/cc_actor_store.h"
 
-cc_result_t cc_actor_button_register(cc_list_t **actor_types);
+cc_result_t cc_actor_button_setup(cc_actor_type_t *type);
 
 #endif /* CC_ACTOR_BUTTON_H */

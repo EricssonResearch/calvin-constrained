@@ -17,7 +17,8 @@
 #define ACTOR_PICKUPGESTURE_H
 
 #include "runtime/north/cc_common.h"
+#include "runtime/north/cc_actor_store.h"
 
-cc_result_t cc_actor_pickupgesture_register(cc_list_t **actor_types);
+cc_result_t cc_actor_pickupgesture_setup(cc_actor_type_t *type);
 
 #endif  /* ACTOR_PICKUPGESTURE_H */

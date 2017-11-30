@@ -20,6 +20,7 @@
 #include "runtime/north/cc_actor.h"
 #include "runtime/south/platform/cc_platform.h"
 #include "actors/cc_actor_mpy.h"
+#include "runtime/north/coder/cc_coder.h"
 
 static mp_obj_t cc_mp_obj_can_write(mp_obj_t arg_calvinsys, mp_obj_t arg_obj)
 {
@@ -88,21 +89,59 @@ static mp_obj_t cc_mp_obj_read(mp_obj_t arg_calvinsys, mp_obj_t arg_obj)
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(cc_mp_calvinsys_obj_read, cc_mp_obj_read);
 
-static mp_obj_t cc_mp_calvinsys_open(mp_obj_t arg_actor, mp_obj_t arg_name)
+static mp_obj_t cc_mp_calvinsys_open(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args)
 {
-	cc_actor_t *actor = MP_OBJ_TO_PTR(arg_actor);
-	const char *name = mp_obj_str_get_str(arg_name);
-	char *obj_ref = NULL;
+	cc_actor_t *actor = MP_OBJ_TO_PTR(pos_args[0]);
+	const char *name = mp_obj_str_get_str(pos_args[1]);
+	char *obj_ref = NULL, *value = NULL;
+	size_t i = 0, value_len = 0;
+	cc_list_t *list = NULL, *item = NULL;
+	cc_result_t result = CC_SUCCESS;
 
-	obj_ref = cc_calvinsys_open(actor, name, NULL, 0);
-	if (obj_ref == NULL) {
-		cc_log_error("Failed to open '%s'", name);
-		return mp_const_none;
+	for (i = 0; i < kw_args->alloc; i++) {
+		if (MP_OBJ_IS_TYPE(kw_args->table[0].key, &mp_type_str)) {
+			cc_log_error("Expected string as key");
+			result = CC_FAIL;
+			break;
+		}
+
+		const char *str = mp_obj_str_get_str(kw_args->table[0].key);
+
+		if (cc_actor_mpy_encode_from_mpy_obj(kw_args->table[i].value, &value, &value_len) != CC_SUCCESS) {
+			cc_log_error("Failed to decode '%s'", str);
+			result = CC_FAIL;
+			break;
+		}
+
+		if (cc_list_add_n(&list, str, strlen(str), value, value_len) == NULL) {
+			cc_log_error("Failed to add '%s' as kwarg", str);
+			result = CC_FAIL;
+			break;
+		}
 	}
+
+	if (result == CC_SUCCESS) {
+		obj_ref = cc_calvinsys_open(actor, name, list);
+		if (obj_ref == NULL) {
+			cc_log_error("Failed to open '%s'", name);
+			return mp_const_none;
+		}
+	}
+
+	while (list != NULL) {
+		item = list;
+		list = list->next;
+		cc_platform_mem_free(item->id);
+		cc_platform_mem_free(item->data);
+		cc_platform_mem_free(item);
+	}
+
+	if (result == CC_FAIL)
+		return mp_const_none;
 
 	return mp_obj_new_str(obj_ref, strlen(obj_ref), 0);
 }
-static MP_DEFINE_CONST_FUN_OBJ_2(cc_mp_calvinsys_open_obj, cc_mp_calvinsys_open);
+static MP_DEFINE_CONST_FUN_OBJ_KW(cc_mp_calvinsys_open_obj, 2, cc_mp_calvinsys_open);
 
 static mp_obj_t cc_mp_calvinsys_close(mp_obj_t arg_calvinsys, mp_obj_t arg_obj)
 {

@@ -1137,13 +1137,56 @@ static cc_result_t cc_proto_parse_actor_new(cc_node_t *node, char *root, size_t 
 	return result;
 }
 
+static cc_result_t cc_proto_send_req_match_with_actor_reqs(cc_node_t *node, cc_actor_t *actor, char *deploy_reqs, cc_list_t *requires)
+{
+	char buffer[1000]; // TODO: Set a reasonable size
+	char *w = buffer;
+	char *req = NULL;
+	cc_list_t *tmp_item = NULL;
+	uint32_t i = 0, nbr_of_reqs = cc_coder_get_size_of_array(deploy_reqs), size = 0;
+
+	w = cc_coder_encode_array(w, nbr_of_reqs + 1);
+	{
+		for (i = 0; i < nbr_of_reqs; i++) {
+			if (cc_coder_get_value_from_array(deploy_reqs, i, &req) != CC_SUCCESS) {
+				cc_log_error("Failed to get value");
+				return CC_FAIL;
+			}
+			size = cc_coder_get_size_of_value(req);
+			memcpy(w, req, size);
+			w = w + size;
+		}
+
+		w = cc_coder_encode_map(w, 3);
+		w = cc_coder_encode_kv_str(w, "op", "actor_reqs_match", 16);
+		w = cc_coder_encode_kv_str(w, "type", "+", 1);
+		w = cc_coder_encode_kv_map(w, "kwargs", 1);
+		{
+			w = cc_coder_encode_kv_array(w, "requires", cc_list_count(requires));
+			{
+				while (requires != NULL) {
+					w = cc_coder_encode_str(w, requires->id, strlen(requires->id));
+					tmp_item = requires;
+					requires = requires->next;
+					cc_platform_mem_free(tmp_item->id);
+					cc_platform_mem_free(tmp_item);
+				}
+			}
+		}
+	}
+
+	return cc_proto_send_req_match(node, actor, buffer, w - buffer, cc_actor_req_match_reply_handler);
+}
+
 static cc_result_t cc_proto_parse_actor_migrate(cc_node_t *node, char *root, size_t len)
 {
+	cc_result_t result = CC_FAIL;
 	char *r = root, *from_rt_uuid = NULL, *actor_id = NULL, msg_uuid[CC_UUID_BUFFER_SIZE], *tmp = NULL;
 	char *requirements = NULL, *peer_node_id = NULL;
-	cc_actor_t*actor = NULL;
-	uint32_t actor_id_len = 0, from_rt_uuid_len = 0, msg_uuid_len = 0, requirements_len = 0;
-	uint32_t peer_node_id_len = 0;
+	cc_actor_t *actor = NULL;
+	uint32_t actor_id_len = 0, from_rt_uuid_len = 0, msg_uuid_len = 0, peer_node_id_len = 0;
+	uint32_t requirements_len = 0;
+	cc_list_t *requires = NULL;
 
 	if (cc_coder_decode_string_from_map(r, "from_rt_uuid", &from_rt_uuid, &from_rt_uuid_len) != CC_SUCCESS) {
 		cc_log_error("Failed to get 'from_rt_uuid'");
@@ -1188,12 +1231,32 @@ static cc_result_t cc_proto_parse_actor_migrate(cc_node_t *node, char *root, siz
 		proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 400);
 		return CC_FAIL;
 	}
-	requirements_len = cc_coder_get_size_of_value(requirements);
 
-	if (cc_proto_send_req_match(node, actor, requirements, requirements_len, cc_actor_req_match_reply_handler) == CC_SUCCESS)
-		return proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 200);
+	cc_log("proto: Sending req match for actor '%s'", actor->id);
+	if (actor->get_requires != NULL) {
+		if (actor->get_requires(actor, &requires) != CC_SUCCESS) {
+			cc_log_error("Failed to get requires");
+			proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 500);
+			return CC_FAIL;
+		}
+	}
 
-	return proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 500);
+	if (requires == NULL) {
+		requirements_len = cc_coder_get_size_of_value(requirements);
+		result = cc_proto_send_req_match(node,
+			actor,
+			requirements,
+			requirements_len,
+			cc_actor_req_match_reply_handler);
+	} else
+		result = cc_proto_send_req_match_with_actor_reqs(node, actor, requirements, requires);
+
+	if (result == CC_SUCCESS)
+		result = proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 200);
+	else
+	 	result = proto_send_reply(node, msg_uuid, from_rt_uuid, from_rt_uuid_len, 500);
+
+	return result;
 }
 
 static cc_result_t cc_proto_parse_app_destroy(cc_node_t *node, char *root, size_t len)

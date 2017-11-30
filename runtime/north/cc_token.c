@@ -23,7 +23,7 @@ void cc_token_set_data(cc_token_t *token, char *data, const size_t size)
 {
 	if (token->value != NULL) {
 		cc_log_debug("Token not freed");
-		cc_platform_mem_free((void *)token->value);
+		cc_platform_mem_free(token->value);
 		token->value = NULL;
 	}
 
@@ -50,7 +50,7 @@ char *cc_token_encode(char *buffer, cc_token_t *token, bool with_key)
 void cc_token_free(cc_token_t *token)
 {
 	if (token->value != NULL) {
-		cc_platform_mem_free((void *)token->value);
+		cc_platform_mem_free(token->value);
 		token->value = NULL;
 		token->size = 0;
 	}

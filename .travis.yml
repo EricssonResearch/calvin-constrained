@@ -7,7 +7,5 @@ install:
   - ./test/test_setup.sh
 
 script:
-  - ../dmce/dmce-launcher -n 2
   - ./test/test.sh
   - ./test/test.sh mpy
-  - ../dmce/dmce-summary cc_stderr.log

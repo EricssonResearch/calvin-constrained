@@ -29,6 +29,6 @@ typedef struct cc_calvinsys_gpio_state_t {
 	cc_calvinsys_gpio_direction direction;
 } cc_calvinsys_gpio_state_t;
 
-cc_result_t cc_calvinsys_gpio_create(cc_calvinsys_t **calvinsys, const char *name, cc_calvinsys_gpio_state_t *state);
+cc_result_t cc_calvinsys_gpio_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
 
 #endif /* CC_CALVINSYS_GPIO_H */

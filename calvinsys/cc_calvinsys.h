@@ -32,10 +32,11 @@ typedef struct cc_calvinsys_obj_t {
 } cc_calvinsys_obj_t;
 
 typedef struct cc_calvinsys_capability_t {
-	cc_result_t (*open)(cc_calvinsys_obj_t *obj, char *data, size_t len);
-	cc_result_t (*deserialize)(cc_calvinsys_obj_t *obj, char *buffer);
+	cc_result_t (*open)(cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
+	cc_result_t (*deserialize)(cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
 	struct cc_calvinsys_t *calvinsys;
 	void *state;
+	bool malloced;
 	char *name;
 } cc_calvinsys_capability_t;
 
@@ -45,9 +46,10 @@ typedef struct cc_calvinsys_t {
 	struct cc_node_t *node;
 } cc_calvinsys_t;
 
-cc_result_t cc_calvinsys_create_capability(cc_calvinsys_t *calvinsys, const char *name, cc_result_t (*open)(cc_calvinsys_obj_t*, char*, size_t), cc_result_t (*deserialize)(cc_calvinsys_obj_t*, char*), void *state);
+cc_result_t cc_calvinsys_add_capabilities(cc_calvinsys_t *calvinsys, size_t n_capabilities, cc_calvinsys_capability_t capabilities[]);
+cc_result_t cc_calvinsys_create_capability(cc_calvinsys_t *calvinsys, const char *name, cc_result_t (*open)(cc_calvinsys_obj_t*, cc_list_t*), cc_result_t (*deserialize)(cc_calvinsys_obj_t*, cc_list_t *kwargs), void *state);
 void cc_calvinsys_delete_capability(cc_calvinsys_t *calvinsys, const char *name);
-char *cc_calvinsys_open(struct cc_actor_t *actor, const char *name, char *data, size_t size);
+char *cc_calvinsys_open(struct cc_actor_t *actor, const char *name, cc_list_t *kwargs);
 bool cc_calvinsys_can_write(cc_calvinsys_t *calvinsys, char *id);
 cc_result_t cc_calvinsys_write(cc_calvinsys_t *calvinsys, char *id, char *data, size_t data_size);
 bool cc_calvinsys_can_read(cc_calvinsys_t *calvinsys, char *id);

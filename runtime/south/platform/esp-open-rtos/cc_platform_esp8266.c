@@ -44,6 +44,19 @@
 #define CC_ESP_WIFI_STATUS_PIN	2
 #define CC_ESP_RESET_PIN				4
 
+// Capabilities
+
+cc_calvinsys_temperature_state_t temp_state = {5};
+cc_calvinsys_gpio_state_t light_state = {0, CC_GPIO_OUT};
+
+cc_calvinsys_capability_t capabilities[] = {
+	{cc_calvinsys_ds18b20_open, NULL, NULL, &temp_state, false, "io.temperature"},
+	{cc_calvinsys_gpio_open, NULL, NULL, &light_state, false, "io.light"},
+	{cc_calvinsys_yl69_open, NULL, NULL, NULL, false, "io.soil_moisture"}
+};
+
+// End of capabilities
+
 #ifdef CC_PYTHON_ENABLED
 // TODO: Workaround to solve link error with missing function
 #include <math.h>
@@ -124,28 +137,9 @@ cc_result_t cc_platform_create(struct cc_node_t *node)
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_platform_create_calvinsys(cc_calvinsys_t **calvinsys)
+cc_result_t cc_platform_add_capabilities(cc_calvinsys_t *calvinsys)
 {
-	cc_calvinsys_gpio_state_t *state_light = NULL;
-
-	if (cc_platform_mem_alloc((void **)&state_light, sizeof(cc_calvinsys_gpio_state_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
-	}
-
-	state_light->pin = 0;
-	state_light->direction = CC_GPIO_OUT;
-
-	if (cc_calvinsys_gpio_create(calvinsys, "io.light", state_light) != CC_SUCCESS)
-		return CC_FAIL;
-
-	if (cc_calvinsys_ds18b20_create(calvinsys, "io.temperature") != CC_SUCCESS)
-		return CC_FAIL;
-
-	if (cc_calvinsys_yl69_create(calvinsys, "io.soil_moisture") != CC_SUCCESS)
-		return CC_FAIL;
-
-	return CC_SUCCESS;
+	return cc_calvinsys_add_capabilities(calvinsys, sizeof(capabilities) / sizeof(cc_calvinsys_capability_t), capabilities);
 }
 
 cc_result_t cc_platform_mem_alloc(void **buffer, uint32_t size)
@@ -296,7 +290,6 @@ void cc_platform_deepsleep(uint32_t time)
 
 void cc_platform_init(void)
 {
-	srand(sdk_system_get_time());
 }
 
 uint32_t cc_platform_get_time()

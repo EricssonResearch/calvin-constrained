@@ -1,9 +1,5 @@
 #!/bin/bash
 
-pushd ../
-git clone https://github.com/PatrikAAberg/dmce.git
-popd
-
 # Init submodules
 git submodule init
 git submodule update
@@ -12,7 +8,7 @@ git submodule update
 git clone https://github.com/EricssonResearch/calvin-base.git
 pushd calvin-base
 git fetch
-git checkout 327739b729babe2480c85e728df4a975612a42b7
+git checkout afcc131b9d78bedcd3f59c622432ce39f41d73fe
 pip install -r requirements.txt
 pip install -r test-requirements.txt
 popd

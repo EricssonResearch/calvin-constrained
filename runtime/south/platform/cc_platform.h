@@ -65,15 +65,14 @@ void cc_platform_print(const char *fmt, ...);
 cc_result_t cc_platform_create(struct cc_node_t *node);
 
 /**
- * cc_platform_create_calvinsys() - Create calvinsys objects.
- * @node the node object
+ * cc_platform_add_capabilities() - Add calvinsys objects.
+ * @calvinsys the calvinsys object
  *
- * Called when node is starting to create calvinsys objects, the
- * calvinsys objects should be added to node->calvinsys.
+ * Called when node is starting to create and add calvinsys objects.
  *
  * Return: CC_SUCCESS/CC_FAILURE
  */
-cc_result_t cc_platform_create_calvinsys(cc_calvinsys_t **calvinsys);
+cc_result_t cc_platform_add_capabilities(cc_calvinsys_t *calvinsys);
 
 /**
  * cc_platform_mem_alloc() - Allocate requested memory.

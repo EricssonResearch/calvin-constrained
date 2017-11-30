@@ -190,7 +190,7 @@ static char *cc_calvinsys_attribute_serialize(char *id, cc_calvinsys_obj_t *obj,
 	return buffer;
 }
 
-static cc_result_t cc_calvinsys_attribute_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
+static cc_result_t cc_calvinsys_attribute_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
 	cc_calvinsys_attribute_t *attribute = NULL;
 
@@ -211,16 +211,23 @@ static cc_result_t cc_calvinsys_attribute_open(cc_calvinsys_obj_t *obj, char *da
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_calvinsys_attribute_deserialize(cc_calvinsys_obj_t *obj, char *buffer)
+cc_result_t cc_calvinsys_attribute_deserialize(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
 	cc_calvinsys_attribute_t *state = NULL;
 	char *attribute_name = NULL, *type = NULL, *attribute = NULL;
 	uint32_t attribute_name_len = 0, type_len = 0;
 	size_t attribute_len = 0;
 	char *w = NULL, *attributes = obj->capability->calvinsys->node->attributes;
+	cc_list_t *item = NULL;
 
-	if (cc_coder_decode_string_from_map(buffer, "type", &type, &type_len) != CC_SUCCESS) {
-		cc_log_error("Failed to get attribute 'type'");
+	item = cc_list_get(kwargs, "type");
+	if (item == NULL) {
+		cc_log_error("Failed to get 'type'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_str(item->data, &type, &type_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'type'");
 		return CC_FAIL;
 	}
 
@@ -229,8 +236,14 @@ cc_result_t cc_calvinsys_attribute_deserialize(cc_calvinsys_obj_t *obj, char *bu
 		return CC_FAIL;
 	}
 
-	if (cc_coder_decode_string_from_map(buffer, "attribute", &attribute_name, &attribute_name_len) != CC_SUCCESS) {
-		cc_log_error("Failed to get attribute 'attribute'");
+	item = cc_list_get(kwargs, "attribute");
+	if (item == NULL) {
+		cc_log_error("Failed to get 'attribute'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_str(item->data, &attribute_name, &attribute_name_len) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'attribute'");
 		return CC_FAIL;
 	}
 

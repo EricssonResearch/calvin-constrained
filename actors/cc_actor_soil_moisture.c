@@ -32,7 +32,6 @@ typedef struct cc_actor_soil_moisture_state_t {
 static cc_result_t cc_actor_soil_moisture_init(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
 	cc_actor_soil_moisture_state_t *state = NULL;
-	cc_list_t *item = NULL;
 	char *obj_ref = NULL;
 
 	if (cc_platform_mem_alloc((void **)&state, sizeof(cc_actor_soil_moisture_state_t)) != CC_SUCCESS) {
@@ -40,7 +39,7 @@ static cc_result_t cc_actor_soil_moisture_init(cc_actor_t **actor, cc_list_t *ma
 		return CC_FAIL;
 	}
 
-	obj_ref = cc_calvinsys_open(*actor, "io.soilmoisture", NULL, 0);
+	obj_ref = cc_calvinsys_open(*actor, "io.soilmoisture", NULL);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'io.soilmoisture'");
 		cc_platform_mem_free(state);
@@ -48,14 +47,7 @@ static cc_result_t cc_actor_soil_moisture_init(cc_actor_t **actor, cc_list_t *ma
 	}
 	strncpy(state->soilmoisture, obj_ref, strnlen(obj_ref, CC_UUID_BUFFER_SIZE));
 
-	item = cc_list_get(managed_attributes, "period");
-	if (item == NULL) {
-		cc_log_error("Failed to get attribute 'period'");
-		cc_platform_mem_free(state);
-		return CC_FAIL;
-	}
-
-	obj_ref = cc_calvinsys_open(*actor, "sys.timer.once", (char *)item->data, item->data_len);
+	obj_ref = cc_calvinsys_open(*actor, "sys.timer.once", managed_attributes);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'sys.timer.once'");
 		cc_platform_mem_free((void *)state);
@@ -205,26 +197,29 @@ static void cc_actor_soil_moisture_free(cc_actor_t *actor)
 		cc_platform_mem_free((void *)actor->instance_state);
 }
 
-cc_result_t cc_actor_soil_moisture_register(cc_list_t **actor_types)
+cc_result_t cc_actor_soil_moisture_get_requires(cc_actor_t *actor, cc_list_t **requires)
 {
-	cc_actor_type_t *type = NULL;
-
-	if (cc_platform_mem_alloc((void **)&type, sizeof(cc_actor_type_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
+	if (cc_list_add_n(requires, "io.soilmoisture", 15, NULL, 0) == NULL) {
+		cc_log_error("Failed to add requires");
 		return CC_FAIL;
 	}
 
-	memset(type, 0, sizeof(cc_actor_type_t));
+	if (cc_list_add_n(requires, "sys.timer.once", 14, NULL, 0) == NULL) {
+		cc_log_error("Failed to add requires");
+		return CC_FAIL;
+	}
+
+	return CC_SUCCESS;
+}
+
+cc_result_t cc_actor_soil_moisture_setup(cc_actor_type_t *type)
+{
 	type->init = cc_actor_soil_moisture_init;
 	type->set_state = cc_actor_soil_moisture_set_state;
 	type->free_state = cc_actor_soil_moisture_free;
 	type->fire_actor = cc_actor_soil_moisture_fire;
 	type->get_managed_attributes = cc_actor_soil_moisture_get_attributes;
-
-	if (cc_list_add_n(actor_types, "sensor.SoilMoisture", 19, type, sizeof(cc_actor_type_t *)) == NULL) {
-		cc_log_error("Failed to register 'sensor.SoilMoisture'");
-		return CC_FAIL;
-	}
+	type->get_requires = cc_actor_soil_moisture_get_requires;
 
 	return CC_SUCCESS;
 }

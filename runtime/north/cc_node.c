@@ -696,7 +696,7 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 	node->calvinsys->objects = NULL;
 	node->actor_types = NULL;
 
-	if (cc_platform_create_calvinsys(&node->calvinsys) != CC_SUCCESS) {
+	if (cc_platform_add_capabilities(node->calvinsys) != CC_SUCCESS) {
 		cc_log_error("Failed to create calvinsys");
 		return CC_FAIL;
 	}
@@ -708,7 +708,7 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 		cc_log_error("Failed to create calvinsys 'attribute'");
 
 	if (cc_actor_store_init(&node->actor_types) != CC_SUCCESS) {
-		cc_log_error("Failed to create actor types");
+		cc_log_error("Failed to init actor store");
 		return CC_FAIL;
 	}
 

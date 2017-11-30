@@ -15,8 +15,10 @@
  */
 #ifndef ACTOR_CAMERA_H
 #define ACTOR_CAMERA_H
-#include "runtime/north/cc_common.h"
 
-cc_result_t cc_actor_camera_register(cc_list_t **actor_types);
+#include "runtime/north/cc_common.h"
+#include "runtime/north/cc_actor_store.h"
+
+cc_result_t cc_actor_camera_setup(cc_actor_type_t *type);
 
 #endif /* CC_ACTOR_CAMERA_H */

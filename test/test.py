@@ -11,12 +11,11 @@ from calvin.tests.helpers import wait_for_tokens
 """ Test constrained runtime functionallity towards two base runtimes.
 """
 
-rt1 = None  # Node with constrained rt connected
-rt2 = None
 request_handler = None
+base_rt1 = None
+base_rt2 = None
 constrained_id = None
 constrained_process = None
-output_file = None
 calvin_command = "exec ./calvin_c"
 #calvin_command = "exec valgrind --leak-check=full ./calvin_c"
 
@@ -51,44 +50,40 @@ def verify_actor_removal(request_handler, rt, actor_id):
     return removed
 
 def setup_module(module):
-    global rt1
-    global rt2
     global request_handler
+    global base_rt1
+    global base_rt2
     global constrained_id
     global constrained_process
-    global output_file
-
-    output_file = open("cc_stderr.log", "a")
-    constrained_process = subprocess.Popen(calvin_command + " -a '{\"indexed_public\": {\"node_name\": {\"name\": \"constrained\"}}}' -p 'calvinip://127.0.0.1:5000 ssdp'", shell=True, stderr=output_file)
 
     request_handler = RequestHandler()
-    rt1 = RT("http://127.0.0.1:5001")
-    rt1.id = request_handler.get_node_id(rt1.control_uri)
-    rt2 = RT("http://127.0.0.1:5003")
-    rt2.id = request_handler.get_node_id(rt2.control_uri)
+    base_rt1 = RT("http://127.0.0.1:5001")
+    base_rt1.id = request_handler.get_node_id(base_rt1.control_uri)
+    base_rt2 = RT("http://127.0.0.1:5003")
+    base_rt2.id = request_handler.get_node_id(base_rt2.control_uri)
 
-    # get constrained id
+    # start constrained
+    constrained_process = subprocess.Popen(calvin_command + " -a '{\"indexed_public\": {\"node_name\": {\"name\": \"constrained\"}}}' -p 'calvinip://127.0.0.1:5000 ssdp'", shell=True)
     for x in range(0, 10):
-        peers = request_handler.get_nodes(rt1)
+        peers = request_handler.get_nodes(base_rt1)
         for peer in peers:
-            peer_info = request_handler.get_node(rt1, peer)
+            peer_info = request_handler.get_node(base_rt1, peer)
             if "constrained" in peer_info["attributes"]["indexed_public"][0]:
                 constrained_id = peer
                 return
         time.sleep(1)
 
-    pytest.exit("Failed to get constrained runtime id")
+    pytest.exit("Failed to get constrained runtimes")
 
 def teardown_module(module):
     global constrained_process
-    global output_file
-    constrained_process.kill()
-    output_file.close()
+    if constrained_process.poll() != 0:
+        request_handler.abolish_proxy_peer(base_rt1, constrained_id)
+        time.sleep(1)
+        if constrained_process.poll() != 0:
+            constrained_process.kill()
 
 def testDataAndDestruction():
-    assert rt1 is not None
-    assert constrained_id is not None
-
     script_name = "testDataAndDestruction"
     script = """
     src : std.CountTimer(sleep=0.1)
@@ -104,7 +99,7 @@ def testDataAndDestruction():
             "src": [
                 {
                   "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                }],
             "id": [
@@ -116,39 +111,29 @@ def testDataAndDestruction():
             "snk": [
                 {
                     "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                 }]
         }
     }
     """
-
-    resp = request_handler.deploy_application(rt1,
-                                              script_name,
-                                              script,
-                                              deploy_info=json.loads(deploy_info))
+    resp = request_handler.deploy_application(base_rt1, script_name, script, deploy_info=json.loads(deploy_info))
 
     # verify placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
+    assert verify_actor_placement(request_handler, base_rt1, resp['actor_map'][script_name + ':id'], constrained_id)
 
     # verify data
-    wait_for_tokens(request_handler,
-                    rt1,
-                    resp['actor_map'][script_name + ':snk'], 5, 20)
-    actual = request_handler.report(rt1,
-                                    resp['actor_map'][script_name + ':snk'])
+    wait_for_tokens(request_handler, base_rt1, resp['actor_map'][script_name + ':snk'], 5, 20)
+    actual = request_handler.report(base_rt1, resp['actor_map'][script_name + ':snk'])
     assert len(actual) >= 5
 
     # remove app
-    request_handler.delete_application(rt1, resp['application_id'])
+    request_handler.delete_application(base_rt1, resp['application_id'])
 
     # verify actor removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id'])
+    assert verify_actor_removal(request_handler, base_rt1, resp['actor_map'][script_name + ':id'])
 
 def testDataAndDestructionRouted():
-    assert rt2 is not None
-    assert constrained_id is not None
-
     script_name = "testDataAndDestruction"
     script = """
     src : std.CountTimer(sleep=0.1)
@@ -164,7 +149,7 @@ def testDataAndDestructionRouted():
             "src": [
                 {
                   "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt2"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt2"}]},
                     "type": "+"
                }],
             "id": [
@@ -176,40 +161,30 @@ def testDataAndDestructionRouted():
             "snk": [
                 {
                     "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt2"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt2"}]},
                     "type": "+"
                 }]
         }
     }
     """
 
-    resp = request_handler.deploy_application(rt2,
-                                              script_name,
-                                              script,
-                                              deploy_info=json.loads(deploy_info))
+    resp = request_handler.deploy_application(base_rt2, script_name, script, deploy_info=json.loads(deploy_info))
 
     # verify placement
-    assert verify_actor_placement(request_handler, rt2, resp['actor_map'][script_name + ':id'], constrained_id)
+    assert verify_actor_placement(request_handler, base_rt2, resp['actor_map'][script_name + ':id'], constrained_id)
 
     # verify data
-    wait_for_tokens(request_handler,
-                    rt2,
-                    resp['actor_map'][script_name + ':snk'], 5, 20)
-    actual = request_handler.report(rt2,
-                                    resp['actor_map'][script_name + ':snk'])
+    wait_for_tokens(request_handler, base_rt2, resp['actor_map'][script_name + ':snk'], 5, 20)
+    actual = request_handler.report(base_rt2, resp['actor_map'][script_name + ':snk'])
     assert len(actual) >= 5
 
     # remove app
-    request_handler.delete_application(rt2, resp['application_id'])
+    request_handler.delete_application(base_rt2, resp['application_id'])
 
     # verify actor removal
-    assert verify_actor_removal(request_handler, rt2, resp['actor_map'][script_name + ':id'])
+    assert verify_actor_removal(request_handler, base_rt2, resp['actor_map'][script_name + ':id'])
 
 def testPortConnect():
-    assert rt1 is not None
-    assert rt2 is not None
-    assert constrained_id is not None
-
     script_name = "testPortConnect"
     script = """
     src : std.CountTimer(sleep=0.1)
@@ -225,7 +200,7 @@ def testPortConnect():
             "src": [
                 {
                   "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                }],
             "id": [
@@ -237,50 +212,44 @@ def testPortConnect():
             "snk": [
                 {
                     "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                 }]
         }
     }
     """
-    resp = request_handler.deploy_application(rt1,
-                                              script_name,
-                                              script,
-                                              deploy_info=json.loads(deploy_info))
+    resp = request_handler.deploy_application(base_rt1, script_name, script, deploy_info=json.loads(deploy_info))
 
     app_id = resp['application_id']
     identity_id = resp['actor_map'][script_name + ':id']
     snk_id = resp['actor_map'][script_name + ':snk']
 
     # verify placement
-    assert verify_actor_placement(request_handler, rt1, identity_id, constrained_id)
+    assert verify_actor_placement(request_handler, base_rt1, identity_id, constrained_id)
 
     # wait for tokens
-    wait_for_tokens(request_handler, rt1, resp['actor_map'][script_name + ':snk'], 5)
-    actual = request_handler.report(rt1, resp['actor_map'][script_name + ':snk'])
+    wait_for_tokens(request_handler, base_rt1, resp['actor_map'][script_name + ':snk'], 5)
+    actual = request_handler.report(base_rt1, resp['actor_map'][script_name + ':snk'])
 
     # migrate snk to rt2
-    request_handler.migrate(rt1, snk_id, rt2.id)
+    request_handler.migrate(base_rt1, snk_id, base_rt2.id)
 
     # verify placement
-    assert verify_actor_placement(request_handler, rt2, snk_id, rt2.id)
+    assert verify_actor_placement(request_handler, base_rt2, snk_id, base_rt2.id)
 
     # verify tokens
     expected = len(actual) + 5
-    wait_for_tokens(request_handler, rt2, resp['actor_map'][script_name + ':snk'], expected, 20)
-    actual = request_handler.report(rt2, resp['actor_map'][script_name + ':snk'])
+    wait_for_tokens(request_handler, base_rt2, resp['actor_map'][script_name + ':snk'], expected, 20)
+    actual = request_handler.report(base_rt2, resp['actor_map'][script_name + ':snk'])
     assert len(actual) >= expected
 
     # delete app
-    request_handler.delete_application(rt1, app_id)
+    request_handler.delete_application(base_rt1, app_id)
 
     # verify removal
-    assert verify_actor_removal(request_handler, rt1, identity_id)
+    assert verify_actor_removal(request_handler, base_rt1, identity_id)
 
 def testMigration():
-    assert rt1 is not None
-    assert constrained_id is not None
-
     script_name = "testMigration"
     script = """
     src : std.CountTimer(sleep=0.1)
@@ -296,7 +265,7 @@ def testMigration():
             "src": [
                 {
                   "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                }],
             "id": [
@@ -308,70 +277,37 @@ def testMigration():
             "snk": [
                 {
                     "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                 }]
         }
     }
     """
-    resp = request_handler.deploy_application(rt1,
-                                              script_name,
-                                              script,
-                                              deploy_info=json.loads(deploy_info))
+    resp = request_handler.deploy_application(base_rt1, script_name, script, deploy_info=json.loads(deploy_info))
 
     # verify placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
+    assert verify_actor_placement(request_handler, base_rt1, resp['actor_map'][script_name + ':id'], constrained_id)
+
+    # verify data
+    wait_for_tokens(request_handler, base_rt1, resp['actor_map'][script_name + ':snk'], 5, 20)
+    actual = request_handler.report(base_rt1, resp['actor_map'][script_name + ':snk'])
+    assert len(actual) >= 5
 
     # migrate id to rt2 and verify placement
-    deploy_info = """
-    {
-        "requirements": {
-            "src": [
-                {
-                  "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
-                    "type": "+"
-               }],
-            "id": [
-                {
-                  "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt2"}]},
-                    "type": "+"
-               }],
-            "snk": [
-                {
-                    "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
-                    "type": "+"
-                }]
-        }
-    }
-    """
-    # verify data
-    wait_for_tokens(request_handler, rt1, resp['actor_map'][script_name + ':snk'], 5, 20)
-    actual = request_handler.report(rt1, resp['actor_map'][script_name + ':snk'])
-    assert len(actual) >= 5
-    request_handler.migrate_app_use_req(rt1,
-                                        resp['application_id'],
-                                        json.loads(deploy_info))
-
+    request_handler.migrate(base_rt1, resp['actor_map'][script_name + ':id'], base_rt2.id)
 
     # verify placement
-    assert verify_actor_placement(request_handler, rt2, resp['actor_map'][script_name + ':id'], rt2.id)
+    assert verify_actor_placement(request_handler, base_rt2, resp['actor_map'][script_name + ':id'], base_rt2.id)
 
-    wait_for_tokens(request_handler, rt1, resp['actor_map'][script_name + ':snk'], 10, 20)
-    actual = request_handler.report(rt1, resp['actor_map'][script_name + ':snk'])
+    wait_for_tokens(request_handler, base_rt1, resp['actor_map'][script_name + ':snk'], 10, 20)
+    actual = request_handler.report(base_rt1, resp['actor_map'][script_name + ':snk'])
     assert len(actual) >= 10
-    request_handler.migrate_app_use_req(rt1, resp['application_id'], json.loads(deploy_info))
 
     # delete application
-    request_handler.delete_application(rt1, resp['application_id'])
+    request_handler.delete_application(base_rt1, resp['application_id'])
 
-def testTemperatureActor():
-    assert rt1 is not None
-    assert constrained_id is not None
-
-    script_name = "testTemperatureActor"
+def testTemperature():
+    script_name = "testTemperature"
     script = """
     temp : sensor.Temperature(period=1)
     snk : test.Sink(store_tokens=1, quiet=1)
@@ -390,47 +326,91 @@ def testTemperatureActor():
             "snk": [
                 {
                     "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                 }]
         }
     }
     """
-    resp = request_handler.deploy_application(rt1,
+    resp = request_handler.deploy_application(base_rt1,
                                               script_name,
                                               script,
                                               deploy_info=json.loads(deploy_info))
+    temp_id = resp['actor_map'][script_name + ':temp']
+    snk_id = resp['actor_map'][script_name + ':snk']
 
-    # verify actor placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':temp'], constrained_id)
+    # verify actor placement and data
+    assert verify_actor_placement(request_handler, base_rt1, temp_id, constrained_id)
+    wait_for_tokens(request_handler, base_rt1, snk_id, 2, 20)
+    actual = request_handler.report(base_rt1, snk_id)
+    assert len(actual) >= 2
 
-    # verify data
-    wait_for_tokens(request_handler,
-                    rt1,
-                    resp['actor_map'][script_name + ':snk'], 5, 20)
-    actual = request_handler.report(rt1,
-                                    resp['actor_map'][script_name + ':snk'])
-    assert len(actual) >= 5
-    assert all(x == 15.5 for x in actual)
+    # migrate temp to base_rt1
+    request_handler.migrate(base_rt1, temp_id, base_rt1.id)
+
+    # verify placement
+    assert verify_actor_placement(request_handler, base_rt1, temp_id, base_rt1.id)
 
     # delete application
-    request_handler.delete_application(rt1, resp['application_id'])
+    request_handler.delete_application(base_rt1, resp['application_id'])
 
-    # verify removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':temp'])
+def testTemperatureFromShadow():
+    script_name = "testTemperatureFromShadow"
+    script = """
+    temp : sensor.Temperature(period=1)
+    snk : test.Sink(store_tokens=1, quiet=1)
+    temp.centigrade > snk.token
+    """
 
-def testLightActor():
-    assert rt1 is not None
-    assert constrained_id is not None
+    deploy_info = """
+    {
+        "requirements": {
+            "temp": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                    "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "base_rt2"}]},
+                    "type": "+"
+                }]
+        }
+    }
+    """
+    resp = request_handler.deploy_application(base_rt2,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+    temp_id = resp['actor_map'][script_name + ':temp']
+    snk_id = resp['actor_map'][script_name + ':snk']
 
-    script_name = "testLed"
+    # verify actor placement and data
+    assert verify_actor_placement(request_handler, base_rt2, temp_id, constrained_id)
+    wait_for_tokens(request_handler, base_rt2, snk_id, 2, 20)
+    actual = request_handler.report(base_rt2, snk_id)
+    assert len(actual) >= 2
+
+    # migrate temp to base_rt1
+    request_handler.migrate(base_rt2, temp_id, base_rt1.id)
+
+    # verify placement
+    assert verify_actor_placement(request_handler, base_rt1, temp_id, base_rt1.id)
+
+    # delete application
+    request_handler.delete_application(base_rt2, resp['application_id'])
+
+def testTriggeredTemperature():
+    script_name = "testTriggeredTemperature"
     script = """
     src : std.CountTimer(sleep=0.1)
-    zero : std.Constantify(constant=0)
-    led : io.Light()
+    temp : sensor.TriggeredTemperature()
+    snk : test.Sink(store_tokens=1, quiet=1)
 
-    src.integer > zero.in
-    zero.out > led.on
+    src.integer > temp.trigger
+    temp.centigrade > snk.token
     """
 
     deploy_info = """
@@ -439,13 +419,127 @@ def testLightActor():
             "src": [
                 {
                   "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                }],
-            "zero": [
+            "temp": [
                 {
                   "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
+                    "type": "+"
+               }]
+        }
+    }
+    """
+    resp = request_handler.deploy_application(base_rt1,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+    temp_id = resp['actor_map'][script_name + ':temp']
+    snk_id = resp['actor_map'][script_name + ':snk']
+
+    # verify actor placement and data
+    assert verify_actor_placement(request_handler, base_rt1, temp_id, constrained_id)
+    wait_for_tokens(request_handler, base_rt1, snk_id, 5, 20)
+    actual = request_handler.report(base_rt1, snk_id)
+    assert len(actual) >= 5
+
+    # migrate temp back to base_rt1
+    request_handler.migrate(base_rt1, temp_id, base_rt1.id)
+
+    # verify placement
+    assert verify_actor_placement(request_handler, base_rt1, temp_id, base_rt1.id)
+
+    # destroy application
+    request_handler.delete_application(base_rt1, resp['application_id'])
+
+def testTriggeredTemperatureFromShadow():
+    script_name = "testTriggeredTemperatureFromShadow"
+    script = """
+    src : std.CountTimer(sleep=0.1)
+    temp : sensor.TriggeredTemperature()
+    snk : test.Sink(store_tokens=1, quiet=1)
+
+    src.integer > temp.trigger
+    temp.centigrade > snk.token
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "src": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "base_rt2"}]},
+                    "type": "+"
+               }],
+            "temp": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "base_rt2"}]},
+                    "type": "+"
+               }]
+        }
+    }
+    """
+    resp = request_handler.deploy_application(base_rt2,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+    temp_id = resp['actor_map'][script_name + ':temp']
+    snk_id = resp['actor_map'][script_name + ':snk']
+
+    # verify actor placement and data
+    assert verify_actor_placement(request_handler, base_rt2, temp_id, constrained_id)
+    wait_for_tokens(request_handler, base_rt2, snk_id, 5, 20)
+    actual = request_handler.report(base_rt2, snk_id)
+    assert len(actual) >= 5
+
+    # migrate temp to base_rt1
+    request_handler.migrate(base_rt2, temp_id, base_rt1.id)
+
+    # verify placement and data
+    assert verify_actor_placement(request_handler, base_rt1, temp_id, base_rt1.id)
+
+    # destroy application
+    request_handler.delete_application(base_rt2, resp['application_id'])
+
+def testLight():
+    script_name = "testLight"
+    script = """
+    src : std.CountTimer(sleep=0.1)
+    seq : std.ConstSequencer(sequence=[0, 1])
+    led : io.Light()
+
+    src.integer > seq.in
+    seq.out > led.on
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "src": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
+                    "type": "+"
+               }],
+            "seq": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                }],
             "led": [
@@ -457,26 +551,169 @@ def testLightActor():
         }
     }
     """
-    resp = request_handler.deploy_application(rt1,
+    resp = request_handler.deploy_application(base_rt1,
                                               script_name,
                                               script,
                                               deploy_info=json.loads(deploy_info))
+    led_id = resp['actor_map'][script_name + ':led']
 
     # verify actor placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':led'], constrained_id)
+    assert verify_actor_placement(request_handler, base_rt1, led_id, constrained_id)
 
-    time.sleep(2)
+    time.sleep(1)
+
+    # migrate led to base_rt1
+    request_handler.migrate(base_rt1, led_id, base_rt1.id)
+
+    # verify actor placement
+    assert verify_actor_placement(request_handler, base_rt1, led_id, base_rt1.id)
 
     # destroy application
-    request_handler.delete_application(rt1, resp['application_id'])
+    request_handler.delete_application(base_rt1, resp['application_id'])
 
-    # verify removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':led'])
+def testLightFromShadow():
+    script_name = "testLightFromShadow"
+    script = """
+    src : std.CountTimer(sleep=0.1)
+    seq : std.ConstSequencer(sequence=[0, 1])
+    led : io.Light()
+
+    src.integer > seq.in
+    seq.out > led.on
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "src": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "base_rt2"}]},
+                    "type": "+"
+               }],
+            "seq": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "base_rt2"}]},
+                    "type": "+"
+               }],
+            "led": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }]
+        }
+    }
+    """
+    resp = request_handler.deploy_application(base_rt2,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+    led_id = resp['actor_map'][script_name + ':led']
+
+    # verify actor placement
+    assert verify_actor_placement(request_handler, base_rt2, led_id, constrained_id)
+
+    time.sleep(1)
+
+    # migrate light to base_rt1
+    request_handler.migrate(base_rt2, led_id, base_rt1.id)
+
+    # verify actor placement
+    assert verify_actor_placement(request_handler, base_rt1, led_id, base_rt1.id)
+
+    # destroy application
+    request_handler.delete_application(base_rt2, resp['application_id'])
+
+def testButton():
+    script_name = "testButton"
+    script = """
+    button : io.Button(text="Ok")
+    snk : test.Sink(store_tokens=1, quiet=1)
+
+    button.state > snk.token
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "button": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
+                    "type": "+"
+               }]
+        }
+    }
+    """
+    resp = request_handler.deploy_application(base_rt1,
+                                              script_name,
+                                              script,
+                                              deploy_info=json.loads(deploy_info))
+    button_id = resp['actor_map'][script_name + ':button']
+
+    # verify actor placement
+    assert verify_actor_placement(request_handler, base_rt1, button_id, constrained_id)
+
+    # migrate button to base_rt1
+    request_handler.migrate(base_rt1, button_id, base_rt1.id)
+
+    # verify actor placement
+    assert verify_actor_placement(request_handler, base_rt1, button_id, base_rt1.id)
+
+    # destroy application
+    request_handler.delete_application(base_rt1, resp['application_id'])
+
+def testButtonFromShadow():
+    script_name = "testButtonFromShadow"
+    script = """
+    button : io.Button(text="Ok")
+    snk : test.Sink(store_tokens=1, quiet=1)
+
+    button.state > snk.token
+    """
+
+    deploy_info = """
+    {
+        "requirements": {
+            "button": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "constrained"}]},
+                    "type": "+"
+               }],
+            "snk": [
+                {
+                  "op": "node_attr_match",
+                    "kwargs": {"index": ["node_name", {"name": "base_rt2"}]},
+                    "type": "+"
+               }]
+        }
+    }
+    """
+    resp = request_handler.deploy_application(base_rt2, script_name, script, deploy_info=json.loads(deploy_info))
+    button_id = resp['actor_map'][script_name + ':button']
+
+    # verify actor placement
+    assert verify_actor_placement(request_handler, base_rt2, button_id, constrained_id)
+
+    # migrate button to base_rt1
+    request_handler.migrate(base_rt2, button_id, base_rt1.id)
+
+    # verify actor placement
+    assert verify_actor_placement(request_handler, base_rt1, button_id, base_rt1.id)
+
+    # destroy application
+    request_handler.delete_application(base_rt2, resp['application_id'])
 
 def testLocalConnections():
-    assert rt1 is not None
-    assert constrained_id is not None
-
     script_name = "testLocalConnections"
     script = """
     src : std.CountTimer(sleep=0.1)
@@ -494,7 +731,7 @@ def testLocalConnections():
             "src": [
                 {
                   "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                }],
             "id1": [
@@ -512,43 +749,32 @@ def testLocalConnections():
             "snk": [
                 {
                     "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                 }]
         }
     }
     """
 
-    resp = request_handler.deploy_application(rt1,
-                                              script_name,
-                                              script,
-                                              deploy_info=json.loads(deploy_info))
+    resp = request_handler.deploy_application(base_rt1, script_name, script, deploy_info=json.loads(deploy_info))
+    id1_id = resp['actor_map'][script_name + ':id1']
+    id2_id = resp['actor_map'][script_name + ':id2']
+    snk_id = resp['actor_map'][script_name + ':snk']
 
     # verify placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id1'], constrained_id)
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id2'], constrained_id)
+    assert verify_actor_placement(request_handler, base_rt1, id1_id, constrained_id)
+    assert verify_actor_placement(request_handler, base_rt1, id2_id, constrained_id)
 
     # verify data
-    wait_for_tokens(request_handler,
-                    rt1,
-                    resp['actor_map'][script_name + ':snk'], 5, 20)
-    actual = request_handler.report(rt1,
-                                    resp['actor_map'][script_name + ':snk'])
+    wait_for_tokens(request_handler, base_rt1, snk_id, 5, 20)
+    actual = request_handler.report(base_rt1, snk_id)
     assert len(actual) >= 5
 
     # remove app
-    request_handler.delete_application(rt1, resp['application_id'])
-
-    # verify actor removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id1'])
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id2'])
+    request_handler.delete_application(base_rt1, resp['application_id'])
 
 def testSleepWithoutTimers():
     global constrained_process
-    global output_file
-    assert rt1 is not None
-    assert constrained_id is not None
-
     script_name = "testSleepWithoutTimers"
     script = """
     src : std.CountTimer(sleep=4)
@@ -564,7 +790,7 @@ def testSleepWithoutTimers():
             "src": [
                 {
                   "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                }],
             "id": [
@@ -576,48 +802,37 @@ def testSleepWithoutTimers():
             "snk": [
                 {
                     "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                 }]
         }
     }
     """
 
-    resp = request_handler.deploy_application(rt1,
-                                              script_name,
-                                              script,
-                                              deploy_info=json.loads(deploy_info))
+    resp = request_handler.deploy_application(base_rt1, script_name, script, deploy_info=json.loads(deploy_info))
+    id_id = resp['actor_map'][script_name + ':id']
+    snk_id = resp['actor_map'][script_name + ':snk']
 
     # verify placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
+    assert verify_actor_placement(request_handler, base_rt1, id_id, constrained_id)
 
     # wait for constrained enterring sleep
     constrained_process.wait()
 
     assert constrained_process.poll() is not None
 
-    constrained_process = subprocess.Popen(calvin_command, shell=True, stderr=output_file)
+    constrained_process = subprocess.Popen(calvin_command, shell=True)
 
     # verify data
-    wait_for_tokens(request_handler,
-                    rt1,
-                    resp['actor_map'][script_name + ':snk'], 1, 10)
-    actual = request_handler.report(rt1,
-                                    resp['actor_map'][script_name + ':snk'])
+    wait_for_tokens(request_handler, base_rt1, snk_id, 1, 10)
+    actual = request_handler.report(base_rt1, snk_id)
     assert len(actual) >= 1
 
     # remove app
-    request_handler.delete_application(rt1, resp['application_id'])
-
-    # verify actor removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':id'])
+    request_handler.delete_application(base_rt1, resp['application_id'])
 
 def testSleepWithTimer():
     global constrained_process
-    global output_file
-    assert rt1 is not None
-    assert constrained_id is not None
-
     script_name = "testSleepWithTimer"
     script = """
     temp : sensor.Temperature(period=4)
@@ -637,57 +852,44 @@ def testSleepWithTimer():
             "snk": [
                 {
                     "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                 }]
         }
     }
     """
 
-    resp = request_handler.deploy_application(rt1,
-                                              script_name,
-                                              script,
-                                              deploy_info=json.loads(deploy_info))
+    resp = request_handler.deploy_application(base_rt1, script_name, script, deploy_info=json.loads(deploy_info))
+    snk_id = resp['actor_map'][script_name + ':snk']
+    temp_id = resp['actor_map'][script_name + ':temp']
 
     # verify placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':temp'], constrained_id)
+    assert verify_actor_placement(request_handler, base_rt1, temp_id, constrained_id)
 
     # wait for constrained enterring sleep
     constrained_process.wait()
 
-    constrained_process = subprocess.Popen(calvin_command, shell=True, stderr=output_file)
+    constrained_process = subprocess.Popen(calvin_command, shell=True)
 
     # verify data
-    wait_for_tokens(request_handler,
-                    rt1,
-                    resp['actor_map'][script_name + ':snk'], 1, 10)
-    actual = request_handler.report(rt1,
-                                    resp['actor_map'][script_name + ':snk'])
+    wait_for_tokens(request_handler, base_rt1, snk_id, 1, 10)
+    actual = request_handler.report(base_rt1, snk_id)
     assert len(actual) >= 1
 
     # wait for constrained enterring sleep
     constrained_process.wait()
 
-    constrained_process = subprocess.Popen(calvin_command, shell=True, stderr=output_file)
+    constrained_process = subprocess.Popen(calvin_command, shell=True)
 
     # verify data
-    wait_for_tokens(request_handler,
-                    rt1,
-                    resp['actor_map'][script_name + ':snk'], 2, 10)
-    actual = request_handler.report(rt1,
-                                    resp['actor_map'][script_name + ':snk'])
+    wait_for_tokens(request_handler, base_rt1, snk_id, 2, 10)
+    actual = request_handler.report(base_rt1, snk_id)
     assert len(actual) >= 2
 
     # remove app
-    request_handler.delete_application(rt1, resp['application_id'])
-
-    # verify actor removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':temp'])
+    request_handler.delete_application(base_rt1, resp['application_id'])
 
 def testRegistryAttribute():
-    assert rt1 is not None
-    assert constrained_id is not None
-
     script_name = "testRegistryAttribute"
     script = """
     tick : std.Trigger(data=null, tick=1)
@@ -704,7 +906,7 @@ def testRegistryAttribute():
             "tick": [
                 {
                   "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                }],
             "attr": [
@@ -716,40 +918,30 @@ def testRegistryAttribute():
             "snk": [
                 {
                     "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                 }]
         }
     }
     """
 
-    resp = request_handler.deploy_application(rt1,
-                                              script_name,
-                                              script,
-                                              deploy_info=json.loads(deploy_info))
+    resp = request_handler.deploy_application(base_rt1, script_name, script, deploy_info=json.loads(deploy_info))
+    attr_id = resp['actor_map'][script_name + ':attr']
+    snk_id = resp['actor_map'][script_name + ':snk']
 
     # verify placement
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':attr'], constrained_id)
+    assert verify_actor_placement(request_handler, base_rt1, attr_id, constrained_id)
 
     # verify data
-    wait_for_tokens(request_handler,
-                    rt1,
-                    resp['actor_map'][script_name + ':snk'], 5, 20)
-    actual = request_handler.report(rt1,
-                                    resp['actor_map'][script_name + ':snk'])
+    wait_for_tokens(request_handler, base_rt1, snk_id, 5, 20)
+    actual = request_handler.report(base_rt1, snk_id)
     assert len(actual) >= 5
     assert all(x == "constrained" for x in actual)
 
     # remove app
-    request_handler.delete_application(rt1, resp['application_id'])
-
-    # verify actor removal
-    assert verify_actor_removal(request_handler, rt1, resp['actor_map'][script_name + ':snk'])
+    request_handler.delete_application(base_rt1, resp['application_id'])
 
 def testAbolish():
-    assert rt1 is not None
-    assert constrained_id is not None
-
     script_name = "testAbolish"
     script = """
     src : std.CountTimer(sleep=0.1)
@@ -765,7 +957,7 @@ def testAbolish():
             "src": [
                 {
                   "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                }],
             "id": [
@@ -777,22 +969,22 @@ def testAbolish():
             "snk": [
                 {
                     "op": "node_attr_match",
-                    "kwargs": {"index": ["node_name", {"name": "rt1"}]},
+                    "kwargs": {"index": ["node_name", {"name": "base_rt1"}]},
                     "type": "+"
                 }]
         }
     }
     """
 
-    resp = request_handler.deploy_application(rt1,
-                                              script_name,
-                                              script,
-                                              deploy_info=json.loads(deploy_info))
+    resp = request_handler.deploy_application(base_rt1, script_name, script, deploy_info=json.loads(deploy_info))
+    id_id = resp['actor_map'][script_name + ':id']
 
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], constrained_id)
+    assert verify_actor_placement(request_handler, base_rt1, id_id, constrained_id)
 
-    request_handler.abolish_proxy_peer(rt1, constrained_id)
+    request_handler.abolish_proxy_peer(base_rt1, constrained_id)
 
-    assert verify_actor_placement(request_handler, rt1, resp['actor_map'][script_name + ':id'], rt1.id)
+    assert verify_actor_placement(request_handler, base_rt1, id_id, base_rt1.id)
 
-    request_handler.delete_application(rt1, resp['application_id'])
+    assert constrained_process.poll() == 0
+
+    request_handler.delete_application(base_rt1, resp['application_id'])

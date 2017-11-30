@@ -28,46 +28,53 @@
 typedef struct cc_actor_temperature_state_t {
 	char temperature[CC_UUID_BUFFER_SIZE];
 	char timer[CC_UUID_BUFFER_SIZE];
+	uint32_t period;
 } cc_actor_temperature_state_t;
 
 static cc_result_t cc_actor_temperature_init(cc_actor_t **actor, cc_list_t *managed_attributes)
 {
 	cc_actor_temperature_state_t *state = NULL;
-	cc_list_t *item = NULL;
 	char *obj_ref = NULL;
+	cc_list_t *item = NULL;
+	uint32_t period = 0;
+
+	item = cc_list_get(managed_attributes, "period");
+	if (item == NULL) {
+		cc_log_error("Failed to get 'period'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_uint(item->data, &period) != CC_SUCCESS) {
+		cc_log_error("Failed to decode period");
+		return CC_FAIL;
+	}
 
 	if (cc_platform_mem_alloc((void **)&state, sizeof(cc_actor_temperature_state_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
 
-	// No state, create from attributes
-	obj_ref = cc_calvinsys_open(*actor, "io.temperature", NULL, 0);
+	memset(state, 0, sizeof(cc_actor_temperature_state_t));
+	(*actor)->instance_state = (void *)state;
+
+	// create from attributes
+	obj_ref = cc_calvinsys_open(*actor, "io.temperature", NULL);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'io.temperature'");
-		cc_platform_mem_free(state);
 		return CC_FAIL;
 	}
 	strncpy(state->temperature, obj_ref, strlen(obj_ref));
 	state->temperature[strlen(obj_ref)] = '\0';
 
-	item = cc_list_get(managed_attributes, "period");
-	if (item == NULL) {
-		cc_log_error("Failed to get attribute 'period'");
-		cc_platform_mem_free(state);
-		return CC_FAIL;
-	}
-
-	obj_ref = cc_calvinsys_open(*actor, "sys.timer.once", (char *)item->data, item->data_len);
+	obj_ref = cc_calvinsys_open(*actor, "sys.timer.once", managed_attributes);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'sys.timer.once'");
-		cc_platform_mem_free((void *)state);
 		return CC_FAIL;
 	}
 	strncpy(state->timer, obj_ref, strlen(obj_ref));
 	state->timer[strlen(obj_ref)] = '\0';
 
-	(*actor)->instance_state = (void *)state;
+	state->period = period;
 
 	return CC_SUCCESS;
 }
@@ -85,17 +92,16 @@ static cc_result_t cc_actor_temperature_set_state(cc_actor_t **actor, cc_list_t 
 	}
 
 	memset(state, 0, sizeof(cc_actor_temperature_state_t));
+	(*actor)->instance_state = (void *)state;
 
 	item = cc_list_get(managed_attributes, "temperature");
 	if (item == NULL) {
 		cc_log_error("Failed to get 'temperature'");
-		cc_platform_mem_free(state);
 		return CC_FAIL;
 	}
 
 	if (cc_coder_decode_str((char *)item->data, &obj_ref, &obj_ref_len) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'temperature'");
-		cc_platform_mem_free(state);
 		return CC_FAIL;
 	}
 	strncpy(state->temperature, obj_ref, obj_ref_len);
@@ -109,13 +115,21 @@ static cc_result_t cc_actor_temperature_set_state(cc_actor_t **actor, cc_list_t 
 
 	if (cc_coder_decode_str((char *)item->data, &obj_ref, &obj_ref_len) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'timer'");
-		cc_platform_mem_free(state);
 		return CC_FAIL;
 	}
 	strncpy(state->timer, obj_ref, obj_ref_len);
 	state->timer[obj_ref_len] = '\0';
 
-	(*actor)->instance_state = (void *)state;
+	item = cc_list_get(managed_attributes, "period");
+	if (item == NULL) {
+		cc_log_error("Failed to get attribute 'period'");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_uint(item->data, &state->period) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'period'");
+		return CC_FAIL;
+	}
 
 	return CC_SUCCESS;
 }
@@ -166,19 +180,15 @@ static bool cc_actor_temperature_fire(struct cc_actor_t *actor)
 
 static void cc_actor_temperature_free(cc_actor_t *actor)
 {
+
 	if (actor->instance_state != NULL)
-		cc_platform_mem_free((void *)actor->instance_state);
+		cc_platform_mem_free(actor->instance_state);
 }
 
 static cc_result_t cc_actor_temperature_get_attributes(cc_actor_t *actor, cc_list_t **managed_attributes)
 {
 	cc_actor_temperature_state_t *state = (cc_actor_temperature_state_t *)actor->instance_state;
 	char *buffer = NULL, *w = NULL;
-
-	if (actor->instance_state == NULL) {
-		cc_log_error("Actor does not have a state");
-		return CC_FAIL;
-	}
 
 	if (cc_platform_mem_alloc((void **)&buffer, cc_coder_sizeof_str(strlen(state->timer))) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
@@ -208,29 +218,45 @@ static cc_result_t cc_actor_temperature_get_attributes(cc_actor_t *actor, cc_lis
 		return CC_FAIL;
 	}
 
-	return CC_SUCCESS;
-}
-
-cc_result_t cc_actor_temperature_register(cc_list_t **actor_types)
-{
-	cc_actor_type_t *type = NULL;
-
-	if (cc_platform_mem_alloc((void **)&type, sizeof(cc_actor_type_t)) != CC_SUCCESS) {
+	if (cc_platform_mem_alloc((void **)&buffer, cc_coder_sizeof_uint(state->period)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
 
-	memset(type, 0, sizeof(cc_actor_type_t));
+	w = buffer;
+	w = cc_coder_encode_uint(w, state->period);
+
+	if (cc_list_add_n(managed_attributes, "period", 6, buffer, w - buffer) == NULL) {
+		cc_log_error("Failed to add 'period' to managed attributes");
+		return CC_FAIL;
+	}
+
+	return CC_SUCCESS;
+}
+
+cc_result_t cc_actor_temperature_get_requires(cc_actor_t *actor, cc_list_t **requires)
+{
+	if (cc_list_add_n(requires, "io.temperature", 14, NULL, 0) == NULL) {
+		cc_log_error("Failed to add requires");
+		return CC_FAIL;
+	}
+
+	if (cc_list_add_n(requires, "sys.timer.once", 14, NULL, 0) == NULL) {
+		cc_log_error("Failed to add requires");
+		return CC_FAIL;
+	}
+
+	return CC_SUCCESS;
+}
+
+cc_result_t cc_actor_temperature_setup(cc_actor_type_t *type)
+{
 	type->init = cc_actor_temperature_init;
 	type->set_state = cc_actor_temperature_set_state;
 	type->free_state = cc_actor_temperature_free;
 	type->fire_actor = cc_actor_temperature_fire;
 	type->get_managed_attributes = cc_actor_temperature_get_attributes;
-
-	if (cc_list_add_n(actor_types, "sensor.Temperature", 18, type, sizeof(cc_actor_type_t *)) == NULL) {
-		cc_log_error("Failed to register 'sensor.Temperature'");
-		return CC_FAIL;
-	}
+	type->get_requires = cc_actor_temperature_get_requires;
 
 	return CC_SUCCESS;
 }

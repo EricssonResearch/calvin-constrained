@@ -22,7 +22,7 @@
 
 static cc_result_t cc_actor_camera_init(cc_actor_t **actor, cc_list_t *attributes)
 {
-	char *obj_ref = cc_calvinsys_open(*actor, "media.camerahandler", NULL, 0);
+	char *obj_ref = cc_calvinsys_open(*actor, "media.camerahandler", NULL);
 
 	if (obj_ref == NULL) {
 		cc_log_error("'media.camerahandler' not supported");
@@ -72,24 +72,22 @@ static bool cc_actor_camera_fire(struct cc_actor_t *actor)
 	return false;
 }
 
-cc_result_t cc_actor_camera_register(cc_list_t **actor_types)
+cc_result_t cc_actor_camera_get_requires(cc_actor_t *actor, cc_list_t **requires)
 {
-	cc_actor_type_t *type = NULL;
-
-	if (cc_platform_mem_alloc((void **)&type, sizeof(cc_actor_type_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
+	if (cc_list_add_n(requires, "media.camerahandler", 19, NULL, 0) == NULL) {
+		cc_log_error("Failed to add requires");
 		return CC_FAIL;
 	}
 
-	memset(type, 0, sizeof(cc_actor_type_t));
+	return CC_SUCCESS;
+}
+
+cc_result_t cc_actor_camera_setup(cc_actor_type_t *type)
+{
 	type->init = cc_actor_camera_init;
 	type->set_state = cc_actor_camera_set_state;
 	type->fire_actor = cc_actor_camera_fire;
-
-	if (cc_list_add_n(actor_types, "media.Camera", 12, type, sizeof(cc_actor_type_t *)) == NULL) {
-		cc_log_error("Failed to register 'media.Camera'");
-		return CC_FAIL;
-	}
+	type->get_requires = cc_actor_camera_get_requires;
 
 	return CC_SUCCESS;
 }

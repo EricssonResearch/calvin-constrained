@@ -20,8 +20,6 @@
 #include "calvinsys/cc_calvinsys.h"
 #include "ds18b20/ds18b20.h"
 
-#define CC_DS18B20_SENSOR_GPIO 5
-
 static bool cc_calvinsys_ds18b20_can_write(struct cc_calvinsys_obj_t *obj)
 {
 	return true;
@@ -43,14 +41,15 @@ static cc_result_t cc_calvinsys_ds18b20_read(struct cc_calvinsys_obj_t *obj, cha
 	char *w = NULL;
 	int nsensors = 0;
 	ds18b20_addr_t addrs[1];
+	cc_calvinsys_temperature_state_t *state = (cc_calvinsys_temperature_state_t *)obj->capability->state;
 
-	nsensors = ds18b20_scan_devices(CC_DS18B20_SENSOR_GPIO, addrs, 1);
+	nsensors = ds18b20_scan_devices(state->pin, addrs, 1);
 	if (nsensors < 1) {
 		cc_log_error("Failed to scan devices, count '%d'", nsensors);
 		return CC_FAIL;
 	}
 
-	temp = ds18b20_measure_and_read(CC_DS18B20_SENSOR_GPIO, addrs[0]);
+	temp = ds18b20_measure_and_read(state->pin, addrs[0]);
 
 	*size = cc_coder_sizeof_float(temp);
 	if (cc_platform_mem_alloc((void **)data, *size) != CC_SUCCESS) {
@@ -63,7 +62,7 @@ static cc_result_t cc_calvinsys_ds18b20_read(struct cc_calvinsys_obj_t *obj, cha
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_calvinsys_ds18b20_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
+cc_result_t cc_calvinsys_ds18b20_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
 	obj->can_write = cc_calvinsys_ds18b20_can_write;
 	obj->write = cc_calvinsys_ds18b20_write;
@@ -71,18 +70,4 @@ static cc_result_t cc_calvinsys_ds18b20_open(cc_calvinsys_obj_t *obj, char *data
 	obj->read = cc_calvinsys_ds18b20_read;
 
 	return CC_SUCCESS;
-}
-
-static cc_result_t cc_calvinsys_ds18b20_deserialize(cc_calvinsys_obj_t *obj, char *buffer)
-{
-	return cc_calvinsys_ds18b20_open(obj, buffer, 0);
-}
-
-cc_result_t cc_calvinsys_ds18b20_create(cc_calvinsys_t **calvinsys, const char *name)
-{
-	return cc_calvinsys_create_capability(*calvinsys,
-		name,
-		cc_calvinsys_ds18b20_open,
-		cc_calvinsys_ds18b20_deserialize,
-		NULL);
 }

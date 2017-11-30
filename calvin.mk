@@ -83,6 +83,11 @@ CC_SRC_C += actors/cc_actor_temperature.c
 CC_CFLAGS += -DCC_ACTOR_TEMPERATURE
 endif
 
+ifeq ($(sensor.TriggeredTemperature),1)
+CC_SRC_C += actors/cc_actor_triggered_temperature.c
+CC_CFLAGS += -DCC_ACTOR_TRIGGERED_TEMPERATURE
+endif
+
 ifeq ($(sensor.TemperatureTagged),1)
 CC_SRC_C += actors/cc_actor_temperature_tagged.c
 CC_CFLAGS += -DCC_ACTOR_TEMPERATURE_TAGGED
@@ -96,7 +101,7 @@ endif
 # MicroPython config
 ifeq ($(MPY),1)
 ifndef PYTHON_HEAP_SIZE
-PYTHON_HEAP_SIZE = 20*1024
+PYTHON_HEAP_SIZE = 25*1024
 $(info PYTHON_HEAP_SIZE not set, using default $(PYTHON_HEAP_SIZE))
 endif
 ifndef PYTHON_STACK_SIZE

@@ -54,7 +54,7 @@ static cc_result_t cc_calvinsys_temp_sensor_write(cc_calvinsys_obj_t *obj, char 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_calvinsys_temp_sensor_open(cc_calvinsys_obj_t *obj, char *data, size_t len)
+cc_result_t cc_calvinsys_temp_sensor_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
 	obj->can_write = cc_calvinsys_temp_sensor_can_write;
 	obj->write = cc_calvinsys_temp_sensor_write;
@@ -62,18 +62,4 @@ static cc_result_t cc_calvinsys_temp_sensor_open(cc_calvinsys_obj_t *obj, char *
 	obj->read = cc_calvinsys_temp_sensor_read;
 
 	return CC_SUCCESS;
-}
-
-static cc_result_t cc_calvinsys_sensor_temp_deserialize(cc_calvinsys_obj_t *obj, char *buffer)
-{
-	return cc_calvinsys_temp_sensor_open(obj, buffer, 0);
-}
-
-cc_result_t cc_calvinsys_temp_sensor_create(cc_calvinsys_t **calvinsys, const char *name)
-{
-	return cc_calvinsys_create_capability(*calvinsys,
-		"io.temperature",
-		cc_calvinsys_temp_sensor_open,
-		cc_calvinsys_sensor_temp_deserialize,
-		NULL);
 }

@@ -34,7 +34,7 @@ static void cc_actor_free_attribute_list(cc_list_t *managed_attributes);
 cc_result_t cc_actor_req_match_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	char *value = NULL, *obj_data = NULL, *actor_id = NULL, *possible_placements = NULL, *peer_id = NULL;
-	uint32_t actor_id_len = 0, peer_id_len = 0;
+	uint32_t actor_id_len = 0, peer_id_len = 0, status = 0;
 	cc_actor_t *actor = NULL;
 
 	if (cc_coder_get_value_from_map(data, "value", &value) != CC_SUCCESS) {
@@ -50,6 +50,16 @@ cc_result_t cc_actor_req_match_reply_handler(cc_node_t *node, char *data, size_t
 	if (cc_coder_get_value_from_map(value, "data", &obj_data) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'data'");
 		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_uint_from_map(value, "status", &status) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'status'");
+		return CC_FAIL;
+	}
+
+	if (status != 200) {
+		cc_log("Failed to find match");
+		return CC_SUCCESS;
 	}
 
 	if (cc_coder_decode_string_from_map(obj_data, "actor_id", &actor_id, &actor_id_len) != CC_SUCCESS) {
@@ -311,6 +321,7 @@ static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32
 		actor->will_migrate = actor_type->will_migrate;
 		actor->will_end = actor_type->will_end;
 		actor->did_migrate = actor_type->did_migrate;
+		actor->get_requires = actor_type->get_requires;
 		return actor;
 	}
 
@@ -332,13 +343,13 @@ static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32
 	return NULL;
 }
 
-static void cc_actor_free_attribute_list(cc_list_t *managed_attributes)
+static void cc_actor_free_attribute_list(cc_list_t *attributes)
 {
 	cc_list_t *tmp_list = NULL;
 
-	while (managed_attributes != NULL) {
-		tmp_list = managed_attributes;
-		managed_attributes = managed_attributes->next;
+	while (attributes != NULL) {
+		tmp_list = attributes;
+		attributes = attributes->next;
 		cc_platform_mem_free((void *)tmp_list->id);
 		cc_platform_mem_free((void *)tmp_list->data);
 		cc_platform_mem_free((void *)tmp_list);
@@ -791,6 +802,7 @@ void cc_actor_port_state_changed(cc_actor_t *actor)
 				actor_state = CC_ACTOR_DO_DELETE;
 				break;
 			} else if (port_state != CC_PORT_ENABLED) {
+				cc_log("Actor: '%s' disabled", actor->id);
 				actor_state = CC_ACTOR_PENDING;
 				break;
 			}

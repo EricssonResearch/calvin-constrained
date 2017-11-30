@@ -131,24 +131,13 @@ static cc_result_t cc_actor_identity_get_attributes(cc_actor_t *actor, cc_list_t
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_actor_identity_register(cc_list_t **actor_types)
+cc_result_t cc_actor_identity_setup(cc_actor_type_t *type)
 {
-	cc_actor_type_t *type = NULL;
-
-	if (cc_platform_mem_alloc((void **)&type, sizeof(cc_actor_type_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
-	}
-
-	memset(type, 0, sizeof(cc_actor_type_t));
 	type->init = cc_actor_identity_init;
 	type->set_state = cc_actor_identity_set_state;
 	type->free_state = cc_actor_identity_free;
 	type->fire_actor = cc_actor_identity_fire;
 	type->get_managed_attributes = cc_actor_identity_get_attributes;
-
-	if (cc_list_add_n(actor_types, "std.Identity", 12, type, sizeof(cc_actor_type_t *)) == NULL)
-		return CC_FAIL;
 
 	return CC_SUCCESS;
 }

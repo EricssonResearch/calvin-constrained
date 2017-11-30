@@ -51,6 +51,7 @@ typedef struct cc_actor_t{
 	void (*will_migrate)(struct cc_actor_t *actor);
 	void (*will_end)(struct cc_actor_t *actor);
 	void (*did_migrate)(struct cc_actor_t *actor);
+	cc_result_t (*get_requires)(struct cc_actor_t *actor, cc_list_t **requires);
 	cc_calvinsys_t *calvinsys;
 } cc_actor_t;
 

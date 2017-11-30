@@ -16,8 +16,9 @@
 #ifndef CC_ACTOR_TEMPERATURE_TAGGED_H
 #define CC_ACTOR_TEMPERATURE_TAGGED_H
 
-#include "runtime/north/cc_actor.h"
+#include "runtime/north/cc_common.h"
+#include "runtime/north/cc_actor_store.h"
 
-cc_result_t cc_actor_temperature_tagged_register(cc_list_t **actor_types);
+cc_result_t cc_actor_temperature_tagged_setup(cc_actor_type_t *type);
 
 #endif /* CC_ACTOR_TEMPERATURE_TAGGED_H */

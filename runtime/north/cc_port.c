@@ -165,12 +165,12 @@ static cc_result_t cc_port_connect_reply_handler(cc_node_t *node, char *data, si
 
 void cc_port_set_state(cc_port_t *port, cc_port_state_t state)
 {
-	port->state = state;
 	if (state == CC_PORT_ENABLED && port->state != CC_PORT_ENABLED) {
 		cc_log("Port: Enabled '%s'", port->id);
 		port->retries = 0;
 	} else if (state == CC_PORT_DISCONNECTED && port->state != CC_PORT_DISCONNECTED)
 		cc_log("Port: Disconnected '%s'", port->id);
+	port->state = state;
 	cc_actor_port_state_changed(port->actor);
 }
 
@@ -453,6 +453,7 @@ cc_result_t cc_port_handle_disconnect(cc_node_t *node, const char *port_id, uint
 		return CC_FAIL;
 	}
 
+	cc_log_debug("Port: '%s' disconnected by remote", port->id);
 	cc_fifo_cancel(port->fifo);
 	cc_port_set_state(port, CC_PORT_DISCONNECTED);
 	memset(port->peer_id, 0, CC_UUID_BUFFER_SIZE);
@@ -461,8 +462,6 @@ cc_result_t cc_port_handle_disconnect(cc_node_t *node, const char *port_id, uint
 		cc_tunnel_remove_ref(node, port->tunnel);
 		port->tunnel = NULL;
 	}
-
-	cc_log_debug("'%s' disconnected by remote", port->id);
 
 	return CC_SUCCESS;
 }
