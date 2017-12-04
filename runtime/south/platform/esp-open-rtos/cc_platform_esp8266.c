@@ -220,9 +220,12 @@ cc_stat_t cc_platform_file_stat(const char *path)
 	int res = 0;
 	spiffs_stat s;
 
+	cc_log("Stating %s", path);
 	res = SPIFFS_stat(&fs, path, &s);
 	if (res < 0)
 		return CC_STAT_NO_EXIST;
+
+	cc_log("%s exists", path);
 
 	return CC_STAT_FILE;
 }
@@ -233,9 +236,9 @@ cc_result_t cc_platform_file_write(const char *path, char *buffer, size_t size)
 	spiffs_file fd;
 	int res = 0;
 
-	fd = SPIFFS_open(&fs, path, SPIFFS_CREAT | SPIFFS_RDWR, 0);
+	fd = SPIFFS_open(&fs, path, SPIFFS_CREAT | SPIFFS_TRUNC | SPIFFS_RDWR, 0);
 	if (fd < 0) {
-		cc_log_error("Failed to open '%s'", path);
+		cc_log_error("Failed to open '%s', errno '%i'", path, SPIFFS_errno(&fs));
 		return CC_FAIL;
 	}
 
