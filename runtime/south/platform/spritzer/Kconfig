@@ -71,6 +71,9 @@ config CALVIN_IO_BUTTON
 config CALVIN_SENSOR_TEMPERATURE
 	bool "sensor.Temperature"
 	default n
+config CALVIN_SENSOR_TRIGGERED_TEMPERATURE
+	bool "sensor.TriggeredTemperature"
+	default n
 config CALVIN_CONTEXT_REGISTRYATTRIBUTE
 	bool "context.RegistryAttribute"
 	default n

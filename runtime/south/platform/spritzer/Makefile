@@ -51,6 +51,9 @@ endif
 ifeq ($(CONFIG_CALVIN_SENSOR_TEMPERATURE),y)
 sensor.Temperature=1
 endif
+ifeq ($(CONFIG_CALVIN_SENSOR_TRIGGERED_TEMPERATURE),y)
+sensor.TriggeredTemperature=1
+endif
 ifeq ($(CONFIG_CALVIN_CONTEXT_REGISTRYATTRIBUTE),y)
 context.RegistryAttribute=1
 endif
@@ -61,7 +64,7 @@ include $(CC_PATH)/calvin.mk
 ASRCS =
 MAINSRC = $(addprefix $(CC_PATH)/,$(CC_SRC_C))
 CSRCS =
-CFLAGS = -I$(APPDIR)/../nuttx/include -I$(CC_PATH) $(CC_CFLAGS)
-LDFLAGS = $(CC_LDFLAGS)
+CFLAGS += -I$(APPDIR)/../nuttx/include -I$(CC_PATH) $(CC_CFLAGS)
+LDFLAGS += $(CC_LDFLAGS)
 
 include $(APPDIR)/Application.mk
