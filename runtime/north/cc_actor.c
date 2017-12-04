@@ -273,13 +273,12 @@ static cc_result_t cc_actor_get_compiled_actor_reply_handler(cc_node_t *node, ch
 		return CC_FAIL;
 	}
 
-	if (cc_coder_decode_string_from_map(obj_data, "module", &module, &module_len) != CC_SUCCESS) {
-		cc_log_error("Failed get 'module'");
-		return CC_FAIL;
+	if (status == 200) {
+		if (cc_coder_decode_string_from_map(obj_data, "module", &module, &module_len) == CC_SUCCESS)
+			cc_actor_store_module(type, type_len, module, module_len);
+		else
+			cc_log_error("Failed get 'module'");
 	}
-
-	if (status == 200)
-		cc_actor_store_module(type, type_len, module, module_len);
 
 	cc_actor_update_pending(node, type, type_len, status);
 
