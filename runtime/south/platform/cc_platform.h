@@ -186,11 +186,11 @@ int cc_platform_random_vector_generate(void *ctx, unsigned char *buffer, size_t 
 #endif
 
 #ifdef CC_DEBUG
-#define cc_log_debug(a, args...) cc_platform_print("DEBUG: %s(%s:%d) "a"",  __func__, __FILE__, __LINE__, ##args)
+#define cc_log_debug(a, args...) cc_platform_print("DEBUG: (%s:%d) "a"",  __func__, __LINE__, ##args)
 #else
 #define cc_log_debug(a, args...) do {} while (0)
 #endif
-#define cc_log_error(a, args...) cc_platform_print("ERROR: %s(%s:%d) "a"",  __func__, __FILE__, __LINE__, ##args)
+#define cc_log_error(a, args...) cc_platform_print("ERROR: (%s:%d) "a"",  __func__, __LINE__, ##args)
 #define cc_log(a, args...) cc_platform_print(a, ##args)
 
 #endif /* CC_PLATFORM_H */
