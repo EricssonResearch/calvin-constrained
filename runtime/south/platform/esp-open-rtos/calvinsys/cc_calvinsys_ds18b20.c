@@ -27,37 +27,47 @@ static bool cc_calvinsys_ds18b20_can_write(struct cc_calvinsys_obj_t *obj)
 
 static cc_result_t cc_calvinsys_ds18b20_write(cc_calvinsys_obj_t *obj, char *data, size_t size)
 {
+	int nsensors = 0;
+	ds18b20_addr_t addrs[1];
+	cc_calvinsys_temperature_state_t *state = (cc_calvinsys_temperature_state_t *)obj->capability->state;
+
+	if (cc_coder_decode_bool(data, &state->can_read) != CC_SUCCESS) {
+		cc_log_error("Failed to decode value");
+		state->can_read = false;
+		return CC_FAIL;
+	}
+
+	if (state->can_read) {
+		nsensors = ds18b20_scan_devices(state->pin, addrs, 1);
+		if (nsensors < 1) {
+			cc_log_error("Failed to scan devices, count '%d'", nsensors);
+			return CC_FAIL;
+		}
+		state->temp = ds18b20_measure_and_read(state->pin, addrs[0]);
+	}
+
 	return CC_SUCCESS;
 }
 
 static bool cc_calvinsys_ds18b20_can_read(struct cc_calvinsys_obj_t *obj)
 {
-	return true;
+	return ((cc_calvinsys_temperature_state_t *)obj->capability->state)->can_read;
 }
 
 static cc_result_t cc_calvinsys_ds18b20_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
-	float temp;
 	char *w = NULL;
-	int nsensors = 0;
-	ds18b20_addr_t addrs[1];
 	cc_calvinsys_temperature_state_t *state = (cc_calvinsys_temperature_state_t *)obj->capability->state;
 
-	nsensors = ds18b20_scan_devices(state->pin, addrs, 1);
-	if (nsensors < 1) {
-		cc_log_error("Failed to scan devices, count '%d'", nsensors);
-		return CC_FAIL;
-	}
-
-	temp = ds18b20_measure_and_read(state->pin, addrs[0]);
-
-	*size = cc_coder_sizeof_float(temp);
+	*size = cc_coder_sizeof_float(state->temp);
 	if (cc_platform_mem_alloc((void **)data, *size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
 	w = *data;
-	w = cc_coder_encode_float(w, temp);
+	w = cc_coder_encode_float(w, state->temp);
+
+	state->can_read = false;
 
 	return CC_SUCCESS;
 }

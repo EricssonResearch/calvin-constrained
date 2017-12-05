@@ -21,6 +21,8 @@
 
 typedef struct cc_calvinsys_temperature_state_t {
 	uint8_t pin;
+	bool can_read;
+	float temp;
 } cc_calvinsys_temperature_state_t;
 
 cc_result_t cc_calvinsys_ds18b20_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs);

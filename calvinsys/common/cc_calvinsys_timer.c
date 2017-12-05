@@ -114,35 +114,12 @@ static char *cc_calvinsys_timer_serialize(char *id, cc_calvinsys_obj_t *obj, cha
 static cc_result_t cc_calvinsys_timer_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
 	cc_calvinsys_timer_t *timer = NULL;
-	uint32_t timeout = 0;
 	cc_list_t *item = NULL;
-
-	item = cc_list_get(kwargs, "period");
-	if (item != NULL) {
-		if (cc_coder_decode_uint(item->data, &timeout) != CC_SUCCESS) {
-			cc_log_error("Failed to decode 'period'");
-			return CC_FAIL;
-		}
-	}
 
 	if (cc_platform_mem_alloc((void **)&timer, sizeof(cc_calvinsys_timer_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
-
-	timer->timeout = timeout;
-	if (timer->timeout != 0) {
-		timer->nexttrigger = cc_node_get_time(obj->capability->calvinsys->node);
-		timer->active = true;
-	} else {
-		timer->nexttrigger = 0;
-		timer->active = false;
-	}
-
-	if (strncmp(obj->capability->name, "sys.timer.repeating", 19)  == 0)
-		timer->repeats = true;
-	else
-		timer->repeats = false;
 
 	obj->can_write = cc_calvinsys_timer_can_write;
 	obj->write = cc_calvinsys_timer_write;
@@ -151,6 +128,25 @@ static cc_result_t cc_calvinsys_timer_open(cc_calvinsys_obj_t *obj, cc_list_t *k
 	obj->close = cc_calvinsys_timer_close;
 	obj->serialize = cc_calvinsys_timer_serialize;
 	obj->state = timer;
+
+	item = cc_list_get(kwargs, "period");
+	if (item != NULL) {
+		if (cc_coder_decode_uint(item->data, &timer->timeout) != CC_SUCCESS) {
+			cc_log_error("Failed to decode 'period'");
+			return CC_FAIL;
+		}
+		timer->nexttrigger = cc_node_get_time(obj->capability->calvinsys->node);
+		timer->active = true;
+	} else {
+		timer->timeout = 0;
+		timer->nexttrigger = 0;
+		timer->active = false;
+	}
+
+	if (strncmp(obj->capability->name, "sys.timer.repeating", 19)  == 0)
+		timer->repeats = true;
+	else
+		timer->repeats = false;
 
 	cc_log("Timer '%s' created, active %d timeout '%ld'", obj->id, timer->active, timer->timeout);
 
@@ -221,7 +217,7 @@ cc_result_t cc_calvinsys_timer_deserialize(cc_calvinsys_obj_t *obj, cc_list_t *k
 	obj->serialize = cc_calvinsys_timer_serialize;
 	obj->state = timer;
 
-	cc_log_debug("Timer '%s' deserialized, active '%d' timeout '%ld'", obj->id, timer->active, timer->timeout);
+	cc_log("Timer '%s' deserialized, active '%d' timeout '%ld'", obj->id, timer->active, timer->timeout);
 
 	return CC_SUCCESS;
 }

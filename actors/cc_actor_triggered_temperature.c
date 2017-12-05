@@ -86,37 +86,63 @@ static cc_result_t cc_actor_triggered_temperature_set_state(cc_actor_t **actor, 
 	return CC_SUCCESS;
 }
 
-static bool cc_actor_triggered_temperature_fire(struct cc_actor_t *actor)
+static bool cc_actor_triggered_temperature_read_measurement(struct cc_actor_t *actor)
 {
-	cc_port_t *inport = (cc_port_t *)actor->in_ports->data;
-	cc_port_t *outport = (cc_port_t *)actor->out_ports->data;
 	cc_actor_triggered_temperature_state_t *state = (cc_actor_triggered_temperature_state_t *)actor->instance_state;
-	char *data_temp = NULL;
+	cc_port_t *port = (cc_port_t *)actor->out_ports->data;
+	char *data = NULL;
 	size_t size = 0;
 
+	if (!cc_fifo_slots_available(port->fifo, 1))
+		return false;
+
 	if (!cc_calvinsys_can_read(actor->calvinsys, state->temperature))
-	 	return false;
-
-	if (!cc_fifo_tokens_available(inport->fifo, 1))
-	 	return false;
-
-	if (!cc_fifo_slots_available(outport->fifo, 1))
 		return false;
 
-	if (cc_calvinsys_read(actor->calvinsys, state->temperature, &data_temp, &size) != CC_SUCCESS)
+	if (cc_calvinsys_read(actor->calvinsys, state->temperature, &data, &size) != CC_SUCCESS)
 		return false;
 
-	cc_fifo_peek(inport->fifo);
-
-	if (cc_fifo_write(outport->fifo, data_temp, size) != CC_SUCCESS) {
-		cc_fifo_cancel_commit(inport->fifo);
-		cc_platform_mem_free((void *)data_temp);
+	if (cc_fifo_write(port->fifo, data, size) != CC_SUCCESS) {
+		cc_platform_mem_free((void *)data);
 		return false;
 	}
 
-	cc_fifo_commit_read(inport->fifo, true);
+	return true;
+}
+
+static bool cc_actor_triggered_temperature_trigger_measurement(struct cc_actor_t *actor)
+{
+	cc_actor_triggered_temperature_state_t *state = (cc_actor_triggered_temperature_state_t *)actor->instance_state;
+	cc_port_t *port = (cc_port_t *)actor->in_ports->data;
+
+	if (!cc_fifo_tokens_available(port->fifo, 1))
+		return false;
+
+	if (!cc_calvinsys_can_write(actor->calvinsys, state->temperature))
+		return false;
+
+	cc_fifo_peek(port->fifo);
+	cc_fifo_commit_read(port->fifo, true);
+
+	if (cc_calvinsys_write(actor->calvinsys, state->temperature, "\xc3", 1) != CC_SUCCESS) {
+		cc_log_error("Failed to start measurement");
+		return false;
+	}
 
 	return true;
+}
+
+static bool cc_actor_triggered_temperature_fire(struct cc_actor_t *actor)
+{
+	bool fired = false;
+
+	if (cc_actor_triggered_temperature_read_measurement(actor))
+		fired = true;
+
+	if (cc_actor_triggered_temperature_trigger_measurement(actor))
+		fired = true;
+
+	return fired;
 }
 
 static void cc_actor_triggered_temperature_free(cc_actor_t *actor)

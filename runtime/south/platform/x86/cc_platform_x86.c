@@ -47,11 +47,18 @@ typedef struct cc_platformx86_gpio_state_t {
 cc_platformx86_gpio_state_t light_state = {0, CC_GPIO_OUT, 0, 0};
 cc_platformx86_gpio_state_t button_state = {1, CC_GPIO_OUT, 0, 5};
 
+typedef struct cc_platformx86_temp_state_t {
+	bool can_read;
+	float temp;
+} cc_platformx86_temp_state_t;
+
+cc_platformx86_temp_state_t temp_state = {false, 15.5};
+
 static cc_result_t cc_platformx86_temp_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
 static cc_result_t cc_platformx86_gpio_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
 
 cc_calvinsys_capability_t capabilities[] = {
-	{cc_platformx86_temp_open, NULL, NULL, NULL, false, "io.temperature"},
+	{cc_platformx86_temp_open, NULL, NULL, &temp_state, false, "io.temperature"},
 	{cc_platformx86_gpio_open, NULL, NULL, &light_state, false, "io.light"},
 	{cc_platformx86_gpio_open, NULL, NULL, &button_state, false, "io.button"}
 };
@@ -81,20 +88,24 @@ cc_result_t cc_platform_node_started(struct cc_node_t *node)
 // calvinsys functions
 static bool cc_platformx86_temp_can_read(struct cc_calvinsys_obj_t *obj)
 {
-	return true;
+	return ((cc_platformx86_temp_state_t *)obj->capability->state)->can_read;
 }
 
 static cc_result_t cc_platformx86_temp_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
-	double temp = 15.5;
+	cc_platformx86_temp_state_t *state = (cc_platformx86_temp_state_t *)obj->capability->state;
 
-	*size = cc_coder_sizeof_double(temp);
+	if (!state->can_read)
+		return CC_FAIL;
+
+	*size = cc_coder_sizeof_double(state->temp);
 	if (cc_platform_mem_alloc((void **)data, *size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
+	cc_coder_encode_double(*data, state->temp);
 
-	cc_coder_encode_double(*data, temp);
+	state->can_read = false;
 
 	return CC_SUCCESS;
 }
@@ -106,6 +117,13 @@ static bool cc_platformx86_temp_can_write(struct cc_calvinsys_obj_t *obj)
 
 static cc_result_t cc_platformx86_temp_write(struct cc_calvinsys_obj_t *obj, char *data, size_t size)
 {
+	cc_platformx86_temp_state_t *state = (cc_platformx86_temp_state_t *)obj->capability->state;
+
+	if (cc_coder_decode_bool(data, &state->can_read) != CC_SUCCESS) {
+		cc_log_error("Failed to decode value");
+		return CC_FAIL;
+	}
+
 	return CC_SUCCESS;
 }
 

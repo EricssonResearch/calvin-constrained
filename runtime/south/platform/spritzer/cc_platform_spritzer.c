@@ -28,8 +28,11 @@ static LTECommand command;
 static LTECommand_System command_sys;
 
 // Spritzer capabilities
+
+cc_calvinsys_temperature_state_t temp_state = {false, 25.5};
+
 cc_calvinsys_capability_t capabilities[] = {
-	{cc_calvinsys_temp_sensor_open, NULL, NULL, NULL, false, "io.temperature"}
+	{cc_calvinsys_temp_sensor_open, NULL, NULL, &temp_state, false, "io.temperature"}
 };
 
 static int cc_platform_spritzer_wait_recv(void)

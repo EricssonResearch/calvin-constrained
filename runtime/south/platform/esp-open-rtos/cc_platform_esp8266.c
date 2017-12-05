@@ -46,7 +46,7 @@
 
 // Capabilities
 
-cc_calvinsys_temperature_state_t temp_state = {5};
+cc_calvinsys_temperature_state_t temp_state = {5, false, 0.0};
 cc_calvinsys_gpio_state_t light_state = {0, CC_GPIO_OUT};
 
 cc_calvinsys_capability_t capabilities[] = {

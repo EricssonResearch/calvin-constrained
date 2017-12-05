@@ -19,6 +19,11 @@
 #include "runtime/north/cc_common.h"
 #include "calvinsys/cc_calvinsys.h"
 
+typedef struct cc_calvinsys_temperature_state_t {
+	bool can_read;
+	float temp;
+} cc_calvinsys_temperature_state_t;
+
 cc_result_t cc_calvinsys_temp_sensor_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
 
 #endif /* CC_CALVINSYS_TEMP_SENSOR_H */

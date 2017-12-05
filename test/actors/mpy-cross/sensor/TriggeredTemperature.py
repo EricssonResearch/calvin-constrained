@@ -33,10 +33,15 @@ class TriggeredTemperature(Actor):
         self.temperature = calvinsys.open(self, "io.temperature")
 
     @stateguard(lambda self: calvinsys.can_read(self.temperature))
-    @condition(['trigger'], ['centigrade'])
-    def read_measurement(self, _):
+    @condition([], ['centigrade'])
+    def read_measurement(self):
         data = calvinsys.read(self.temperature)
         return (data,)
 
-    action_priority = (read_measurement,)
+    @stateguard(lambda self: calvinsys.can_write(self.temperature))
+    @condition(['trigger'], [])
+    def trigger_measurement(self, _):
+        calvinsys.write(self.temperature, True)
+
+    action_priority = (read_measurement, trigger_measurement)
     requires = ['io.temperature']
