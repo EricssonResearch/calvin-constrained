@@ -9,7 +9,7 @@ APPNAME = calvin
 PRIORITY = $(CONFIG_CALVIN_PRIORITY)
 STACKSIZE = $(CONFIG_CALVIN_STACKSIZE)
 
-CC_PATH = $(APPDIR)/ericsson/calvin-constrained
+CC_PATH = $(APPDIR)/ericsson/calvin-constrained/
 
 SPRITZER = 1
 
@@ -59,10 +59,10 @@ context.RegistryAttribute=1
 endif
 endif
 
-include $(CC_PATH)/calvin.mk
+include $(CC_PATH)calvin.mk
 
 ASRCS =
-MAINSRC = $(addprefix $(CC_PATH)/,$(CC_SRC_C))
+MAINSRC = $(addprefix $(CC_PATH),$(CC_SRC_C))
 CSRCS =
 CFLAGS += -I$(APPDIR)/../nuttx/include -I$(CC_PATH) $(CC_CFLAGS)
 LDFLAGS += $(CC_LDFLAGS)

@@ -109,9 +109,9 @@ PYTHON_STACK_SIZE = 8*1024
 $(info PYTHON_STACK_SIZE not set, using default $(PYTHON_STACK_SIZE))
 endif
 CC_LIBS += -lmicropython -lm
-CC_LDFLAGS += -Llibmpy
-CC_CFLAGS += -std=gnu99
-CC_CFLAGS += -Ilibmpy/build -Imicropython -Ilibmpy
+CC_LDFLAGS += -L$(CC_PATH)libmpy
+CC_CFLAGS += -std=gnu99 -Wno-shadow -Wno-strict-prototypes
+CC_CFLAGS += -I$(CC_PATH)libmpy/build -I$(CC_PATH)micropython -I$(CC_PATH)libmpy
 CC_CFLAGS += -DCC_PYTHON_ENABLED -DCC_STORAGE_ENABLED
 CC_CFLAGS += -DCC_PYTHON_HEAP_SIZE=$(PYTHON_HEAP_SIZE) -DCC_PYTHON_STACK_SIZE=$(PYTHON_STACK_SIZE)
 CC_CFLAGS += -DCC_ACTOR_MODULES_DIR=\""mpys/\""
