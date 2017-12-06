@@ -126,12 +126,16 @@ ifndef PYTHON_STACK_SIZE
 PYTHON_STACK_SIZE = 8*1024
 $(info PYTHON_STACK_SIZE not set, using default $(PYTHON_STACK_SIZE))
 endif
+ifndef ACTOR_MODULES_DIR
+ACTOR_MODULES_DIR=\""mpys/\""
+$(info ACTOR_MODULES_DIR not set, using default $(ACTOR_MODULES_DIR))
+endif
 CC_LIBS += -lmicropython -lm
 CC_LDFLAGS += -L$(CC_PATH)libmpy
 CC_CFLAGS += -std=gnu99
 CC_CFLAGS += -I$(CC_PATH)libmpy/build -I$(CC_PATH)micropython -I$(CC_PATH)libmpy
 CC_CFLAGS += -DCC_PYTHON_ENABLED -DCC_STORAGE_ENABLED
 CC_CFLAGS += -DCC_PYTHON_HEAP_SIZE=$(PYTHON_HEAP_SIZE) -DCC_PYTHON_STACK_SIZE=$(PYTHON_STACK_SIZE)
-CC_CFLAGS += -DCC_ACTOR_MODULES_DIR=\""mpys/\""
+CC_CFLAGS += -DCC_ACTOR_MODULES_DIR=$(ACTOR_MODULES_DIR)
 CC_SRC_C += actors/cc_actor_mpy.c libmpy/cc_mpy_port.c libmpy/cc_mpy_calvinsys.c
 endif
