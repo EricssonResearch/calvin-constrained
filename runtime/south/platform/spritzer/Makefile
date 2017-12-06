@@ -17,10 +17,6 @@ CC_SRC_C = runtime/south/platform/spritzer/cc_platform_spritzer.c \
 	runtime/south/transport/spritzer/cc_transport_spritzer.c \
 	runtime/south/platform/spritzer/calvinsys/cc_calvinsys_temp_sensor.c
 
-ifeq ($(CONFIG_CALVIN_SLEEP),y)
-SLEEP=1
-endif
-
 ifeq ($(CONFIG_CALVIN_PYTHON),y)
 MPY=1
 ifdef CONFIG_CALVIN_PYTHON_HEAPSIZE
@@ -36,6 +32,14 @@ SLEEP = 1
 ifdef CONFIG_CALVIN_SLEEP_TIME
 SLEEP_TIME = $(CONFIG_CALVIN_SLEEP_TIME)
 endif
+ifdef CONFIG_CALVIN_INACTIVITY_TIMEOUT
+INACTIVITY_TIMEOUT = $(CONFIG_CALVIN_INACTIVITY_TIMEOUT)
+endif
+endif
+
+ifeq ($(CONFIG_CALVIN_STORAGE),y)
+STORAGE = 1
+CONFIG_FILE = CONFIG_CALVIN_CONFIG_FILE
 endif
 
 ifeq ($(CONFIG_CALVIN_CACTORS),y)

@@ -2,7 +2,6 @@
 
 # clean up
 rm calvin.msgpack
-rm cc_stderr.log
 rm calvin_c
 rm -rf mpys
 

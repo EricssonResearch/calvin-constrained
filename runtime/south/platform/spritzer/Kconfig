@@ -28,6 +28,16 @@ config CALVIN_STACKSIZE
 	int "Calvin runtime stack size"
 	default 14336
 
+config CALVIN_STORAGE
+	bool "Enable state serialization/deserialization"
+	default n
+
+if CALVIN_STORAGE
+config CALVIN_CONFIG_FILE
+	string "State file"
+	default "calvin.msgpack"
+endif
+
 config CALVIN_PYTHON
 	bool "Enable Python actors"
 	default n
@@ -47,8 +57,11 @@ config CALVIN_SLEEP
 	default n
 
 if CALVIN_SLEEP
+config CALVIN_INACTIVITY_TIMEOUT
+	int "Seconds of idle time to enter sleep"
+	default 2
 config CALVIN_SLEEP_TIME
-	int "Time, in seconds, to sleep if no timers active"
+	int "Seconds to sleep if no active timers"
 	default 60
 endif
 

@@ -27,7 +27,6 @@
 #define CC_MAX_URI_LEN						50
 #define CC_MAX_ATTRIBUTES_LEN			1024
 #define CC_MAX_DIR_PATH						100
-#define CC_CONFIG_FILE						"calvin.msgpack"
 
 typedef enum {
 	CC_SUCCESS,

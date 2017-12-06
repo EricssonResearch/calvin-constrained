@@ -19,20 +19,38 @@ CC_SRC_C += \
 	calvinsys/common/cc_calvinsys_timer.c \
 	calvinsys/common/cc_calvinsys_attribute.c
 
-# features
+# runtime features/config
+
+ifndef RECONNECT_TIMEOUT
+$(info RECONNECT_TIMEOUT not set, using default 5 seconds)
+CC_CFLAGS += -DCC_RECONNECT_TIMEOUT=5
+endif
+
 ifeq ($(GETOPT),1)
 CC_CFLAGS += -DCC_GETOPT_ENABLED
 endif
+
+ifndef INACTIVITY_TIMEOUT
+$(info INACTIVITY_TIMEOUT not set, using default 2 seconds)
+INACTIVITY_TIMEOUT=2
+endif
+CC_CFLAGS += -DCC_INACTIVITY_TIMEOUT=$(INACTIVITY_TIMEOUT)
 
 ifeq ($(SLEEP),1)
 ifndef SLEEP_TIME
 $(info CC_SLEEP_TIME not set, using default 60 seconds)
 SLEEP_TIME=60
 endif
-CC_CFLAGS += -DCC_STORAGE_ENABLED -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=$(SLEEP_TIME)
+# State serialization required with sleep
+STORAGE = 1
+CC_CFLAGS += -DCC_DEEPSLEEP_ENABLED -DCC_SLEEP_TIME=$(SLEEP_TIME)
 endif
 
 ifeq ($(STORAGE),1)
+ifndef CONFIG_FILE
+$(info CONFIG_FILE not set, using default calvin.msgpack)
+CC_CFLAGS += -DCC_CONFIG_FILE=\""calvin.msgpack\""
+endif
 CC_CFLAGS += -DCC_STORAGE_ENABLED
 endif
 
@@ -110,7 +128,7 @@ $(info PYTHON_STACK_SIZE not set, using default $(PYTHON_STACK_SIZE))
 endif
 CC_LIBS += -lmicropython -lm
 CC_LDFLAGS += -L$(CC_PATH)libmpy
-CC_CFLAGS += -std=gnu99 -Wno-shadow -Wno-strict-prototypes
+CC_CFLAGS += -std=gnu99
 CC_CFLAGS += -I$(CC_PATH)libmpy/build -I$(CC_PATH)micropython -I$(CC_PATH)libmpy
 CC_CFLAGS += -DCC_PYTHON_ENABLED -DCC_STORAGE_ENABLED
 CC_CFLAGS += -DCC_PYTHON_HEAP_SIZE=$(PYTHON_HEAP_SIZE) -DCC_PYTHON_STACK_SIZE=$(PYTHON_STACK_SIZE)

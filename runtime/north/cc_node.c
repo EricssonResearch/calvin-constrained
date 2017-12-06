@@ -33,13 +33,6 @@
 #include "libmpy/cc_mpy_port.h"
 #endif
 
-#ifndef CC_RECONNECT_TIMEOUT
-#define CC_RECONNECT_TIMEOUT	5
-#endif
-#ifndef CC_INACTIVITY_TIMEOUT
-#define CC_INACTIVITY_TIMEOUT	2
-#endif
-
 #ifdef CC_STORAGE_ENABLED
 static cc_result_t cc_node_get_state(cc_node_t *node)
 {
