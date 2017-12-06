@@ -1,0 +1,8 @@
+{
+    "proxy_uris": [
+        "calvinip://127.0.0.1:5000",
+        "ssdp"
+    ],
+    "attributes": "{\"indexed_public\": {\"node_name\": {\"name\": \"constrained\"}, \"address\": {\"country\": \"SE\"}, \"owner\": {\"organization\": \"Ericsson\"}}}",
+    "id": "3e71a1a0-c94d-2b4d-205a-624b16c4436f"
+}
