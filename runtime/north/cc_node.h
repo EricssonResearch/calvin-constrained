@@ -41,8 +41,10 @@ typedef enum {
 	CC_NODE_STOP_MIGRATE
 } cc_node_stop_method_t;
 
+typedef cc_result_t (*cc_msg_handler_t)(struct cc_node_t*, char*, size_t, void*);
+
 typedef struct cc_pending_msg_t {
-	cc_result_t (*handler)(struct cc_node_t *node, char *data, size_t data_len, void *msg_data);
+	cc_msg_handler_t handler;
 	void *msg_data;
 } cc_pending_msg_t;
 

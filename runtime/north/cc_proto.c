@@ -72,7 +72,7 @@ cc_result_t cc_proto_send_join_request(const cc_node_t *node, cc_transport_clien
 	return cc_transport_send(transport_client, buffer, size + transport_client->prefix_len);
 }
 
-cc_result_t cc_proto_send_node_setup(cc_node_t *node, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_node_setup(cc_node_t *node, cc_msg_handler_t handler)
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 	cc_list_t *capabilities = node->calvinsys->capabilities;
@@ -128,7 +128,7 @@ cc_result_t cc_proto_send_node_setup(cc_node_t *node, cc_result_t (*handler)(cc_
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_wake_signal(cc_node_t *node, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_wake_signal(cc_node_t *node, cc_msg_handler_t handler)
 {
 	char buffer[500], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
@@ -162,7 +162,7 @@ cc_result_t cc_proto_send_wake_signal(cc_node_t *node, cc_result_t (*handler)(cc
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_get_actor_module(cc_node_t *node, const char *actor_type, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_get_actor_module(cc_node_t *node, const char *actor_type, cc_msg_handler_t handler)
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
@@ -195,7 +195,7 @@ cc_result_t cc_proto_send_get_actor_module(cc_node_t *node, const char *actor_ty
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_req_match(cc_node_t *node, cc_actor_t *actor, char *requirements, uint32_t requirements_len, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_req_match(cc_node_t *node, cc_actor_t *actor, char *requirements, uint32_t requirements_len, cc_msg_handler_t handler)
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
@@ -229,7 +229,7 @@ cc_result_t cc_proto_send_req_match(cc_node_t *node, cc_actor_t *actor, char *re
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t time_to_sleep, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t time_to_sleep, cc_msg_handler_t handler)
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
@@ -261,7 +261,7 @@ cc_result_t cc_proto_send_sleep_request(cc_node_t *node, uint32_t time_to_sleep,
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_tunnel_request(cc_node_t *node, cc_tunnel_t *tunnel, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_tunnel_request(cc_node_t *node, cc_tunnel_t *tunnel, cc_msg_handler_t handler)
 {
 	char buffer[1000], type[20], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
@@ -302,7 +302,7 @@ cc_result_t cc_proto_send_tunnel_request(cc_node_t *node, cc_tunnel_t *tunnel, c
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_tunnel_destroy(cc_node_t *node, cc_tunnel_t *tunnel, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_tunnel_destroy(cc_node_t *node, cc_tunnel_t *tunnel, cc_msg_handler_t handler)
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
@@ -532,7 +532,7 @@ cc_result_t cc_proto_send_token(const cc_node_t *node, cc_port_t *port, cc_token
 	return cc_transport_send(node->transport_client, buffer, w - buffer);
 }
 
-cc_result_t cc_proto_send_port_connect(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_port_connect(cc_node_t *node, cc_port_t *port, cc_msg_handler_t handler)
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
@@ -568,7 +568,7 @@ cc_result_t cc_proto_send_port_connect(cc_node_t *node, cc_port_t *port, cc_resu
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_port_disconnect(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_port_disconnect(cc_node_t *node, cc_port_t *port, cc_msg_handler_t handler)
 {
 	char buffer[1000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
@@ -600,7 +600,7 @@ cc_result_t cc_proto_send_port_disconnect(cc_node_t *node, cc_port_t *port, cc_r
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_msg_handler_t handler)
 {
 	int key_len = 0;
 	char buffer[1000], *w = NULL, key[50] = "", msg_uuid[CC_UUID_BUFFER_SIZE];
@@ -670,7 +670,7 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_msg_handler_t handler)
 {
 	char buffer[1000], *w = NULL, key[50], msg_uuid[CC_UUID_BUFFER_SIZE];
 	int key_len = 0;
@@ -705,7 +705,7 @@ cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_res
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_set_port(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_set_port(cc_node_t *node, cc_port_t *port, cc_msg_handler_t handler)
 {
 	char buffer[2000], *w = NULL, key[50] = "", msg_uuid[CC_UUID_BUFFER_SIZE];
 	int key_len = 0;
@@ -770,7 +770,7 @@ cc_result_t cc_proto_send_set_port(cc_node_t *node, cc_port_t *port, cc_result_t
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_get_port(cc_node_t *node, char *port_id, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*), void *msg_data)
+cc_result_t cc_proto_send_get_port(cc_node_t *node, char *port_id, cc_msg_handler_t handler, void *msg_data)
 {
 	char buffer[1000], msg_uuid[CC_UUID_BUFFER_SIZE], *w = NULL, key[50] = "";
 	int key_len = 0;
@@ -804,7 +804,7 @@ cc_result_t cc_proto_send_get_port(cc_node_t *node, char *port_id, cc_result_t (
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_remove_port(cc_node_t *node, cc_port_t *port, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_remove_port(cc_node_t *node, cc_port_t *port, cc_msg_handler_t handler)
 {
 	char buffer[1000], *w = NULL, key[50] = "", msg_uuid[CC_UUID_BUFFER_SIZE];
 	int key_len = 0;
@@ -838,7 +838,7 @@ cc_result_t cc_proto_send_remove_port(cc_node_t *node, cc_port_t *port, cc_resul
 	return CC_FAIL;
 }
 
-cc_result_t cc_proto_send_actor_new(cc_node_t *node, cc_actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, cc_result_t (*handler)(cc_node_t*, char*, size_t, void*))
+cc_result_t cc_proto_send_actor_new(cc_node_t *node, cc_actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, cc_msg_handler_t handler)
 {
 	char buffer[2000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 

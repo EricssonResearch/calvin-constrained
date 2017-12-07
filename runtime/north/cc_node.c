@@ -278,7 +278,7 @@ static void cc_node_reset(cc_node_t *node)
 }
 #endif
 
-cc_result_t cc_node_add_pending_msg(cc_node_t *node, char *msg_uuid, cc_result_t (*handler)(cc_node_t *node, char *data, size_t data_len, void *msg_data), void *msg_data)
+cc_result_t cc_node_add_pending_msg(cc_node_t *node, char *msg_uuid, cc_msg_handler_t handler, void *msg_data)
 {
 	cc_pending_msg_t *msg = NULL;
 
