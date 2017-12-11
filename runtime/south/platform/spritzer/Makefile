@@ -11,11 +11,11 @@ STACKSIZE = $(CONFIG_CALVIN_STACKSIZE)
 
 CC_PATH = $(APPDIR)/ericsson/calvin-constrained/
 
-SPRITZER = 1
-
 CC_SRC_C = runtime/south/platform/spritzer/cc_platform_spritzer.c \
 	runtime/south/transport/spritzer/cc_transport_spritzer.c \
 	runtime/south/platform/spritzer/calvinsys/cc_calvinsys_temp_sensor.c
+
+CC_CFLAGS += -DCC_TRANSPORT_SPRITZER
 
 ifdef CONFIG_CALVIN_INACTIVITY_TIMEOUT
 INACTIVITY_TIMEOUT = $(CONFIG_CALVIN_INACTIVITY_TIMEOUT)

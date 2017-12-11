@@ -74,11 +74,6 @@ CC_SRC_C += runtime/south/transport/fcm/cc_transport_fcm.c
 CC_CFLAGS += -DCC_TRANSPORT_FCM
 endif
 
-ifeq ($(SPRITZER),1)
-CC_SRC_C += runtime/south/transport/spritzer/cc_transport_spritzer.c
-CC_CFLAGS += -DCC_TRANSPORT_SPRITZER
-endif
-
 # C actors
 
 ifeq ($(std.Identity),1)
