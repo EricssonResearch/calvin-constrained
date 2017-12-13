@@ -17,6 +17,7 @@
 #define CC_NODE_H
 
 #include <stdbool.h>
+#include "cc_config.h"
 #include "cc_common.h"
 #include "cc_transport.h"
 #include "cc_tunnel.h"
@@ -69,7 +70,7 @@ typedef struct cc_node_t {
 	uint32_t seconds_since_epoch;
 	uint32_t time_at_sync;
 	bool (*fire_actors)(struct cc_node_t *node);
-#ifdef CC_PYTHON_ENABLED
+#if CC_USE_PYTHON
 	void *mpy_heap;
 #endif
 } cc_node_t;
@@ -84,7 +85,7 @@ cc_result_t cc_node_handle_message(cc_node_t *node, char *buffer, size_t len);
 cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *proxy_uris, const char *storage_dir);
 uint32_t cc_node_get_time(cc_node_t *node);
 cc_result_t cc_node_run(cc_node_t *node);
-#ifdef CC_STORAGE_ENABLED
+#if CC_USE_STORAGE
 void cc_node_set_state(cc_node_t *node, bool include_state);
 #endif
 #endif /* CC_NODE_H */

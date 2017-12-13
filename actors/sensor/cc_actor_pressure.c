@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 #include <string.h>
-#include "cc_actor_accelerometer.h"
 #include "runtime/north/cc_actor_store.h"
 
-static cc_result_t cc_actor_accelerometer_init(cc_actor_t **actor, cc_list_t *attributes)
+static cc_result_t cc_actor_pressure_init(cc_actor_t **actor, cc_list_t *attributes)
 {
-	char *obj_ref = cc_calvinsys_open(*actor, "io.accelerometer", NULL);
+	char *obj_ref = NULL;
 
+	obj_ref = cc_calvinsys_open(*actor, "io.pressure", NULL);
 	if (obj_ref == NULL) {
-		cc_log_error("Failed to open 'io.accelerometer'");
+		cc_log_error("Failed to open 'io.pressure'");
 		return CC_FAIL;
 	}
 
@@ -31,12 +31,12 @@ static cc_result_t cc_actor_accelerometer_init(cc_actor_t **actor, cc_list_t *at
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_accelerometer_set_state(cc_actor_t **actor, cc_list_t *attributes)
+static cc_result_t cc_actor_pressure_set_state(cc_actor_t **actor, cc_list_t *attributes)
 {
-	return cc_actor_accelerometer_init(actor, attributes);
+	return cc_actor_pressure_init(actor, attributes);
 }
 
-static bool cc_actor_accelerometer_fire(cc_actor_t *actor)
+static bool cc_actor_pressure_fire(cc_actor_t *actor)
 {
 	cc_port_t *inport = (cc_port_t *)actor->in_ports->data, *outport = (cc_port_t *)actor->out_ports->data;
 	char *obj_ref = (char *)actor->instance_state;
@@ -55,16 +55,13 @@ static bool cc_actor_accelerometer_fire(cc_actor_t *actor)
 			cc_platform_mem_free((void *)data);
 		} else
 			cc_log_error("Failed to read value");
-	} else {
-		cc_log_error("could not read from accelerometer");
 	}
-
 	return false;
 }
 
-cc_result_t cc_actor_accelerometer_get_requires(cc_actor_t *actor, cc_list_t **requires)
+cc_result_t cc_actor_pressure_get_requires(cc_actor_t *actor, cc_list_t **requires)
 {
-	if (cc_list_add_n(requires, "io.accelerometer", 16, NULL, 0) == NULL) {
+	if (cc_list_add_n(requires, "io.pressure", 11, NULL, 0) == NULL) {
 		cc_log_error("Failed to add requires");
 		return CC_FAIL;
 	}
@@ -72,12 +69,12 @@ cc_result_t cc_actor_accelerometer_get_requires(cc_actor_t *actor, cc_list_t **r
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_actor_accelerometer_setup(cc_actor_type_t *type)
+cc_result_t cc_actor_pressure_setup(cc_actor_type_t *type)
 {
-	type->init = cc_actor_accelerometer_init;
-	type->set_state = cc_actor_accelerometer_set_state;
-	type->fire_actor = cc_actor_accelerometer_fire;
-	type->get_requires = cc_actor_accelerometer_get_requires;
+	type->init = cc_actor_pressure_init;
+	type->set_state = cc_actor_pressure_set_state;
+	type->fire_actor = cc_actor_pressure_fire;
+	type->get_requires = cc_actor_pressure_get_requires;
 
 	return CC_SUCCESS;
 }

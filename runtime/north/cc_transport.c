@@ -15,23 +15,12 @@
  */
 #include <string.h>
 #include <stdio.h>
+#include "cc_config.h"
 #include "cc_transport.h"
 #include "cc_node.h"
 #include "coder/cc_coder.h"
 #include "cc_proto.h"
 #include "runtime/south/platform/cc_platform.h"
-#ifdef CC_TRANSPORT_SOCKET
-#include "runtime/south/transport/socket/cc_transport_socket.h"
-#endif
-#ifdef CC_TRANSPORT_LWIP
-#include "runtime/south/transport/lwip/cc_transport_lwip.h"
-#endif
-#ifdef CC_TRANSPORT_FCM
-#include "runtime/south/transport/fcm/cc_transport_fcm.h"
-#endif
-#ifdef CC_TRANSPORT_SPRITZER
-#include "runtime/south/transport/spritzer/cc_transport_spritzer.h"
-#endif
 
 unsigned int cc_transport_get_message_len(const char *buffer)
 {
@@ -163,27 +152,15 @@ cc_result_t cc_transport_join(cc_node_t *node, cc_transport_client_t *transport_
 cc_transport_client_t *cc_transport_create(cc_node_t *node, char *uri)
 {
 	cc_transport_client_t *client = NULL;
+	cc_transport_t transports[] = {
+		CC_TRANSPORTS
+	};
+	int i = 0, n_transports = sizeof(transports) / sizeof(cc_transport_t);
 
-#ifdef CC_TRANSPORT_SOCKET
-	if (strncmp(uri, "calvinip://", 11) == 0 || strncmp(uri, "ssdp", 4) == 0) {
-		client = cc_transport_socket_create(node, uri);
+	for (i = 0; i < n_transports; i++) {
+		if (strncmp(uri, transports[i].name, strlen(transports[i].name)))
+			client = transports[i].create(node, uri);
 	}
-#endif
-
-#ifdef CC_TRANSPORT_SPRITZER
-	if (strncmp(uri, "calvinip://", 11) == 0)
-		client = cc_transport_spritzer_create(node, uri);
-#endif
-
-#ifdef CC_TRANSPORT_LWIP
-	if (strncmp(uri, "lwip", 4) == 0)
-		client = cc_transport_lwip_create(node);
-#endif
-
-#ifdef CC_TRANSPORT_FCM
-	if (strncmp(uri, "calvinfcm://", 12) == 0)
-		client = transport_fcm_create(node, uri);
-#endif
 
 	if (client == NULL)
 		cc_log_error("No transport for '%s'", uri);

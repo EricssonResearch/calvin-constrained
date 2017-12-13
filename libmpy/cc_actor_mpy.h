@@ -16,22 +16,20 @@
 #ifndef CC_ACTOR_MPY_H
 #define CC_ACTOR_MPY_H
 
-#ifdef CC_PYTHON_ENABLED
+#include "cc_config.h"
 
-#include "runtime/north/cc_actor.h"
+#if CC_USE_PYTHON
+
 #include "py/runtime.h"
 #include "py/objstr.h"
 #include "py/lexer.h"
 
-typedef struct cc_actor_mpy_state_t {
-	mp_obj_t actor_class_instance;
-	mp_obj_t actor_fire_method[2];
-} cc_actor_mpy_state_t;
+struct cc_actor_t;
 
 cc_result_t cc_actor_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value);
 cc_result_t cc_actor_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size_t *size);
 char *cc_actor_mpy_get_path_from_type(char *type, uint32_t type_len, const char *extension, bool add_modules_dir);
-cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor);
+cc_result_t cc_actor_mpy_init_from_type(struct cc_actor_t *actor);
 bool cc_actor_mpy_has_module(char *type);
 
 #endif

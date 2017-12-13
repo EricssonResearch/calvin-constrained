@@ -16,16 +16,10 @@
 #ifndef CC_TRANSPORT_SOCKET_H
 #define CC_TRANSPORT_SOCKET_H
 
-#include "runtime/north/cc_transport.h"
-
-struct cc_node_t;
-
 typedef struct cc_transport_socket_client_t {
 	int fd;
 	char ip[40];
 	int port;
 } cc_transport_socket_client_t;
-
-cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node, char *uri);
 
 #endif /* CC_TRANSPORT_SOCKET_H */

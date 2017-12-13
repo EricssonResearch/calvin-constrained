@@ -16,8 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "cc_config.h"
 #include "cc_api.h"
-#ifdef CC_GETOPT_ENABLED
+#if (CC_USE_GETOPT == 1)
 #include <getopt.h>
 #endif
 
@@ -25,7 +26,7 @@ int main(int argc, char **argv)
 {
 	char *attr = NULL, *proxy_uris = NULL;
 	cc_node_t *node = NULL;
-#ifdef CC_GETOPT_ENABLED
+#if (CC_USE_GETOPT == 1)
 	int c = 0;
 	static struct option long_options[] = {
 		{"attr", required_argument, NULL, 'a'},

@@ -1,4 +1,4 @@
-/*
+	/*
  * Copyright (c) 2016 Ericsson AB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,19 +27,40 @@ cc_result_t cc_calvinsys_add_capabilities(cc_calvinsys_t *calvinsys, size_t n_ca
 	cc_calvinsys_capability_t *capability = NULL;
 
 	for (i = 0; i < n_capabilities; i++) {
-		capability = &capabilities[i];
-		capability->calvinsys = calvinsys;
-		item = cc_list_add_n(&calvinsys->capabilities, capability->name, strlen(capability->name), capability, sizeof(cc_calvinsys_capability_t));
-		if (item == NULL) {
-			cc_log_error("Failed to add '%s'", capability->name);
+		if (cc_platform_mem_alloc((void **)&capability, sizeof(cc_calvinsys_capability_t)) != CC_SUCCESS) {
+			cc_log_error("Failed to allocate memory");
 			return CC_FAIL;
 		}
+		memset(capability, 0, sizeof(cc_calvinsys_capability_t));
+
+		if (capabilities[i].init_args != NULL) {
+			if (cc_platform_mem_alloc((void **)&capability->init_args, strlen(capabilities[i].init_args)) != CC_SUCCESS) {
+				cc_log_error("Failed to allocate memory");
+				cc_platform_mem_free(capability);
+				return CC_FAIL;
+			}
+			memcpy(capability->init_args, capabilities[i].init_args, strlen(capabilities[i].init_args));
+		}
+
+		item = cc_list_add_n(&calvinsys->capabilities, capabilities[i].name, strlen(capabilities[i].name), capability, sizeof(cc_calvinsys_capability_t));
+		if (item == NULL) {
+			cc_log_error("Failed to add '%s'", capabilities[i].name);
+			if (capability->init_args != NULL)
+				cc_platform_mem_free(capability->init_args);
+			cc_platform_mem_free(capability);
+			return CC_FAIL;
+		}
+
+		capability->open = capabilities[i].open;
+		capability->deserialize = capabilities[i].deserialize;
+		capability->calvinsys = calvinsys;
+		capability->name = item->id;
 	}
 
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_calvinsys_create_capability(cc_calvinsys_t *calvinsys, const char *name, cc_result_t (*open)(cc_calvinsys_obj_t*, cc_list_t*), cc_result_t (*deserialize)(cc_calvinsys_obj_t*, cc_list_t*), void *state)
+cc_result_t cc_calvinsys_create_capability(cc_calvinsys_t *calvinsys, const char *name, cc_result_t (*open)(cc_calvinsys_obj_t*, cc_list_t*), cc_result_t (*deserialize)(cc_calvinsys_obj_t*, cc_list_t*), char *init_args)
 {
 	cc_calvinsys_capability_t *capability = NULL;
 	cc_list_t *item = NULL;
@@ -63,9 +84,8 @@ cc_result_t cc_calvinsys_create_capability(cc_calvinsys_t *calvinsys, const char
 	capability->open = open;
 	capability->deserialize = deserialize;
 	capability->calvinsys = calvinsys;
-	capability->state = state;
+	capability->init_args = init_args;
 	capability->name = item->id;
-	capability->malloced = true;
 
 	return CC_SUCCESS;
 }
@@ -78,11 +98,9 @@ void cc_calvinsys_delete_capability(cc_calvinsys_t *calvinsys, const char *name)
 	item = cc_list_get(calvinsys->capabilities, name);
 	if (item != NULL) {
 		capability = (cc_calvinsys_capability_t *)item->data;
-		if (capability->malloced) {
-			if (capability->state != NULL)
-				cc_platform_mem_free(capability->state);
-			cc_platform_mem_free((void *)capability);
-		}
+		if (capability->init_args != NULL)
+			cc_platform_mem_free(capability->init_args);
+		cc_platform_mem_free(capability);
 		cc_list_remove(&calvinsys->capabilities, name);
 	}
 }

@@ -16,7 +16,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "cc_actor_camera.h"
 #include "runtime/north/cc_actor.h"
 #include "runtime/north/cc_actor_store.h"
 

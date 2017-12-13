@@ -13,18 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#ifdef CC_PYTHON_ENABLED
-
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
 #include "cc_actor_mpy.h"
+#include "runtime/north/cc_actor.h"
 #include "runtime/south/platform/cc_platform.h"
 #include "runtime/north/coder/cc_coder.h"
 #include "py/frozenmod.h"
 #include "py/gc.h"
-#include "libmpy/cc_mpy_port.h"
+
+typedef struct cc_actor_mpy_state_t {
+	mp_obj_t actor_class_instance;
+	mp_obj_t actor_fire_method[2];
+} cc_actor_mpy_state_t;
 
 cc_result_t cc_actor_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 {
@@ -523,5 +525,3 @@ bool cc_actor_mpy_has_module(char *type)
 
 	return found;
 }
-
-#endif

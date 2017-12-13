@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #include <string.h>
-#include "cc_actor_gyroscope.h"
 #include "runtime/north/cc_actor_store.h"
 
 static cc_result_t cc_actor_gyroscope_init(cc_actor_t **actor, cc_list_t *attributes)

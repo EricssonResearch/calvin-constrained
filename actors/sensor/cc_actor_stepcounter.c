@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 #include <string.h>
-#include "cc_actor_accelerometer.h"
 #include "runtime/north/cc_actor_store.h"
-#include "cc_actor_stepcounter.h"
+
+typedef struct cc_actor_stepcounter_state_t {
+	char *obj_ref;
+	char *stepcount;
+	size_t stepcount_size;
+} cc_actor_stepcounter_state_t;
 
 static cc_result_t cc_actor_stepcounter_init(cc_actor_t **actor, cc_list_t *attributes)
 {

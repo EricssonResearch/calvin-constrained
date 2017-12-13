@@ -6,13 +6,10 @@ PROGRAM_SRC_FILES = \
 	runtime/south/platform/esp-open-rtos/cc_platform_esp8266.c \
 	runtime/south/platform/esp-open-rtos/calvinsys/cc_calvinsys_ds18b20.c \
 	runtime/south/platform/esp-open-rtos/calvinsys/cc_calvinsys_gpio.c \
-	runtime/south/platform/esp-open-rtos/calvinsys/cc_calvinsys_yl69.c
+	runtime/south/platform/esp-open-rtos/calvinsys/cc_calvinsys_yl69.c \
+	runtime/south/transport/socket/cc_transport_socket.c
 
-# esp-open-rtos runtime config
-SOCKET = 1
-STORAGE = 1
-PYTHON_HEAP_SIZE = 8*1024
-PYTHON_STACK_SIZE = 2*1024
+CONFIG = runtime/south/platform/esp-open-rtos/cc_config_esp8266.h
 
 include calvin.mk
 

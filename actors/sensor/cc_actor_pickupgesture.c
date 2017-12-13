@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #include <string.h>
-#include "cc_actor_pickupgesture.h"
 #include "runtime/north/cc_actor_store.h"
 
 static cc_result_t cc_actor_pickupgesture_init(cc_actor_t **actor, cc_list_t *attributes)
@@ -71,7 +70,7 @@ cc_result_t cc_actor_pickupgesture_setup(cc_actor_type_t *type)
 	type->init = cc_actor_pickupgesture_init;
 	type->set_state = cc_actor_pickupgesture_set_state;
 	type->fire_actor = cc_actor_pickupgesture_fire;
-	type->requires = cc_actor_pickupgesture_get_requires;
+	type->get_requires = cc_actor_pickupgesture_get_requires;
 
 	return CC_SUCCESS;
 }

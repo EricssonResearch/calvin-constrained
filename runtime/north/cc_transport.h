@@ -85,6 +85,11 @@ typedef struct cc_transport_client_t {
 	void (*free)(struct cc_transport_client_t *transport_client);
 } cc_transport_client_t;
 
+typedef struct cc_transport_t {
+	const char *name;
+	cc_transport_client_t* (*create)(struct cc_node_t *node, char *uri);
+} cc_transport_t;
+
 /**
  * transcc_port_create() - Create a transport client for uri
  * @node the node object

@@ -15,7 +15,6 @@
  */
 //#include <stdlib.h>
 #include <string.h>
-#include "cc_actor_identity.h"
 #include "runtime/north/cc_actor_store.h"
 #include "runtime/north/cc_port.h"
 #include "runtime/north/cc_token.h"

@@ -13,11 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "cc_calvinsys_temp_sensor.h"
 #include "runtime/north/cc_node.h"
 #include "runtime/north/coder/cc_coder.h"
 #include "runtime/south/platform/cc_platform.h"
 #include "calvinsys/cc_calvinsys.h"
+
+typedef struct cc_calvinsys_temperature_state_t {
+	bool can_read;
+	float value;
+} cc_calvinsys_temperature_state_t;
 
 static bool cc_calvinsys_temp_sensor_can_write(struct cc_calvinsys_obj_t *obj)
 {
@@ -26,7 +30,7 @@ static bool cc_calvinsys_temp_sensor_can_write(struct cc_calvinsys_obj_t *obj)
 
 static cc_result_t cc_calvinsys_temp_sensor_write(cc_calvinsys_obj_t *obj, char *data, size_t size)
 {
-	cc_calvinsys_temperature_state_t *state = (cc_calvinsys_temperature_state_t *)obj->capability->state;
+	cc_calvinsys_temperature_state_t *state = (cc_calvinsys_temperature_state_t *)obj->state;
 
 	if (cc_coder_decode_bool(data, &state->can_read) != CC_SUCCESS) {
 		cc_log_error("Failed to decode value");
@@ -38,34 +42,53 @@ static cc_result_t cc_calvinsys_temp_sensor_write(cc_calvinsys_obj_t *obj, char 
 
 static bool cc_calvinsys_temp_sensor_can_read(struct cc_calvinsys_obj_t *obj)
 {
-	return ((cc_calvinsys_temperature_state_t *)obj->capability->state)->can_read;
+	return ((cc_calvinsys_temperature_state_t *)obj->state)->can_read;
 }
 
 static cc_result_t cc_calvinsys_temp_sensor_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
-	cc_calvinsys_temperature_state_t *state = (cc_calvinsys_temperature_state_t *)obj->capability->state;
+	cc_calvinsys_temperature_state_t *state = (cc_calvinsys_temperature_state_t *)obj->state;
 
 	if (!state->can_read)
 		return CC_FAIL;
 
-	*size = cc_coder_sizeof_double(state->temp);
+	*size = cc_coder_sizeof_double(state->value);
 	if (cc_platform_mem_alloc((void **)data, *size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
-	cc_coder_encode_double(*data, state->temp);
-
+	cc_coder_encode_double(*data, state->value);
+	state->value++;
 	state->can_read = false;
+
+	return CC_SUCCESS;
+}
+
+static cc_result_t cc_calvinsys_temp_sensor_close(struct cc_calvinsys_obj_t *obj)
+{
+	cc_platform_mem_free(obj->state);
 
 	return CC_SUCCESS;
 }
 
 cc_result_t cc_calvinsys_temp_sensor_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
+	cc_calvinsys_temperature_state_t *state = NULL;
+
+	if (cc_platform_mem_alloc((void **)&state, sizeof(cc_calvinsys_temperature_state_t)) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+
+	state->can_read = false;
+	state->value = 5.5;
+
 	obj->can_write = cc_calvinsys_temp_sensor_can_write;
 	obj->write = cc_calvinsys_temp_sensor_write;
 	obj->can_read = cc_calvinsys_temp_sensor_can_read;
 	obj->read = cc_calvinsys_temp_sensor_read;
+	obj->close = cc_calvinsys_temp_sensor_close;
+	obj->state = state;
 
 	return CC_SUCCESS;
 }

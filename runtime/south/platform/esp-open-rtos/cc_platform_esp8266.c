@@ -33,31 +33,10 @@
 #include "runtime/north/cc_node.h"
 #include "runtime/south/transport/socket/cc_transport_socket.h"
 #include "runtime/north/coder/cc_coder.h"
-#include "calvinsys/cc_calvinsys_ds18b20.h"
-#include "calvinsys/cc_calvinsys_yl69.h"
-#include "calvinsys/cc_calvinsys_gpio.h"
 
-#define CC_ESP_WIFI_CONFIG_FILE	"wifi.msgpack"
 #define CC_ESP_BUFFER_SIZE			1024
-#define CC_ESP_AP_SSID					"calvin-esp"
-#define CC_ESP_AP_PSK						"calvin-esp"
-#define CC_ESP_WIFI_STATUS_PIN	2
-#define CC_ESP_RESET_PIN				4
 
-// Capabilities
-
-cc_calvinsys_temperature_state_t temp_state = {5, false, 0.0};
-cc_calvinsys_gpio_state_t light_state = {0, CC_GPIO_OUT};
-
-cc_calvinsys_capability_t capabilities[] = {
-	{cc_calvinsys_ds18b20_open, NULL, NULL, &temp_state, false, "io.temperature"},
-	{cc_calvinsys_gpio_open, NULL, NULL, &light_state, false, "io.light"},
-	{cc_calvinsys_yl69_open, NULL, NULL, NULL, false, "io.soil_moisture"}
-};
-
-// End of capabilities
-
-#ifdef CC_PYTHON_ENABLED
+#if CC_USE_PYTHON
 // TODO: Workaround to solve link error with missing function
 #include <math.h>
 double __ieee754_remainder(double x, double y) {
@@ -95,9 +74,9 @@ static cc_result_t cc_platform_esp_write_calvin_config(char *attributes, uint32_
 		}
 	}
 
-	result = cc_platform_file_write(CC_CONFIG_FILE, buffer, tmp - buffer);
+	result = cc_platform_file_write(CC_STATE_FILE, buffer, tmp - buffer);
 	if (result == CC_SUCCESS)
-		cc_log("Config written to '%s'", CC_CONFIG_FILE);
+		cc_log("Config written to '%s'", CC_STATE_FILE);
 
 	return result;
 }
@@ -114,9 +93,9 @@ static cc_result_t cc_platform_esp_write_wifi_config(char *ssid, uint32_t ssid_l
 		tmp = cc_coder_encode_kv_str(tmp, "password", password, password_len);
 	}
 
-	result = cc_platform_file_write(CC_ESP_WIFI_CONFIG_FILE, buffer, tmp - buffer);
+	result = cc_platform_file_write(CC_WIFI_CONFIG_FILE, buffer, tmp - buffer);
 	if (result == CC_SUCCESS)
-		cc_log("WiFi config written to '%s'", CC_ESP_WIFI_CONFIG_FILE);
+		cc_log("WiFi config written to '%s'", CC_WIFI_CONFIG_FILE);
 
 	return result;
 }
@@ -135,11 +114,6 @@ cc_result_t cc_platform_create(struct cc_node_t *node)
 {
 	node->platform = NULL;
 	return CC_SUCCESS;
-}
-
-cc_result_t cc_platform_add_capabilities(cc_calvinsys_t *calvinsys)
-{
-	return cc_calvinsys_add_capabilities(calvinsys, sizeof(capabilities) / sizeof(cc_calvinsys_capability_t), capabilities);
 }
 
 cc_result_t cc_platform_mem_alloc(void **buffer, uint32_t size)
@@ -283,7 +257,7 @@ cc_result_t cc_platform_file_read(const char *path, char **buffer, size_t *size)
 	return CC_SUCCESS;
 }
 
-#ifdef CC_DEEPSLEEP_ENABLED
+#if CC_USE_SLEEP
 void cc_platform_deepsleep(uint32_t time)
 {
 	sdk_system_deep_sleep(time * 1000 * 1000);
@@ -310,12 +284,12 @@ static cc_result_t cc_platform_esp_get_config(void)
 	struct ip_info ap_ip;
 	ip_addr_t first_client_ip;
 	struct sdk_softap_config ap_config = {
-		.ssid = CC_ESP_AP_SSID,
+		.ssid = CC_WIFI_AP_SSID,
 		.ssid_hidden = 0,
 		.channel = 3,
-		.ssid_len = strlen(CC_ESP_AP_SSID),
+		.ssid_len = strlen(CC_WIFI_AP_SSID),
 		.authmode = AUTH_WPA_WPA2_PSK,
-		.password = CC_ESP_AP_PSK,
+		.password = CC_WIFI_AP_PSK,
 		.max_connection = 1,
 		.beacon_interval = 100,
 	};
@@ -428,8 +402,8 @@ static cc_result_t cc_platform_esp_start_station_mode(void)
 	uint8_t status = 0, retries = 0;
 	size_t size;
 
-	if (cc_platform_file_read(CC_ESP_WIFI_CONFIG_FILE, &buffer, &size) != CC_SUCCESS) {
-		cc_log_error("Failed to read %s", CC_ESP_WIFI_CONFIG_FILE);
+	if (cc_platform_file_read(CC_WIFI_CONFIG_FILE, &buffer, &size) != CC_SUCCESS) {
+		cc_log_error("Failed to read %s", CC_WIFI_CONFIG_FILE);
 		return CC_FAIL;
 	}
 
@@ -495,12 +469,6 @@ void calvin_task(void *pvParameters)
 	cc_log("%20s: %u Mbytes", "Flash size", sdk_flashchip.chip_size / 1024 / 1024);
 	cc_log("----------------------------------------");
 
-	// Set led to indicate wifi status
-	sdk_wifi_status_led_install(CC_ESP_WIFI_STATUS_PIN, PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
-
-	// reset config pin
-	gpio_enable(CC_ESP_RESET_PIN, GPIO_INPUT);
-
 	esp_spiffs_init();
 
 	if (esp_spiffs_mount() != SPIFFS_OK) {
@@ -519,12 +487,7 @@ void calvin_task(void *pvParameters)
 	}
 
 	if (result == CC_SUCCESS) {
-		if (gpio_read(CC_ESP_RESET_PIN) == 1) {
-			cc_log("Forcing AP");
-			startAP = true;
-		}
-
-		if (SPIFFS_stat(&fs, CC_ESP_WIFI_CONFIG_FILE, &s) != SPIFFS_OK) {
+		if (SPIFFS_stat(&fs, CC_WIFI_CONFIG_FILE, &s) != SPIFFS_OK) {
 			cc_log("No WiFi config found");
 			startAP = true;
 		}
@@ -535,8 +498,8 @@ void calvin_task(void *pvParameters)
 
 	if (result != CC_SUCCESS) {
 		cc_log("Removing config files");
-		SPIFFS_remove(&fs, CC_ESP_WIFI_CONFIG_FILE);
-		SPIFFS_remove(&fs, CC_CONFIG_FILE);
+		SPIFFS_remove(&fs, CC_WIFI_CONFIG_FILE);
+		SPIFFS_remove(&fs, CC_STATE_FILE);
 	} else {
 		SPIFFS_info(&fs, &total, &used);
 		cc_log("SPIFFS size: %d bytes, used: %d bytes", total, used);

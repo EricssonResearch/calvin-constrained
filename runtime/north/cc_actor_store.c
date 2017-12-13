@@ -15,50 +15,8 @@
  */
 #include <string.h>
 #include "cc_actor_store.h"
-#ifdef CC_ACTOR_BUTTON
-#include "actors/cc_actor_button.h"
-#endif
-#ifdef CC_ACTOR_IDENTITY
-#include "actors/cc_actor_identity.h"
-#endif
-#ifdef CC_ACTOR_LIGHT
-#include "actors/cc_actor_light.h"
-#endif
-#ifdef CC_ACTOR_SOIL_MOISTURE
-#include "actors/cc_actor_soil_moisture.h"
-#endif
-#ifdef CC_ACTOR_TEMPERATURE
-#include "actors/cc_actor_temperature.h"
-#endif
-#ifdef CC_ACTOR_TRIGGERED_TEMPERATURE
-#include "actors/cc_actor_triggered_temperature.h"
-#endif
-#ifdef CC_ACTOR_CAMERA
-#include "actors/cc_actor_camera.h"
-#endif
-#ifdef CC_ACTOR_ACCELEROMETER
-#include "actors/cc_actor_accelerometer.h"
-#endif
-#ifdef CC_ACTOR_GYROSCOPE
-#include "actors/cc_actor_gyroscope.h"
-#endif
-#ifdef CC_ACTOR_PRESSURE
-#include "actors/cc_actor_pressure.h"
-#endif
-#ifdef CC_ACTOR_PICKUPGESTURE
-#include "actors/cc_actor_pickupgesture.h"
-#endif
-#ifdef CC_ACTOR_STEPCOUNTER
-#include "actors/cc_actor_stepcounter.h"
-#endif
-#ifdef CC_ACTOR_REGISTRY_ATTIBUTE
-#include "actors/cc_actor_registry_attribute.h"
-#endif
-#ifdef CC_ACTOR_TEMPERATURE_TAGGED
-#include "actors/cc_actor_temperature_tagged.h"
-#endif
 
-cc_result_t cc_actor_store_add(cc_list_t **actor_types, char *name, cc_result_t (*func)(cc_actor_type_t *type))
+static cc_result_t cc_actor_store_add(cc_list_t **actor_types, const char *name, cc_result_t (*func)(cc_actor_type_t *type))
 {
 	cc_actor_type_t *type = NULL;
 
@@ -83,77 +41,14 @@ cc_result_t cc_actor_store_add(cc_list_t **actor_types, char *name, cc_result_t 
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_actor_store_init(cc_list_t **actor_types)
+cc_result_t cc_actor_store_init(cc_list_t **actor_types, uint8_t ntypes, cc_actor_builtin_type_t types[])
 {
-#ifdef CC_ACTOR_BUTTON
-	if (cc_actor_store_add(actor_types, "io.Button", cc_actor_button_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
+	uint8_t i = 0;
 
-#ifdef CC_ACTOR_IDENTITY
-	if (cc_actor_store_add(actor_types, "std.Identity", cc_actor_identity_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_LIGHT
-	if (cc_actor_store_add(actor_types, "io.Light", cc_actor_light_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_SOIL_MOISTURE
-	if (cc_actor_store_add(actor_types, "sensor.SoilMoisture", cc_actor_soil_moisture_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_TEMPERATURE
-	if (cc_actor_store_add(actor_types, "sensor.Temperature", cc_actor_temperature_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_TRIGGERED_TEMPERATURE
-	if (cc_actor_store_add(actor_types, "sensor.TriggeredTemperature", cc_actor_triggered_temperature_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_CAMERA
-	if (cc_actor_store_add(actor_types, "media.Camera", cc_actor_camera_setup) != CC_ACTOR_STEPCOUNTER)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_ACCELEROMETER
-	if (cc_actor_store_add(actor_types, "sensor.TriggeredAccelerometer", cc_actor_accelerometer_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_GYROSCOPE
-	if (cc_actor_store_add(actor_types, "sensor.TriggeredGyroscope", cc_actor_gyroscope_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_PRESSURE
-	if (cc_actor_store_add(actor_types, "sensor.TriggeredPressure", cc_actor_pressure_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_PICKUPGESTURE
-	if (cc_actor_store_add(actor_types, "sensor.PickUpGesture", cc_actor_pickupgesture_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_STEPCOUNTER
-	if (cc_actor_store_add(actor_types, "sensor.TriggeredStepCounter", cc_actor_stepcounter_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_REGISTRY_ATTIBUTE
-	if (cc_actor_store_add(actor_types, "context.RegistryAttribute", cc_actor_registry_attribute_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
-
-#ifdef CC_ACTOR_TEMPERATURE_TAGGED
-	if (cc_actor_store_add(actor_types, "sensor.TemperatureTagged", cc_actor_temperature_tagged_setup) != CC_SUCCESS)
-		return CC_FAIL;
-#endif
+	for (i = 0; i < ntypes; i++) {
+		if (cc_actor_store_add(actor_types, types[i].name, types[i].setup) != CC_SUCCESS)
+			return CC_FAIL;
+	}
 
 	return CC_SUCCESS;
 }

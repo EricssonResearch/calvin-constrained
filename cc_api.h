@@ -24,7 +24,7 @@ cc_result_t cc_api_runtime_start(cc_node_t *node);
 cc_result_t cc_api_runtime_stop(cc_node_t *node);
 cc_result_t cc_api_runtime_serialize_and_stop(cc_node_t *node);
 cc_result_t cc_api_reconnect(cc_node_t *node);
-#ifdef CC_STORAGE_ENABLED
+#if (CC_USE_STORAGE == 1)
 cc_result_t cc_api_clear_serialization_file(char *filedir);
 #endif
 #endif /* CC_API_H */

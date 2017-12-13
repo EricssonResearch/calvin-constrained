@@ -13,12 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "cc_calvinsys_ds18b20.h"
 #include "runtime/north/cc_node.h"
 #include "runtime/north/coder/cc_coder.h"
 #include "runtime/south/platform/cc_platform.h"
 #include "calvinsys/cc_calvinsys.h"
 #include "ds18b20/ds18b20.h"
+
+typedef struct cc_calvinsys_temperature_state_t {
+	uint32_t pin;
+	bool can_read;
+	float temp;
+} cc_calvinsys_temperature_state_t;
 
 static bool cc_calvinsys_ds18b20_can_write(struct cc_calvinsys_obj_t *obj)
 {
@@ -29,7 +34,7 @@ static cc_result_t cc_calvinsys_ds18b20_write(cc_calvinsys_obj_t *obj, char *dat
 {
 	int nsensors = 0;
 	ds18b20_addr_t addrs[1];
-	cc_calvinsys_temperature_state_t *state = (cc_calvinsys_temperature_state_t *)obj->capability->state;
+	cc_calvinsys_temperature_state_t *state = (cc_calvinsys_temperature_state_t *)obj->state;
 
 	if (cc_coder_decode_bool(data, &state->can_read) != CC_SUCCESS) {
 		cc_log_error("Failed to decode value");
@@ -51,13 +56,13 @@ static cc_result_t cc_calvinsys_ds18b20_write(cc_calvinsys_obj_t *obj, char *dat
 
 static bool cc_calvinsys_ds18b20_can_read(struct cc_calvinsys_obj_t *obj)
 {
-	return ((cc_calvinsys_temperature_state_t *)obj->capability->state)->can_read;
+	return ((cc_calvinsys_temperature_state_t *)obj->state)->can_read;
 }
 
 static cc_result_t cc_calvinsys_ds18b20_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
 	char *w = NULL;
-	cc_calvinsys_temperature_state_t *state = (cc_calvinsys_temperature_state_t *)obj->capability->state;
+	cc_calvinsys_temperature_state_t *state = (cc_calvinsys_temperature_state_t *)obj->state;
 
 	*size = cc_coder_sizeof_float(state->temp);
 	if (cc_platform_mem_alloc((void **)data, *size) != CC_SUCCESS) {
@@ -72,12 +77,36 @@ static cc_result_t cc_calvinsys_ds18b20_read(struct cc_calvinsys_obj_t *obj, cha
 	return CC_SUCCESS;
 }
 
+static cc_result_t cc_calvinsys_ds18b20_close(struct cc_calvinsys_obj_t *obj)
+{
+	cc_platform_mem_free(obj->state);
+
+	return CC_SUCCESS;
+}
+
 cc_result_t cc_calvinsys_ds18b20_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
+	char *init_args = (char *)obj->capability->init_args;
+	cc_calvinsys_temperature_state_t *state = NULL;
+
+	if (cc_platform_mem_alloc((void **)&state, sizeof(cc_calvinsys_temperature_state_t)) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+
+	if (cc_coder_decode_uint_from_map(init_args, "pin", &state->pin) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'pin'");
+		cc_platform_mem_free(state);
+		return CC_FAIL;
+	}
+
+	state->can_read = false;
 	obj->can_write = cc_calvinsys_ds18b20_can_write;
 	obj->write = cc_calvinsys_ds18b20_write;
 	obj->can_read = cc_calvinsys_ds18b20_can_read;
 	obj->read = cc_calvinsys_ds18b20_read;
+	obj->close = cc_calvinsys_ds18b20_close;
+	obj->state = state;
 
 	return CC_SUCCESS;
 }

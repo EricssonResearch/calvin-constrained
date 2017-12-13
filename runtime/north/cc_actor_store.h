@@ -32,6 +32,11 @@ typedef struct cc_actor_type_t {
 	cc_result_t (*get_requires)(cc_actor_t *actor, cc_list_t **requires);
 } cc_actor_type_t;
 
-cc_result_t cc_actor_store_init(cc_list_t **actor_types);
+typedef struct cc_actor_builtin_type_t {
+	const char *name;
+	cc_result_t (*setup)(cc_actor_type_t *type);
+} cc_actor_builtin_type_t;
+
+cc_result_t cc_actor_store_init(cc_list_t **actor_types, uint8_t ntypes, cc_actor_builtin_type_t types[]);
 
 #endif /* CC_ACTOR_STORE_H */

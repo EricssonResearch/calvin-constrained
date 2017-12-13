@@ -15,13 +15,16 @@
  */
 #include <string.h>
 #include <stdlib.h>
-#include "actors/cc_actor_mpy.h"
+#include "cc_config.h"
+#include "cc_actor_mpy.h"
+#include "runtime/north/cc_actor.h"
 #include "runtime/north/cc_port.h"
 #include "runtime/north/cc_fifo.h"
 #include "runtime/south/platform/cc_platform.h"
 #include "micropython/py/stackctrl.h"
 #include "micropython/py/gc.h"
 #include "micropython/py/runtime.h"
+#include "micropython/py/lexer.h"
 
 typedef struct _mp_reader_cc_t {
   const byte *beg;
@@ -146,7 +149,7 @@ void cc_mpy_port_deinit()
 
 STATIC mp_obj_t mpy_port_ccmp_tokens_available(mp_obj_t mp_actor, mp_obj_t mp_port_name, mp_obj_t mp_nbr_of_tokens)
 {
-	cc_actor_t*actor = MP_OBJ_TO_PTR(mp_actor);
+	cc_actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
 	const char *port_name = mp_obj_str_get_str(mp_port_name);
 	int nbr_of_tokens = mp_obj_get_int(mp_nbr_of_tokens);
 	cc_port_t *port = NULL;
@@ -164,7 +167,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(mpy_port_ccmp_tokens_available_obj, mpy_port_cc
 
 STATIC mp_obj_t mpy_port_ccmp_slots_available(mp_obj_t mp_actor, mp_obj_t mp_port_name, mp_obj_t mp_nbr_of_slots)
 {
-	cc_actor_t*actor = MP_OBJ_TO_PTR(mp_actor);
+	cc_actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
 	const char *port_name = mp_obj_str_get_str(mp_port_name);
 	int nbr_of_slots = mp_obj_get_int(mp_nbr_of_slots);
 	cc_port_t *port = NULL;
@@ -182,7 +185,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(mpy_port_ccmp_slots_available_obj, mpy_port_ccm
 
 STATIC mp_obj_t mpy_port_ccmp_peek_token(mp_obj_t mp_actor, mp_obj_t mp_port_name)
 {
-	cc_actor_t*actor = MP_OBJ_TO_PTR(mp_actor);
+	cc_actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
 	const char *port_name = mp_obj_str_get_str(mp_port_name);
 	cc_port_t *port = NULL;
 	cc_token_t *token = NULL;
@@ -202,7 +205,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(mpy_port_ccmp_peek_token_obj, mpy_port_ccmp_pee
 
 STATIC mp_obj_t mpy_port_ccmp_peek_commit(mp_obj_t mp_actor, mp_obj_t mp_port_name)
 {
-	cc_actor_t*actor = MP_OBJ_TO_PTR(mp_actor);
+	cc_actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
 	const char *port_name = mp_obj_str_get_str(mp_port_name);
 	cc_port_t *port = NULL;
 	bool value = false;
@@ -220,7 +223,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_2(mpy_port_ccmp_peek_commit_obj, mpy_port_ccmp_pe
 
 STATIC mp_obj_t mpy_port_ccmp_write_token(mp_obj_t mp_actor, mp_obj_t mp_port_name, mp_obj_t mp_value)
 {
-	cc_actor_t*actor = MP_OBJ_TO_PTR(mp_actor);
+	cc_actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
 	const char *port_name = mp_obj_str_get_str(mp_port_name);
 	cc_port_t *port = NULL;
 	char *value = NULL;
@@ -244,7 +247,7 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_3(mpy_port_ccmp_write_token_obj, mpy_port_ccmp_wr
 
 STATIC mp_obj_t mpy_port_ccmp_peek_cancel(mp_obj_t mp_actor, mp_obj_t mp_port_name)
 {
-	cc_actor_t*actor = MP_OBJ_TO_PTR(mp_actor);
+	cc_actor_t *actor = MP_OBJ_TO_PTR(mp_actor);
 	const char *port_name = mp_obj_str_get_str(mp_port_name);
 	cc_port_t *port = NULL;
 

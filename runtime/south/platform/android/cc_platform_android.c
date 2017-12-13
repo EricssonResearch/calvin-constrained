@@ -181,7 +181,7 @@ static int platform_android_socket_fd_handler(int fd, int events, void *data)
 	return 1; // Always return 1, since 0  will unregister the FD in the looper
 }
 
-#ifdef CC_DEEPSLEEP_ENABLED
+#if (CC_USE_SLEEP == 1)
 void cc_platform_deepsleep(cc_node_t *node)
 {
 	cc_log("Going to deepsleep state, runtime will stop!");
@@ -640,16 +640,16 @@ uint32_t cc_platform_get_seconds(cc_node_t *node)
 	return value.tv_sec;
 }
 
-#ifdef CC_STORAGE_ENABLED
+#if (CC_USE_STORAGE == 1)
 void cc_platform_write_node_state(cc_node_t *node, char *buffer, size_t size)
 {
 	FILE *fp = NULL;
-	char abs_filepath[strlen(CC_CONFIG_FILE) + strlen(node->storage_dir) + 1];
+	char abs_filepath[strlen(CC_STATE_FILE) + strlen(node->storage_dir) + 1];
 
 	strcpy(abs_filepath, node->storage_dir);
 	if (node->storage_dir[strlen(node->storage_dir) - 1] != '/')
 		strcat(abs_filepath, "/");
-	strcat(abs_filepath, CC_CONFIG_FILE);
+	strcat(abs_filepath, CC_STATE_FILE);
 
 	fp = fopen(abs_filepath, "w+");
 	if (fp != NULL) {
@@ -659,7 +659,7 @@ void cc_platform_write_node_state(cc_node_t *node, char *buffer, size_t size)
 			cc_log("Wrote node state to disk");
 		fclose(fp);
 	} else {
-		cc_log_error("Failed to open %s for writing", CC_CONFIG_FILE);
+		cc_log_error("Failed to open %s for writing", CC_STATE_FILE);
 		cc_log_error("Errno: %d, error: %s", errno, strerror(errno));
 	}
 }
@@ -668,13 +668,13 @@ cc_result_t cc_platform_read_node_state(cc_node_t *node, char buffer[], size_t s
 {
 	cc_result_t result = CC_FAIL;
 	FILE *fp = NULL;
-	char abs_filepath[strlen(CC_CONFIG_FILE) + strlen(node->storage_dir) + 1];
+	char abs_filepath[strlen(CC_STATE_FILE) + strlen(node->storage_dir) + 1];
 	int len = 0;
 
 	strcpy(abs_filepath, node->storage_dir);
 	if (node->storage_dir[strlen(node->storage_dir)-1] != '/')
 		strcat(abs_filepath, "/");
-	strcat(abs_filepath, CC_CONFIG_FILE);
+	strcat(abs_filepath, CC_STATE_FILE);
 
 	fp = fopen(abs_filepath, "r+");
 	if (fp != NULL) {

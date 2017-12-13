@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #include <espressif/esp_common.h>
-#include "cc_calvinsys_yl69.h"
 #include "runtime/north/cc_node.h"
 #include "runtime/north/coder/cc_coder.h"
 #include "runtime/south/platform/cc_platform.h"

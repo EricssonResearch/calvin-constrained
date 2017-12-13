@@ -17,6 +17,7 @@
 #define CC_ACTOR_H
 
 #include <stdbool.h>
+#include "cc_config.h"
 #include "cc_common.h"
 #include "cc_port.h"
 #include "runtime/south/platform/cc_platform.h"

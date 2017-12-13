@@ -25,6 +25,4 @@ typedef struct cc_transport_spritzer_t {
 	int port;
 } cc_transport_spritzer_t;
 
-cc_transport_client_t *cc_transport_spritzer_create(cc_node_t *node, char *uri);
-
 #endif /* CC_TRANSPORT_SPRITZER_H */

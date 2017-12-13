@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "cc_config.h"
 #include "cc_node.h"
 #include "cc_actor.h"
 #include "cc_actor_store.h"
@@ -24,9 +25,9 @@
 #include "runtime/south/platform/cc_platform.h"
 #include "coder/cc_coder.h"
 #include "cc_proto.h"
-#ifdef CC_PYTHON_ENABLED
+#if CC_USE_PYTHON
 #include <stdio.h>
-#include "actors/cc_actor_mpy.h"
+#include "libmpy/cc_actor_mpy.h"
 #endif
 
 static void cc_actor_free_attribute_list(cc_list_t *managed_attributes);
@@ -186,7 +187,7 @@ void cc_actor_set_state(cc_actor_t *actor, cc_actor_state_t state)
 	actor->state = state;
 }
 
-#ifdef CC_PYTHON_ENABLED
+#if CC_USE_PYTHON
 static void cc_actor_store_module(char *type, uint32_t type_len, char *data, uint32_t data_len)
 {
 	char *path = NULL;
@@ -324,7 +325,7 @@ static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32
 		return actor;
 	}
 
-#ifdef CC_PYTHON_ENABLED
+#if CC_USE_PYTHON
 	if (cc_actor_mpy_has_module(actor->type)) {
 		if (cc_actor_mpy_init_from_type(actor) == CC_SUCCESS)
 			return actor;

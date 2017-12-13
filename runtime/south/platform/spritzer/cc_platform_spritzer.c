@@ -17,23 +17,12 @@
 #include "runtime/north/cc_transport.h"
 #include "runtime/north/cc_node.h"
 #include "runtime/north/cc_common.h"
-#include "runtime/north/coder/cc_coder.h"
-#include "calvinsys/cc_calvinsys.h"
-#include "calvinsys/cc_calvinsys_temp_sensor.h"
 
 static LTECommand_System response_sys;
 static int com_status = 0;
 static int com_id = 0;
 static LTECommand command;
 static LTECommand_System command_sys;
-
-// Spritzer capabilities
-
-cc_calvinsys_temperature_state_t temp_state = {false, 25.5};
-
-cc_calvinsys_capability_t capabilities[] = {
-	{cc_calvinsys_temp_sensor_open, NULL, NULL, &temp_state, false, "io.temperature"}
-};
 
 static int cc_platform_spritzer_wait_recv(void)
 {
@@ -159,11 +148,6 @@ cc_result_t cc_platform_node_started(struct cc_node_t *node)
   return CC_SUCCESS;
 }
 
-cc_result_t cc_platform_add_capabilities(cc_calvinsys_t *calvinsys)
-{
-  return cc_calvinsys_add_capabilities(calvinsys, sizeof(capabilities) / sizeof(cc_calvinsys_capability_t), capabilities);
-}
-
 void cc_platform_init(void)
 {
   srand(time(NULL));
@@ -257,7 +241,7 @@ uint32_t cc_platform_get_time(void)
 	return value.tv_sec;
 }
 
-#ifdef CC_DEEPSLEEP_ENABLED
+#if CC_USE_SLEEP
 void cc_platform_deepsleep(uint32_t time_in_us)
 {
   // TODO: Set RTC alarm and enter PM_SLEEP_DEEP
@@ -266,7 +250,7 @@ void cc_platform_deepsleep(uint32_t time_in_us)
 }
 #endif
 
-#ifdef CC_STORAGE_ENABLED
+#if CC_USE_STORAGE
 cc_stat_t cc_platform_file_stat(const char *path)
 {
 	struct stat statbuf;

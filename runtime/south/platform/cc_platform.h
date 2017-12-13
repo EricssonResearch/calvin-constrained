@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/time.h>
+#include "cc_config.h"
 #include "runtime/north/cc_common.h"
 #include "calvinsys/cc_calvinsys.h"
 
@@ -31,13 +32,11 @@ typedef enum {
   CC_PLATFORM_EVT_WAIT_TIMEOUT
 } cc_platform_evt_wait_status_t;
 
-#ifdef CC_STORAGE_ENABLED
 typedef enum {
   CC_STAT_NO_EXIST,
   CC_STAT_DIR,
   CC_STAT_FILE
 } cc_stat_t;
-#endif
 
 /**
  * cc_platform_init() - Initialize the platform.
@@ -63,16 +62,6 @@ void cc_platform_print(const char *fmt, ...);
  * Return: CC_SUCCESS/CC_FAILURE
  */
 cc_result_t cc_platform_create(struct cc_node_t *node);
-
-/**
- * cc_platform_add_capabilities() - Add calvinsys objects.
- * @calvinsys the calvinsys object
- *
- * Called when node is starting to create and add calvinsys objects.
- *
- * Return: CC_SUCCESS/CC_FAILURE
- */
-cc_result_t cc_platform_add_capabilities(cc_calvinsys_t *calvinsys);
 
 /**
  * cc_platform_mem_alloc() - Allocate requested memory.
@@ -135,7 +124,7 @@ cc_result_t cc_platform_node_started(struct cc_node_t *node);
  */
 uint32_t cc_platform_get_time(void);
 
-#ifdef CC_DEEPSLEEP_ENABLED
+#if CC_USE_SLEEP
 /**
  * cc_platform_deepsleep() - Enter platform deep sleep state.
  * @time_in_us microseconds to sleep
@@ -143,7 +132,7 @@ uint32_t cc_platform_get_time(void);
 void cc_platform_deepsleep(uint32_t time_in_us);
 #endif
 
-#ifdef CC_STORAGE_ENABLED
+#if CC_USE_STORAGE
 /**
  * cc_platform_file_stat() - Get information about the file pointed by path
  * @path the path
@@ -185,7 +174,7 @@ cc_result_t cc_platform_file_write(const char *path, char *buffer, size_t size);
 int cc_platform_random_vector_generate(void *ctx, unsigned char *buffer, size_t size);
 #endif
 
-#ifdef CC_DEBUG
+#if CC_DEBUG
 #define cc_log_debug(a, args...) cc_platform_print("DEBUG: (%s:%d) "a"",  __func__, __LINE__, ##args)
 #else
 #define cc_log_debug(a, args...) do {} while (0)

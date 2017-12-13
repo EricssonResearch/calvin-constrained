@@ -19,7 +19,7 @@
 #include "calvinsys/cc_calvinsys.h"
 #include "runtime/north/cc_actor.h"
 #include "runtime/south/platform/cc_platform.h"
-#include "actors/cc_actor_mpy.h"
+#include "cc_actor_mpy.h"
 #include "runtime/north/coder/cc_coder.h"
 
 static mp_obj_t cc_mp_obj_can_write(mp_obj_t arg_calvinsys, mp_obj_t arg_obj)

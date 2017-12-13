@@ -15,15 +15,13 @@
  */
 #include <stdlib.h>
 #include <string.h>
-#include "cc_actor_temperature.h"
-#include "../runtime/north/cc_actor_store.h"
-#include "../runtime/north/cc_fifo.h"
-#include "../runtime/north/cc_token.h"
-#include "../runtime/north/cc_port.h"
-#include "../runtime/north/cc_common.h"
-#include "../runtime/north/coder/cc_coder.h"
-#include "../calvinsys/common/cc_calvinsys_timer.h"
-#include "../calvinsys/cc_calvinsys.h"
+#include "runtime/north/cc_actor_store.h"
+#include "runtime/north/cc_fifo.h"
+#include "runtime/north/cc_token.h"
+#include "runtime/north/cc_port.h"
+#include "runtime/north/cc_common.h"
+#include "runtime/north/coder/cc_coder.h"
+#include "calvinsys/cc_calvinsys.h"
 
 typedef struct cc_actor_triggered_temperature_state_t {
 	char temperature[CC_UUID_BUFFER_SIZE];

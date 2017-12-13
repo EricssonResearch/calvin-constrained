@@ -29,11 +29,11 @@
 #endif
 #include "calvinsys/common/cc_calvinsys_timer.h"
 #include "calvinsys/common/cc_calvinsys_attribute.h"
-#ifdef CC_PYTHON_ENABLED
+#if CC_USE_PYTHON
 #include "libmpy/cc_mpy_port.h"
 #endif
 
-#ifdef CC_STORAGE_ENABLED
+#if CC_USE_STORAGE
 static cc_result_t cc_node_get_state(cc_node_t *node)
 {
 	char *buffer = NULL, *value = NULL, *array_value = NULL;
@@ -43,7 +43,7 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 	cc_actor_t*actor = NULL;
 	size_t size;
 
-	if (cc_platform_file_read(CC_CONFIG_FILE, &buffer, &size) != CC_SUCCESS)
+	if (cc_platform_file_read(CC_STATE_FILE, &buffer, &size) != CC_SUCCESS)
 		return CC_FAIL;
 
 	cc_log("Node: Starting from state");
@@ -230,7 +230,7 @@ void cc_node_set_state(cc_node_t *node, bool include_state)
 		}
 	}
 
-	if (cc_platform_file_write(CC_CONFIG_FILE, buffer, tmp - buffer) == CC_SUCCESS)
+	if (cc_platform_file_write(CC_STATE_FILE, buffer, tmp - buffer) == CC_SUCCESS)
 		cc_log("Node: Serialized state");
 	else
 		cc_log_error("File to write state");
@@ -390,7 +390,7 @@ static cc_result_t cc_node_setup_reply_handler(cc_node_t *node, char *data, size
 	return CC_SUCCESS;
 }
 
-#ifdef CC_DEEPSLEEP_ENABLED
+#if CC_USE_SLEEP
 static cc_result_t cc_node_enter_sleep_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	uint32_t status = 0;
@@ -457,7 +457,7 @@ void cc_node_handle_token_reply(cc_node_t *node, char *port_id, uint32_t port_id
 cc_result_t cc_node_handle_message(cc_node_t *node, char *buffer, size_t len)
 {
 	if (cc_proto_parse_message(node, buffer, len) == CC_SUCCESS) {
-#if defined(CC_STORAGE_ENABLED) && defined(CC_STATE_CHECKPOINTING)
+#if (CC_USE_STORAGE == 1 && CC_USE_CHECKPOINTING == 1)
 		// message successfully handled == state changed -> serialize the node
 		if (node->state == CC_NODE_STARTED)
 			cc_node_set_state(node, true);
@@ -478,8 +478,8 @@ static cc_result_t cc_node_setup(cc_node_t *node)
 	return crypto_get_node_info(domain, name, node->id);
 #endif
 
-#ifdef CC_STORAGE_ENABLED
-	if (cc_platform_file_stat(CC_CONFIG_FILE) == CC_STAT_FILE) {
+#if CC_USE_STORAGE
+	if (cc_platform_file_stat(CC_STATE_FILE) == CC_STAT_FILE) {
 		if (cc_node_get_state(node) == CC_SUCCESS)
 			return CC_SUCCESS;
 		cc_log("Node: Failed to get state, resetting node");
@@ -636,6 +636,12 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 	char *uris = (char *)proxy_uris, *uri = NULL;
 	cc_list_t *item = NULL;
 	cc_actor_t *actor = NULL;
+	cc_calvinsys_capability_t capabilities[] = {
+		CC_CAPABILITIES
+	};
+	cc_actor_builtin_type_t actor_types[] = {
+		CC_C_ACTORS
+	};
 
 	node->state = CC_NODE_DO_START;
 	node->stop_method = CC_NODE_STOP_CLEAN;
@@ -689,19 +695,23 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 	node->calvinsys->objects = NULL;
 	node->actor_types = NULL;
 
-	if (cc_platform_add_capabilities(node->calvinsys) != CC_SUCCESS) {
-		cc_log_error("Failed to create calvinsys");
+	if (cc_calvinsys_timer_create(&node->calvinsys) != CC_SUCCESS) {
+		cc_log_error("Failed to create calvinsys 'timer'");
 		return CC_FAIL;
 	}
 
-	if (cc_calvinsys_timer_create(&node->calvinsys) != CC_SUCCESS)
-		cc_log_error("Failed to create calvinsys 'timer'");
-
-	if (cc_calvinsys_attribute_create(&node->calvinsys) != CC_SUCCESS)
+	if (cc_calvinsys_attribute_create(&node->calvinsys) != CC_SUCCESS) {
 		cc_log_error("Failed to create calvinsys 'attribute'");
+		return CC_FAIL;
+	}
 
-	if (cc_actor_store_init(&node->actor_types) != CC_SUCCESS) {
-		cc_log_error("Failed to init actor store");
+	if (cc_calvinsys_add_capabilities(node->calvinsys, sizeof(capabilities) / sizeof(cc_calvinsys_capability_t), capabilities) != CC_SUCCESS) {
+		cc_log_error("Failed to add capabilities");
+		return CC_FAIL;
+	}
+
+	if (cc_actor_store_init(&node->actor_types, sizeof(actor_types) / sizeof(cc_actor_builtin_type_t), actor_types) != CC_SUCCESS) {
+		cc_log_error("Failed to init C actors");
 		return CC_FAIL;
 	}
 
@@ -760,9 +770,9 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 	}
 	if (node->storage_dir != NULL)
 		cc_log("Storage directory: %s", node->storage_dir);
-#ifdef CC_DEEPSLEEP_ENABLED
 	cc_log("Inactivity timeout: %d seconds", CC_INACTIVITY_TIMEOUT);
-	cc_log("Sleep time: %d seconds", CC_SLEEP_TIME);
+#if CC_USE_SLEEP
+	cc_log("Default sleep time: %d seconds", CC_SLEEP_TIME);
 #endif
 	if (node->actors != NULL) {
 		cc_log("Actors:");
@@ -845,7 +855,7 @@ static void cc_node_free(cc_node_t *node, bool cleanup)
 		cc_platform_mem_free(item);
 	}
 
-#ifdef CC_PYTHON_ENABLED
+#if CC_USE_PYTHON
 	cc_mpy_port_deinit();
 	cc_platform_mem_free(node->mpy_heap);
 #endif
@@ -859,7 +869,7 @@ uint32_t cc_node_get_time(cc_node_t *node)
 	return node->seconds_since_epoch + (cc_platform_get_time() - node->time_at_sync);
 }
 
-#ifdef CC_DEEPSLEEP_ENABLED
+#if CC_USE_SLEEP
 static void cc_node_enter_sleep(cc_node_t *node, uint32_t seconds_to_sleep)
 {
 	if (cc_proto_send_sleep_request(node, seconds_to_sleep, cc_node_enter_sleep_reply_handler) != CC_SUCCESS) {
@@ -880,7 +890,7 @@ static void cc_node_enter_sleep(cc_node_t *node, uint32_t seconds_to_sleep)
 
 	cc_log("Node: Enterring sleep for %ld seconds", seconds_to_sleep);
 
-#ifdef CC_STORAGE_ENABLED
+#if CC_USE_STORAGE
 	cc_node_set_state(node, true);
 #else
 	cc_log("Going to sleep without serializing node state");
@@ -930,7 +940,7 @@ cc_result_t cc_node_run(cc_node_t *node)
 {
 	cc_list_t *item = NULL;
 	uint32_t timeout = 0, timer_timeout = 0;
-#ifdef CC_DEEPSLEEP_ENABLED
+#if CC_USE_SLEEP
 	uint8_t connect_failures = 0;
 	uint32_t seconds_to_sleep = 0;
 #endif
@@ -947,7 +957,7 @@ cc_result_t cc_node_run(cc_node_t *node)
 			node->state = CC_NODE_DO_START;
 			cc_log("Node: Connecting to proxy with '%s'", item->id);
 			if (cc_node_connect_to_proxy(node, item->id) == CC_SUCCESS) {
-#ifdef CC_DEEPSLEEP_ENABLED
+#if CC_USE_SLEEP
 				connect_failures = 0;
 #endif
 				while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_ENABLED) {
@@ -978,7 +988,7 @@ cc_result_t cc_node_run(cc_node_t *node)
 
 					cc_log_debug("Idle for '%ld' seconds", timeout);
 
-#ifdef CC_DEEPSLEEP_ENABLED
+#if CC_USE_SLEEP
 					// idle, enter sleep
 					seconds_to_sleep = CC_SLEEP_TIME;
 					if (cc_calvinsys_timer_get_nexttrigger(node, &seconds_to_sleep) == CC_SUCCESS) {
@@ -994,7 +1004,7 @@ cc_result_t cc_node_run(cc_node_t *node)
 				if (node->state == CC_NODE_STOP)
 					cc_node_stop(node);
 			} else {
-#ifdef CC_DEEPSLEEP_ENABLED
+#if CC_USE_SLEEP
 				connect_failures++;
 #endif
 			}
@@ -1008,7 +1018,7 @@ cc_result_t cc_node_run(cc_node_t *node)
 		}
 
 		if (node->state != CC_NODE_STOP) {
-#ifdef CC_DEEPSLEEP_ENABLED
+#if CC_USE_SLEEP
 			if (connect_failures >= 5) {
 				cc_log("Node: No proxy found, enterring sleep");
 				cc_node_set_state(node, true);
@@ -1020,7 +1030,7 @@ cc_result_t cc_node_run(cc_node_t *node)
 		}
 	}
 
-#ifdef CC_STORAGE_ENABLED
+#if CC_USE_STORAGE
 	cc_node_set_state(node, false);
 #endif
 	cc_platform_stop(node);
