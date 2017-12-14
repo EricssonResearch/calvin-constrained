@@ -23,7 +23,8 @@ CC_CFLAGS += -DCC_CONFIGFILE_H=\""$(CONFIG)\""
 endif
 
 # C actors
-CC_SRC_C += $(shell find actors -type f -iname '*.c')
+actor_dirs := $(wildcard actors/*/)
+CC_SRC_C += $(wildcard $(addsuffix *.c,$(actor_dirs)))
 
 # MicroPython config
 ifeq ($(MPY),1)
