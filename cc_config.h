@@ -18,8 +18,6 @@
 
 #ifdef CC_CONFIGFILE_H
 #include CC_CONFIGFILE_H
-#else
-#define CC_CONFIGFILE_H "cc_config.h"
 #endif
 
 // Default config values, use CC_CONFIGFILE to override
@@ -112,6 +110,10 @@
 #endif
 
 // WIFI AP config
+#ifndef CC_USE_WIFI_AP
+#define CC_USE_WIFI_AP (0)
+#endif
+
 #if CC_USE_WIFI_AP
 #ifndef CC_WIFI_CONFIG_FILE
 #define CC_WIFI_CONFIG_FILE	"wifi.msgpack"
