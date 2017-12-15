@@ -1,3 +1,7 @@
+ifdef CONFIG
+CC_CFLAGS += -DCC_CONFIGFILE_H=\""$(CONFIG)\""
+endif
+
 CC_SRC_C += \
 	cc_api.c \
 	runtime/north/cc_common.c \
@@ -18,12 +22,11 @@ CC_SRC_C += \
 	calvinsys/common/cc_calvinsys_timer.c \
 	calvinsys/common/cc_calvinsys_attribute.c
 
-ifdef CONFIG
-CC_CFLAGS += -DCC_CONFIGFILE_H=\""$(CONFIG)\""
-endif
+# Prefix with CC_PATH
+CC_SRC_C := $(addprefix $(CC_PATH),$(CC_SRC_C))
 
-# C actors
-actor_dirs := $(wildcard actors/*/)
+# C actors with CC_PATH prefix
+actor_dirs := $(wildcard $(CC_PATH)actors/*/)
 CC_SRC_C += $(wildcard $(addsuffix *.c,$(actor_dirs)))
 
 # MicroPython config
