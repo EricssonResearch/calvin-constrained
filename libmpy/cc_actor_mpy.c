@@ -73,14 +73,22 @@ cc_result_t cc_actor_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 	case CC_CODER_FLOAT:
 		result = cc_coder_decode_float(buffer, &f);
 		if (result == CC_SUCCESS) {
+#if CC_PYTHON_FLOATS
 			*value = mp_obj_new_float(f);
+#else
+			*value = mp_obj_new_int((int)f);
+#endif
 			return CC_SUCCESS;
 		}
 		break;
 	case CC_CODER_DOUBLE:
 		result = cc_coder_decode_double(buffer, &d);
 		if (result == CC_SUCCESS) {
+#if CC_PYTHON_FLOATS
 			*value = mp_obj_new_float(d);
+#else
+			*value = mp_obj_new_int((int)d);
+#endif
 			return CC_SUCCESS;
 		}
 		break;
@@ -114,7 +122,9 @@ cc_result_t cc_actor_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size
 		} else
 		pos = *buffer;
 		pos = cc_coder_encode_int(pos, value);
-	} else if (mp_obj_is_float(input)) {
+	}
+#if CC_PYTHON_FLOATS
+	else if (mp_obj_is_float(input)) {
 		float value = mp_obj_float_get(input);
 		to_alloc = cc_coder_sizeof_float(value);
 		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
@@ -123,7 +133,9 @@ cc_result_t cc_actor_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size
 		}
 		pos = *buffer;
 		pos = cc_coder_encode_float(pos, value);
-	} else if (MP_OBJ_IS_TYPE(input, &mp_type_bool)) {
+	}
+#endif
+	else if (MP_OBJ_IS_TYPE(input, &mp_type_bool)) {
 		bool value = false;
 		if (input == mp_const_true)
 			value = true;

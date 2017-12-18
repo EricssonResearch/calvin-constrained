@@ -739,7 +739,7 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 		return CC_FAIL;
 	}
 
-	cc_log("Node: Initialized");
+
 	cc_log("----------------------------------------");
 	cc_log("ID: %s", node->id);
 	if (node->attributes != NULL)

@@ -15,25 +15,14 @@
  */
 #include "runtime/north/cc_common.h"
 
-#define CC_USE_SLEEP (1)
-#define CC_USE_STORAGE (1)
-#define CC_USE_WIFI_AP (1)
-#define CC_WIFI_AP_SSID "calvin-esp"
-#define CC_WIFI_AP_PSK "calvin-esp"
-
 struct cc_calvinsys_obj_t;
+struct cc_actor_type_t;
+struct cc_transport_client_t;
+struct cc_node_t;
 
 cc_result_t cc_calvinsys_ds18b20_open(struct cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
 cc_result_t cc_calvinsys_gpio_open(struct cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
 cc_result_t cc_calvinsys_yl69_open(struct cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
-
-#define CC_CAPABILITIES \
-	{ "io.temperature", cc_calvinsys_ds18b20_open, NULL, NULL, "'\x81\xa3\x70\x69\x6e\x05'" }, \
-	{ "io.light", cc_calvinsys_gpio_open, NULL, NULL, "\x82\xa9\x64\x69\x72\x65\x63\x74\x69\x6f\x6e\xa3\x6f\x75\x74\xa3\x70\x69\x6e\x00" }, \
-	{ "io.soil_moisture", cc_calvinsys_yl69_open, NULL, NULL, NULL }
-
-struct cc_actor_type_t;
-
 cc_result_t cc_actor_identity_setup(struct cc_actor_type_t *type);
 cc_result_t cc_actor_button_setup(struct cc_actor_type_t *type);
 cc_result_t cc_actor_light_setup(struct cc_actor_type_t *type);
@@ -42,6 +31,22 @@ cc_result_t cc_actor_temperature_setup(struct cc_actor_type_t *type);
 cc_result_t cc_actor_triggered_temperature_setup(struct cc_actor_type_t *type);
 cc_result_t cc_actor_temperature_tagged_setup(struct cc_actor_type_t *type);
 cc_result_t cc_actor_registry_attribute_setup(struct cc_actor_type_t *type);
+struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node, char *uri);
+
+#define CC_USE_SLEEP (0)
+#define CC_USE_STORAGE (1)
+#define CC_USE_WIFI_AP (1)
+#define CC_WIFI_AP_SSID "calvin-esp"
+#define CC_WIFI_AP_PSK "calvin-esp"
+
+/*
+io.temperature: {"pin": 5}
+io.light: {"direction": "out", "pin": 0}
+*/
+#define CC_CAPABILITIES \
+	{ "io.temperature", cc_calvinsys_ds18b20_open, NULL, NULL, "\x81\xa3\x70\x69\x6e\x05" }, \
+	{ "io.light", cc_calvinsys_gpio_open, NULL, NULL, "\x82\xa9\x64\x69\x72\x65\x63\x74\x69\x6f\x6e\xa3\x6f\x75\x74\xa3\x70\x69\x6e\x00" }, \
+	{ "io.soil_moisture", cc_calvinsys_yl69_open, NULL, NULL, NULL }
 
 #define CC_C_ACTORS \
 	{ "std.Identity", cc_actor_identity_setup }, \
@@ -52,11 +57,6 @@ cc_result_t cc_actor_registry_attribute_setup(struct cc_actor_type_t *type);
 	{ "sensor.TriggeredTemperature", cc_actor_triggered_temperature_setup }, \
   { "sensor.TemperatureTagged", cc_actor_temperature_tagged_setup }, \
 	{ "context.RegistryAttribute", cc_actor_registry_attribute_setup }
-
-struct cc_transport_client_t;
-struct cc_node_t;
-
-struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node, char *uri);
 
 #define CC_TRANSPORTS \
 	{ "calvinip", cc_transport_socket_create }, \

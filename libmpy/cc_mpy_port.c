@@ -142,7 +142,7 @@ bool cc_mpy_port_init(void *heap, uint32_t heapsize, uint32_t stacksize)
 	return true;
 }
 
-void cc_mpy_port_deinit()
+void cc_mpy_port_deinit(void)
 {
   mp_deinit();
 }

@@ -17,12 +17,13 @@ CC_SRC_C = runtime/south/platform/spritzer/cc_platform_spritzer.c \
 
 CONFIG = runtime/south/platform/spritzer/cc_config_spritzer.h
 
+MPY=1
+
 include $(CC_PATH)calvin.mk
 
 ASRCS =
-MAINSRC = $(addprefix $(CC_PATH),$(CC_SRC_C))
+MAINSRC = $(CC_SRC_C)
 CSRCS =
 CFLAGS += -I$(APPDIR)/../nuttx/include -I$(CC_PATH) $(CC_CFLAGS)
-LDFLAGS += $(CC_LDFLAGS)
 
 include $(APPDIR)/Application.mk

@@ -28,18 +28,24 @@ Calvin-constrained is designed to be portable across different architectures and
 
 The platform specific parts, such as initializing the platform and accessing hardware resources, are isolated from the core functionality. Runtime ports and instructions on how to create a new port are placed in the [runtime/south/platform](runtime/south/platform) folder.
 
+## Runtime configuration
+
+Runtime configuration parameters are listed in cc_config.h and can be overridden by creating a separate configuration file and by setting the CONFIG preprocessor define parsed by cc_config.h.
+
 ## Transport clients
 
 Transport clients handles the communication with the Calvin runtime acting as a proxy to offload functionality. The constrained runtime can support and use multiple transport clients but only one is active handling the link to the runtime acting as a proxy for the constrained runtime.
 
 Implementations and instructions on how to create new transport clients are available in the [runtime/south/transport](runtime/south/transport) folder.
 
+## C actors
+
+See [actors](actors) for instructions on how to write and add new actors.
+
+## Python actors
+
+See [libmpy](libmpy) for instructions on how to enable support for Python actors.
+
 ## Security
 
 TLS can be enabled for all transport clients, the [runtime/south/crypto](runtime/south/crypto) folder contains instructions to enable it.
-
-## Actors
-
-The calvin-constrained runtime supports actors written:
-- C, the [actors](actors) folder holds existing actors and instructions on how to write and add new actors
-- Python, the [libmpy](libmpy) folder holds existing actors and instructions on how to add new actors

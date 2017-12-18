@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <time.h>
+#include <sys/stat.h>
 #include "cc_api.h"
 #include "runtime/south/platform/cc_platform.h"
 #include "runtime/south/transport/socket/cc_transport_socket.h"

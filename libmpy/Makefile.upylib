@@ -43,6 +43,10 @@ CFLAGS += -DMICROPY_QSTR_EXTRA_POOL=mp_qstr_frozen_const_pool
 CFLAGS += -DMPZ_DIG_SIZE=16 # force 16 bits to work on both 32 and 64 bit archs
 endif
 
+ifdef CONFIGFILE
+CFLAGS += -DMP_CONFIGFILE=\"$(CONFIGFILE)\"
+endif
+
 # Debugging/Optimization
 ifdef DEBUG
 CFLAGS += -g

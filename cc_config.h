@@ -54,6 +54,9 @@
 
 // Python default config
 #if CC_USE_PYTHON
+#ifndef CC_PYTHON_FLOATS
+#define CC_PYTHON_FLOATS (1)
+#endif
 #define CC_USE_STORAGE (1)
 #ifndef CC_PYTHON_HEAP_SIZE
 #define CC_PYTHON_HEAP_SIZE (25 * 1024)

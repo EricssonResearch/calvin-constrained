@@ -20,6 +20,6 @@
 #include <stdint.h>
 
 bool cc_mpy_port_init(void *heap, uint32_t heap_size, uint32_t stack_size);
-void cc_mpy_port_deinit();
+void cc_mpy_port_deinit(void);
 
 #endif /* CC_MPY_PORT_H */

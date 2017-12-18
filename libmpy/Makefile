@@ -13,15 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-BUILD = build
-
 # set of folders needed by the makefile
 ## Top folder of Calvin constrained (from here)
 CC_TOP = ..
-
-# all remaining folders assume you are located in the calvin constrained root folder
-## The compilation folder (current folder)
-MPY_CONF_FOLDER = libmpy
 
 ## Top folder of Micropython
 MP_TOP = micropython
@@ -32,12 +26,6 @@ FROZEN_MPY_DIR = libmpy/modules
 
 # Add the names of the files for QSTR extraction
 EXT_SRC_C = cc_mpy_port.c cc_mpy_calvinsys.c
-
-# The -DMICROPYTHON enables the MICROPYTHON directive in the program
-CFLAGS = -std=c99 -fpic -fPIC -fpie -I$(MPY_CONF_FOLDER) -I$(MP_TOP) -DMICROPYTHON -Os -DNDEBUG
-
-# Library location and library filename (to be passed on to the application)
-LDFLAGS = -L$(MPY_CONF_FOLDER) -lmicropython -lm
 
 lib:
 	@echo "Making micropython library for x86"
@@ -53,7 +41,7 @@ android:
 
 libarm:
 	@echo "Making micropython library for ARM"
-	$(MAKE) -f Makefile.upylib.arm MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
+	$(MAKE) -f Makefile.upylib.arm MPTOP=$(CC_TOP)/$(MP_TOP) CONFIGFILE=$(CONFIGFILE) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
 
 clean:
 	@rm -rf *.a

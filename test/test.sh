@@ -23,7 +23,8 @@ rm calvin.conf
 
 # build calvin-constrained
 if [[ $1 == "mpy" ]]; then
-    make -f runtime/south/platform/x86/Makefile mpy MPY=1 CONFIG="runtime/south/platform/x86/cc_config_x86_mpy.h"
+    make -C libmpy
+    make -f runtime/south/platform/x86/Makefile MPY=1 CONFIG="runtime/south/platform/x86/cc_config_x86_mpy.h"
 else
     make -f runtime/south/platform/x86/Makefile CONFIG="runtime/south/platform/x86/cc_config_x86.h"
 fi

@@ -45,6 +45,10 @@ CFLAGS += -DMICROPY_OPT_CACHE_MAP_LOOKUP_IN_BYTECODE=0 # not supported
 CFLAGS += -DMPZ_DIG_SIZE=16 # force 16 bits to work on both 32 and 64 bit archs
 endif
 
+ifdef CONFIGFILE
+CFLAGS += -DMP_CONFIGFILE=\"$(CONFIGFILE)\"
+endif
+
 # Debugging/Optimization
 ifeq ($(DEBUG), 1)
 CFLAGS += -g
