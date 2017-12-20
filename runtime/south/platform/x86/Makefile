@@ -12,6 +12,9 @@ CC_LDFLAGS += -Wl,--gc-sections
 # platform sources
 CC_SRC_C = main.c runtime/south/platform/x86/cc_platform_x86.c runtime/south/transport/socket/cc_transport_socket.c
 
+# Calvinsys sources
+CC_SRC_C += $(wildcard runtime/south/platform/x86/calvinsys/*.c)
+
 # calvin sources and parameters
 include calvin.mk
 

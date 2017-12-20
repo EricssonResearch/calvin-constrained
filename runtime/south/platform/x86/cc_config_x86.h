@@ -24,8 +24,8 @@ struct cc_actor_type_t;
 struct cc_transport_client_t;
 struct cc_node_t;
 
-cc_result_t cc_platformx86_temp_open(struct cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
-cc_result_t cc_platformx86_gpio_open(struct cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
+cc_result_t cc_test_temperature_open(struct cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
+cc_result_t cc_test_gpio_open(struct cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
 cc_result_t cc_actor_identity_setup(struct cc_actor_type_t *type);
 cc_result_t cc_actor_button_setup(struct cc_actor_type_t *type);
 cc_result_t cc_actor_light_setup(struct cc_actor_type_t *type);
@@ -41,9 +41,9 @@ struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node,
 	io.button: {u"direction": u"in", u"pin": 1}
 */
 #define CC_CAPABILITIES \
-	{ "io.temperature", cc_platformx86_temp_open, NULL, NULL, NULL }, \
-	{ "io.light", cc_platformx86_gpio_open, NULL, NULL, "\x82\xa9\x64\x69\x72\x65\x63\x74\x69\x6f\x6e\xa3\x6f\x75\x74\xa3\x70\x69\x6e\x00" }, \
-	{ "io.button", cc_platformx86_gpio_open, NULL, NULL, "\x82\xa9\x64\x69\x72\x65\x63\x74\x69\x6f\x6e\xa2\x69\x6e\xa3\x70\x69\x6e\x01" }
+	{ "io.temperature", cc_test_temperature_open, NULL, NULL, NULL }, \
+	{ "io.light", cc_test_gpio_open, NULL, NULL, "\x82\xa9\x64\x69\x72\x65\x63\x74\x69\x6f\x6e\xa3\x6f\x75\x74\xa3\x70\x69\x6e\x00" }, \
+	{ "io.button", cc_test_gpio_open, NULL, NULL, "\x82\xa9\x64\x69\x72\x65\x63\x74\x69\x6f\x6e\xa2\x69\x6e\xa3\x70\x69\x6e\x01" }
 
 #define CC_C_ACTORS \
 	{ "std.Identity", cc_actor_identity_setup }, \
