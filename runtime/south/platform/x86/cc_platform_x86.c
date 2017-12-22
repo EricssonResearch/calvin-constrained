@@ -186,7 +186,7 @@ cc_result_t cc_platform_file_read(const char *path, char **buffer, size_t *len)
 
 static cc_result_t cc_platform_create_dirs(const char *path)
 {
-	int i = 0, len = strlen(path);
+	int i = 1, len = strlen(path);
 	char *tmp = NULL;
 
 	while (i < len) {

@@ -301,10 +301,10 @@ cc_result_t cc_platform_file_read(const char *path, char **buffer, size_t *len)
 
 static cc_result_t cc_platform_create_dirs(const char *path)
 {
-	int i = 0, len = strlen(path);
+	int i = 1, len = strlen(path);
 	char *tmp = NULL;
 
-	while (i < len && i > 0) {
+	while (i < len) {
 		if (path[i] == '/') {
 			if (cc_platform_mem_alloc((void **)&tmp, i + 1) != CC_SUCCESS) {
 				cc_log_error("Failed to allocate memory");
