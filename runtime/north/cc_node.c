@@ -642,6 +642,10 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 	cc_actor_builtin_type_t actor_types[] = {
 		CC_C_ACTORS
 	};
+	cc_transport_t transports[] = {
+		CC_TRANSPORTS
+	};
+	int i = 0, n_transports = sizeof(transports) / sizeof(cc_transport_t);
 
 	node->state = CC_NODE_DO_START;
 	node->stop_method = CC_NODE_STOP_CLEAN;
@@ -740,7 +744,8 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 	}
 
 
-	cc_log("----------------------------------------");
+	cc_log("");
+	cc_log("Node initialized");
 	cc_log("ID: %s", node->id);
 	if (node->attributes != NULL)
 		cc_log("Attributes: %s", node->attributes);
@@ -752,6 +757,9 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 			item = item->next;
 		}
 	}
+	cc_log("Transports:");
+	for (i = 0; i < n_transports; i++)
+		cc_log(" %s", transports[i].name);
 	if (node->calvinsys != NULL) {
 		cc_log("Capabilities:");
 		item = node->calvinsys->capabilities;
@@ -783,7 +791,7 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 			item = item->next;
 		}
 	}
-	cc_log("----------------------------------------");
+	cc_log("");
 
 	return CC_SUCCESS;
 }
