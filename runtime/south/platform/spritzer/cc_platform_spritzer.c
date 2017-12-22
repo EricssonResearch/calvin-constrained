@@ -153,6 +153,7 @@ void cc_platform_init(void)
 {
   srand(time(NULL));
 
+  (void)boardctl(BOARDIOC_INIT, 0);
   board_power_control(POWER_LTE, true);
 
   cc_platform_spritzer_lte_init();
@@ -303,7 +304,7 @@ static cc_result_t cc_platform_create_dirs(const char *path)
 	int i = 0, len = strlen(path);
 	char *tmp = NULL;
 
-	while (i < len) {
+	while (i < len && i > 0) {
 		if (path[i] == '/') {
 			if (cc_platform_mem_alloc((void **)&tmp, i + 1) != CC_SUCCESS) {
 				cc_log_error("Failed to allocate memory");
@@ -312,7 +313,7 @@ static cc_result_t cc_platform_create_dirs(const char *path)
 			strncpy(tmp, path, i);
 			tmp[i] = '\0';
 			if (cc_platform_file_stat(tmp) == CC_STAT_NO_EXIST) {
-				if (mkdir(tmp, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0) {
+				if (mkdir(tmp, 0777) != 0) {
 					cc_log_error("Failed to create '%s'", tmp);
 					cc_platform_mem_free(tmp);
 					return CC_FAIL;
@@ -350,32 +351,35 @@ cc_result_t cc_platform_file_write(const char *path, char *buffer, size_t size)
 }
 #endif
 
-#ifdef CONFIG_BUILD_KERNEL
-int main(int argc, FAR char *argv[])
-#else
-int calvin_main(int argc, char *argv[])
-#endif
+int calvin_task(int argc, char *argv[])
 {
-  char *attr = NULL, *proxy_uris = NULL;
   cc_node_t *node = NULL;
+  char *attr = NULL, *proxy_uris = NULL;
 
-  // workaround due to get_opt/get_opt_long not working
-  if (argc == 1) {
-    printf("Started without arguments\n");
-  } else if (argc == 3) {
-    printf("Started with arguments\n");
-    proxy_uris = argv[1];
-    attr = argv[2];
-  } else {
-    printf("Usage: calvin_c proxy_uris attributes\n");
-    return EXIT_FAILURE;
-  }
+  // TODO: attributes and uris should not be hardcoded
+  attr = "{\"indexed_public\": {\"node_name\": {\"name\":\"spritzer\"}}}";
+  proxy_uris = "calvinip://90.232.247.172:5000";
 
   if (cc_api_runtime_init(&node, attr, proxy_uris, "./") != CC_SUCCESS)
     return EXIT_FAILURE;
 
   if (cc_api_runtime_start(node) != CC_SUCCESS)
     return EXIT_FAILURE;
+
+  return EXIT_SUCCESS;
+}
+
+#ifdef CONFIG_BUILD_KERNEL
+int main(int argc, FAR char *argv[])
+#else
+int calvin_main(int argc, char *argv[])
+#endif
+{
+  task_create("calvin",
+    CONFIG_CALVIN_PRIORITY,
+    CONFIG_CALVIN_STACKSIZE,
+    (main_t)calvin_task,
+    (FAR char * const *)NULL);
 
   return EXIT_SUCCESS;
 }
