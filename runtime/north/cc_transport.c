@@ -158,7 +158,7 @@ cc_transport_client_t *cc_transport_create(cc_node_t *node, char *uri)
 	int i = 0, n_transports = sizeof(transports) / sizeof(cc_transport_t);
 
 	for (i = 0; i < n_transports; i++) {
-		if (strncmp(uri, transports[i].name, strlen(transports[i].name)))
+		if (strncmp(uri, transports[i].name, strlen(transports[i].name)) == 0)
 			client = transports[i].create(node, uri);
 	}
 
