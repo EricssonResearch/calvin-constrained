@@ -14,11 +14,32 @@
  * limitations under the License.
  */
 #include <string.h>
+#include "runtime/north/cc_node.h"
 #include "runtime/north/cc_common.h"
 #include "runtime/north/coder/cc_coder.h"
 #include "runtime/north/cc_actor.h"
 #include "runtime/south/platform/cc_platform.h"
 #include "cc_calvinsys.h"
+
+cc_result_t cc_calvinsys_init(cc_node_t *node)
+{
+	if (cc_platform_mem_alloc((void **)&node->calvinsys, sizeof(cc_calvinsys_t)) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+
+	memset(node->calvinsys, 0, sizeof(cc_calvinsys_t));
+	node->calvinsys->node = node;
+
+#if CC_USE_FDS
+	int i = 0;
+	for (i = 0; i < CC_CALVINSYS_MAX_FDS; i++) {
+		node->calvinsys->fds[i] = -1;
+	}
+#endif
+
+	return CC_SUCCESS;
+}
 
 cc_result_t cc_calvinsys_add_capabilities(cc_calvinsys_t *calvinsys, size_t n_capabilities, cc_calvinsys_capability_t capabilities[])
 {

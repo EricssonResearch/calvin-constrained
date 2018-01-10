@@ -7,13 +7,24 @@ CC_CFLAGS  = -Wall
 CC_CFLAGS += -Os -fdata-sections -ffunction-sections
 #CC_CFLAGS += -g -fsanitize=address -O1 -fno-omit-frame-pointer
 CC_CFLAGS += -I.
+CC_CFLAGS += -DCC_USE_FDS=1
 CC_LDFLAGS += -Wl,--gc-sections
 
 # platform sources
 CC_SRC_C = main.c runtime/south/platform/x86/cc_platform_x86.c runtime/south/transport/socket/cc_transport_socket.c
 
 # Calvinsys sources
-CC_SRC_C += $(wildcard runtime/south/platform/x86/calvinsys/*.c)
+#CC_SRC_C += $(wildcard runtime/south/platform/x86/calvinsys/*.c)
+CC_SRC_C += runtime/south/platform/x86/calvinsys/cc_test_gpio.c
+CC_SRC_C += runtime/south/platform/x86/calvinsys/cc_test_temperature.c
+
+ifeq ($(LIBCOAP),1)
+CC_SRC_C += runtime/south/platform/x86/calvinsys/cc_libcoap_client.c
+CC_SRC_C += jsmn/jsmn.c
+CC_CFLAGS += -DCC_USE_LIBCOAP_CLIENT=1
+CC_CFLAGS += -I/usr/local/include/coap
+CC_LDFLAGS += -lcoap-1
+endif
 
 # calvin sources and parameters
 include calvin.mk

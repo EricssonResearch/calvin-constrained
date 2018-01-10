@@ -53,7 +53,6 @@ typedef struct cc_node_t {
 	cc_node_state_t state;
 	cc_node_stop_method_t stop_method;
 	char id[CC_UUID_BUFFER_SIZE];
-	char *storage_dir;
 	char *attributes;
 	cc_list_t *pending_msgs;
 	void *platform;
@@ -70,6 +69,9 @@ typedef struct cc_node_t {
 	uint32_t seconds_since_epoch;
 	uint32_t time_at_sync;
 	bool (*fire_actors)(struct cc_node_t *node);
+#if CC_USE_FDS
+	fd_set fds;
+#endif
 #if CC_USE_PYTHON
 	void *mpy_heap;
 #endif
@@ -82,7 +84,7 @@ bool cc_node_can_add_pending_msg(const cc_node_t *node);
 cc_result_t cc_node_handle_token(cc_port_t *port, const char *data, const size_t size, uint32_t sequencenbr);
 void cc_node_handle_token_reply(cc_node_t *node, char *port_id, uint32_t port_id_len, cc_port_reply_type_t reply_type, uint32_t sequencenbr);
 cc_result_t cc_node_handle_message(cc_node_t *node, char *buffer, size_t len);
-cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *proxy_uris, const char *storage_dir);
+cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *proxy_uris);
 uint32_t cc_node_get_time(cc_node_t *node);
 cc_result_t cc_node_run(cc_node_t *node);
 #if CC_USE_STORAGE

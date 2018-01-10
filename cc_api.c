@@ -22,9 +22,9 @@
 #include "libmpy/cc_mpy_port.h"
 #endif
 
-cc_result_t cc_api_runtime_init(cc_node_t **node, const char *attributes, const char *proxy_uris, const char *storage_dir)
+cc_result_t cc_api_runtime_init(cc_node_t **node, const char *attributes, const char *uris, const char *platform_args)
 {
-	cc_platform_init();
+	cc_platform_early_init();
 
 	if (cc_platform_mem_alloc((void **)node, sizeof(cc_node_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
@@ -42,14 +42,26 @@ cc_result_t cc_api_runtime_init(cc_node_t **node, const char *attributes, const 
 	memset((*node)->mpy_heap, 0, CC_PYTHON_HEAP_SIZE);
 
 	if (!cc_mpy_port_init((*node)->mpy_heap, CC_PYTHON_HEAP_SIZE, CC_PYTHON_STACK_SIZE)) {
-		cc_log_error("Failed to initialize micropython lib");
+		cc_log_error("Failed to init MicroPython");
 		return CC_FAIL;
 	}
-	cc_log("MicroPython initialized, heap size '%d' stack size '%d'",
-		CC_PYTHON_HEAP_SIZE, CC_PYTHON_STACK_SIZE);
-	#endif
 
-	return cc_node_init(*node, attributes, proxy_uris, storage_dir);
+	cc_log("MicroPython initialized, heap size '%d' stack size '%d'",
+		CC_PYTHON_HEAP_SIZE,
+		CC_PYTHON_STACK_SIZE);
+#endif
+
+	if (cc_node_init(*node, attributes, uris) != CC_SUCCESS) {
+		cc_log_error("Failed to init node");
+		return CC_FAIL;
+	}
+
+	if (cc_platform_late_init(*node, platform_args) != CC_SUCCESS) {
+		cc_log_error("Failed to init platform");
+		return CC_FAIL;
+	}
+
+	return CC_SUCCESS;
 }
 
 cc_result_t cc_api_runtime_start(cc_node_t *node)

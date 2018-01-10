@@ -110,9 +110,12 @@ void cc_platform_print(const char *fmt, ...)
 	va_end(args);
 }
 
-cc_result_t cc_platform_create(struct cc_node_t *node)
+void cc_platform_early_init(void)
 {
-	node->platform = NULL;
+}
+
+cc_result_t cc_platform_late_init(cc_node_t *node, const char *args)
+{
 	return CC_SUCCESS;
 }
 
@@ -264,10 +267,6 @@ void cc_platform_deepsleep(uint32_t time)
 	vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 #endif
-
-void cc_platform_init(void)
-{
-}
 
 uint32_t cc_platform_get_time()
 {

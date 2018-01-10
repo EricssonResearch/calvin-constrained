@@ -149,7 +149,7 @@ cc_result_t cc_platform_node_started(struct cc_node_t *node)
   return CC_SUCCESS;
 }
 
-void cc_platform_init(void)
+void cc_platform_early_init(void)
 {
   srand(time(NULL));
 
@@ -167,9 +167,9 @@ void cc_platform_init(void)
   cc_platform_spritzer_send_recv_sys(&command_sys);
 }
 
-cc_result_t cc_platform_create(cc_node_t *node)
+cc_result_t cc_platform_late_init(cc_node_t *node, const char *args)
 {
-  return CC_SUCCESS;
+	return CC_SUCCESS;
 }
 
 cc_platform_evt_wait_status_t cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)

@@ -24,32 +24,35 @@
 
 int main(int argc, char **argv)
 {
-	char *attr = NULL, *proxy_uris = NULL;
+	char *attr = NULL, *uris = NULL, *platform_args = NULL;
 	cc_node_t *node = NULL;
 #if (CC_USE_GETOPT == 1)
 	int c = 0;
 	static struct option long_options[] = {
 		{"attr", required_argument, NULL, 'a'},
-		{"proxy_uris", required_argument, NULL, 'p'},
+		{"uris", required_argument, NULL, 'u'},
+		{"platform_data", required_argument, NULL, 'p'},
 		{NULL, 0, NULL, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "a:p:", long_options, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "a:u:p:", long_options, NULL)) != -1) {
 		switch (c) {
 		case 'a':
 			attr = optarg;
 			break;
+		case 'u':
+			uris = optarg;
+			break;
 		case 'p':
-			proxy_uris = optarg;
+			platform_args = optarg;
 			break;
 		default:
 			break;
 		}
 	}
-
 #endif
 
-	if (cc_api_runtime_init(&node, attr, proxy_uris, "./") != CC_SUCCESS)
+	if (cc_api_runtime_init(&node, attr, uris, platform_args) != CC_SUCCESS)
 		return EXIT_FAILURE;
 
 	if (cc_api_runtime_start(node) != CC_SUCCESS)

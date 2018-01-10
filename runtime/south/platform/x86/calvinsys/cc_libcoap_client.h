@@ -13,18 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef CC_API_H
-#define CC_API_H
+#ifndef CC_CALVINSYS_LIBCOAP_H
+#define CC_CALVINSYS_LIBCOAP_H
 
 #include "runtime/north/cc_common.h"
-#include "runtime/north/cc_node.h"
+#include "calvinsys/cc_calvinsys.h"
 
-cc_result_t cc_api_runtime_init(cc_node_t **node, const char *attributes, const char *uris, const char *platform_args);
-cc_result_t cc_api_runtime_start(cc_node_t *node);
-cc_result_t cc_api_runtime_stop(cc_node_t *node);
-cc_result_t cc_api_runtime_serialize_and_stop(cc_node_t *node);
-cc_result_t cc_api_reconnect(cc_node_t *node);
-#if (CC_USE_STORAGE == 1)
-cc_result_t cc_api_clear_serialization_file(char *filedir);
-#endif
-#endif /* CC_API_H */
+cc_result_t cc_libcoap_create(cc_calvinsys_t *calvinsys, const char *args);
+
+#endif /* CC_CALVINSYS_LIBCOAP_H */

@@ -39,11 +39,22 @@ typedef enum {
 } cc_stat_t;
 
 /**
- * cc_platform_init() - Initialize the platform.
+ * cc_platform_early_init() - Initialize platform.
  *
  * Called before the node is created to initialize the platform.
  */
-void cc_platform_init(void);
+void cc_platform_early_init(void);
+
+/**
+ * cc_platform_late_init() - Initialize platform
+ * @node the node object
+ * @args init args
+ *
+ * Called after the node has been initialized.
+ *
+ * Return: CC_SUCCESS/CC_FAILURE
+ */
+cc_result_t cc_platform_late_init(struct cc_node_t *node, const char *args);
 
 /**
  * cc_platform_print() - Print a printf string.
@@ -51,17 +62,6 @@ void cc_platform_init(void);
  * ... Additional arguments replacing format specifiers in fmt.
  */
 void cc_platform_print(const char *fmt, ...);
-
-/**
- * cc_platform_create() - Create a platform object.
- * @node the node object
- *
- * Called when the node has been created to create a platform object
- * on node->platform.
- *
- * Return: CC_SUCCESS/CC_FAILURE
- */
-cc_result_t cc_platform_create(struct cc_node_t *node);
 
 /**
  * cc_platform_mem_alloc() - Allocate requested memory.

@@ -631,21 +631,15 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *proxy_uris, const char *storage_dir)
+cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *proxy_uris)
 {
 	char *uris = (char *)proxy_uris, *uri = NULL;
-	cc_list_t *item = NULL;
-	cc_actor_t *actor = NULL;
 	cc_calvinsys_capability_t capabilities[] = {
 		CC_CAPABILITIES
 	};
 	cc_actor_builtin_type_t actor_types[] = {
 		CC_C_ACTORS
 	};
-	cc_transport_t transports[] = {
-		CC_TRANSPORTS
-	};
-	int i = 0, n_transports = sizeof(transports) / sizeof(cc_transport_t);
 
 	node->state = CC_NODE_DO_START;
 	node->stop_method = CC_NODE_STOP_CLEAN;
@@ -660,6 +654,10 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 	node->actors = NULL;
 	node->seconds_since_epoch = 0;
 	node->time_at_sync = 0;
+	node->actor_types = NULL;
+#if CC_USE_FDS
+	FD_ZERO(&node->fds);
+#endif
 
 	if (attributes != NULL) {
 		if (strlen(attributes) <= CC_MAX_ATTRIBUTES_LEN) {
@@ -674,30 +672,10 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 		}
 	}
 
-	if (storage_dir != NULL) {
-		if (strlen(storage_dir) <= CC_MAX_DIR_PATH) {
-			if (cc_platform_mem_alloc((void **)&node->storage_dir, strnlen(storage_dir, CC_MAX_DIR_PATH) + 1) != CC_SUCCESS) {
-				cc_log_error("Failed to allocate memory");
-				return CC_FAIL;
-			}
-			strcpy(node->storage_dir, storage_dir);
-		}
-	}
-
-	if (cc_platform_create(node) != CC_SUCCESS) {
-		cc_log_error("Failed to create platform object");
+	if (cc_calvinsys_init(node) != CC_SUCCESS) {
+		cc_log_error("Failed to init calvinsys");
 		return CC_FAIL;
 	}
-
-	if (cc_platform_mem_alloc((void **)&node->calvinsys, sizeof(cc_calvinsys_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
-	}
-
-	node->calvinsys->node = node;
-	node->calvinsys->capabilities = NULL;
-	node->calvinsys->objects = NULL;
-	node->actor_types = NULL;
 
 	if (cc_calvinsys_timer_create(&node->calvinsys) != CC_SUCCESS) {
 		cc_log_error("Failed to create calvinsys 'timer'");
@@ -742,56 +720,6 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 		cc_log_error("No proxy(s) set");
 		return CC_FAIL;
 	}
-
-
-	cc_log("");
-	cc_log("Node initialized");
-	cc_log("ID: %s", node->id);
-	if (node->attributes != NULL)
-		cc_log("Attributes: %s", node->attributes);
-	if (node->proxy_uris != NULL) {
-		cc_log("Proxy URIs:");
-		item = node->proxy_uris;
-		while (item != NULL) {
-			cc_log(" %s", item->id);
-			item = item->next;
-		}
-	}
-	cc_log("Transports:");
-	for (i = 0; i < n_transports; i++)
-		cc_log(" %s", transports[i].name);
-	if (node->calvinsys != NULL) {
-		cc_log("Capabilities:");
-		item = node->calvinsys->capabilities;
-		while (item != NULL) {
-			cc_log(" %s", item->id);
-			item = item->next;
-		}
-	}
-	if (node->actor_types != NULL) {
-		cc_log("C actor types:");
-		item = node->actor_types;
-		while (item != NULL) {
-			cc_log(" %s", item->id);
-			item = item->next;
-		}
-	}
-	if (node->storage_dir != NULL)
-		cc_log("Storage directory: %s", node->storage_dir);
-	cc_log("Inactivity timeout: %d seconds", CC_INACTIVITY_TIMEOUT);
-#if CC_USE_SLEEP
-	cc_log("Default sleep time: %d seconds", CC_SLEEP_TIME);
-#endif
-	if (node->actors != NULL) {
-		cc_log("Actors:");
-		item = node->actors;
-		while (item != NULL) {
-			actor = (cc_actor_t*)item->data;
-			cc_log(" %s %s", actor->id, actor->name);
-			item = item->next;
-		}
-	}
-	cc_log("");
 
 	return CC_SUCCESS;
 }
@@ -851,9 +779,6 @@ static void cc_node_free(cc_node_t *node, bool cleanup)
 
 	if (node->attributes != NULL)
 		cc_platform_mem_free((void *)node->attributes);
-
-	if (node->storage_dir != NULL)
-		cc_platform_mem_free((void *)node->storage_dir);
 
 	while (node->pending_msgs != NULL) {
 		item = node->pending_msgs;
@@ -944,6 +869,66 @@ void cc_node_stop(cc_node_t *node)
 	}
 }
 
+static void cc_node_dump_info(cc_node_t *node)
+{
+	cc_transport_t transports[] = {
+		CC_TRANSPORTS
+	};
+	int i = 0, n_transports = sizeof(transports) / sizeof(cc_transport_t);
+	cc_actor_t *actor = NULL;
+	cc_list_t *item = NULL;
+
+	cc_log("Node initialized");
+	cc_log("ID: %s", node->id);
+	if (node->attributes != NULL)
+		cc_log("Attributes: %s", node->attributes);
+	if (node->proxy_uris != NULL) {
+		cc_log("Proxy URIs:");
+		item = node->proxy_uris;
+		while (item != NULL) {
+			cc_log(" %s", item->id);
+			item = item->next;
+		}
+	}
+	cc_log("Transports:");
+	for (i = 0; i < n_transports; i++)
+		cc_log(" %s", transports[i].name);
+	if (node->calvinsys != NULL) {
+		cc_log("Capabilities:");
+		item = node->calvinsys->capabilities;
+		while (item != NULL) {
+			cc_log(" %s", item->id);
+			item = item->next;
+		}
+	}
+	if (node->actor_types != NULL) {
+		cc_log("C actor types:");
+		item = node->actor_types;
+		while (item != NULL) {
+			cc_log(" %s", item->id);
+			item = item->next;
+		}
+	}
+
+	cc_log("Inactivity timeout: %d seconds", CC_INACTIVITY_TIMEOUT);
+#if CC_USE_SLEEP
+	cc_log("Default sleep time: %d seconds", CC_SLEEP_TIME);
+#endif
+	if (node->actors != NULL) {
+		cc_log("Serialized actors:");
+		item = node->actors;
+		while (item != NULL) {
+			actor = (cc_actor_t*)item->data;
+			cc_log(" %s %s", actor->id, actor->name);
+			item = item->next;
+		}
+	}
+
+#if CC_USE_PYTHON
+	cc_log("MicroPython heap: %d", CC_PYTHON_HEAP_SIZE);
+#endif
+}
+
 cc_result_t cc_node_run(cc_node_t *node)
 {
 	cc_list_t *item = NULL;
@@ -958,6 +943,8 @@ cc_result_t cc_node_run(cc_node_t *node)
 		cc_log_error("No actor scheduler set");
 		return CC_FAIL;
 	}
+
+	cc_node_dump_info(node);
 
 	while (node->state != CC_NODE_STOP) {
 		item = node->proxy_uris;

@@ -8,3 +8,6 @@
 [submodule "mbedtls"]
 	path = mbedtls
 	url = https://github.com/ARMmbed/mbedtls.git
+[submodule "jsmn"]
+	path = jsmn
+	url = https://github.com/zserge/jsmn.git

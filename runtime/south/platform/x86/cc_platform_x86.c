@@ -30,6 +30,9 @@
 #include "runtime/north/cc_common.h"
 #include "calvinsys/cc_calvinsys.h"
 #include "runtime/north/coder/cc_coder.h"
+#ifdef CC_USE_LIBCOAP_CLIENT
+#include "calvinsys/cc_libcoap_client.h"
+#endif
 
 void cc_platform_print(const char *fmt, ...)
 {
@@ -39,6 +42,23 @@ void cc_platform_print(const char *fmt, ...)
 	vfprintf(stdout, fmt, args);
 	fprintf(stdout, "\n");
 	va_end(args);
+}
+
+void cc_platform_early_init(void)
+{
+	srand(time(NULL));
+}
+
+cc_result_t cc_platform_late_init(cc_node_t *node, const char *args)
+{
+	cc_result_t result = CC_SUCCESS;
+
+#ifdef CC_USE_LIBCOAP_CLIENT
+	if (args != NULL)
+		result = cc_libcoap_create(node->calvinsys, args);
+#endif
+
+	return result;
 }
 
 cc_result_t cc_platform_stop(cc_node_t *node)
@@ -51,21 +71,11 @@ cc_result_t cc_platform_node_started(struct cc_node_t *node)
 	return CC_SUCCESS;
 }
 
-void cc_platform_init(void)
-{
-	srand(time(NULL));
-}
-
-cc_result_t cc_platform_create(cc_node_t *node)
-{
-	return CC_SUCCESS;
-}
-
 cc_platform_evt_wait_status_t cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
 {
-	fd_set fds;
-	int fd = 0;
+	int transport_fd = 0, res = 0, max_fd = 0, i = 0;
 	struct timeval tv, *tv_ref = NULL;
+	cc_calvinsys_t *sys = node->calvinsys;
 
 	if (timeout_seconds > 0) {
 		tv.tv_sec = timeout_seconds;
@@ -73,18 +83,33 @@ cc_platform_evt_wait_status_t cc_platform_evt_wait(cc_node_t *node, uint32_t tim
 		tv_ref = &tv;
 	}
 
-	FD_ZERO(&fds);
+	FD_ZERO(&node->fds);
 
 	if (node->transport_client != NULL && (node->transport_client->state == CC_TRANSPORT_PENDING || node->transport_client->state == CC_TRANSPORT_ENABLED)) {
-		FD_SET(((cc_transport_socket_client_t *)node->transport_client->client_state)->fd, &fds);
-		fd = ((cc_transport_socket_client_t *)node->transport_client->client_state)->fd;
+		transport_fd = ((cc_transport_socket_client_t *)node->transport_client->client_state)->fd;
+		max_fd = transport_fd;
+		FD_SET(transport_fd, &node->fds);
 
-		select(fd + 1, &fds, NULL, NULL, tv_ref);
+		for (i = 0; i < CC_CALVINSYS_MAX_FDS; i++) {
+			if (sys->fds[i] != -1) {
+				FD_SET(sys->fds[i], &node->fds);
+				if (sys->fds[i] > max_fd)
+					max_fd = sys->fds[i];
+			}
+		}
 
-		if (FD_ISSET(fd, &fds)) {
-			if (cc_transport_handle_data(node, node->transport_client, cc_node_handle_message) != CC_SUCCESS) {
-				cc_log_error("Failed to handle received data");
-				return CC_PLATFORM_EVT_WAIT_FAIL;
+		res = select(max_fd + 1, &node->fds, NULL, NULL, tv_ref);
+		if (res < 0) {
+			cc_log_error("select failed");
+			return CC_PLATFORM_EVT_WAIT_FAIL;
+		} else if (res == 0)
+			cc_log_debug("Timeout waiting for data");
+		else {
+			if (FD_ISSET(transport_fd, &node->fds)) {
+				if (cc_transport_handle_data(node, node->transport_client, cc_node_handle_message) != CC_SUCCESS) {
+					cc_log_error("Failed to handle received data");
+					return CC_PLATFORM_EVT_WAIT_FAIL;
+				}
 			}
 			return CC_PLATFORM_EVT_WAIT_DATA_READ;
 		}

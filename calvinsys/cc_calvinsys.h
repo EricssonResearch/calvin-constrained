@@ -17,6 +17,7 @@
 #define CC_CALVINSYS_H
 
 #include "runtime/north/cc_common.h"
+#include "cc_config.h"
 
 typedef struct cc_calvinsys_obj_t {
 	bool (*can_write)(struct cc_calvinsys_obj_t *obj);
@@ -43,8 +44,12 @@ typedef struct cc_calvinsys_t {
 	cc_list_t *capabilities;
 	cc_list_t *objects;
 	struct cc_node_t *node;
+#if CC_USE_FDS
+	int fds[CC_CALVINSYS_MAX_FDS];
+#endif
 } cc_calvinsys_t;
 
+cc_result_t cc_calvinsys_init(struct cc_node_t *node);
 cc_result_t cc_calvinsys_add_capabilities(cc_calvinsys_t *calvinsys, size_t n_capabilities, cc_calvinsys_capability_t capabilities[]);
 cc_result_t cc_calvinsys_create_capability(cc_calvinsys_t *calvinsys, const char *name, cc_result_t (*open)(cc_calvinsys_obj_t*, cc_list_t*), cc_result_t (*deserialize)(cc_calvinsys_obj_t*, cc_list_t *kwargs), char *init_args);
 void cc_calvinsys_delete_capability(cc_calvinsys_t *calvinsys, const char *name);

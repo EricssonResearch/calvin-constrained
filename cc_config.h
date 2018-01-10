@@ -112,6 +112,12 @@
 #endif
 #endif
 
+#ifdef CC_USE_FDS
+#ifndef CC_CALVINSYS_MAX_FDS
+#define CC_CALVINSYS_MAX_FDS 10
+#endif
+#endif
+
 // WIFI AP config
 #ifndef CC_USE_WIFI_AP
 #define CC_USE_WIFI_AP (0)
