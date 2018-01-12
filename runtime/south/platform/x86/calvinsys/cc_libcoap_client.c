@@ -370,7 +370,7 @@ cc_result_t cc_libcoap_create(cc_calvinsys_t *calvinsys, const char *args)
 		len = t[obj_capabilities + j].end - t[obj_capabilities + j].start;
 		strncpy(init_args->uri, args + t[obj_capabilities + j].start, len);
 
-		if (cc_calvinsys_create_capability(calvinsys, name, cc_calvinsys_coap_open, NULL, (void *)init_args) != CC_SUCCESS) {
+		if (cc_calvinsys_create_capability(calvinsys, name, cc_calvinsys_coap_open, NULL, (void *)init_args, true) != CC_SUCCESS) {
 			cc_log_error("Failed to add capability '%s'", name);
 			cc_platform_mem_free(init_args);
 			return CC_FAIL;

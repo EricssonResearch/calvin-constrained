@@ -13,6 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifndef CC_CONFIG_X86_H
+#define CC_CONFIG_X86_H
+
 #include "runtime/north/cc_common.h"
 
 #define CC_USE_GETOPT (1)
@@ -36,14 +39,10 @@ cc_result_t cc_actor_temperature_tagged_setup(struct cc_actor_type_t *type);
 cc_result_t cc_actor_registry_attribute_setup(struct cc_actor_type_t *type);
 struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node, char *uri);
 
-/*
-	io.light: {u"direction": u"out", u"pin": 0}
-	io.button: {u"direction": u"in", u"pin": 1}
-*/
 #define CC_CAPABILITIES \
-	{ "io.temperature", cc_test_temperature_open, NULL, NULL, NULL }, \
-	{ "io.light", cc_test_gpio_open, NULL, NULL, "\x82\xa9\x64\x69\x72\x65\x63\x74\x69\x6f\x6e\xa3\x6f\x75\x74\xa3\x70\x69\x6e\x00" }, \
-	{ "io.button", cc_test_gpio_open, NULL, NULL, "\x82\xa9\x64\x69\x72\x65\x63\x74\x69\x6f\x6e\xa2\x69\x6e\xa3\x70\x69\x6e\x01" }
+	{ "io.temperature", cc_test_temperature_open, NULL, NULL, NULL, false }, \
+	{ "io.light", cc_test_gpio_open, NULL, NULL, "\x82\xa9" "direction" "\xa3" "out" "\xa3" "pin" "\x00", false }, \
+	{ "io.button", cc_test_gpio_open, NULL, NULL, "\x82\xa9" "direction" "\xa2" "in" "\xa3" "pin" "\x01", false }
 
 #define CC_C_ACTORS \
 	{ "std.Identity", cc_actor_identity_setup }, \
@@ -58,3 +57,5 @@ struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node,
 #define CC_TRANSPORTS \
 	{ "calvinip", cc_transport_socket_create }, \
 	{ "ssdp", cc_transport_socket_create }
+
+#endif /* CC_CONFIG_X86_H */

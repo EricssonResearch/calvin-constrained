@@ -27,14 +27,10 @@ struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node,
 #define CC_USE_SLEEP (1)
 #define CC_USE_STORAGE (1)
 
-/*
-	io.light: {u"direction": u"out", u"pin": 0}
-	io.button: {u"direction": u"in", u"pin": 1}
-*/
 #define CC_CAPABILITIES \
-	{ "io.temperature", cc_test_temperature_open, NULL, NULL, NULL }, \
-	{ "io.light", cc_test_gpio_open, NULL, NULL, "\x82\xa9\x64\x69\x72\x65\x63\x74\x69\x6f\x6e\xa3\x6f\x75\x74\xa3\x70\x69\x6e\x00" }, \
-	{ "io.button", cc_test_gpio_open, NULL, NULL, "\x82\xa9\x64\x69\x72\x65\x63\x74\x69\x6f\x6e\xa2\x69\x6e\xa3\x70\x69\x6e\x01" }
+	{ "io.temperature", cc_test_temperature_open, NULL, NULL, NULL, false }, \
+	{ "io.light", cc_test_gpio_open, NULL, NULL, "\x82\xa9" "direction" "\xa3" "out" "\xa3" "pin" "\x00", false }, \
+	{ "io.button", cc_test_gpio_open, NULL, NULL, "\x82\xa9" "direction" "\xa2" "in" "\xa3" "pin" "\x01", false }
 
 #define CC_TRANSPORTS \
 	{ "calvinip", cc_transport_socket_create }, \

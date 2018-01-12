@@ -28,7 +28,7 @@ struct cc_transport_client_t *cc_transport_spritzer_create(struct cc_node_t *nod
 #define CC_STATE_FILE "/mnt/spif/calvin.msgpack"
 
 #define CC_CAPABILITIES \
-	{ "io.temperature", cc_calvinsys_temp_sensor_open, NULL, NULL, NULL }
+	{ "io.temperature", cc_calvinsys_temp_sensor_open, NULL, NULL, NULL, false }
 
 #define CC_TRANSPORTS \
 	{ "calvinip", cc_transport_spritzer_create }

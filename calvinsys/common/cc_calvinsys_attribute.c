@@ -297,5 +297,5 @@ cc_result_t cc_calvinsys_attribute_deserialize(cc_calvinsys_obj_t *obj, cc_list_
 
 cc_result_t cc_calvinsys_attribute_create(cc_calvinsys_t **calvinsys)
 {
-	return cc_calvinsys_create_capability(*calvinsys, "sys.attribute.indexed", cc_calvinsys_attribute_open, cc_calvinsys_attribute_deserialize, NULL);
+	return cc_calvinsys_create_capability(*calvinsys, "sys.attribute.indexed", cc_calvinsys_attribute_open, cc_calvinsys_attribute_deserialize, NULL, false);
 }

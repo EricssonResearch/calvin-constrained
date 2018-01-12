@@ -227,7 +227,8 @@ cc_result_t cc_calvinsys_timer_create(cc_calvinsys_t **calvinsys)
 	if (cc_calvinsys_create_capability(*calvinsys, "sys.timer.once",
 			cc_calvinsys_timer_open,
 			cc_calvinsys_timer_deserialize,
-			NULL) != CC_SUCCESS) {
+			NULL,
+			false) != CC_SUCCESS) {
 		cc_log_error("Failed to create 'sys.timer.once'");
 	 	return CC_FAIL;
 	}
@@ -235,7 +236,8 @@ cc_result_t cc_calvinsys_timer_create(cc_calvinsys_t **calvinsys)
 	if (cc_calvinsys_create_capability(*calvinsys, "sys.timer.repeating",
 			cc_calvinsys_timer_open,
 			cc_calvinsys_timer_deserialize,
-			NULL) != CC_SUCCESS) {
+			NULL,
+			false) != CC_SUCCESS) {
 		cc_log_error("Failed to create 'sys.timer.repeating'");
 		return CC_FAIL;
 	}
