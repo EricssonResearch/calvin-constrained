@@ -727,6 +727,7 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 static void cc_node_free(cc_node_t *node, bool cleanup)
 {
 	cc_list_t *item = NULL, *tmp_item = NULL;
+	cc_actor_type_t *type = NULL;
 
 	item = node->proxy_uris;
 	while (item != NULL) {
@@ -740,6 +741,9 @@ static void cc_node_free(cc_node_t *node, bool cleanup)
 	while (item != NULL) {
 		tmp_item = item;
 		item = item->next;
+		type = (cc_actor_type_t *)tmp_item->data;
+		if (type->requires != NULL)
+			cc_platform_mem_free(type->requires);
 		cc_platform_mem_free((void *)tmp_item->id);
 		cc_platform_mem_free((void *)tmp_item->data);
 		cc_platform_mem_free((void *)tmp_item);

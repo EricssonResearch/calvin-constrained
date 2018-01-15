@@ -322,6 +322,7 @@ static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32
 		actor->will_end = actor_type->will_end;
 		actor->did_migrate = actor_type->did_migrate;
 		actor->get_requires = actor_type->get_requires;
+		actor->requires = actor_type->requires;
 		return actor;
 	}
 

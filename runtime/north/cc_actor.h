@@ -24,6 +24,7 @@
 #include "calvinsys/cc_calvinsys.h"
 
 struct cc_node_t;
+struct cc_actor_type_t;
 
 typedef enum {
 	CC_ACTOR_PENDING,
@@ -54,6 +55,7 @@ typedef struct cc_actor_t{
 	void (*did_migrate)(struct cc_actor_t *actor);
 	cc_result_t (*get_requires)(struct cc_actor_t *actor, cc_list_t **requires);
 	cc_calvinsys_t *calvinsys;
+	char *requires;
 } cc_actor_t;
 
 cc_result_t cc_actor_req_match_reply_handler(struct cc_node_t *node, char *data, size_t data_len, void *msg_data);

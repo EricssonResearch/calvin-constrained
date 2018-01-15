@@ -41,16 +41,16 @@ static cc_result_t cc_actor_coap_init(cc_actor_t **actor, cc_list_t *managed_att
 	memset(state, 0, sizeof(cc_state_t));
 	(*actor)->instance_state = (void *)state;
 
-	obj_ref = cc_calvinsys_open(*actor, "io.coap", NULL);
+	obj_ref = cc_calvinsys_open(*actor, (*actor)->requires, NULL);
 	if (obj_ref == NULL) {
-		cc_log_error("Failed to open 'io.coap'");
+		cc_log_error("Failed to open '%s'", (*actor)->requires);
 		return CC_FAIL;
 	}
 	strncpy(state->source, obj_ref, strlen(obj_ref));
 	state->source[strlen(obj_ref)] = '\0';
 
 	if (cc_calvinsys_write((*actor)->calvinsys, state->source, "\xC3", 1) != CC_SUCCESS) {
-		cc_log_error("Failed to init 'io.coap'");
+		cc_log_error("Failed to init '%s'", (*actor)->requires);
 		return false;
 	}
 
@@ -94,8 +94,8 @@ static void cc_actor_coap_free(cc_actor_t *actor)
 
 cc_result_t cc_actor_coap_get_requires(cc_actor_t *actor, cc_list_t **requires)
 {
-	if (cc_list_add_n(requires, "io.coap", 7, NULL, 0) == NULL) {
-		cc_log_error("Failed to add 'io.coap'");
+	if (cc_list_add_n(requires, actor->requires, strlen(actor->requires), NULL, 0) == NULL) {
+		cc_log_error("Failed to add '%s'", actor->requires);
 		return CC_FAIL;
 	}
 

@@ -205,7 +205,7 @@ cc_result_t cc_fifo_com_write(cc_fifo_t *fifo, char *data, size_t size, uint32_t
 
 	cc_log_error("Unhandled token with sequencenbr '%ld' with write_pos '%ld'", (unsigned long)sequence_nbr, (unsigned long)fifo->write_pos);
 
-	return CC_FAIL;
+	return CC_SUCCESS;
 }
 
 void cc_fifo_com_commit_read(cc_fifo_t *fifo, uint32_t sequence_nbr)
