@@ -30,6 +30,7 @@ cc_result_t cc_actor_temperature_setup(struct cc_actor_type_t *type);
 cc_result_t cc_actor_triggered_temperature_setup(struct cc_actor_type_t *type);
 cc_result_t cc_actor_temperature_tagged_setup(struct cc_actor_type_t *type);
 cc_result_t cc_actor_registry_attribute_setup(struct cc_actor_type_t *type);
+cc_result_t cc_actor_coap_source_setup(struct cc_actor_type_t *type);
 struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node, char *uri);
 
 #define CC_C_ACTORS \
@@ -40,7 +41,8 @@ struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node,
 	{ "sensor.Temperature", cc_actor_temperature_setup }, \
 	{ "sensor.TriggeredTemperature", cc_actor_triggered_temperature_setup }, \
   { "sensor.TemperatureTagged", cc_actor_temperature_tagged_setup }, \
-	{ "context.RegistryAttribute", cc_actor_registry_attribute_setup }
+	{ "context.RegistryAttribute", cc_actor_registry_attribute_setup }, \
+	{ "sensor.CoapSource", cc_actor_coap_source_setup }
 
 #define CC_TRANSPORTS \
 	{ "calvinip", cc_transport_socket_create }, \

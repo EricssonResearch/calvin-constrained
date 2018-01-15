@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2016 Ericsson AB
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Copyright (c) 2016 Ericsson AB
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*    http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -40,78 +40,9 @@ typedef struct cc_coap_init_args_t {
 	char uri[100];
 } cc_coap_init_args_t;
 
-static bool cc_coap_can_read(struct cc_calvinsys_obj_t *obj)
+static cc_result_t cc_coap_send_pdu(struct cc_calvinsys_obj_t *obj, bool start)
 {
-	cc_coap_state_t *state = (cc_coap_state_t *)obj->state;
-	cc_node_t *node = obj->capability->calvinsys->node;
-
-	if (FD_ISSET(state->fd, &node->fds))
-		return true;
-
-	return false;
-}
-
-static cc_result_t cc_coap_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
-{
-	cc_coap_state_t *state = (cc_coap_state_t *)obj->state;
-	uint8_t buffer[512] = {0};
-  size_t payload_len = 0;
-  uint8_t *payload = NULL;
-	int n = 0;
-	coap_pdu_t *pdu = NULL;
-	char *w = NULL;
-
-	n = recv(state->fd, buffer, 512, 0);
-	if (n < 0)
-		return CC_FAIL;
-
-  pdu = coap_pdu_init(0, 0, 0, n - 4);
-  if (!pdu) {
-    cc_log_error("Failed to init PDU");
-    return CC_FAIL;
-  }
-
-  if (!coap_pdu_parse(COAP_PROTO_UDP, buffer, n, pdu)) {
-    cc_log_error("Failed to parse DPU");
-    return CC_FAIL;
-  }
-/*
-  cc_log("Receive PDU:");
-  coap_show_pdu(pdu);
-*/
-  if (coap_get_data(pdu, &payload_len, &payload)) {
-    if (COAP_RESPONSE_CLASS(pdu->code) == 2) {
-			if (cc_platform_mem_alloc((void **)data, cc_coder_sizeof_str(payload_len)) != CC_SUCCESS) {
-				cc_log_error("Failed to allocate memory");
-				return CC_FAIL;
-			}
-
-			w = *data;
-			w = cc_coder_encode_str(w, (char *)payload, payload_len);
-			if (w == NULL) {
-				cc_log_error("Failed to encode payload");
-				cc_platform_mem_free(*data);
-				return CC_FAIL;
-			}
-			*size = w - *data;
-    } else {
-      cc_log_error("Request failed");
-    }
-  } else {
-		cc_log_error("Failed to get data");
-		return CC_FAIL;
-	}
-
-	return CC_SUCCESS;
-}
-
-static bool cc_coap_can_write(struct cc_calvinsys_obj_t *obj)
-{
-	return true;
-}
-
-static cc_result_t cc_coap_write(struct cc_calvinsys_obj_t *obj, char *data, size_t size)
-{
+	cc_result_t result = CC_SUCCESS;
 	cc_coap_state_t *state = (cc_coap_state_t *)obj->state;
 	coap_pdu_t *request = NULL;
 	unsigned char _buf[40];
@@ -125,41 +56,144 @@ static cc_result_t cc_coap_write(struct cc_calvinsys_obj_t *obj, char *data, siz
 		return CC_FAIL;
 	}
 
-	if (!coap_pdu_encode_header(request, COAP_PROTO_UDP)) {
-		cc_log_error("Failed to encode header");
-		return CC_FAIL;
-	}
-
-	coap_add_option(request, COAP_OPTION_URI_PORT, coap_encode_var_bytes(buf, state->uri.port), buf);
-
-	if (state->uri.path.length) {
-		res = coap_split_path(state->uri.path.s, state->uri.path.length, buf, &buflen);
-
-		while (res--) {
-			coap_add_option(request, COAP_OPTION_URI_PATH, coap_opt_length(buf), coap_opt_value(buf));
-			buf += coap_opt_size(buf);
+	if (coap_pdu_encode_header(request, COAP_PROTO_UDP)) {
+		if (start)
+			coap_add_option(request, COAP_OPTION_OBSERVE, coap_encode_var_bytes(buf, COAP_OBSERVE_ESTABLISH), buf);
+		else
+			coap_add_option(request, COAP_OPTION_OBSERVE, coap_encode_var_bytes(buf, COAP_OBSERVE_CANCEL), buf);
+		coap_add_option(request, COAP_OPTION_URI_PORT, coap_encode_var_bytes(buf, state->uri.port), buf);
+		if (state->uri.path.length) {
+			res = coap_split_path(state->uri.path.s, state->uri.path.length, buf, &buflen);
+			while (res--) {
+				coap_add_option(request, COAP_OPTION_URI_PATH, coap_opt_length(buf), coap_opt_value(buf));
+				buf += coap_opt_size(buf);
+			}
 		}
+		coap_add_option(request, COAP_OPTION_CONTENT_FORMAT, coap_encode_var_bytes(buf, COAP_MEDIATYPE_TEXT_PLAIN), buf);
+		coap_add_option(request, COAP_OPTION_ACCEPT, 0, buf);
+		if (send(state->fd, request->token - request->hdr_size, request->used_size + request->hdr_size, 0) <= 0) {
+			cc_log_error("Failed to send data");
+			result = CC_FAIL;
+		}
+	} else {
+		cc_log_error("Failed to encode header");
+		result = CC_FAIL;
 	}
 
-	coap_add_option(request, COAP_OPTION_CONTENT_FORMAT, coap_encode_var_bytes(buf, COAP_MEDIATYPE_TEXT_PLAIN), buf);
-	coap_add_option(request, COAP_OPTION_ACCEPT, 0, buf);
-
-	if (send(state->fd, request->token - request->hdr_size, request->used_size + request->hdr_size, 0) <= 0) {
-		cc_log_error("Failed to send data");
-		return CC_FAIL;
-	}
-/*
-	cc_log("Send PDU:");
-	coap_show_pdu(request);
-*/
 	coap_delete_pdu(request);
 
-	return CC_SUCCESS;
+	return result;
+}
+
+static bool cc_coap_can_read(struct cc_calvinsys_obj_t *obj)
+{
+	return FD_ISSET(((cc_coap_state_t *)obj->state)->fd, &obj->capability->calvinsys->node->fds) > 0;
+}
+
+static cc_result_t cc_coap_send_ack(int fd, coap_pdu_t *request)
+{
+	coap_pdu_t *response = NULL;
+	cc_result_t result = CC_SUCCESS;
+
+	response = coap_pdu_init(COAP_MESSAGE_ACK, 0, request->tid, 0);
+	if (response == NULL) {
+		cc_log_error("Failed to init pdu");
+		return CC_FAIL;
+	}
+
+	if (coap_pdu_encode_header(response, COAP_PROTO_UDP)) {
+		if (send(fd, response->token - response->hdr_size, response->used_size + response->hdr_size, 0) <= 0) {
+			cc_log_error("Failed to send data");
+			result = CC_FAIL;
+		}
+	} else {
+		cc_log_error("Failed to encode header");
+		result = CC_FAIL;
+	}
+
+	coap_delete_pdu(response);
+
+	return result;
+}
+
+static cc_result_t cc_coap_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
+{
+	cc_result_t result = CC_SUCCESS;
+	cc_coap_state_t *state = (cc_coap_state_t *)obj->state;
+	uint8_t buffer[512] = {0};
+	size_t payload_len = 0;
+	uint8_t *payload = NULL;
+	int n = 0;
+	coap_pdu_t *pdu = NULL;
+	char *w = NULL;
+
+	n = recv(state->fd, buffer, 512, 0);
+	if (n < 0) {
+		cc_log_error("Failed to read data");
+		return CC_FAIL;
+	}
+
+	FD_CLR(state->fd, &obj->capability->calvinsys->node->fds);
+
+	pdu = coap_pdu_init(0, 0, 0, n - 4);
+	if (!pdu) {
+		cc_log_error("Failed to init PDU");
+		return CC_FAIL;
+	}
+
+	if (coap_pdu_parse(COAP_PROTO_UDP, buffer, n, pdu)) {
+		if (COAP_RESPONSE_CLASS(pdu->code) == 2) {
+		} else {
+			cc_log_error("Request failed");
+			result = CC_FAIL;
+		}
+
+		if (pdu->type == COAP_MESSAGE_CON) {
+			if (cc_coap_send_ack(state->fd, pdu) != CC_SUCCESS)
+				cc_log_error("Failed to send ack");
+		}
+
+		if (coap_get_data(pdu, &payload_len, &payload)) {
+			if (cc_platform_mem_alloc((void **)data, cc_coder_sizeof_str(payload_len)) == CC_SUCCESS) {
+				w = *data;
+				w = cc_coder_encode_str(w, (char *)payload, payload_len);
+				if (w == NULL) {
+					cc_log_error("Failed to encode payload");
+					cc_platform_mem_free(*data);
+					result = CC_FAIL;
+				}
+				*size = w - *data;
+			} else {
+				cc_log_error("Failed to allocate memory");
+				result = CC_FAIL;
+			}
+		} else {
+			cc_log_error("Failed to get data");
+			result = CC_FAIL;
+		}
+	} else {
+		cc_log_error("Failed to parse DPU");
+		result = CC_FAIL;
+	}
+
+	coap_delete_pdu(pdu);
+
+	return result;
+}
+
+static bool cc_coap_can_write(struct cc_calvinsys_obj_t *obj)
+{
+	return true;
+}
+
+static cc_result_t cc_coap_write(struct cc_calvinsys_obj_t *obj, char *data, size_t size)
+{
+	return cc_coap_send_pdu(obj, true);
 }
 
 static cc_result_t cc_coap_close(struct cc_calvinsys_obj_t *obj)
 {
-  cc_coap_state_t *state = (cc_coap_state_t *)obj->state;
+	cc_coap_state_t *state = (cc_coap_state_t *)obj->state;
 	cc_calvinsys_t *sys = obj->capability->calvinsys;
 	int i = 0;
 
@@ -170,6 +204,7 @@ static cc_result_t cc_coap_close(struct cc_calvinsys_obj_t *obj)
 		}
 	}
 
+	cc_coap_send_pdu(obj, false);
 	close(state->fd);
 	cc_platform_mem_free(state);
 
@@ -207,7 +242,7 @@ static cc_result_t cc_coap_setup(int *fd, char *ip, char *port)
 					break;
 				}
 			} else
-				cc_log_error("Failed to create socket");
+			cc_log_error("Failed to create socket");
 		}
 	}
 
@@ -239,7 +274,7 @@ static cc_result_t cc_coap_init(cc_coap_init_args_t *init_args, cc_coap_state_t 
 
 	if (coap_split_uri((unsigned char *)init_args->uri, strlen(init_args->uri), &state->uri) < 0) {
 		cc_log_error("Invalid URI '%s'", init_args->uri);
-		return 0;
+		return CC_FAIL;
 	}
 
 	sprintf(port, "%d", state->uri.port);
@@ -250,7 +285,7 @@ static cc_result_t cc_coap_init(cc_coap_init_args_t *init_args, cc_coap_state_t 
 		return CC_FAIL;
 	}
 
-  return CC_SUCCESS;
+	return CC_SUCCESS;
 }
 
 static cc_result_t cc_calvinsys_coap_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
@@ -276,13 +311,13 @@ static cc_result_t cc_calvinsys_coap_open(cc_calvinsys_obj_t *obj, cc_list_t *kw
 		cc_log_error("Failed to allocate memory");
 		return CC_FAIL;
 	}
-  memset(state, 0, sizeof(cc_coap_state_t));
+	memset(state, 0, sizeof(cc_coap_state_t));
 
-  if (cc_coap_init(init_args, state) != CC_SUCCESS) {
-    cc_log_error("Failed to init coap client");
-    cc_platform_mem_free(state);
-    return CC_FAIL;
-  }
+	if (cc_coap_init(init_args, state) != CC_SUCCESS) {
+		cc_log_error("Failed to init coap client");
+		cc_platform_mem_free(state);
+		return CC_FAIL;
+	}
 
 	obj->can_write = cc_coap_can_write;
 	obj->write = cc_coap_write;
@@ -298,7 +333,7 @@ static cc_result_t cc_calvinsys_coap_open(cc_calvinsys_obj_t *obj, cc_list_t *kw
 static int cc_calvinsys_libcoap_jsoneq(const char *json, jsmntok_t *tok, const char *s)
 {
 	if (tok->type == JSMN_STRING && (int) strlen(s) == tok->end - tok->start &&
-			strncmp(json + tok->start, s, tok->end - tok->start) == 0) {
+	strncmp(json + tok->start, s, tok->end - tok->start) == 0) {
 		return 0;
 	}
 
@@ -311,7 +346,7 @@ static int cc_calvinsys_libcoap_get_value(const char *args, jsmntok_t *tokens, i
 
 	while (i < ntokens - pos) {
 		if (cc_calvinsys_libcoap_jsoneq(args, &tokens[pos + i], key) == 0)
-			return pos + i + 1;
+		return pos + i + 1;
 		i++;
 	}
 
