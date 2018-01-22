@@ -27,7 +27,7 @@ typedef struct cc_actor_triggered_temperature_state_t {
 	char temperature[CC_UUID_BUFFER_SIZE];
 } cc_actor_triggered_temperature_state_t;
 
-static cc_result_t cc_actor_triggered_temperature_init(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_triggered_temperature_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_actor_triggered_temperature_state_t *state = NULL;
 	char *obj_ref = NULL;
@@ -37,7 +37,7 @@ static cc_result_t cc_actor_triggered_temperature_init(cc_actor_t **actor, cc_li
 		return CC_FAIL;
 	}
 
-	obj_ref = cc_calvinsys_open(*actor, "io.temperature", NULL);
+	obj_ref = cc_calvinsys_open(actor, "io.temperature", NULL);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'io.temperature'");
 		cc_platform_mem_free(state);
@@ -46,12 +46,12 @@ static cc_result_t cc_actor_triggered_temperature_init(cc_actor_t **actor, cc_li
 	strncpy(state->temperature, obj_ref, strlen(obj_ref));
 	state->temperature[strlen(obj_ref)] = '\0';
 
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_triggered_temperature_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_triggered_temperature_set_state(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_actor_triggered_temperature_state_t *state = NULL;
 	cc_list_t *item = NULL;
@@ -79,7 +79,7 @@ static cc_result_t cc_actor_triggered_temperature_set_state(cc_actor_t **actor, 
 	}
 	strncpy(state->temperature, obj_ref, obj_ref_len);
 	state->temperature[obj_ref_len] = '\0';
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	return CC_SUCCESS;
 }

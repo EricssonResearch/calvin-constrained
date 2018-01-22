@@ -28,7 +28,7 @@ typedef struct cc_state_t {
 	char source[CC_UUID_BUFFER_SIZE];
 } cc_state_t;
 
-static cc_result_t cc_actor_coap_init(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_coap_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_state_t *state = NULL;
 	char *obj_ref = NULL;
@@ -39,25 +39,25 @@ static cc_result_t cc_actor_coap_init(cc_actor_t **actor, cc_list_t *managed_att
 	}
 
 	memset(state, 0, sizeof(cc_state_t));
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
-	obj_ref = cc_calvinsys_open(*actor, (*actor)->requires, NULL);
+	obj_ref = cc_calvinsys_open(actor, actor->requires, NULL);
 	if (obj_ref == NULL) {
-		cc_log_error("Failed to open '%s'", (*actor)->requires);
+		cc_log_error("Failed to open '%s'", actor->requires);
 		return CC_FAIL;
 	}
 	strncpy(state->source, obj_ref, strlen(obj_ref));
 	state->source[strlen(obj_ref)] = '\0';
 
-	if (cc_calvinsys_write((*actor)->calvinsys, state->source, "\xC3", 1) != CC_SUCCESS) {
-		cc_log_error("Failed to init '%s'", (*actor)->requires);
+	if (cc_calvinsys_write(actor->calvinsys, state->source, "\xC3", 1) != CC_SUCCESS) {
+		cc_log_error("Failed to init '%s'", actor->requires);
 		return false;
 	}
 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_coap_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_coap_set_state(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	return cc_actor_coap_init(actor, managed_attributes);
 }

@@ -173,11 +173,11 @@ cc_result_t cc_actor_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_mpy_init(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_mpy_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	uint32_t j = 0, nbr_of_attributes = cc_list_count(managed_attributes);
 	cc_list_t *list = managed_attributes;
-	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)(*actor)->instance_state;
+	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)actor->instance_state;
 	mp_obj_t args[2 + 2 * nbr_of_attributes];
 	mp_obj_t tmp = MP_OBJ_NULL;
 	cc_result_t result = CC_SUCCESS;
@@ -214,10 +214,10 @@ static cc_result_t cc_actor_mpy_init(cc_actor_t **actor, cc_list_t *managed_attr
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_mpy_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_mpy_set_state(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	uint32_t nbr_of_attributes = cc_list_count(managed_attributes);
-	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)(*actor)->instance_state;
+	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)actor->instance_state;
 	uint32_t index = 0;
 	cc_list_t *list = managed_attributes;
 	mp_obj_t value = MP_OBJ_NULL;

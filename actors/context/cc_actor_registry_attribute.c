@@ -26,7 +26,7 @@ typedef struct cc_actor_registry_state_t {
 	char registry[CC_UUID_BUFFER_SIZE];
 } cc_actor_registry_state_t;
 
-static cc_result_t cc_actor_registry_attribute_init(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_registry_attribute_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
   cc_list_t *item = NULL;
   char *obj_ref = NULL;
@@ -38,13 +38,13 @@ static cc_result_t cc_actor_registry_attribute_init(cc_actor_t **actor, cc_list_
     return CC_FAIL;
   }
 
-	obj_ref = cc_calvinsys_open(*actor, "sys.attribute.indexed", NULL);
+	obj_ref = cc_calvinsys_open(actor, "sys.attribute.indexed", NULL);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'sys.attribute.indexed'");
 		return CC_FAIL;
 	}
 
-  if (cc_calvinsys_write((*actor)->calvinsys, obj_ref, (char *)item->data, item->data_len) != CC_SUCCESS) {
+  if (cc_calvinsys_write(actor->calvinsys, obj_ref, (char *)item->data, item->data_len) != CC_SUCCESS) {
     cc_log_error("Failed to set attribute");
     return CC_FAIL;
   }
@@ -55,12 +55,12 @@ static cc_result_t cc_actor_registry_attribute_init(cc_actor_t **actor, cc_list_
   }
   strcpy(state->registry, obj_ref);
 
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_registry_attribute_set_state(cc_actor_t**actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_registry_attribute_set_state(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
   cc_list_t *item = NULL;
   char *obj_ref = NULL;
@@ -86,7 +86,7 @@ static cc_result_t cc_actor_registry_attribute_set_state(cc_actor_t**actor, cc_l
   strncpy(state->registry, obj_ref, obj_ref_len);
   state->registry[obj_ref_len] = '\0';
 
-  (*actor)->instance_state = (void *)state->registry;
+  actor->instance_state = (void *)state->registry;
 
   return CC_SUCCESS;
 }

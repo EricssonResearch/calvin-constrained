@@ -25,7 +25,7 @@ typedef struct cc_actor_identity_state_t {
 	bool dump;
 } cc_actor_identity_state_t;
 
-static cc_result_t cc_actor_identity_init(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_identity_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_actor_identity_state_t *state = NULL;
 	bool dump = false;
@@ -46,12 +46,12 @@ static cc_result_t cc_actor_identity_init(cc_actor_t **actor, cc_list_t *managed
 	}
 
 	state->dump = dump;
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_identity_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_identity_set_state(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	return cc_actor_identity_init(actor, managed_attributes);
 }

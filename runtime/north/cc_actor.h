@@ -45,8 +45,8 @@ typedef struct cc_actor_t{
 	cc_list_t *out_ports;
 	cc_list_t *private_attributes;
 	cc_list_t *managed_attributes;
-	cc_result_t (*init)(struct cc_actor_t **actor, cc_list_t *managed_attributes);
-	cc_result_t (*set_state)(struct cc_actor_t **actor, cc_list_t *managed_attributes);
+	cc_result_t (*init)(struct cc_actor_t *actor, cc_list_t *managed_attributes);
+	cc_result_t (*set_state)(struct cc_actor_t *actor, cc_list_t *managed_attributes);
 	bool (*fire)(struct cc_actor_t *actor);
 	void (*free_state)(struct cc_actor_t *actor);
 	cc_result_t (*get_managed_attributes)(struct cc_actor_t *actor, cc_list_t **attributes);

@@ -30,7 +30,7 @@ typedef struct cc_state_t {
 	size_t period_size;
 } cc_state_t;
 
-static cc_result_t cc_actor_gyroscope_init(cc_actor_t **actor, cc_list_t *attributes)
+static cc_result_t cc_actor_gyroscope_init(cc_actor_t *actor, cc_list_t *attributes)
 {
 	cc_state_t *state = NULL;
 	char *obj_ref = NULL;
@@ -42,7 +42,7 @@ static cc_result_t cc_actor_gyroscope_init(cc_actor_t **actor, cc_list_t *attrib
 		return CC_FAIL;
 	}
 
-	obj_ref = (void *)cc_calvinsys_open(*actor, "io.gyroscope", attributes);
+	obj_ref = (void *)cc_calvinsys_open(actor, "io.gyroscope", attributes);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'io.gyroscope'");
 		return CC_FAIL;
@@ -63,12 +63,12 @@ static cc_result_t cc_actor_gyroscope_init(cc_actor_t **actor, cc_list_t *attrib
 	state->period_size = item->data_len;
 	strncpy(state->level, obj_ref, strlen(obj_ref));
 	state->level[strlen(obj_ref)] = '\0';
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_gyroscope_set_state(cc_actor_t **actor, cc_list_t *attributes)
+static cc_result_t cc_actor_gyroscope_set_state(cc_actor_t *actor, cc_list_t *attributes)
 {
 	cc_state_t *state = NULL;
 	cc_list_t *item = NULL;
@@ -81,7 +81,7 @@ static cc_result_t cc_actor_gyroscope_set_state(cc_actor_t **actor, cc_list_t *a
 	}
 
 	memset(state, 0, sizeof(cc_state_t));
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	item = cc_list_get(attributes, "level");
 	if (item == NULL) {

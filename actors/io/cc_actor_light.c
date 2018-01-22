@@ -23,7 +23,7 @@ typedef struct cc_actor_light_state_t {
 	char light[CC_UUID_BUFFER_SIZE];
 } cc_actor_light_state_t;
 
-static cc_result_t cc_actor_light_init(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_light_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	char *obj_ref = NULL;
 	cc_actor_light_state_t *state = NULL;
@@ -34,9 +34,9 @@ static cc_result_t cc_actor_light_init(cc_actor_t **actor, cc_list_t *managed_at
 	}
 
 	memset(state, 0, sizeof(cc_actor_light_state_t));
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
-	obj_ref = cc_calvinsys_open(*actor, "io.light", NULL);
+	obj_ref = cc_calvinsys_open(actor, "io.light", NULL);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'io.light'");
 		return CC_FAIL;
@@ -48,7 +48,7 @@ static cc_result_t cc_actor_light_init(cc_actor_t **actor, cc_list_t *managed_at
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_light_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_light_set_state(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_list_t *item = NULL;
 	cc_actor_light_state_t *state = NULL;
@@ -67,7 +67,7 @@ static cc_result_t cc_actor_light_set_state(cc_actor_t **actor, cc_list_t *manag
 	}
 
 	memset(state, 0, sizeof(cc_actor_light_state_t));
-	(*actor)->instance_state = state;
+	actor->instance_state = state;
 
 	if (cc_coder_decode_str((char *)item->data, &obj_ref, &obj_ref_len) != CC_SUCCESS) {
 		cc_log_error("Failed to decode 'light'");

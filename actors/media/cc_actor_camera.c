@@ -19,21 +19,21 @@
 #include "runtime/north/cc_actor.h"
 #include "runtime/north/cc_actor_store.h"
 
-static cc_result_t cc_actor_camera_init(cc_actor_t **actor, cc_list_t *attributes)
+static cc_result_t cc_actor_camera_init(cc_actor_t *actor, cc_list_t *attributes)
 {
-	char *obj_ref = cc_calvinsys_open(*actor, "media.camerahandler", NULL);
+	char *obj_ref = cc_calvinsys_open(actor, "media.camerahandler", NULL);
 
 	if (obj_ref == NULL) {
 		cc_log_error("'media.camerahandler' not supported");
 		return CC_FAIL;
 	}
 
-	(*actor)->instance_state = (void *)obj_ref;
+	actor->instance_state = (void *)obj_ref;
 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_camera_set_state(cc_actor_t **actor, cc_list_t *attributes)
+static cc_result_t cc_actor_camera_set_state(cc_actor_t *actor, cc_list_t *attributes)
 {
 	return cc_actor_camera_init(actor, attributes);
 }

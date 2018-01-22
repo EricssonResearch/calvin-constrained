@@ -216,9 +216,9 @@ static void cc_actor_update_pending(cc_node_t *node, char *type, uint32_t type_l
 				result = cc_actor_mpy_init_from_type(actor);
 				if (result == CC_SUCCESS) {
 					if (actor->was_shadow)
-						result = actor->init(&actor, actor->managed_attributes);
+						result = actor->init(actor, actor->managed_attributes);
 					else {
-						result = actor->set_state(&actor, actor->managed_attributes);
+						result = actor->set_state(actor, actor->managed_attributes);
 						if (result == CC_SUCCESS && actor->did_migrate != NULL)
 							actor->did_migrate(actor);
 					}
@@ -633,12 +633,12 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 			}
 
 			if (result == CC_SUCCESS && actor->state != CC_ACTOR_PENDING_IMPL)
-			 	result = actor->init(&actor, actor->managed_attributes);
+			 	result = actor->init(actor, actor->managed_attributes);
 		} else {
 			actor->was_shadow = false;
 
 			if (actor->state != CC_ACTOR_PENDING_IMPL) {
-				result = actor->set_state(&actor, actor->managed_attributes);
+				result = actor->set_state(actor, actor->managed_attributes);
 				if (result == CC_SUCCESS && actor->did_migrate != NULL)
 					actor->did_migrate(actor);
 			}

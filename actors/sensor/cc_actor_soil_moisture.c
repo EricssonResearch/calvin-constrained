@@ -28,7 +28,7 @@ typedef struct cc_actor_soil_moisture_state_t {
 	char timer[CC_UUID_BUFFER_SIZE];
 } cc_actor_soil_moisture_state_t;
 
-static cc_result_t cc_actor_soil_moisture_init(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_soil_moisture_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_actor_soil_moisture_state_t *state = NULL;
 	char *obj_ref = NULL;
@@ -38,7 +38,7 @@ static cc_result_t cc_actor_soil_moisture_init(cc_actor_t **actor, cc_list_t *ma
 		return CC_FAIL;
 	}
 
-	obj_ref = cc_calvinsys_open(*actor, "io.soilmoisture", NULL);
+	obj_ref = cc_calvinsys_open(actor, "io.soilmoisture", NULL);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'io.soilmoisture'");
 		cc_platform_mem_free(state);
@@ -46,7 +46,7 @@ static cc_result_t cc_actor_soil_moisture_init(cc_actor_t **actor, cc_list_t *ma
 	}
 	strncpy(state->soilmoisture, obj_ref, strnlen(obj_ref, CC_UUID_BUFFER_SIZE));
 
-	obj_ref = cc_calvinsys_open(*actor, "sys.timer.once", managed_attributes);
+	obj_ref = cc_calvinsys_open(actor, "sys.timer.once", managed_attributes);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'sys.timer.once'");
 		cc_platform_mem_free((void *)state);
@@ -54,12 +54,12 @@ static cc_result_t cc_actor_soil_moisture_init(cc_actor_t **actor, cc_list_t *ma
 	}
 	strncpy(state->timer, obj_ref, strnlen(obj_ref, CC_UUID_BUFFER_SIZE));
 
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_soil_moisture_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_soil_moisture_set_state(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_actor_soil_moisture_state_t *state = NULL;
 	cc_list_t *item = NULL;
@@ -98,7 +98,7 @@ static cc_result_t cc_actor_soil_moisture_set_state(cc_actor_t **actor, cc_list_
 	}
 	strncpy(state->timer, obj_ref, strnlen(obj_ref, CC_UUID_BUFFER_SIZE));
 
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	return CC_SUCCESS;
 }

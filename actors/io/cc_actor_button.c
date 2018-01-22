@@ -28,7 +28,7 @@ typedef struct cc_actor_button_state_t {
 	uint32_t text_len;
 } cc_actor_button_state_t;
 
-static cc_result_t cc_actor_button_init(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_button_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	char *obj_ref = NULL;
 	cc_actor_button_state_t *state = NULL;
@@ -40,9 +40,9 @@ static cc_result_t cc_actor_button_init(cc_actor_t **actor, cc_list_t *managed_a
 	}
 
 	memset(state, 0, sizeof(cc_actor_button_state_t));
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
-	obj_ref = cc_calvinsys_open(*actor, "io.button", NULL);
+	obj_ref = cc_calvinsys_open(actor, "io.button", NULL);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'io.button'");
 		return CC_FAIL;
@@ -63,7 +63,7 @@ static cc_result_t cc_actor_button_init(cc_actor_t **actor, cc_list_t *managed_a
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_button_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_button_set_state(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_list_t *item = NULL;
 	cc_actor_button_state_t *state = NULL;
@@ -76,7 +76,7 @@ static cc_result_t cc_actor_button_set_state(cc_actor_t **actor, cc_list_t *mana
 	}
 
 	memset(state, 0, sizeof(cc_actor_button_state_t));
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	item = cc_list_get(managed_attributes, "button");
 	if (item == NULL) {

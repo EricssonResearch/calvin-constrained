@@ -30,7 +30,7 @@ typedef struct cc_actor_temperature_state_t {
 	char timer[CC_UUID_BUFFER_SIZE];
 } cc_actor_temperature_state_t;
 
-static cc_result_t cc_actor_temperature_tagged_init(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_temperature_tagged_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_actor_temperature_state_t *state = NULL;
 	char *obj_ref = NULL;
@@ -41,7 +41,7 @@ static cc_result_t cc_actor_temperature_tagged_init(cc_actor_t **actor, cc_list_
 	}
 
 	// No state, create from attributes
-	obj_ref = cc_calvinsys_open(*actor, "io.temperature", NULL);
+	obj_ref = cc_calvinsys_open(actor, "io.temperature", NULL);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'io.temperature'");
 		cc_platform_mem_free(state);
@@ -50,7 +50,7 @@ static cc_result_t cc_actor_temperature_tagged_init(cc_actor_t **actor, cc_list_
 	strncpy(state->temperature, obj_ref, strlen(obj_ref));
 	state->temperature[strlen(obj_ref)] = '\0';
 
-	obj_ref = cc_calvinsys_open(*actor, "sys.timer.once", managed_attributes);
+	obj_ref = cc_calvinsys_open(actor, "sys.timer.once", managed_attributes);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'sys.timer.once'");
 		cc_platform_mem_free((void *)state);
@@ -59,12 +59,12 @@ static cc_result_t cc_actor_temperature_tagged_init(cc_actor_t **actor, cc_list_
 	strncpy(state->timer, obj_ref, strlen(obj_ref));
 	state->timer[strlen(obj_ref)] = '\0';
 
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_temperature_tagged_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_temperature_tagged_set_state(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_actor_temperature_state_t *state = NULL;
 	cc_list_t *item = NULL;
@@ -91,7 +91,7 @@ static cc_result_t cc_actor_temperature_tagged_set_state(cc_actor_t **actor, cc_
 		return CC_FAIL;
 	}
 
-	if (cc_list_get_n((*actor)->calvinsys->objects, obj_ref, obj_ref_len) == NULL) {
+	if (cc_list_get_n(actor->calvinsys->objects, obj_ref, obj_ref_len) == NULL) {
 		cc_log_error("Failed to get 'temperature' object");
 		cc_platform_mem_free(state);
 		return CC_FAIL;
@@ -111,7 +111,7 @@ static cc_result_t cc_actor_temperature_tagged_set_state(cc_actor_t **actor, cc_
 		return CC_FAIL;
 	}
 
-	if (cc_list_get_n((*actor)->calvinsys->objects, obj_ref, obj_ref_len) == NULL) {
+	if (cc_list_get_n(actor->calvinsys->objects, obj_ref, obj_ref_len) == NULL) {
 		cc_log_error("Failed to get 'timer' object");
 		cc_platform_mem_free(state);
 		return CC_FAIL;
@@ -120,7 +120,7 @@ static cc_result_t cc_actor_temperature_tagged_set_state(cc_actor_t **actor, cc_
 	strncpy(state->timer, obj_ref, obj_ref_len);
 	state->timer[obj_ref_len] = '\0';
 
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	return CC_SUCCESS;
 }

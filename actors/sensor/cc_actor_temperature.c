@@ -31,7 +31,7 @@ typedef struct cc_actor_temperature_state_t {
 	size_t period_size;
 } cc_actor_temperature_state_t;
 
-static cc_result_t cc_actor_temperature_init(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_temperature_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_actor_temperature_state_t *state = NULL;
 	char *obj_ref = NULL;
@@ -43,7 +43,7 @@ static cc_result_t cc_actor_temperature_init(cc_actor_t **actor, cc_list_t *mana
 	}
 
 	memset(state, 0, sizeof(cc_actor_temperature_state_t));
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	item = cc_list_get(managed_attributes, "period");
 	if (item == NULL) {
@@ -59,7 +59,7 @@ static cc_result_t cc_actor_temperature_init(cc_actor_t **actor, cc_list_t *mana
 	memcpy(state->period, item->data, item->data_len);
 	state->period_size = item->data_len;
 
-	obj_ref = cc_calvinsys_open(*actor, "io.temperature", NULL);
+	obj_ref = cc_calvinsys_open(actor, "io.temperature", NULL);
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'io.temperature'");
 		return CC_FAIL;
@@ -72,7 +72,7 @@ static cc_result_t cc_actor_temperature_init(cc_actor_t **actor, cc_list_t *mana
 		return CC_FAIL;
 	}
 
-	obj_ref = cc_calvinsys_open(*actor, "sys.timer.once", attributes);
+	obj_ref = cc_calvinsys_open(actor, "sys.timer.once", attributes);
 	cc_list_remove(&attributes, "period");
 	if (obj_ref == NULL) {
 		cc_log_error("Failed to open 'sys.timer.once'");
@@ -84,7 +84,7 @@ static cc_result_t cc_actor_temperature_init(cc_actor_t **actor, cc_list_t *mana
 	return CC_SUCCESS;
 }
 
-static cc_result_t cc_actor_temperature_set_state(cc_actor_t **actor, cc_list_t *managed_attributes)
+static cc_result_t cc_actor_temperature_set_state(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_actor_temperature_state_t *state = NULL;
 	cc_list_t *item = NULL;
@@ -97,7 +97,7 @@ static cc_result_t cc_actor_temperature_set_state(cc_actor_t **actor, cc_list_t 
 	}
 
 	memset(state, 0, sizeof(cc_actor_temperature_state_t));
-	(*actor)->instance_state = (void *)state;
+	actor->instance_state = (void *)state;
 
 	item = cc_list_get(managed_attributes, "temperature");
 	if (item == NULL) {
