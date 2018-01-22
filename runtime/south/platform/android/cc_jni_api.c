@@ -23,6 +23,7 @@
 #include "runtime/south/platform/cc_platform.h"
 #include "cc_api.h"
 #include "runtime/north/cc_transport.h"
+#include "cc_config.h"
 
 jlong get_jlong_from_pointer(void *ptr)
 {
@@ -51,13 +52,12 @@ JNIEXPORT jlong JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runt
 
 JNIEXPORT jbyteArray JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_readUpstreamData(JNIEnv *env, jobject this, jlong jnode)
 {
-	char buffer[CC_TRANSPORT_RX_BUFFER_SIZE];
+	char buffer[CC_TRANSPORT_RX_BUFFER_SIZE] = {0};
 	jbyteArray data = NULL;
 	cc_node_t *node = (cc_node_t *)get_ptr_from_jlong(jnode);
-	android_platform_t *platform = (android_platform_t *)node->platform;
+	cc_platform_android_t *platform = (cc_platform_android_t *)node->platform;
 	size_t size;
 
-	memset(&buffer, 0, CC_TRANSPORT_RX_BUFFER_SIZE);
 	if (platform->read_upstream(node, buffer, CC_TRANSPORT_RX_BUFFER_SIZE) == CC_SUCCESS) {
 		size = cc_transport_get_message_len(buffer);
 		data = (*env)->NewByteArray(env, size + 7);
@@ -83,7 +83,7 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runti
 	int len = (*env)->GetArrayLength(env, data);
 	char payload_data[CC_TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE + len];
 	cc_node_t *node = (cc_node_t *)get_ptr_from_jlong(jnode);
-	android_platform_t *platform = (android_platform_t *)node->platform;
+	cc_platform_android_t *platform = (cc_platform_android_t *)node->platform;
 
 	cc_transport_set_length_prefix(payload_data, PLATFORM_ANDROID_COMMAND_SIZE + len);
 	memcpy(payload_data + CC_TRANSPORT_LEN_PREFIX_SIZE, PLATFORM_ANDROID_RUNTIME_CALVIN_MSG, PLATFORM_ANDROID_COMMAND_SIZE);
@@ -99,13 +99,13 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_fcmTr
 
 	cc_transport_set_length_prefix(payload_data, PLATFORM_ANDROID_COMMAND_SIZE);
 	memcpy(payload_data + CC_TRANSPORT_LEN_PREFIX_SIZE, PLATFORM_ANDROID_CONNECT_REPLY, PLATFORM_ANDROID_COMMAND_SIZE);
-	((android_platform_t *)node->platform)->send_downstream_platform_message(node, payload_data, CC_TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE);
+	((cc_platform_android_t *)node->platform)->send_downstream_platform_message(node, payload_data, CC_TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE);
 }
 
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_runtimeSerializeAndStop(JNIEnv *env, jobject this, jlong node_p)
 {
 	cc_node_t *node = (cc_node_t *)get_ptr_from_jlong(node_p);
-	android_platform_t *platform = (android_platform_t *)node->platform;
+	cc_platform_android_t *platform = (cc_platform_android_t *)node->platform;
 	char payload_data[CC_TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE];
 
 	cc_transport_set_length_prefix(payload_data, PLATFORM_ANDROID_COMMAND_SIZE);
@@ -131,17 +131,15 @@ JNIEXPORT jint JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_getNo
 	}
 }
 
-JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_clearSerialization(JNIEnv *env, jobject this, jstring j_filedir)
+JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_clearSerialization(JNIEnv *env, jobject this)
 {
-	char *filedir = (char *)(*env)->GetStringUTFChars(env, j_filedir, 0);
-
-	cc_api_clear_serialization_file(filedir);
+    cc_platform_file_del(CC_STATE_FILE);
 }
 
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_triggerConnectivityChange(JNIEnv *env, jobject this, jlong node_p)
 {
 	cc_node_t *node = (cc_node_t *)get_ptr_from_jlong(node_p);
-	android_platform_t *platform = (android_platform_t *)node->platform;
+	cc_platform_android_t *platform = (cc_platform_android_t *)node->platform;
 	char payload_data[CC_TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE];
 
 	cc_transport_set_length_prefix(payload_data, PLATFORM_ANDROID_COMMAND_SIZE);
@@ -152,7 +150,7 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_trigg
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_registerExternalCalvinsys(JNIEnv *env, jobject this, jlong node_p, jstring j_name)
 {
 	cc_node_t *node = (cc_node_t *)get_ptr_from_jlong(node_p);
-	android_platform_t *platform = (android_platform_t *)node->platform;
+	cc_platform_android_t *platform = (cc_platform_android_t *)node->platform;
 	char *name = (char *)(*env)->GetStringUTFChars(env, j_name, 0);
 	int len = strlen(name);
 	char payload_data[CC_TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE + len];
@@ -166,7 +164,7 @@ JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_regis
 JNIEXPORT void JNICALL Java_ericsson_com_calvin_calvin_1constrained_Calvin_writeCalvinsysPayload(JNIEnv *env, jobject this, jbyteArray data, jlong jnode)
 {
 	cc_node_t *node = (cc_node_t *)get_ptr_from_jlong(jnode);
-	android_platform_t *platform = (android_platform_t *)node->platform;
+	cc_platform_android_t *platform = (cc_platform_android_t *)node->platform;
 	int len = (*env)->GetArrayLength(env, data);
 	char payload_data[CC_TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE + len];
 

@@ -17,7 +17,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <android/sensor.h>
-#include "cc_gyroscope.h"
 #include "runtime/south/platform/cc_platform.h"
 #include "runtime/south/platform/android/cc_platform_android.h"
 #include "calvinsys/cc_calvinsys.h"
@@ -26,13 +25,14 @@
 
 static bool gyroscope_can_read(struct cc_calvinsys_obj_t *obj)
 {
-	android_sensor_data_t *data_acc = (android_sensor_data_t *)obj->state;
+	cc_android_sensor_data_t *data_acc = (cc_android_sensor_data_t *)obj->state;
+
 	return data_acc->data != NULL && data_acc->data_size > 0;
 }
 
 static cc_result_t gyroscope_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
-	android_sensor_data_t *data_acc = (android_sensor_data_t *)obj->state;
+	cc_android_sensor_data_t *data_acc = (cc_android_sensor_data_t *)obj->state;
 
 	if (data_acc->data != NULL && data_acc->data_size > 0) {
 		*data = data_acc->data;
@@ -41,15 +41,15 @@ static cc_result_t gyroscope_read(struct cc_calvinsys_obj_t *obj, char **data, s
 		data_acc->data_size = 0;
 		return CC_SUCCESS;
 	}
+
 	return CC_FAIL;
 }
 
 static cc_result_t gyroscope_close(cc_calvinsys_obj_t *obj)
 {
-	android_sensor_data_t *data_acc = (android_sensor_data_t *)obj->state;
+	cc_android_sensor_data_t *data_acc = (cc_android_sensor_data_t *)obj->state;
 
 	ASensorEventQueue_disableSensor(data_acc->queue, data_acc->sensor);
-
 	if (data_acc->data != NULL)
 		cc_platform_mem_free((void *)data_acc->data);
 	cc_platform_mem_free((void *)data_acc);
@@ -60,7 +60,7 @@ static cc_result_t gyroscope_close(cc_calvinsys_obj_t *obj)
 static int gyroscope_looper_callback(int fd, int events, void *data)
 {
 	cc_calvinsys_obj_t *obj = (cc_calvinsys_obj_t *)data;
-	android_sensor_data_t *data_acc = (android_sensor_data_t *)obj->state;
+	cc_android_sensor_data_t *data_acc = (cc_android_sensor_data_t *)obj->state;
 	size_t size = 0;
 	char *w = NULL;
 
@@ -95,64 +95,61 @@ static int gyroscope_looper_callback(int fd, int events, void *data)
 	return CC_ANDROID_LOOPER_CALLBACK_RESULT_UNREGISTER;
 }
 
-static cc_calvinsys_obj_t *gyroscope_open(cc_calvinsys_handler_t *handler, char *data, size_t len, void *state, uint32_t id, const char* capability_name)
+static char *cc_gyroscope_serialize(char *id, cc_calvinsys_obj_t *obj, char *buffer)
 {
-	cc_calvinsys_obj_t *obj = NULL;
+	cc_android_sensor_data_t *data_acc = (cc_android_sensor_data_t *)obj->state;
 
-	android_sensor_data_t *data_acc = NULL;
-	android_platform_t* platform = (android_platform_t*) handler->calvinsys->node->platform;
-
-	ASensorManager *mg= ASensorManager_getInstance();
-	if (cc_platform_mem_alloc((void **)&obj, sizeof(cc_calvinsys_obj_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return NULL;
+	buffer = cc_coder_encode_kv_map(buffer, "obj", 1);
+	{
+		buffer = cc_coder_encode_kv_uint(buffer, "period", data_acc->period);
 	}
 
-	if (cc_platform_mem_alloc((void **)&data_acc, sizeof(android_sensor_data_t))) {
-		cc_log_error("Failed to allocate memory");
-		cc_platform_mem_free((void *)obj);
-		return NULL;
+	return buffer;
+}
+
+cc_result_t cc_gyroscope_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
+{
+	cc_android_sensor_data_t *data_acc = NULL;
+	cc_platform_android_t *platform = (cc_platform_android_t *)obj->capability->calvinsys->node->platform;
+	ASensorManager *mg = NULL;
+	cc_list_t *item = NULL;
+	uint32_t period = 0;
+
+	item = cc_list_get(kwargs, "period");
+	if (item == NULL) {
+		cc_log_error("Failed to get 'period'");
+		return CC_FAIL;
 	}
 
+	if (cc_coder_decode_uint(item->data, &period) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'period'");
+		return CC_FAIL;
+	}
+
+	if (cc_platform_mem_alloc((void **)&data_acc, sizeof(cc_android_sensor_data_t))) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+
+	mg = ASensorManager_getInstance();
 	data_acc->data = NULL;
 	data_acc->queue = ASensorManager_createEventQueue(mg, platform->looper, ALOOPER_POLL_CALLBACK, &gyroscope_looper_callback, obj);
 	data_acc->sensor = (ASensor *) ASensorManager_getDefaultSensor(mg, ASENSOR_TYPE_GYROSCOPE);
 	if (data_acc->sensor == NULL) {
 		cc_log_error("Failed to get sensor");
-		cc_platform_mem_free((void *)obj);
 		cc_platform_mem_free((void *)data_acc);
-		return NULL;
+		return CC_FAIL;
 	}
+	data_acc->period = period;
 
-	obj->write = NULL;
 	obj->can_read = gyroscope_can_read;
 	obj->read = gyroscope_read;
 	obj->close = gyroscope_close;
-	obj->handler = handler;
 	obj->state = (void *)data_acc;
+	obj->serialize = cc_gyroscope_serialize;
 
-	ASensorEventQueue_setEventRate(data_acc->queue, data_acc->sensor, 1L);
+	ASensorEventQueue_setEventRate(data_acc->queue, data_acc->sensor, (int32_t)period);
 	ASensorEventQueue_enableSensor(data_acc->queue, data_acc->sensor);
-
-	return obj;
-}
-
-cc_result_t calvinsys_gyroscope_create(cc_calvinsys_t **calvinsys, const char *name)
-{
-	cc_calvinsys_handler_t *handler = NULL;
-
-	if (cc_platform_mem_alloc((void **)&handler, sizeof(cc_calvinsys_handler_t)) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
-	}
-
-	handler->open = gyroscope_open;
-	handler->objects = NULL;
-	handler->next = NULL;
-
-	cc_calvinsys_add_handler(calvinsys, handler);
-	if (cc_calvinsys_register_capability(*calvinsys, name, handler, NULL) != CC_SUCCESS)
-		return CC_FAIL;
 
 	return CC_SUCCESS;
 }

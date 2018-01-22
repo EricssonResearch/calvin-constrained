@@ -1,42 +1,23 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 25
-    buildToolsVersion "25.0.2"
+    compileSdkVersion 26
     defaultConfig {
         applicationId "ericsson.com.calvin.calvin_constrained"
-        minSdkVersion 21
-        targetSdkVersion 25
+        minSdkVersion 23
+        targetSdkVersion 26
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
                 arguments "-DANDROID_TOOLCHAIN=gcc"
+                cFlags "-g"
                 cFlags "-I"+ projectDir + "/../../../../"
                 cFlags "-Werror"
-                cFlags "-g"
-                cFlags "-DCC_INACTIVITY_TIMEOUT=60"
-                cFlags "-DCC_SLEEP_TIME=10"
-                cFlags "-DCC_STORAGE_ENABLED"
-                cFlags "-DCC_RUNTIME_STATE_BUFFER_SIZE=10000"
-                cFlags "-DCC_TRANSPORT_SOCKET"
-                cFlags "-DCC_TRANSPORT_SOCKET_SSDP_ENABLED"
-                cFlags "-DCC_TRANSPORT_FCM"
-                cFlags "-DCC_GETOPT_ENABLED"
-                cFlags "-DCC_PLATFORM_ANDROID"
-                cFlags "-DCC_DEBUG"
-                cFlags "-DCC_ACTOR_IDENTITY"
-                cFlags "-DCC_ACTOR_ACCELEROMETER"
-                cFlags "-DCC_ACTOR_GYROSCOPE"
-                cFlags "-DCC_ACTOR_PRESSURE"
-                cFlags "-DCC_ACTOR_PICKUPGESTURE"
-                cFlags "-DCC_ACTOR_STEPCOUNTER"
-                cFlags "-DCC_ACTOR_BUTTON"
-                cFlags "-DCC_ACTOR_CAMERA"
-                cFlags "-DCC_ACTOR_REGISTRY_ATTIBUTE"
                 cFlags "-Wno-deprecated-declarations"
                 cFlags "--std=gnu99"
+                cFlags "-DCC_CONFIGFILE_H=\"<runtime/south/platform/android/cc_config_android.h>\""
             }
         }
     }
@@ -51,34 +32,6 @@ android {
             }
         }
     }
-    productFlavors {
-        arm {
-            ndk {
-                abiFilter "armeabi"
-            }
-            externalNativeBuild {
-                cmake {
-                    //cFlags "-L/home/alexander/repos/calvin/calvin-constrained/platform/android/build/arm"
-                    cFlags "-L" + projectDir + "/../../../../platform/android/build/arm"
-                }
-            }
-        }
-        /*x86 {
-            ndk {
-                abiFilter "x86"
-                ldLibs "--no-warn-shared-textrel" // TODO: This flag is not added, a warning causes x86 builds to fail
-            }
-            externalNativeBuild {
-                cmake {
-                    cFlags "-L/home/alexander/repos/calvin/calvin-constrained/platform/android/build/x86"
-                }
-            }
-        }*/
-    }
-}
-
-repositories {
-    mavenCentral()
 }
 
 dependencies {
@@ -86,10 +39,11 @@ dependencies {
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    compile 'com.android.support:appcompat-v7:25.3.1'
+    compile 'com.android.support:appcompat-v7:26.+'
+    compile 'com.android.support.constraint:constraint-layout:1.0.2'
     compile 'com.google.firebase:firebase-messaging:10.0.1'
     compile 'org.msgpack:msgpack-core:0.8.12'
     compile 'com.google.code.gson:gson:2.2.4'
-    testCompile 'junit:junit:4.12'
 }
+
 apply plugin: 'com.google.gms.google-services'

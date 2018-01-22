@@ -260,6 +260,12 @@ cc_result_t cc_platform_file_read(const char *path, char **buffer, size_t *size)
 	return CC_SUCCESS;
 }
 
+cc_result_t cc_platform_file_del(const char *path)
+{
+	// TODO: Implement
+	return CC_SUCCESS;
+}
+
 #if CC_USE_SLEEP
 void cc_platform_deepsleep(uint32_t time)
 {

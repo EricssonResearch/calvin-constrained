@@ -160,6 +160,14 @@ cc_result_t cc_platform_file_read(const char *path, char **buffer, size_t *len);
  * Return: CC_SUCCESS if success or CC_FAIL on failure
  */
 cc_result_t cc_platform_file_write(const char *path, char *buffer, size_t size);
+
+/**
+ * cc_platform_file_del() - Delete file pointed by path
+ * @path the path
+ *
+ * Return: CC_SUCCESS if success or CC_FAIL on failure
+ */
+cc_result_t cc_platform_file_del(const char *path);
 #endif
 
 #ifdef MBEDTLS_NO_PLATFORM_ENTROPY

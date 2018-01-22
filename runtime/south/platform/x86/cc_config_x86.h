@@ -40,9 +40,9 @@ cc_result_t cc_actor_registry_attribute_setup(struct cc_actor_type_t *type);
 struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node, char *uri);
 
 #define CC_CAPABILITIES \
-	{ "io.temperature", cc_test_temperature_open, NULL, NULL, NULL, false }, \
-	{ "io.light", cc_test_gpio_open, NULL, NULL, "\x82\xa9" "direction" "\xa3" "out" "\xa3" "pin" "\x00", false }, \
-	{ "io.button", cc_test_gpio_open, NULL, NULL, "\x82\xa9" "direction" "\xa2" "in" "\xa3" "pin" "\x01", false }
+	{ "io.temperature", cc_test_temperature_open, cc_test_temperature_open, NULL, NULL, false }, \
+	{ "io.light", cc_test_gpio_open, cc_test_gpio_open, NULL, "\x82\xa9" "direction" "\xa3" "out" "\xa3" "pin" "\x00", false }, \
+	{ "io.button", cc_test_gpio_open, cc_test_gpio_open, NULL, "\x82\xa9" "direction" "\xa2" "in" "\xa3" "pin" "\x01", false }
 
 #define CC_C_ACTORS \
 	{ "std.Identity", cc_actor_identity_setup }, \

@@ -356,8 +356,8 @@ cc_result_t cc_calvinsys_deserialize(struct cc_actor_t *actor, char *buffer)
 
 		capability = (cc_calvinsys_capability_t *)item->data;
 
-		if (capability->open == NULL && capability->deserialize) {
-			cc_log_error("Capability does not have a open or deserialize method");
+		if (capability->deserialize == NULL) {
+			cc_log_error("Capability '%s' has no deserialize method", capability->name);
 			return CC_FAIL;
 		}
 
@@ -406,20 +406,11 @@ cc_result_t cc_calvinsys_deserialize(struct cc_actor_t *actor, char *buffer)
 		}
 
 		if (result == CC_SUCCESS) {
-			if (capability->deserialize != NULL) {
-				if (capability->deserialize(obj, kwargs) == CC_SUCCESS)
-					cc_log("calvinsys: Deserialized '%s', capability '%s'", item->id, capability->name);
-				else {
-					cc_log_error("Failed to deserialize '%s'", capability->name);
-					result = CC_FAIL;
-				}
-			}	else {
-				if (capability->open(obj, kwargs) == CC_SUCCESS)
-					cc_log("calvinsys: Opened '%s', capability '%s' from previous state", item->id, capability->name);
-				else {
-					cc_log_error("Failed to open '%s'", name);
-					result = CC_FAIL;
-				}
+			if (capability->deserialize(obj, kwargs) == CC_SUCCESS)
+				cc_log("calvinsys: Deserialized '%s', capability '%s'", item->id, capability->name);
+			else {
+				cc_log_error("Failed to deserialize '%s'", capability->name);
+				result = CC_FAIL;
 			}
 		}
 

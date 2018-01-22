@@ -33,7 +33,7 @@ static cc_result_t transport_fcm_connect(cc_node_t *node, cc_transport_client_t 
 {
 	char buffer[CC_TRANSPORT_LEN_PREFIX_SIZE + PLATFORM_ANDROID_COMMAND_SIZE];
 
-	if (((android_platform_t *)node->platform)->send_upstream_platform_message(
+	if (((cc_platform_android_t *)node->platform)->send_upstream_platform_message(
 			node,
 			PLATFORM_ANDROID_FCM_CONNECT,
 			buffer,
@@ -54,7 +54,7 @@ static int transport_fcm_send(cc_transport_client_t *transport_client, char *dat
 
 	cc_log("transport_fcm_send");
 
-	return ((android_platform_t *)fcm_client->node->platform)->send_upstream_platform_message(
+	return ((cc_platform_android_t *)fcm_client->node->platform)->send_upstream_platform_message(
 			fcm_client->node,
 		PLATFORM_ANDROID_RUNTIME_CALVIN_MSG,
 		data,
@@ -66,7 +66,7 @@ static int transport_fcm_recv(cc_transport_client_t *transport_client, char *buf
 	transport_fcm_client_t *fcm_client = (transport_fcm_client_t *)transport_client->client_state;
 
 	cc_log("transport_fcm_recv");
-	return read(((android_platform_t *)fcm_client->node->platform)->downstream_platform_fd[0], buffer, size);
+	return read(((cc_platform_android_t *)fcm_client->node->platform)->downstream_platform_fd[0], buffer, size);
 }
 
 static void transport_fcm_disconnect(cc_node_t *node, cc_transport_client_t *transport_client)
@@ -88,7 +88,7 @@ static void transport_fcm_free(cc_transport_client_t *transport_client)
 	cc_platform_mem_free((void *)transport_client);
 }
 
-cc_transport_client_t *transport_fcm_create(struct cc_node_t *node, char *uri)
+cc_transport_client_t *cc_transport_fcm_create(struct cc_node_t *node, char *uri)
 {
 	cc_transport_client_t *transport_client = NULL;
 	transport_fcm_client_t *fcm_client = NULL;

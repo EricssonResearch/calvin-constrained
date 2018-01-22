@@ -22,7 +22,7 @@
     <EditTextPreference
         android:key="rt_uris"
         android:title="Proxy runtime URIs"
-        android:defaultValue="calvinip://" />
+        android:defaultValue="calvinip://10.0.2.2:5000 ssdp" />
     <CheckBoxPreference
         android:key="autostart"
         android:title="Autostart"
@@ -32,6 +32,6 @@
         android:key="clean_serialization"
         android:title="Clean start"
         android:summary="Remove any serialization of the runtime before starting."
-        android:defaultValue="true" />
+        android:defaultValue="false" />
     </PreferenceCategory>
 </PreferenceScreen>

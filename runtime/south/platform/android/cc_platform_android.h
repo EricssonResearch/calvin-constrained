@@ -37,28 +37,29 @@
 #define CC_ANDROID_LOOPER_CALLBACK_RESULT_CONTINUE	1
 #define CC_ANDROID_LOOPER_CALLBACK_RESULT_UNREGISTER	0
 
-typedef struct android_platform_t {
+typedef struct cc_platform_android_t {
 	int upstream_platform_fd[2]; // read end [0], write end [1]
 	int downstream_platform_fd[2];
 	ALooper *looper;
 	int (*send_upstream_platform_message)(const struct cc_node_t *node, char *cmd, char *data, size_t data_size);
 	cc_result_t (*send_downstream_platform_message)(const struct cc_node_t *node, char *data, size_t data_size);
 	cc_result_t (*read_upstream)(const struct cc_node_t *node, char *buffer, size_t size);
-} android_platform_t;
+} cc_platform_android_t;
 
-struct platform_command_handler_t {
+struct cc_platform_android_command_handler_t {
 	char command[PLATFORM_ANDROID_COMMAND_SIZE];
 	cc_result_t (*handler)(struct cc_node_t *node, char *data, size_t size);
 };
 
-typedef struct android_sensor_data_t {
+typedef struct cc_android_sensor_data_t {
 	ASensorEventQueue *queue;
 	ASensor *sensor;
 	ASensorEvent *event;
 	char *data;
 	size_t data_size;
-} android_sensor_data_t;
+	int32_t period;
+} cc_android_sensor_data_t;
 
-ASensor *get_sensor_by_name(const char *name);
+ASensor *cc_get_sensor_by_name(const char *name);
 
 #endif

@@ -349,6 +349,14 @@ cc_result_t cc_platform_file_write(const char *path, char *buffer, size_t size)
 
 	return CC_SUCCESS;
 }
+
+cc_result_t cc_platform_file_del(const char *path)
+{
+	if (unlink(path) < 0)
+		return CC_FAIL;
+
+	return CC_SUCCESS;
+}
 #endif
 
 int calvin_task(int argc, char *argv[])

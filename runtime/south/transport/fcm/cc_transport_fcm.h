@@ -24,6 +24,6 @@ typedef struct transport_fcm_client_t {
 	struct cc_node_t *node;
 } transport_fcm_client_t;
 
-cc_transport_client_t *transport_fcm_create(struct cc_node_t *node, char *uri);
+cc_transport_client_t *cc_transport_fcm_create(struct cc_node_t *node, char *uri);
 
 #endif /* TRANSPORT_FCM_H */
