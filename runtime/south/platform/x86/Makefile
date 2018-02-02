@@ -8,7 +8,11 @@ CC_CFLAGS += -Os -fdata-sections -ffunction-sections
 #CC_CFLAGS += -g -fsanitize=address -O1 -fno-omit-frame-pointer
 CC_CFLAGS += -I.
 CC_CFLAGS += -DCC_USE_FDS=1
-CC_LDFLAGS += -Wl,--gc-sections
+ifeq ($(PLATFORM), Darwin)
+CC_LDFLAGS += -Wl,-dead_strip
+else
+CC_LDFLAGS += -Wl,--gc-sections 
+endif
 
 # platform sources
 CC_SRC_C = main.c runtime/south/platform/x86/cc_platform_x86.c runtime/south/transport/socket/cc_transport_socket.c
@@ -22,8 +26,9 @@ ifeq ($(LIBCOAP),1)
 CC_SRC_C += runtime/south/platform/x86/calvinsys/cc_libcoap_client.c
 CC_SRC_C += jsmn/jsmn.c
 CC_CFLAGS += -DCC_USE_LIBCOAP_CLIENT=1
-CC_CFLAGS += -I/usr/local/include/coap
-CC_LDFLAGS += -lcoap-1
+CC_CFLAGS += $(shell pkg-config --cflags-only-I libcoap-1)
+CC_LDFLAGS += $(shell pkg-config --libs-only-L libcoap-1)
+CC_LIBS += $(shell pkg-config --libs-only-l libcoap-1)
 endif
 
 # calvin sources and parameters
@@ -31,7 +36,7 @@ include calvin.mk
 
 calvin: rename_symbol mpy-cross $(CC_SRC_C)
 	@echo "Building calvin"
-	$(CC) $(CC_SRC_C) -o $(PROJECT_NAME) $(CC_CFLAGS) $(CC_LIBS) $(CC_LDFLAGS)
+	$(CC) $(CC_SRC_C) -o $(PROJECT_NAME) $(CC_CFLAGS) $(CC_LDFLAGS) $(CC_LIBS) 
 
 rename_symbol:
 	@echo "Renaming mp_decode_uint in msgpuck/msgpuck.h"
