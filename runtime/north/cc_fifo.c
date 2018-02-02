@@ -19,13 +19,13 @@
 #include "coder/cc_coder.h"
 #include "runtime/south/platform/cc_platform.h"
 
-cc_fifo_t *cc_fifo_init(char *obj_fifo)
+cc_fifo_t *cc_fifo_init(char *obj_fifo, char* obj_properties)
 {
 	cc_result_t result = CC_SUCCESS;
 	cc_fifo_t *fifo = NULL;
 	char *reader = NULL, *tmp_reader = NULL, *obj_read_pos = NULL, *obj_tokens = NULL, *obj_readers = NULL;
 	char *obj_token = NULL, *obj_tentative_read_pos = NULL, *obj_data = NULL, *queuetype = NULL, *r = obj_fifo;
-	char *data = NULL;
+	char *data = NULL, *p = obj_properties;
 	uint32_t i_token = 0, queuetype_len = 0, reader_len = 0, nbr_of_tokens = 0, size = 0;
 
 	if (cc_platform_mem_alloc((void **)&fifo, sizeof(cc_fifo_t)) != CC_SUCCESS) {
@@ -38,16 +38,19 @@ cc_fifo_t *cc_fifo_init(char *obj_fifo)
 	fifo->read_pos = 0;
 	fifo->tentative_read_pos = 0;
 
-	if (cc_coder_decode_string_from_map(r, "queuetype", &queuetype, &queuetype_len) != CC_SUCCESS)
+	if (obj_fifo != NULL && cc_coder_decode_string_from_map(r, "queuetype", &queuetype, &queuetype_len) != CC_SUCCESS)
 		return NULL;
 
-	if (strncmp("fanout_fifo", queuetype, queuetype_len) != 0) {
+	if (obj_fifo != NULL && strncmp("fanout_fifo", queuetype, queuetype_len) != 0) {
 		cc_log_error("Queue type not supported");
 		return NULL;
 	}
 
-	if (cc_coder_decode_uint_from_map(r, "N", &fifo->size) != CC_SUCCESS)
+	if (obj_fifo != NULL && cc_coder_decode_uint_from_map(r, "N", &fifo->size) != CC_SUCCESS)
 		return NULL;
+
+	if (obj_fifo == NULL && cc_coder_decode_uint_from_map(p, "queue_length", &fifo->size) != CC_SUCCESS)
+		fifo->size = 4;
 
 	if (cc_platform_mem_alloc((void **)&fifo->tokens, sizeof(cc_token_t) * fifo->size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
@@ -57,6 +60,10 @@ cc_fifo_t *cc_fifo_init(char *obj_fifo)
 		fifo->tokens[i_token].value = NULL;
 		fifo->tokens[i_token].size = 0;
 	}
+
+	// When init without previous queue state done
+	if (obj_fifo == NULL)
+		return fifo;
 
 	if (cc_coder_decode_uint_from_map(r, "write_pos", &fifo->write_pos) != CC_SUCCESS)
 		return NULL;

@@ -83,6 +83,8 @@ cc_result_t cc_coder_decode_float_from_map(char *buffer, const char *key, float 
 cc_result_t cc_coder_decode_double_from_map(char *buffer, const char *key, double *value);
 uint32_t cc_coder_decode_map(char **data);
 void cc_coder_decode_map_next(char **data);
+uint32_t cc_coder_decode_array(char **data);
+void cc_coder_decode_array_next(char **data);
 char *cc_coder_get_name(void);
 
 #endif /* CC_CODER_H */

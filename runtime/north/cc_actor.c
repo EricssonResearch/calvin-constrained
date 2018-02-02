@@ -442,7 +442,7 @@ static cc_result_t cc_actor_get_attributes(cc_actor_t *actor, char *obj_managed,
 	return result;
 }
 
-static cc_result_t cc_actor_create_ports(cc_node_t *node, cc_actor_t *actor, char *obj_ports, char *obj_prev_connections, cc_port_direction_t direction)
+static cc_result_t cc_actor_create_ports(cc_node_t *node, cc_actor_t *actor, char *obj_ports, char *obj_prev_connections, cc_port_direction_t direction, char *obj_connection_list)
 {
 	char *ports = obj_ports, *prev_connections = obj_prev_connections;
 	uint32_t nbr_ports = 0, i_port = 0, nbr_keys = 0, i_key = 0;
@@ -452,7 +452,7 @@ static cc_result_t cc_actor_create_ports(cc_node_t *node, cc_actor_t *actor, cha
 	for (i_port = 0; i_port < nbr_ports; i_port++) {
 		cc_coder_decode_map_next(&ports);
 
-		port = cc_port_create(node, actor, ports, prev_connections, direction);
+		port = cc_port_create(node, actor, ports, prev_connections, direction, obj_connection_list);
 		if (port == NULL)
 			return CC_FAIL;
 
@@ -511,7 +511,7 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 {
 	cc_result_t result = CC_SUCCESS;
 	cc_actor_t *actor = NULL;
-	char *obj_state = NULL, *obj_actor_state = NULL, *obj_prev_connections = NULL;
+	char *obj_state = NULL, *obj_actor_state = NULL, *obj_prev_connections = NULL, *obj_connection_list = NULL;
 	char *obj_ports = NULL, *obj_private = NULL, *obj_managed = NULL, *obj_shadow_args = NULL;
 	char *obj_calvinsys = NULL, *id = NULL, *actor_type = NULL, *r = root;
 	char *obj_replication_data = NULL, *replication_master = NULL;
@@ -567,6 +567,12 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 		result = CC_FAIL;
 	}
 
+	if (result == CC_SUCCESS && cc_coder_type_of(obj_prev_connections) == CC_CODER_NIL &&
+		cc_coder_get_value_from_map(obj_state, "connection_list", &obj_connection_list)) {
+		cc_log_error("Failed to decode 'connection_list'");
+		result = CC_FAIL;
+	}
+
 	if (result == CC_SUCCESS) {
 		if (cc_coder_get_value_from_map(obj_private, "_replication_data", &obj_replication_data) == CC_SUCCESS) {
 			if (cc_coder_decode_string_from_map(obj_replication_data, "master", &replication_master, &replication_master_len) == CC_SUCCESS) {
@@ -583,7 +589,7 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 		result = CC_FAIL;
 	}
 
-	if (result == CC_SUCCESS && cc_actor_create_ports(node, actor, obj_ports, obj_prev_connections, CC_PORT_DIRECTION_IN) != CC_SUCCESS) {
+	if (result == CC_SUCCESS && cc_actor_create_ports(node, actor, obj_ports, obj_prev_connections, CC_PORT_DIRECTION_IN, obj_connection_list) != CC_SUCCESS) {
 		cc_log_error("Failed to create inports");
 		result = CC_FAIL;
 	}
@@ -593,7 +599,7 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 		result = CC_FAIL;
 	}
 
-	if (result == CC_SUCCESS && cc_actor_create_ports(node, actor, obj_ports, obj_prev_connections, CC_PORT_DIRECTION_OUT) != CC_SUCCESS) {
+	if (result == CC_SUCCESS && cc_actor_create_ports(node, actor, obj_ports, obj_prev_connections, CC_PORT_DIRECTION_OUT, obj_connection_list) != CC_SUCCESS) {
 		cc_log_error("Failed to create outports");
 		result = CC_FAIL;
 	}

@@ -32,12 +32,8 @@ static cc_result_t cc_actor_identity_init(cc_actor_t *actor, cc_list_t *managed_
 	cc_list_t *item = NULL;
 
 	item = cc_list_get(managed_attributes, "dump");
-	if (item == NULL) {
-		cc_log_error("Failed to get attribute 'dump'");
-		return CC_FAIL;
-	}
-
-	if (cc_coder_decode_bool((char *)item->data, &dump) != CC_SUCCESS)
+	// If dump missing use default false, shadow args might miss optional args
+	if (item != NULL && cc_coder_decode_bool((char *)item->data, &dump) != CC_SUCCESS)
 		return CC_FAIL;
 
 	if (cc_platform_mem_alloc((void **)&state, sizeof(cc_actor_identity_state_t)) != CC_SUCCESS) {

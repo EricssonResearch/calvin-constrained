@@ -844,9 +844,17 @@ static void cc_node_enter_sleep(cc_node_t *node, uint32_t seconds_to_sleep)
 }
 #endif
 
+static cc_result_t replica_remove_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
+{
+	return CC_SUCCESS;
+}
+
 void cc_node_stop(cc_node_t *node)
 {
-	cc_list_t *item = NULL, *tmp_item = NULL;
+	cc_list_t *item = NULL, *tmp_item = NULL, *replication_item = NULL;
+	char *obj_terminate = NULL, *replication_id = NULL;
+	bool terminate = false;
+	uint32_t replication_id_len = 0;
 
 	cc_log("Node: Stopping");
 
@@ -854,7 +862,19 @@ void cc_node_stop(cc_node_t *node)
 	while (item != NULL) {
 		tmp_item = item;
 		item = item->next;
-		if (node->stop_method == CC_NODE_STOP_MIGRATE) {
+		terminate = false;
+		replication_item = cc_list_get(((cc_actor_t *)tmp_item->data)->private_attributes, "_replication_id");
+		if (replication_item != NULL && cc_coder_type_of(replication_item->data) == CC_CODER_MAP) {
+			if (cc_coder_get_value_from_map(replication_item->data, "_terminate_with_node", &obj_terminate) == CC_SUCCESS)
+				cc_coder_decode_bool(obj_terminate, &terminate);
+			cc_coder_decode_string_from_map(replication_item->data, "id", &replication_id, &replication_id_len);
+		}
+		if (terminate && (node->stop_method == CC_NODE_STOP_MIGRATE)) {
+			cc_log("Destroy replica");
+			cc_actor_disconnect(node, (cc_actor_t *)tmp_item->data, true);
+			cc_proto_send_remove_replica(node, (cc_actor_t *)tmp_item->data, true, replica_remove_reply_handler);
+			cc_actor_free(node, (cc_actor_t *)tmp_item->data, true);
+		} else if (node->stop_method == CC_NODE_STOP_MIGRATE) {
 			if (cc_actor_migrate(node, (cc_actor_t *)tmp_item->data, node->proxy_link->peer_id, strlen(node->proxy_link->peer_id)) != CC_SUCCESS)
 				cc_log_error("Failed to migrate '%s'", ((cc_actor_t *)tmp_item->data)->id);
 			cc_actor_free(node, (cc_actor_t *)tmp_item->data, false);

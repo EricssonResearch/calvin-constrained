@@ -553,6 +553,16 @@ void cc_coder_decode_map_next(char **data)
 	mp_next((const char **)data);
 }
 
+uint32_t cc_coder_decode_array(char **data)
+{
+	return mp_decode_array((const char **)data);
+}
+
+void cc_coder_decode_array_next(char **data)
+{
+	mp_next((const char **)data);
+}
+
 char *cc_coder_get_name(void)
 {
 	char *name = NULL;

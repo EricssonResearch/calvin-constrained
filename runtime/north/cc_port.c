@@ -174,11 +174,11 @@ void cc_port_set_state(cc_port_t *port, cc_port_state_t state)
 	cc_actor_port_state_changed(port->actor);
 }
 
-cc_port_t *cc_port_create(cc_node_t *node, cc_actor_t *actor, char *obj_port, char *obj_prev_connections, cc_port_direction_t direction)
+cc_port_t *cc_port_create(cc_node_t *node, cc_actor_t *actor, char *obj_port, char *obj_prev_connections, cc_port_direction_t direction, char *obj_connection_list)
 {
-	char *obj_prev_ports = NULL, *obj_prev_port = NULL, *obj_peer = NULL, *obj_queue = NULL, *obj_properties = NULL;
+	char *obj_prev_ports = NULL, *obj_prev_port = NULL, *obj_peer = NULL, *obj_queue = NULL, *obj_properties = NULL, *cl = NULL;
 	char *r = obj_port, *port_id = NULL, *port_name = NULL, *routing = NULL, *peer_id = NULL, *peer_port_id = NULL, *tmp_value = NULL;
-	uint32_t nbr_peers = 0, port_id_len = 0, port_name_len = 0, routing_len = 0, peer_id_len = 0, peer_port_id_len = 0;
+	uint32_t nbr_peers = 0, port_id_len = 0, port_name_len = 0, routing_len = 0, peer_id_len = 0, peer_port_id_len = 0, size = 0, i = 0;
 	cc_port_t *port = NULL;
 
 	if (cc_coder_decode_string_from_map(r, "id", &port_id, &port_id_len) != CC_SUCCESS) {
@@ -217,47 +217,81 @@ cc_port_t *cc_port_create(cc_node_t *node, cc_actor_t *actor, char *obj_port, ch
 	}
 
 	if (cc_coder_get_value_from_map(r, "queue", &obj_queue) != CC_SUCCESS) {
-		cc_log_error("Failed to get 'queue'");
-		return NULL;
+		cc_log("No 'queue' will create empty");
 	}
 
-	if (direction == CC_PORT_DIRECTION_IN) {
-		if (cc_coder_get_value_from_map(obj_prev_connections, "inports", &obj_prev_ports) != CC_SUCCESS) {
-			cc_log_error("Failed to get 'inports'");
+	if (cc_coder_type_of(obj_prev_connections) != CC_CODER_NIL) {
+		// Get peer_id and peer_port_id from previous connections
+		if (direction == CC_PORT_DIRECTION_IN) {
+			if (cc_coder_get_value_from_map(obj_prev_connections, "inports", &obj_prev_ports) != CC_SUCCESS) {
+				cc_log_error("Failed to get 'inports'");
+				return NULL;
+			}
+		} else {
+			if (cc_coder_get_value_from_map(obj_prev_connections, "outports", &obj_prev_ports) != CC_SUCCESS) {
+				cc_log_error("Failed to get 'outports'");
+				return NULL;
+			}
+		}
+
+		if (cc_coder_get_value_from_map_n(obj_prev_ports, port_id, port_id_len, &obj_prev_port) != CC_SUCCESS) {
+			cc_log_error("Failed to get value");
+			return NULL;
+		}
+
+		if (cc_coder_get_value_from_array(obj_prev_port, 0, &obj_peer) != CC_SUCCESS) {
+			cc_log_error("Failed to get value");
+			return NULL;
+		}
+
+		if (cc_coder_get_value_from_array(obj_peer, 0, &tmp_value) != CC_SUCCESS) {
+			cc_log_error("Failed to get value");
+			return NULL;
+		}
+
+		if (cc_coder_type_of(tmp_value) == CC_CODER_STR) {
+			if (cc_coder_decode_str(tmp_value, &peer_id, &peer_id_len) != CC_SUCCESS) {
+				cc_log_error("Failed to decode peer_id");
+				return NULL;
+			}
+		}
+
+		if (cc_coder_decode_string_from_array(obj_peer, 1, &peer_port_id, &peer_port_id_len) != CC_SUCCESS) {
+			cc_log_error("Failed to get peer_port_id");
 			return NULL;
 		}
 	} else {
-		if (cc_coder_get_value_from_map(obj_prev_connections, "outports", &obj_prev_ports) != CC_SUCCESS) {
-			cc_log_error("Failed to get 'outports'");
+		// Get peer_id and peer_port_id from connection list
+		// [[<node_id>, <port_id>, <peer_id>, <peer_port_id>], ...]
+		cl = obj_connection_list;
+		size = cc_coder_decode_array(&cl);
+		for (i = 0; i < size; i++) {
+			char *tmp_port_id = NULL;
+			uint32_t len = 0;
+			if (cc_coder_decode_string_from_array(cl, 1, &tmp_port_id, &len)  != CC_SUCCESS) {
+				cc_log_error("Malformed connection list in state, no port_id");
+				return NULL;
+			}
+			if (strncmp(port_id, tmp_port_id, len)) {
+				// No match
+				cc_coder_decode_array_next(&cl);
+				continue;
+			}
+			if (cc_coder_decode_string_from_array(cl, 2, &peer_id, &peer_id_len)  != CC_SUCCESS) {
+				// Allowed to be NULL
+				peer_id = NULL;
+				cc_log_error("Malformed connection list in state, no peer_id");
+			}
+			if (cc_coder_decode_string_from_array(cl, 3, &peer_port_id, &peer_port_id_len)  != CC_SUCCESS) {
+				cc_log_error("Malformed connection list in state, no peer_port_id");
+				return NULL;
+			}
+			break;
+		}
+		if (peer_id == NULL) {
+			cc_log_error("Port id not found in connection list");
 			return NULL;
 		}
-	}
-
-	if (cc_coder_get_value_from_map_n(obj_prev_ports, port_id, port_id_len, &obj_prev_port) != CC_SUCCESS) {
-		cc_log_error("Failed to get value");
-		return NULL;
-	}
-
-	if (cc_coder_get_value_from_array(obj_prev_port, 0, &obj_peer) != CC_SUCCESS) {
-		cc_log_error("Failed to get value");
-		return NULL;
-	}
-
-	if (cc_coder_get_value_from_array(obj_peer, 0, &tmp_value) != CC_SUCCESS) {
-		cc_log_error("Failed to get value");
-		return NULL;
-	}
-
-	if (cc_coder_type_of(tmp_value) == CC_CODER_STR) {
-		if (cc_coder_decode_str(tmp_value, &peer_id, &peer_id_len) != CC_SUCCESS) {
-			cc_log_error("Failed to decode peer_id");
-			return NULL;
-		}
-	}
-
-	if (cc_coder_decode_string_from_array(obj_peer, 1, &peer_port_id, &peer_port_id_len) != CC_SUCCESS) {
-		cc_log_error("Failed to get peer_port_id");
-		return NULL;
 	}
 
 	if (cc_platform_mem_alloc((void **)&port, sizeof(cc_port_t)) != CC_SUCCESS) {
@@ -283,7 +317,7 @@ cc_port_t *cc_port_create(cc_node_t *node, cc_actor_t *actor, char *obj_port, ch
 		port->peer_id[peer_id_len] = '\0';
 	}
 
-	port->fifo = cc_fifo_init(obj_queue);
+	port->fifo = cc_fifo_init(obj_queue, obj_properties);
 	if (port->fifo ==  NULL) {
 		cc_log_error("Failed to init fifo");
 		cc_port_free(node, port, false);
@@ -317,7 +351,7 @@ cc_port_t *cc_port_create(cc_node_t *node, cc_actor_t *actor, char *obj_port, ch
 		}
 	}
 
-	cc_log("Port: Created '%s'", port->id);
+	cc_log("Port: created '%s' %s peer: '%s'", port->id, ((direction==CC_PORT_DIRECTION_IN)?"<-":"->"), port->peer_port_id);
 
 	return port;
 }

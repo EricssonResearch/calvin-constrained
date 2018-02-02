@@ -408,7 +408,7 @@ char *cc_actor_mpy_get_path_from_type(char *type, uint32_t type_len, const char 
 	  len = type_len + strlen(CC_ACTOR_MODULES_DIR);
 	  if (cc_platform_mem_alloc((void **)&path, len + strlen(extension) + 1) != CC_SUCCESS) {
 	    cc_log_error("Failed to allocate memory");
-	    return MP_IMPORT_STAT_NO_EXIST;
+	    return NULL;
 	  }
 	  strncpy(path, CC_ACTOR_MODULES_DIR, strlen(CC_ACTOR_MODULES_DIR));
 	  strncpy(path + strlen(CC_ACTOR_MODULES_DIR), type, type_len);

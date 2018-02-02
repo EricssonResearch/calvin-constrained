@@ -41,6 +41,7 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 cc_result_t cc_proto_send_set_port(cc_node_t *node, cc_port_t *port, cc_msg_handler_t handler);
 cc_result_t cc_proto_send_get_port(cc_node_t *node, char *port_id, cc_msg_handler_t handler, void *msg_data);
 cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_msg_handler_t handler);
+cc_result_t cc_proto_send_remove_replica(cc_node_t *node, cc_actor_t *actor, bool node_also, cc_msg_handler_t handler);
 cc_result_t cc_proto_send_remove_port(cc_node_t *node, cc_port_t *port, cc_msg_handler_t handler);
 cc_result_t cc_proto_send_actor_new(cc_node_t *node, cc_actor_t*actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, cc_msg_handler_t handler);
 cc_result_t cc_proto_parse_message(cc_node_t *node, char *data, size_t data_len);

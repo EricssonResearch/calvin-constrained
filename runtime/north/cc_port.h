@@ -60,7 +60,7 @@ typedef struct cc_port_t {
 	struct cc_actor_t *actor;
 } cc_port_t;
 
-cc_port_t *cc_port_create(struct cc_node_t *node, struct cc_actor_t *actor, char *obj_port, char *obj_prev_connections, cc_port_direction_t direction);
+cc_port_t *cc_port_create(struct cc_node_t *node, struct cc_actor_t *actor, char *obj_port, char *obj_prev_connections, cc_port_direction_t direction, char *obj_connection_list);
 void cc_port_connect(struct cc_node_t *node, cc_port_t *port);
 void cc_port_free(struct cc_node_t *node, cc_port_t *port, bool remove_from_registry);
 cc_port_t *cc_port_get(struct cc_node_t *node, const char *port_id, uint32_t port_id_len);

@@ -606,7 +606,10 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 	char buffer[1000], *w = NULL, key[50] = "", msg_uuid[CC_UUID_BUFFER_SIZE];
 	cc_list_t *list = NULL;
 	cc_port_t *port = NULL;
-	uint32_t ninports = 0, noutports = 0;
+	uint32_t ninports = 0, noutports = 0, replication_len = 0;
+	uint32_t replication_index = 0;
+	char *obj_replication_id = NULL, *replication_str = NULL;
+	cc_list_t *item = NULL;
 
 	memset(buffer, 0, 1000);
 
@@ -629,7 +632,13 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
 			w = cc_coder_encode_kv_str(w, "cmd", "SET", 3);
 			w = cc_coder_encode_kv_str(w, "key", key, key_len);
-			w = cc_coder_encode_kv_map(w, "value", 6);
+			item = cc_list_get(actor->private_attributes, "_replication_id");
+			if (item == NULL || cc_coder_type_of(item->data) != CC_CODER_MAP) {
+				w = cc_coder_encode_kv_map(w, "value", 6);
+				cc_log_error("Actor private attributes miss '_replication_id'");
+			} else {
+				w = cc_coder_encode_kv_map(w, "value", 9);
+			}
 			{
 				w = cc_coder_encode_kv_bool(w, "is_shadow", false);
 				w = cc_coder_encode_kv_str(w, "name", actor->name, strlen(actor->name));
@@ -655,6 +664,25 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 						w = cc_coder_encode_kv_str(w, "id", port->id, strlen(port->id));
 						w = cc_coder_encode_kv_str(w, "name", port->name, strlen(port->name));
 						list = list->next;
+					}
+				}
+				if (item != NULL && cc_coder_type_of(item->data) == CC_CODER_MAP) {
+					obj_replication_id = item->data;
+					if (cc_coder_decode_string_from_map(obj_replication_id, "id", &replication_str, &replication_len) == CC_SUCCESS) {
+						w = cc_coder_encode_kv_str(w, "replication_id", replication_str, replication_len);
+					} else {
+						w = cc_coder_encode_kv_str(w, "replication_id", "", 0);
+					}
+					if (cc_coder_decode_string_from_map(obj_replication_id, "original_actor_id", &replication_str, &replication_len) == CC_SUCCESS) {
+						w = cc_coder_encode_kv_str(w, "replication_master_id", replication_str, replication_len);
+					} else {
+						w = cc_coder_encode_kv_str(w, "replication_master_id", "", 0);
+					}
+					if (cc_coder_get_value_from_map(obj_replication_id, "index", &replication_str) == CC_SUCCESS &&
+						cc_coder_decode_uint(replication_str, &replication_index) == CC_SUCCESS) {
+						w = cc_coder_encode_kv_uint(w, "replication_index", replication_index);
+					} else {
+						w = cc_coder_encode_kv_uint(w, "replication_index", 0);
 					}
 				}
 			}
@@ -692,6 +720,92 @@ cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_msg
 		{
 			w = cc_coder_encode_kv_str(w, "cmd", "DELETE", 6);
 			w = cc_coder_encode_kv_str(w, "key", key, key_len);
+			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+		}
+	}
+
+	if (cc_node_add_pending_msg(node, msg_uuid, handler, NULL) == CC_SUCCESS) {
+		if (cc_transport_send(node->transport_client, buffer, w - buffer) == CC_SUCCESS)
+			return CC_SUCCESS;
+		cc_node_remove_pending_msg(node, msg_uuid);
+	}
+
+	return CC_FAIL;
+}
+
+cc_result_t cc_proto_send_remove_replica(cc_node_t *node, cc_actor_t *actor, bool node_also, cc_msg_handler_t handler)
+{
+	char buffer[1000], *w = NULL, key[80], msg_uuid[CC_UUID_BUFFER_SIZE];
+	int key_len = 0;
+	char *replication_id = NULL;
+	uint32_t replication_id_len = 0;
+	cc_list_t *replication_item = NULL;
+
+	memset(buffer, 0, 1000);
+	replication_item = cc_list_get(actor->private_attributes, "_replication_id");
+	if (replication_item == NULL || cc_coder_type_of(replication_item->data) != CC_CODER_MAP ||
+		cc_coder_decode_string_from_map(replication_item->data, "id", &replication_id, &replication_id_len) != CC_SUCCESS) {
+			return CC_FAIL;
+	}
+	
+	memset(key, 0, 80);
+	key_len = snprintf(key, 17 + replication_id_len, "replicas/actors/%s", replication_id);
+
+	cc_gen_uuid(msg_uuid, "MSGID_");
+
+	w = buffer + node->transport_client->prefix_len;
+	w = cc_coder_encode_map(w, 5);
+	{
+		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
+		w = cc_coder_encode_kv_str(w, "tunnel_id", node->storage_tunnel->id, strnlen(node->storage_tunnel->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_map(w, "value", 5);
+		{
+			w = cc_coder_encode_kv_str(w, "cmd", "REMOVE_INDEX", 12);
+			w = cc_coder_encode_kv_str(w, "prefix", "index-", 6);
+			w = cc_coder_encode_kv_array(w, "index", 1);
+			{
+				w = cc_coder_encode_str(w, key, key_len);
+			}
+			w = cc_coder_encode_kv_str(w, "value", actor->id, strnlen(actor->id, CC_UUID_BUFFER_SIZE));
+			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
+		}
+	}
+
+	if (cc_node_add_pending_msg(node, msg_uuid, handler, NULL) == CC_SUCCESS) {
+		if (cc_transport_send(node->transport_client, buffer, w - buffer) != CC_SUCCESS) {
+			cc_node_remove_pending_msg(node, msg_uuid);
+			return CC_FAIL;
+		}
+	} else
+		return CC_FAIL;
+
+	if (!node_also) {
+		return CC_SUCCESS;
+	}
+	memset(buffer, 0, 1000);
+	memset(key, 0, 80);
+	key_len = snprintf(key, 16 + replication_id_len, "replicas/nodes/%s", replication_id);
+
+	cc_gen_uuid(msg_uuid, "MSGID_");
+
+	w = buffer + node->transport_client->prefix_len;
+	w = cc_coder_encode_map(w, 5);
+	{
+		w = cc_coder_encode_kv_str(w, "from_rt_uuid", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "to_rt_uuid", node->proxy_link->peer_id, strnlen(node->proxy_link->peer_id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_str(w, "cmd", "TUNNEL_DATA", 11);
+		w = cc_coder_encode_kv_str(w, "tunnel_id", node->storage_tunnel->id, strnlen(node->storage_tunnel->id, CC_UUID_BUFFER_SIZE));
+		w = cc_coder_encode_kv_map(w, "value", 5);
+		{
+			w = cc_coder_encode_kv_str(w, "cmd", "REMOVE_INDEX", 12);
+			w = cc_coder_encode_kv_str(w, "prefix", "index-", 6);
+			w = cc_coder_encode_kv_array(w, "index", 1);
+			{
+				w = cc_coder_encode_str(w, key, key_len);
+			}
+			w = cc_coder_encode_kv_str(w, "value", node->id, strnlen(node->id, CC_UUID_BUFFER_SIZE));
 			w = cc_coder_encode_kv_str(w, "msg_uuid", msg_uuid, strnlen(msg_uuid, CC_UUID_BUFFER_SIZE));
 		}
 	}
@@ -1426,7 +1540,7 @@ static cc_result_t proto_handle_join_reply(cc_node_t *node, char *buffer, uint32
 	}
 
 	if (strncmp(value, serializer, value_len) != 0) {
-		cc_log_error("Unsupported serializer");
+		cc_log_error("Unsupported serializer %s", value);
 		cc_platform_mem_free((void *)serializer);
 		return CC_FAIL;
 	}
