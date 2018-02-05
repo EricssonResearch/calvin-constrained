@@ -46,7 +46,10 @@ void cc_platform_print(const char *fmt, ...)
 
 void cc_platform_early_init(void)
 {
-	srand(time(NULL));
+	struct timeval tv;
+
+	gettimeofday(&tv, NULL);
+	srand(tv.tv_sec + tv.tv_usec + getpid());
 }
 
 cc_result_t cc_platform_late_init(cc_node_t *node, const char *args)
