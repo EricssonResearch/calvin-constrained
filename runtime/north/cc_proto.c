@@ -635,7 +635,6 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 			item = cc_list_get(actor->private_attributes, "_replication_id");
 			if (item == NULL || cc_coder_type_of(item->data) != CC_CODER_MAP) {
 				w = cc_coder_encode_kv_map(w, "value", 6);
-				cc_log_error("Actor private attributes miss '_replication_id'");
 			} else {
 				w = cc_coder_encode_kv_map(w, "value", 9);
 			}
@@ -671,12 +670,12 @@ cc_result_t cc_proto_send_set_actor(cc_node_t *node, const cc_actor_t*actor, cc_
 					if (cc_coder_decode_string_from_map(obj_replication_id, "id", &replication_str, &replication_len) == CC_SUCCESS) {
 						w = cc_coder_encode_kv_str(w, "replication_id", replication_str, replication_len);
 					} else {
-						w = cc_coder_encode_kv_str(w, "replication_id", "", 0);
+						w = cc_coder_encode_kv_nil(w, "replication_id");
 					}
 					if (cc_coder_decode_string_from_map(obj_replication_id, "original_actor_id", &replication_str, &replication_len) == CC_SUCCESS) {
 						w = cc_coder_encode_kv_str(w, "replication_master_id", replication_str, replication_len);
 					} else {
-						w = cc_coder_encode_kv_str(w, "replication_master_id", "", 0);
+						w = cc_coder_encode_kv_nil(w, "replication_master_id");
 					}
 					if (cc_coder_get_value_from_map(obj_replication_id, "index", &replication_str) == CC_SUCCESS &&
 						cc_coder_decode_uint(replication_str, &replication_index) == CC_SUCCESS) {
