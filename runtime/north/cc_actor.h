@@ -33,11 +33,17 @@ typedef enum {
 	CC_ACTOR_DO_DELETE
 } cc_actor_state_t;
 
+typedef enum {
+	CC_STATE_WAS_ACTOR,
+	CC_STATE_WAS_SHADOW,
+	CC_STATE_WAS_REPLICA
+} cc_state_was_t;
+
 typedef struct cc_actor_t{
 	char *type;
 	char *id;
 	char *name;
-	bool was_shadow;
+	cc_state_was_t state_was;
 	char migrate_to[CC_UUID_BUFFER_SIZE]; // id of rt to migrate to if requested
 	cc_actor_state_t state;
 	void *instance_state;
@@ -53,6 +59,7 @@ typedef struct cc_actor_t{
 	void (*will_migrate)(struct cc_actor_t *actor);
 	void (*will_end)(struct cc_actor_t *actor);
 	void (*did_migrate)(struct cc_actor_t *actor);
+	void (*did_replicate)(struct cc_actor_t *actor, uint32_t index);
 	cc_result_t (*get_requires)(struct cc_actor_t *actor, cc_list_t **requires);
 	cc_calvinsys_t *calvinsys;
 	char *requires;

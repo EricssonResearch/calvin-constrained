@@ -204,9 +204,10 @@ static void cc_actor_store_module(char *type, uint32_t type_len, char *data, uin
 
 static void cc_actor_update_pending(cc_node_t *node, char *type, uint32_t type_len, uint32_t status)
 {
-	cc_list_t *item = NULL;
+	cc_list_t *item = NULL, *item_attr = NULL;
 	cc_actor_t *actor = NULL;
 	cc_result_t result = CC_FAIL;
+	uint32_t replication_index = 0;
 
 	item = node->actors;
 	while (item != NULL) {
@@ -215,9 +216,15 @@ static void cc_actor_update_pending(cc_node_t *node, char *type, uint32_t type_l
 			if (status == 200) {
 				result = cc_actor_mpy_init_from_type(actor);
 				if (result == CC_SUCCESS) {
-					if (actor->was_shadow)
+					if (actor->state_was == CC_STATE_WAS_SHADOW || actor->state_was == CC_STATE_WAS_REPLICA) {
 						result = actor->init(actor, actor->managed_attributes);
-					else {
+						if (actor->did_replicate !=NULL && actor->state_was == CC_STATE_WAS_REPLICA) {
+							item_attr = cc_list_get(actor->private_attributes, "_replication_id");
+							if (item_attr != NULL && cc_coder_decode_uint_from_map(item_attr->data, "index", &replication_index) != CC_SUCCESS)
+								replication_index = 0;
+							actor->did_replicate(actor, replication_index);
+						}
+					} else {
 						result = actor->set_state(actor, actor->managed_attributes);
 						if (result == CC_SUCCESS && actor->did_migrate != NULL)
 							actor->did_migrate(actor);
@@ -321,6 +328,7 @@ static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32
 		actor->will_migrate = actor_type->will_migrate;
 		actor->will_end = actor_type->will_end;
 		actor->did_migrate = actor_type->did_migrate;
+		actor->did_replicate = actor_type->did_replicate;
 		actor->get_requires = actor_type->get_requires;
 		actor->requires = actor_type->requires;
 		return actor;
@@ -515,7 +523,7 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 	char *obj_ports = NULL, *obj_private = NULL, *obj_managed = NULL, *obj_shadow_args = NULL;
 	char *obj_calvinsys = NULL, *id = NULL, *actor_type = NULL, *r = root;
 	char *obj_replication_data = NULL, *replication_master = NULL;
-	uint32_t id_len = 0, actor_type_len = 0, replication_master_len = 0;
+	uint32_t id_len = 0, actor_type_len = 0, replication_master_len = 0, replication_index = 0;
 	cc_list_t *item = NULL;
 
 	if (result == CC_SUCCESS && cc_coder_get_value_from_map(r, "state", &obj_state) != CC_SUCCESS) {
@@ -626,7 +634,10 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 
 	if (result == CC_SUCCESS) {
 		if (cc_coder_has_key(obj_managed, "_shadow_args")) {
-			actor->was_shadow = true;
+			if (cc_coder_has_key(obj_actor_state, "replication"))
+				actor->state_was = CC_STATE_WAS_REPLICA;
+			else
+				actor->state_was = CC_STATE_WAS_SHADOW;
 
 			if (cc_coder_get_value_from_map(obj_managed, "_shadow_args", &obj_shadow_args) != CC_SUCCESS) {
 				cc_log_error("Failed to decode '_shadow_args'");
@@ -638,10 +649,17 @@ cc_actor_t *cc_actor_create(cc_node_t *node, char *root)
 				result = CC_FAIL;
 			}
 
-			if (result == CC_SUCCESS && actor->state != CC_ACTOR_PENDING_IMPL)
-			 	result = actor->init(actor, actor->managed_attributes);
+			if (result == CC_SUCCESS && actor->state != CC_ACTOR_PENDING_IMPL) {
+				result = actor->init(actor, actor->managed_attributes);
+				if (actor->did_replicate !=NULL && actor->state_was == CC_STATE_WAS_REPLICA) {
+					item = cc_list_get(actor->private_attributes, "_replication_id");
+					if (item != NULL && cc_coder_decode_uint_from_map(item->data, "index", &replication_index) != CC_SUCCESS)
+						replication_index = 0;
+					actor->did_replicate(actor, replication_index);
+				}
+			}
 		} else {
-			actor->was_shadow = false;
+			actor->state_was = CC_STATE_WAS_ACTOR;
 
 			if (actor->state != CC_ACTOR_PENDING_IMPL) {
 				result = actor->set_state(actor, actor->managed_attributes);

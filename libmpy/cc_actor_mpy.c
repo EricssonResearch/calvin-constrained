@@ -399,6 +399,22 @@ static void cc_actor_mpy_did_migrate(cc_actor_t *actor)
 	mpy_did_migrate[1] = MP_OBJ_NULL;
 }
 
+static void cc_actor_mpy_did_replicate(cc_actor_t *actor, uint32_t index)
+{
+	cc_actor_mpy_state_t *state = (cc_actor_mpy_state_t *)actor->instance_state;
+	mp_obj_t mpy_did_replicate[3];
+
+	mp_load_method_maybe(state->actor_class_instance, QSTR_FROM_STR_STATIC("did_replicate"), mpy_did_replicate);
+	if (mpy_did_replicate[0] != MP_OBJ_NULL && mpy_did_replicate[1] != MP_OBJ_NULL) {
+		mpy_did_replicate[2] = MP_OBJ_NEW_SMALL_INT(index);
+		mp_call_method_n_kw(1, 0, mpy_did_replicate);
+	}
+
+	mpy_did_replicate[0] = MP_OBJ_NULL;
+	mpy_did_replicate[1] = MP_OBJ_NULL;
+	mpy_did_replicate[2] = MP_OBJ_NULL;
+}
+
 char *cc_actor_mpy_get_path_from_type(char *type, uint32_t type_len, const char *extension, bool add_modules_dir)
 {
 	char *path = NULL;
@@ -511,6 +527,7 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 	actor->will_migrate = cc_actor_mpy_will_migrate;
 	actor->will_end = cc_actor_mpy_will_end;
 	actor->did_migrate = cc_actor_mpy_did_migrate;
+	actor->did_replicate = cc_actor_mpy_did_replicate;
 	actor->get_requires = cc_actor_mpy_get_requires;
 
 	return CC_SUCCESS;

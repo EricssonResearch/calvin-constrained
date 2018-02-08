@@ -29,6 +29,7 @@ typedef struct cc_actor_type_t {
 	void (*will_migrate)(cc_actor_t *actor);
 	void (*will_end)(cc_actor_t *actor);
 	void (*did_migrate)(cc_actor_t *actor);
+	void (*did_replicate)(cc_actor_t *actor, uint32_t index);
 	cc_result_t (*get_requires)(cc_actor_t *actor, cc_list_t **requires);
 	char *requires;
 } cc_actor_type_t;

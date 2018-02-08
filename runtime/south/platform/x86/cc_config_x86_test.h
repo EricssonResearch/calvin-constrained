@@ -17,8 +17,11 @@
 #ifndef CC_CONFIG_X86_TEST_H
 #define CC_CONFIG_X86_TEST_H
 
+
+
 #if CC_USE_PYTHON
 #include "cc_config_x86_mpy.h"
+struct cc_actor_type_t;
 #ifndef _CC_C_ACTORS
 #define CC_C_ACTORS
 #endif
@@ -26,12 +29,21 @@
 #include "cc_config_x86.h"
 #endif
 
+cc_result_t cc_actor_identity_setup(struct cc_actor_type_t *type);
+cc_result_t cc_actor_replica_identity_setup(struct cc_actor_type_t *type);
+
 #undef CC_CAPABILITIES
 #define CC_CAPABILITIES _CC_CAPABILITIES, \
 	{ "mock.shadow", NULL, NULL, NULL, NULL, false }
 
 #undef CC_C_ACTORS
+#ifdef _CC_C_ACTORS
 #define CC_C_ACTORS _CC_C_ACTORS, \
-	{ "test.FakeShadow", cc_actor_identity_setup }
-
+	{ "test.FakeShadow", cc_actor_identity_setup }, \
+	{ "test.ReplicaIdentity", cc_actor_replica_identity_setup }
+#else
+#define CC_C_ACTORS \
+	{ "test.FakeShadow", cc_actor_identity_setup }, \
+	{ "test.ReplicaIdentity", cc_actor_replica_identity_setup }
+#endif
 #endif
