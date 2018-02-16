@@ -174,81 +174,50 @@ cc_list_t *cc_list_get(cc_list_t *list, const char *id)
 	return NULL;
 }
 
-cc_result_t cc_get_json_string_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len)
+static int cc_json_skip(const char *buffer, jsmntok_t *token, size_t count)
 {
-	char *start = NULL;
-	size_t pos = 0;
+	int i = 0, j = 0;
 
-	while ((pos + key_len) < buffer_len) {
-		if (strncmp(buffer + pos, key, key_len) == 0) {
-			start = buffer + pos;
-			break;
+	if (token->type == JSMN_PRIMITIVE) {
+		return 1;
+	} else if (token->type == JSMN_STRING) {
+		return 1;
+	} else if (token->type == JSMN_OBJECT) {
+		j = 0;
+		for (i = 0; i < token->size; i++) {
+			j += cc_json_skip(buffer, token + 1 + j, count - j);
+			j += cc_json_skip(buffer, token + 1 + j, count - j);
 		}
-		pos++;
+		return j + 1;
+	} else if (token->type == JSMN_ARRAY) {
+		j = 0;
+		for (i = 0; i < token->size; i++) {
+			j += cc_json_skip(buffer, token + 1 + j, count - j);
+		}
+		return j + 1;
 	}
 
-	if (start != NULL) {
-		start = start + key_len + 1;
-		pos = start - buffer;
-		start = NULL;
-		while (pos < buffer_len) {
-			if (buffer[pos] == '\"') {
-				if (start == NULL) {
-					start = buffer + pos + 1;
-				} else {
-					*value = start;
-					*value_len = (buffer + pos) - start;
-					return CC_SUCCESS;
-				}
-			}
-			pos++;
-		}
-	}
-
-	return CC_FAIL;
+	return 0;
 }
 
-cc_result_t cc_get_json_dict_value(char *buffer, size_t buffer_len, char *key, size_t key_len, char **value, size_t *value_len)
+jsmntok_t *cc_json_get_dict_value(const char *buffer, jsmntok_t *object, size_t count, char *key, size_t key_len)
 {
-	char *start = NULL;
-	size_t pos = 0, braces = 0, len = 0;
+	int i = 0, j = 0;
 
-	while ((pos + key_len) < buffer_len) {
-		if (strncmp(buffer + pos, key, key_len) == 0) {
-			start = buffer + pos;
-			break;
-		}
-		pos++;
+	if (object->type != JSMN_OBJECT) {
+		cc_log_error("Object expected\n");
+		return NULL;
 	}
 
-	if (start != NULL) {
-		start = start + key_len + 1;
-		pos = start - buffer;
-		start = NULL;
-		while (pos < buffer_len) {
-			if (buffer[pos] == '{') {
-				if (start == NULL) {
-					start = buffer + pos;
-				}
-				braces++;
-			}
-
-			if (buffer[pos] == '}') {
-				braces--;
-			}
-
-			if (start != NULL) {
-				len++;
-				if (braces == 0) {
-					*value_len = len;
-					*value = start;
-					return CC_SUCCESS;
-				}
-			}
-			pos++;
+	for (i = 0, j = 1; i < object->size; i++) {
+		if (object[j].type == JSMN_STRING &&
+				key_len == object[j].end - object[j].start &&
+				strncmp(buffer + object[j].start, key, key_len) == 0) {
+			return &object[++j];
 		}
-	} else
-		cc_log_error("Failed to parse");
+		j++;
+		j += cc_json_skip(buffer, &object[j], count - j);
+	}
 
-	return CC_FAIL;
+	return NULL;
 }

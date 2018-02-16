@@ -32,6 +32,7 @@
 #if CC_USE_PYTHON
 #include "libmpy/cc_mpy_port.h"
 #endif
+#include "jsmn/jsmn.h"
 
 #if CC_USE_STORAGE
 static cc_result_t cc_node_get_state(cc_node_t *node)
@@ -633,13 +634,32 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 
 cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *proxy_uris)
 {
-	char *uris = (char *)proxy_uris, *uri = NULL;
 	cc_calvinsys_capability_t capabilities[] = {
 		CC_CAPABILITIES
 	};
 	cc_actor_builtin_type_t actor_types[] = {
 		CC_C_ACTORS
 	};
+	int i = 0, res = 0;
+	jsmn_parser parser;
+	jsmntok_t uris[10];
+
+	if (proxy_uris != NULL) {
+		jsmn_init(&parser);
+		res = jsmn_parse(&parser, proxy_uris, strlen(proxy_uris), uris, 10);
+
+		if (res < 1 || uris[0].type != JSMN_ARRAY) {
+			cc_log_error("Failed to parse proxy uris, expected array");
+			return CC_FAIL;
+		}
+
+		for (i = 1; i <= uris[0].size; i++) {
+			if (cc_list_add_n(&node->proxy_uris, proxy_uris + uris[i].start, uris[i].end - uris[i].start, NULL, 0) == NULL) {
+				cc_log_error("Failed to add URI");
+				return CC_FAIL;
+			}
+		}
+	}
 
 	node->state = CC_NODE_DO_START;
 	node->stop_method = CC_NODE_STOP_CLEAN;
@@ -700,20 +720,6 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 	if (cc_node_setup(node) != CC_SUCCESS) {
 		cc_log_error("Failed to setup runtime");
 		return CC_FAIL;
-	}
-
-	if (node->proxy_uris == NULL && uris != NULL) {
-		uri = strtok(uris, " ");
-		while (uri != NULL) {
-			if (strlen(uri) <= CC_MAX_URI_LEN) {
-				if (cc_list_add_n(&node->proxy_uris, uri, strlen(uri), NULL, 0) == NULL) {
-					cc_log_error("Failed to add URI");
-					return CC_FAIL;
-				}
-			} else
-				cc_log_error("URI to big");
-			uri = strtok(NULL, " ");
-		}
 	}
 
 	if (cc_list_count(node->proxy_uris) == 0) {

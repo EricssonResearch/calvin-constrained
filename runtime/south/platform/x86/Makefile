@@ -11,7 +11,7 @@ CC_CFLAGS += -DCC_USE_FDS=1
 ifeq ($(PLATFORM), Darwin)
 CC_LDFLAGS += -Wl,-dead_strip
 else
-CC_LDFLAGS += -Wl,--gc-sections 
+CC_LDFLAGS += -Wl,--gc-sections
 endif
 
 # platform sources
@@ -24,7 +24,6 @@ CC_SRC_C += runtime/south/platform/x86/calvinsys/cc_test_temperature.c
 
 ifeq ($(LIBCOAP),1)
 CC_SRC_C += runtime/south/platform/x86/calvinsys/cc_libcoap_client.c
-CC_SRC_C += jsmn/jsmn.c
 CC_CFLAGS += -DCC_USE_LIBCOAP_CLIENT=1
 CC_CFLAGS += $(shell pkg-config --cflags-only-I libcoap-1)
 CC_LDFLAGS += $(shell pkg-config --libs-only-L libcoap-1)
@@ -36,7 +35,7 @@ include calvin.mk
 
 calvin: rename_symbol mpy-cross $(CC_SRC_C)
 	@echo "Building calvin"
-	$(CC) $(CC_SRC_C) -o $(PROJECT_NAME) $(CC_CFLAGS) $(CC_LDFLAGS) $(CC_LIBS) 
+	$(CC) $(CC_SRC_C) -o $(PROJECT_NAME) $(CC_CFLAGS) $(CC_LDFLAGS) $(CC_LIBS)
 
 rename_symbol:
 	@echo "Renaming mp_decode_uint in msgpuck/msgpuck.h"

@@ -333,69 +333,41 @@ static cc_result_t cc_calvinsys_coap_open(cc_calvinsys_obj_t *obj, cc_list_t *kw
 	return CC_SUCCESS;
 }
 
-static int cc_calvinsys_libcoap_jsoneq(const char *json, jsmntok_t *tok, const char *s)
-{
-	if (tok->type == JSMN_STRING && (int) strlen(s) == tok->end - tok->start &&
-	strncmp(json + tok->start, s, tok->end - tok->start) == 0) {
-		return 0;
-	}
-
-	return -1;
-}
-
-static int cc_calvinsys_libcoap_get_value(const char *args, jsmntok_t *tokens, int ntokens, int pos, const char *key)
-{
-	int i = 1;
-
-	while (i < ntokens - pos) {
-		if (cc_calvinsys_libcoap_jsoneq(args, &tokens[pos + i], key) == 0)
-		return pos + i + 1;
-		i++;
-	}
-
-	return 0;
-}
-
 cc_result_t cc_libcoap_create(cc_calvinsys_t *calvinsys, const char *args)
 {
-	int i = 0, j = 0, r = 0, obj_coap = 0, obj_actors = 0, obj_capabilities = 0;
-	jsmn_parser p;
-	jsmntok_t t[128];
+	int i = 0, j = 0, r = 0;
+	jsmn_parser parser;
+	jsmntok_t tokens[128], *obj_coap = NULL, *obj_actors = NULL, *obj_capabilities = NULL;
 	char name[100] = {0}, requires[100] = {0};
 	size_t len = 0;
 	cc_coap_init_args_t *init_args = NULL;
 	cc_actor_type_t *type = NULL;
 
-	jsmn_init(&p);
-	r = jsmn_parse(&p, args, strlen(args), t, sizeof(t)/sizeof(t[0]));
+	jsmn_init(&parser);
+	r = jsmn_parse(&parser, args, strlen(args), tokens, sizeof(tokens) / sizeof(tokens[0]));
 	if (r < 0) {
 		cc_log_error("Failed to parse JSON: %d", r);
 		return CC_FAIL;
 	}
 
-	if (r < 1 || t[0].type != JSMN_OBJECT) {
+	if (r < 1 || tokens[0].type != JSMN_OBJECT) {
 		cc_log_error("Object expected\n");
 		return CC_FAIL;
 	}
 
-	obj_coap = cc_calvinsys_libcoap_get_value(args, &t[0], r, 0, "coap");
-	if (obj_coap == 0) {
+	obj_coap = cc_json_get_dict_value(args, &tokens[0], parser.toknext, "coap", 4);
+	if (obj_coap == NULL) {
 		cc_log_error("Failed to get 'coap'");
 		return CC_FAIL;
 	}
 
-	obj_actors = cc_calvinsys_libcoap_get_value(args, &t[0], r, obj_coap, "actors");
-	if (obj_actors == 0) {
+	obj_actors = cc_json_get_dict_value(args, obj_coap, obj_coap->size, "actors", 6);
+	if (obj_actors == NULL) {
 		cc_log_error("Failed to get 'actors'");
 		return CC_FAIL;
 	}
 
-	if (t[obj_actors].type != JSMN_OBJECT) {
-		cc_log_error("Expected 'actors' as object");
-		return CC_FAIL;
-	}
-
-	for (i = 0, j = 0; i < t[obj_actors].size; i++) {
+	for (i = 0, j = 0; i < obj_actors->size; i++) {
 		if (cc_platform_mem_alloc((void **)&type, sizeof(cc_actor_type_t)) != CC_SUCCESS) {
 			cc_log_error("Failed to allocate memory");
 			return CC_FAIL;
@@ -409,17 +381,17 @@ cc_result_t cc_libcoap_create(cc_calvinsys_t *calvinsys, const char *args)
 		}
 
 		j++;
-		len = t[obj_actors + j].end - t[obj_actors + j].start;
-		strncpy(name, args + t[obj_actors + j].start, len);
+		len = obj_actors[j].end - obj_actors[j].start;
+		strncpy(name, args + obj_actors[j].start, len);
 		name[len] = '\0';
 		j++;
-		len = t[obj_actors + j].end - t[obj_actors + j].start;
+		len = obj_actors[j].end - obj_actors[j].start;
 		if (cc_platform_mem_alloc((void **)&type->requires, len + 1) != CC_SUCCESS) {
 			cc_log_error("Failed to allocate memory");
 			cc_platform_mem_free(type);
 			return CC_FAIL;
 		}
-		strncpy(type->requires, args + t[obj_actors + j].start, len);
+		strncpy(type->requires, args + obj_actors[j].start, len);
 		type->requires[len] = '\0';
 
 		if (cc_list_add_n(&calvinsys->node->actor_types,
@@ -431,18 +403,13 @@ cc_result_t cc_libcoap_create(cc_calvinsys_t *calvinsys, const char *args)
 		}
 	}
 
-	obj_capabilities = cc_calvinsys_libcoap_get_value(args, &t[0], r, obj_coap, "capabilities");
-	if (obj_coap == 0) {
+	obj_capabilities = cc_json_get_dict_value(args, obj_coap, obj_coap->size, "capabilities", 12);
+	if (obj_capabilities == NULL) {
 		cc_log_error("Failed to get 'capabilities'");
 		return CC_FAIL;
 	}
 
-	if (t[obj_capabilities].type != JSMN_OBJECT) {
-		cc_log_error("Expected 'capabilities' as object");
-		return CC_FAIL;
-	}
-
-	for (i = 0, j = 0; i < t[obj_capabilities].size; i++) {
+	for (i = 0, j = 0; i < obj_capabilities->size; i++) {
 		if (cc_platform_mem_alloc((void **)&init_args, sizeof(cc_coap_init_args_t)) != CC_SUCCESS) {
 			cc_log_error("Failed to allocate memory");
 			return CC_FAIL;
@@ -450,12 +417,12 @@ cc_result_t cc_libcoap_create(cc_calvinsys_t *calvinsys, const char *args)
 		memset(init_args, 0, sizeof(cc_coap_init_args_t));
 
 		j++;
-		len = t[obj_capabilities + j].end - t[obj_capabilities + j].start;
-		strncpy(name, args + t[obj_capabilities + j].start, len);
+		len = obj_capabilities[j].end - obj_capabilities[j].start;
+		strncpy(name, args + obj_capabilities[j].start, len);
 		name[len] = '\0';
 		j++;
-		len = t[obj_capabilities + j].end - t[obj_capabilities + j].start;
-		strncpy(init_args->uri, args + t[obj_capabilities + j].start, len);
+		len = obj_capabilities[j].end - obj_capabilities[j].start;
+		strncpy(init_args->uri, args + obj_capabilities[j].start, len);
 		init_args->uri[len] = '\0';
 
 		if (cc_calvinsys_create_capability(calvinsys, name, cc_calvinsys_coap_open, NULL, (void *)init_args, true) != CC_SUCCESS) {

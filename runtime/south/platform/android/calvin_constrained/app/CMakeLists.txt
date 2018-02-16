@@ -37,6 +37,7 @@ add_library(
              ../../../../../../calvinsys/common/cc_calvinsys_attribute.c
              ../../../../../../runtime/south/platform/android/calvinsys/cc_accelerometer.c
              ../../../../../../runtime/south/platform/android/calvinsys/cc_gyroscope.c
+             ../../../../../../jsmn/jsmn.c
   )
 
 find_library(

@@ -20,6 +20,7 @@
 #include "cc_transport.h"
 #include "cc_link.h"
 #include "runtime/south/platform/cc_platform.h"
+#include "runtime/north/cc_common.h"
 
 #define STRING_TRUE			"true"
 #define STRING_FALSE		"false"
@@ -746,7 +747,7 @@ cc_result_t cc_proto_send_remove_replica(cc_node_t *node, cc_actor_t *actor, boo
 		cc_coder_decode_string_from_map(replication_item->data, "id", &replication_id, &replication_id_len) != CC_SUCCESS) {
 			return CC_FAIL;
 	}
-	
+
 	memset(key, 0, 80);
 	key_len = snprintf(key, 17 + replication_id_len, "replicas/actors/%s", replication_id);
 
@@ -1524,11 +1525,22 @@ static cc_result_t cc_proto_parse_tunnel_new(cc_node_t *node, char *root, size_t
 
 static cc_result_t proto_handle_join_reply(cc_node_t *node, char *buffer, uint32_t buffer_len)
 {
-	char *value = NULL, *serializer = NULL;
-	size_t value_len = 0;
+	char *serializer = NULL;
+	jsmn_parser parser;
+	jsmntok_t tokens[10], *token = NULL;
+	int res = 0;
 
-	if (cc_get_json_string_value(buffer, buffer_len, (char *)"serializer", 10, &value, &value_len) != CC_SUCCESS) {
-		cc_log_error("No attribute 'serializer'");
+	jsmn_init(&parser);
+	res = jsmn_parse(&parser, buffer, buffer_len, tokens, sizeof(tokens) / sizeof(tokens[0]));
+
+	if (res < 0) {
+		cc_log_error("Failed to parse JSON: %d", res);
+		return CC_FAIL;
+	}
+
+	token = cc_json_get_dict_value(buffer, &tokens[0], parser.toknext, "serializer", 10);
+	if (token == NULL) {
+		cc_log_error("Failed to get 'serializer'");
 		return CC_FAIL;
 	}
 
@@ -1538,22 +1550,23 @@ static cc_result_t proto_handle_join_reply(cc_node_t *node, char *buffer, uint32
 		return CC_FAIL;
 	}
 
-	if (strncmp(value, serializer, value_len) != 0) {
-		cc_log_error("Unsupported serializer %s", value);
+	if (strlen(serializer) != token->end - token->start ||
+			strncmp(serializer, buffer + token->start, strlen(serializer)) != 0) {
+		cc_log_error("Unsupported serializer");
 		cc_platform_mem_free((void *)serializer);
 		return CC_FAIL;
 	}
 
 	cc_platform_mem_free((void *)serializer);
 
-	if (cc_get_json_string_value(buffer, buffer_len, (char *)"id", 2, &value, &value_len) != CC_SUCCESS) {
-		cc_log_error("No attribute 'id'");
+	token = cc_json_get_dict_value(buffer, &tokens[0], parser.toknext, "id", 2);
+	if (token == NULL) {
+		cc_log_error("Failed to get 'id'");
 		return CC_FAIL;
 	}
 
 	memset(node->transport_client->peer_id, 0, CC_UUID_BUFFER_SIZE);
-	strncpy(node->transport_client->peer_id, value, value_len);
-	node->transport_client->peer_id[value_len] = '\0';
+	strncpy(node->transport_client->peer_id, buffer + token->start, token->end - token->start);
 	node->transport_client->state = CC_TRANSPORT_ENABLED;
 
 	return CC_SUCCESS;

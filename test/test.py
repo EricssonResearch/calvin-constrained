@@ -63,7 +63,7 @@ def setup_module(module):
     base_rt2.id = request_handler.get_node_id(base_rt2.control_uri)
 
     # start constrained
-    constrained_process = subprocess.Popen(calvin_command + " -a '{\"indexed_public\": {\"node_name\": {\"name\": \"constrained\"}}}' -u 'calvinip://127.0.0.1:5000 ssdp'", shell=True)
+    constrained_process = subprocess.Popen(calvin_command + " -a '{\"indexed_public\": {\"node_name\": {\"name\": \"constrained\"}}}' -u '[\"calvinip://127.0.0.1:5000\", \"ssdp\"]'", shell=True)
     for x in range(0, 10):
         peers = request_handler.get_nodes(base_rt1)
         for peer in peers:

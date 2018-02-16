@@ -22,7 +22,7 @@
     <EditTextPreference
         android:key="rt_uris"
         android:title="Proxy runtime URIs"
-        android:defaultValue="calvinip://10.0.2.2:5000 ssdp" />
+        android:defaultValue="[&quot;calvinip://10.0.2.2:5000&quot;, &quot;ssdp&quot;]" />
     <CheckBoxPreference
         android:key="autostart"
         android:title="Autostart"

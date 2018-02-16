@@ -33,6 +33,7 @@
 #include "runtime/north/cc_node.h"
 #include "runtime/south/transport/socket/cc_transport_socket.h"
 #include "runtime/north/coder/cc_coder.h"
+#include "jsmn/jsmn.h"
 
 #define CC_ESP_BUFFER_SIZE			1024
 
@@ -46,10 +47,12 @@ double __ieee754_remainder(double x, double y) {
 
 static cc_result_t cc_platform_esp_write_calvin_config(char *attributes, uint32_t attributes_len, char *proxy_uris, uint32_t proxy_uris_len)
 {
-	int start = 0, read_pos = 0, nbr_uris = 1;
+	cc_result_t result = CC_FAIL;
 	char buffer[CC_ESP_BUFFER_SIZE], id[CC_UUID_BUFFER_SIZE];
 	char *tmp = buffer;
-	cc_result_t result = CC_FAIL;
+	int i = 0, res = 0;
+	jsmn_parser parser;
+	jsmntok_t uris[10];
 
 	cc_gen_uuid(id, NULL);
 
@@ -58,19 +61,17 @@ static cc_result_t cc_platform_esp_write_calvin_config(char *attributes, uint32_
 		tmp = cc_coder_encode_kv_str(tmp, "id", id, strnlen(id, CC_UUID_BUFFER_SIZE));
 		tmp = cc_coder_encode_kv_str(tmp, "attributes", attributes, attributes_len);
 
-		while (read_pos < proxy_uris_len) {
-			if (proxy_uris[read_pos] == ' ' || read_pos == proxy_uris_len)
-				nbr_uris++;
-			read_pos++;
+		jsmn_init(&parser);
+		res = jsmn_parse(&parser, proxy_uris, proxy_uris_len, uris, 10);
+
+		if (res < 1 || uris[0].type != JSMN_ARRAY) {
+			cc_log_error("Failed to parse uris");
+			return CC_FAIL;
 		}
-		tmp = cc_coder_encode_kv_array(tmp, "proxy_uris", nbr_uris);
-		read_pos = 0;
-		while (read_pos <= proxy_uris_len) {
-			if (proxy_uris[read_pos] == ' ' || read_pos == proxy_uris_len) {
-				tmp = cc_coder_encode_str(tmp, proxy_uris + start, read_pos - start);
-				start = read_pos + 1;
-			}
-			read_pos++;
+
+		tmp = cc_coder_encode_kv_array(tmp, "proxy_uris", uris[0].size);
+		for (i = 1; i <= uris[0].size; i++) {
+			tmp = cc_coder_encode_str(tmp, proxy_uris + uris[i].start, uris[i].end - uris[i].start);
 		}
 	}
 
@@ -283,9 +284,7 @@ static cc_result_t cc_platform_esp_get_config(void)
 {
 	int sockfd = 0, newsockfd = 0, clilen = 0, len = 0;
 	struct sockaddr_in serv_addr, cli_addr;
-	char buffer[CC_ESP_BUFFER_SIZE];
-	char *attributes = NULL, *uri = NULL, *ssid = NULL, *password = NULL;
-	size_t len_attributes = 0, len_uri = 0, len_ssid = 0, len_password = 0;
+	char buffer[CC_ESP_BUFFER_SIZE], *json = NULL;
 	struct ip_info ap_ip;
 	ip_addr_t first_client_ip;
 	struct sdk_softap_config ap_config = {
@@ -295,9 +294,12 @@ static cc_result_t cc_platform_esp_get_config(void)
 		.ssid_len = strlen(CC_WIFI_AP_SSID),
 		.authmode = AUTH_WPA_WPA2_PSK,
 		.password = CC_WIFI_AP_PSK,
-		.max_connection = 1,
+		.max_connection = 5,
 		.beacon_interval = 100,
 	};
+	jsmn_parser parser;
+	jsmntok_t tokens[40], *attributes = NULL, *uris = NULL, *ssid = NULL, *password = NULL;
+	int res = 0;
 
 	sdk_wifi_set_opmode(SOFTAP_MODE);
 
@@ -349,39 +351,52 @@ static cc_result_t cc_platform_esp_get_config(void)
 		}
 
 		cc_log("Data received, %d bytes", len);
+		cc_log("Data: %.*s", len, buffer);
 
-		if (cc_get_json_dict_value(buffer, len, (char *)"attributes", 10, &attributes, &len_attributes) != CC_SUCCESS) {
-			cc_log_error("No attribute 'attributes'");
+		json = strstr(buffer, "{");
+
+
+		jsmn_init(&parser);
+		res = jsmn_parse(&parser, json, strlen(json), tokens, sizeof(tokens) / sizeof(tokens[0]));
+
+		if (res < 0) {
+			cc_log_error("Failed to parse JSON: %d", res);
 			close(newsockfd);
 			continue;
 		}
 
-		if (len_attributes > CC_MAX_ATTRIBUTES_LEN) {
-			cc_log_error("Attributes to big");
+		attributes = cc_json_get_dict_value(json, &tokens[0], parser.toknext, "attributes", 10);
+		if (attributes == NULL) {
+			cc_log_error("Failed to get 'attributes'");
 			close(newsockfd);
 			continue;
 		}
 
-		if (cc_get_json_string_value(buffer, len, (char *)"proxy_uris", 10, &uri, &len_uri) != CC_SUCCESS) {
-			cc_log_error("No attribute 'proxy_uris'");
+		uris = cc_json_get_dict_value(json, &tokens[0], parser.toknext, "uris", 4);
+		if (uris == NULL) {
+			cc_log_error("Failed to get 'uris'");
 			close(newsockfd);
 			continue;
 		}
 
-		if (cc_get_json_string_value(buffer, len, (char *)"ssid", 4, &ssid, &len_ssid) != CC_SUCCESS) {
-			cc_log_error("No attribute 'ssid'");
+		ssid = cc_json_get_dict_value(json, &tokens[0], parser.toknext, "ssid", 4);
+		if (ssid == NULL) {
+			cc_log_error("Failed to get 'ssid'");
 			close(newsockfd);
 			continue;
 		}
 
-		if (cc_get_json_string_value(buffer, len, (char *)"password", 8, &password, &len_password) != CC_SUCCESS) {
-			cc_log_error("No attribute 'password'");
+		password = cc_json_get_dict_value(json, &tokens[0], parser.toknext, "password", 8);
+		if (password == NULL) {
+			cc_log_error("Failed to get 'password'");
 			close(newsockfd);
 			continue;
 		}
 
-		if (cc_platform_esp_write_calvin_config(attributes, len_attributes, uri, len_uri) == CC_SUCCESS) {
-			if (cc_platform_esp_write_wifi_config(ssid, len_ssid, password, len_password) == CC_SUCCESS) {
+		if (cc_platform_esp_write_calvin_config(json + attributes->start, attributes->end - attributes->start,
+				json + uris->start, uris->end - uris->start) == CC_SUCCESS) {
+			if (cc_platform_esp_write_wifi_config(json + ssid->start, ssid->end - ssid->start,
+					json + password->start, password->end - password->start) == CC_SUCCESS) {
 				write(newsockfd, "HTTP/1.0 200 OK\r\n", 17);
 				vTaskDelay(1000 / portTICK_PERIOD_MS);
 				close(newsockfd);

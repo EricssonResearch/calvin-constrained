@@ -15,7 +15,7 @@ csruntime -n 127.0.0.1 --name constrained_proxy
 Start calvin-constrained specifying runtime attributes and proxy uris:
 
 ```
-./calvin_c -a '{"indexed_public": {"node_name": {"name": "constrained"}}}' -u 'calvinip://127.0.0.1:5000 ssdp'
+./calvin_c -a '{"indexed_public": {"node_name": {"name": "constrained"}}}' -u '["calvinip://127.0.0.1:5000", "ssdp"]'
 ```
 
 With the above uris, a SSDP discovery will be triggered to find a proxy if a connection can't be made or is lost to calvinip://127.0.0.1:5000".

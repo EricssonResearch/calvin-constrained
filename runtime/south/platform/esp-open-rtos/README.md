@@ -29,7 +29,7 @@ After flashing the firmware the runtime starts as a access point with the name a
 Example:
 
 ```
-$ curl -X POST -d '{"attributes": {"indexed_public": {"node_name": {"name": "ESP8266"}}}, "proxy_uris": "calvinip://192.168.0.41:5000 ssdp", "ssid": "<SSID>", "password": "<PASSWORD>"}' 172.16.0.1:80
+$ curl -X POST -d '{"attributes": {"indexed_public": {"node_name": {"name": "ESP8266"}}}, "uris": ["calvinip://192.168.0.41:5000", "ssdp"], "ssid": "<SSID>", "password": "<PASSWORD>"}' 172.16.0.1:80
 ```
 
 The configuration data is written to flash and to set new attributes erase the flash with:

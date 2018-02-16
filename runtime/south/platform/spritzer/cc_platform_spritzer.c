@@ -366,7 +366,7 @@ int calvin_task(int argc, char *argv[])
 
   // TODO: attributes and uris should not be hardcoded
   attr = "{\"indexed_public\": {\"node_name\": {\"name\":\"spritzer\"}}}";
-  proxy_uris = "calvinip://90.232.247.172:5000";
+  proxy_uris = "[\"calvinip://90.232.247.172:5000\"]";
 
   if (cc_api_runtime_init(&node, attr, proxy_uris, "./") != CC_SUCCESS)
     return EXIT_FAILURE;

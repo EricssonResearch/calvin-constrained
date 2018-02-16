@@ -62,10 +62,12 @@ static bool cc_calvinsys_attribute_can_write(struct cc_calvinsys_obj_t *obj)
 
 static cc_result_t cc_calvinsys_attribute_get_attribute_value(char *attributes, char *attribute_name, uint32_t attribute_name_len, char **attribute, size_t *attribute_len)
 {
-	char *category = NULL, *item = NULL, *indexed_public = NULL;
-	char *category_data = NULL;
-	uint32_t pos = 0, category_len = 0, item_len = 0;
-	size_t indexed_public_len = 0, category_data_len = 0;
+	char *category = NULL, *item = NULL;
+	uint32_t pos = 0, category_len = 0;
+	size_t item_len = 0;
+	jsmn_parser parser;
+	jsmntok_t tokens[40], *token = NULL;
+	int res = 0;
 
 	while (pos < attribute_name_len) {
 		if (attribute_name[pos] == '.') {
@@ -83,29 +85,36 @@ static cc_result_t cc_calvinsys_attribute_get_attribute_value(char *attributes, 
 		return CC_FAIL;
 	}
 
-	if (cc_get_json_dict_value(
-		attributes,
-		strnlen(attributes, CC_MAX_ATTRIBUTES_LEN),
-		(char *)"indexed_public",
-		14,
-		&indexed_public,
-		&indexed_public_len) != CC_SUCCESS) {
-			cc_log_error("Failed to get 'indexed_public'");
-			return CC_FAIL;
+	jsmn_init(&parser);
+	res = jsmn_parse(&parser, attributes, strnlen(attributes, CC_MAX_ATTRIBUTES_LEN), tokens, sizeof(tokens) / sizeof(tokens[0]));
+
+	if (res < 0) {
+		cc_log_error("Failed to parse JSON: %d", res);
+		return CC_FAIL;
 	}
 
-	if (cc_get_json_dict_value(
-		indexed_public,
-		indexed_public_len,
-		category,
-		category_len,
-		&category_data,
-		&category_data_len) != CC_SUCCESS) {
-			cc_log_error("Failed to parse indexed public");
-			return CC_FAIL;
+	token = cc_json_get_dict_value(attributes, &tokens[0], parser.toknext, "indexed_public", 14);
+	if (token == NULL) {
+		cc_log_error("Failed to get 'indexed_public'");
+		return CC_FAIL;
 	}
 
-	return cc_get_json_string_value(category_data, category_data_len,	item,	item_len, attribute, attribute_len);
+	token = cc_json_get_dict_value(attributes, token, token->size, category, category_len);
+	if (token == NULL) {
+		cc_log_error("Failed to parse 'indexed_public'");
+		return CC_FAIL;
+	}
+
+	token = cc_json_get_dict_value(attributes, token, token->size, item, item_len);
+	if (token == NULL) {
+		cc_log_error("Failed to parse 'indexed_public'");
+		return CC_FAIL;
+	}
+
+	*attribute = attributes + token->start;
+	*attribute_len = token->end - token->start;
+
+	return CC_SUCCESS;
 }
 
 static cc_result_t cc_calvinsys_attribute_write(struct cc_calvinsys_obj_t *obj, char *data, size_t size)

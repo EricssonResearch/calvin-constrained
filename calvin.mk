@@ -20,7 +20,8 @@ CC_SRC_C += \
 	runtime/north/coder/cc_coder_msgpuck.c \
 	calvinsys/cc_calvinsys.c \
 	calvinsys/common/cc_calvinsys_timer.c \
-	calvinsys/common/cc_calvinsys_attribute.c
+	calvinsys/common/cc_calvinsys_attribute.c \
+	jsmn/jsmn.c
 
 # Prefix with CC_PATH
 CC_SRC_C := $(addprefix $(CC_PATH),$(CC_SRC_C))
