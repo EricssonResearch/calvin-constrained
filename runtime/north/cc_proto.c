@@ -954,9 +954,7 @@ cc_result_t cc_proto_send_remove_port(cc_node_t *node, cc_port_t *port, cc_msg_h
 
 cc_result_t cc_proto_send_actor_new(cc_node_t *node, cc_actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len, cc_msg_handler_t handler)
 {
-	char buffer[2000], *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
-
-	memset(buffer, 0, 2000);
+	char buffer[3000] = {0}, *w = NULL, msg_uuid[CC_UUID_BUFFER_SIZE];
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
