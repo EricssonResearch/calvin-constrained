@@ -163,7 +163,7 @@ cc_transport_client_t *cc_transport_create(cc_node_t *node, char *uri)
 	}
 
 	if (client == NULL)
-		cc_log_error("No transport for '%s'", uri);
+		cc_log_error("Failed to create transport for '%s'", uri);
 	else {
 		client->rx_buffer.pos = 0;
 		client->rx_buffer.size = 0;

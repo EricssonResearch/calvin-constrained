@@ -32,6 +32,7 @@ static bool cc_temperature_can_read(struct cc_calvinsys_obj_t *obj)
 static cc_result_t cc_temperature_read(struct cc_calvinsys_obj_t *obj, char **data, size_t *size)
 {
 	cc_temperature_state_t *state = (cc_temperature_state_t *)obj->state;
+	static bool add = true;
 
 	if (!state->can_read)
 		return CC_FAIL;
@@ -42,7 +43,14 @@ static cc_result_t cc_temperature_read(struct cc_calvinsys_obj_t *obj, char **da
 		return CC_FAIL;
 	}
 	cc_coder_encode_double(*data, state->value);
-	state->value++;
+	if (add)
+		state->value++;
+	else
+		state->value--;
+	if (state->value >= 20)
+		add = false;
+	if (state->value <= 10)
+		add = true;
 	state->can_read = false;
 
 	return CC_SUCCESS;

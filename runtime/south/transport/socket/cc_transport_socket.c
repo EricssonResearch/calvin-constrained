@@ -290,23 +290,22 @@ static cc_result_t cc_transport_socket_parse_uri(char *uri, char **ip, size_t *i
 	char *end = NULL;
 	cc_result_t result = CC_FAIL;
 
-	if (strncmp(uri, "calvinip://", 11) != 0) {
-		cc_log_error("Failed to parse calvinip URI '%s'", uri);
-		return CC_FAIL;
-	}
-
-	while (pos > 11) {
-		if (uri[pos] == ':') {
-			result = CC_SUCCESS;
-			break;
+	if (strncmp(uri, "calvinip://", 11) == 0) {
+		while (pos > 11) {
+			if (uri[pos] == ':') {
+				result = CC_SUCCESS;
+				break;
+			}
+			pos--;
 		}
-		pos--;
 	}
 
 	if (result == CC_SUCCESS) {
 		*ip = uri + 11;
 		*ip_len = pos - 11;
 		*port = strtol(uri + pos + 1, &end, 10);
+	} else {
+		cc_log_error("Failed to parse uri");
 	}
 
 	return result;
@@ -323,17 +322,14 @@ cc_transport_client_t *cc_transport_socket_create(cc_node_t *node, char *uri)
 
 	if (strncmp(uri, "ssdp", 4) == 0) {
 		if (cc_transport_socket_discover_proxy(ssdpuri) != CC_SUCCESS) {
-			cc_log_error("Failed to parse ssdp response");
 			return NULL;
 		}
 
 		if (cc_transport_socket_parse_uri(ssdpuri, &ip, &ip_len, &port) != CC_SUCCESS) {
-			cc_log_error("Failed to parse uri '%s'", uri);
 			return NULL;
 		}
 	} else {
 		if (cc_transport_socket_parse_uri(uri, &ip, &ip_len, &port) != CC_SUCCESS) {
-			cc_log_error("Failed to parse uri '%s'", uri);
 			return NULL;
 		}
 	}
