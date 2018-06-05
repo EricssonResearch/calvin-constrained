@@ -332,6 +332,8 @@ static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32
 		actor->get_requires = actor_type->get_requires;
 		actor->requires = actor_type->requires;
 		return actor;
+	} else {
+		cc_log("Actor: No C implementation for %s", actor->type);
 	}
 
 #if CC_USE_PYTHON

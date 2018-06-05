@@ -31,7 +31,7 @@
 #include "runtime/south/platform/cc_platform.h"
 #include "jsmn/jsmn.h"
 
-cc_result_t cc_actor_coap_source_setup(struct cc_actor_type_t *type);
+cc_result_t cc_actor_coap_setup(struct cc_actor_type_t *type);
 
 typedef struct cc_coap_state_t {
 	int fd;
@@ -374,7 +374,7 @@ cc_result_t cc_libcoap_create(cc_calvinsys_t *calvinsys, const char *args)
 		}
 		memset(type, 0, sizeof(cc_actor_type_t));
 
-		if (cc_actor_coap_source_setup(type) != CC_SUCCESS) {
+		if (cc_actor_coap_setup(type) != CC_SUCCESS) {
 			cc_log_error("Failed to register actor type");
 			cc_platform_mem_free(type);
 			return CC_FAIL;
@@ -425,7 +425,7 @@ cc_result_t cc_libcoap_create(cc_calvinsys_t *calvinsys, const char *args)
 		strncpy(init_args->uri, args + obj_capabilities[j].start, len);
 		init_args->uri[len] = '\0';
 
-		if (cc_calvinsys_create_capability(calvinsys, name, cc_calvinsys_coap_open, NULL, (void *)init_args, true) != CC_SUCCESS) {
+		if (cc_calvinsys_create_capability(calvinsys, name, cc_calvinsys_coap_open, cc_calvinsys_coap_open, (void *)init_args, true) != CC_SUCCESS) {
 			cc_log_error("Failed to add capability '%s'", name);
 			cc_platform_mem_free(init_args);
 			return CC_FAIL;
