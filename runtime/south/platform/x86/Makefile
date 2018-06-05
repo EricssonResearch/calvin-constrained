@@ -4,7 +4,7 @@ PROJECT_NAME = calvin_c
 BUILD = build
 
 CC_CFLAGS  = -Wall
-CC_CFLAGS += -g -fdata-sections -ffunction-sections
+CC_CFLAGS += -Os -fdata-sections -ffunction-sections
 #CC_CFLAGS += -g -fsanitize=address -O1 -fno-omit-frame-pointer
 CC_CFLAGS += -I.
 CC_CFLAGS += -DCC_USE_FDS=1
@@ -33,7 +33,7 @@ endif
 # calvin sources and parameters
 include calvin.mk
 
-calvin: rename_symbol $(CC_SRC_C)
+calvin: rename_symbol mpy-cross $(CC_SRC_C)
 	@echo "Building calvin"
 	$(CC) $(CC_SRC_C) -o $(PROJECT_NAME) $(CC_CFLAGS) $(CC_LDFLAGS) $(CC_LIBS)
 
