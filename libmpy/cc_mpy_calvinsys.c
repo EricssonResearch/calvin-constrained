@@ -139,7 +139,7 @@ static mp_obj_t cc_mp_calvinsys_open(size_t n_args, const mp_obj_t *pos_args, mp
 	if (result == CC_FAIL)
 		return mp_const_none;
 
-	return mp_obj_new_str(obj_ref, strlen(obj_ref), 0);
+	return mp_obj_new_str(obj_ref, strlen(obj_ref));
 }
 static MP_DEFINE_CONST_FUN_OBJ_KW(cc_mp_calvinsys_open_obj, 2, cc_mp_calvinsys_open);
 

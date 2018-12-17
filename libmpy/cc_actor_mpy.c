@@ -45,7 +45,7 @@ cc_result_t cc_actor_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 	case CC_CODER_STR:
 		result = cc_coder_decode_str(buffer, &tmp_string, &len);
 		if (result == CC_SUCCESS) {
-			*value = mp_obj_new_str(tmp_string, len, 0);
+			*value = mp_obj_new_str(tmp_string, len);
 			return CC_SUCCESS;
 		}
 		break;
@@ -193,7 +193,7 @@ static cc_result_t cc_actor_mpy_init(cc_actor_t *actor, cc_list_t *managed_attri
 	mp_store_attr(state->actor_class_instance, QSTR_FROM_STR_STATIC("_managed"), py_managed_list);
 */
 	while (list != NULL && result == CC_SUCCESS) {
-		tmp = mp_obj_new_str(list->id, list->id_len, true);
+		tmp = mp_obj_new_str(list->id, list->id_len);
 		j += 2;
 		args[j] = tmp;
 		if (cc_actor_mpy_decode_to_mpy_obj(list->data, &tmp) != CC_SUCCESS) {
@@ -230,7 +230,7 @@ static cc_result_t cc_actor_mpy_set_state(cc_actor_t *actor, cc_list_t *managed_
 	mp_store_attr(state->actor_class_instance, QSTR_FROM_STR_STATIC("_managed"), py_managed_list);
 	while (list != NULL) {
 		q_attr = qstr_from_strn(list->id, list->id_len);
-		attr = mp_obj_new_str(list->id, list->id_len, true);
+		attr = mp_obj_new_str(list->id, list->id_len);
 		if (cc_actor_mpy_decode_to_mpy_obj((char *)list->data, &value) != CC_SUCCESS) {
 			cc_log_error("Failed to decode value from managed attribute");
 			return CC_FAIL;
