@@ -1,16 +1,38 @@
 #!/bin/bash
 
+while getopts :p:em opt; do
+  case $opt in
+    e) USE_PREBUILT=1
+      ;;
+    m) MPY=1
+      ;;
+    p) PP=${OPTARG}
+      ;;
+    \?)
+      usage
+      echo "Invalid option: -${OPTARG}"
+      ;;
+  esac
+done
+
 # clean up
-rm calvin.msgpack
-if [[ $1 != "no" ]]; then
-	rm calvin_c
-	rm -rf mpys
+if [ -f calvin.msgpack ]; then
+  rm calvin.msgpack
 fi
-if [ -z "${PP}" ]; then
-	CHECKOUT="no"
-	PP='calvin-base'
+
+if [ -f calvin_c ]; then
+  rm calvin_c
+fi
+
+if [ -d mpys ]; then
+  rm -rf mpys
+fi
+
+if [ ! $PP ]; then
+  CHECKOUT="no"
+  PP='calvin-base'
 else
-	CHECKOUT="yes"
+  CHECKOUT="yes"
 fi
 
 # start base rt1
@@ -29,14 +51,17 @@ PYTHONPATH=$PP python test/verify_runtime.py http://127.0.0.1:5003
 exit_code+=$?
 rm calvin.conf
 
-# build calvin-constrained
-if [[ $1 == "mpy" ]]; then
+if [ $USE_PREBUILT ]; then
+  echo "Use prebuilt"
+else
+  if [ $MPY ]; then
+    echo "Building with MicroPython"
     make -C libmpy
     make -f runtime/south/platform/x86/Makefile MPY=1 CONFIG="runtime/south/platform/x86/cc_config_x86_test.h"
-elif [[ $1 == "no" ]]; then
-	echo "Use prebuilt"
-else
+  else
+    echo "Building without MicroPython"
     make -f runtime/south/platform/x86/Makefile CONFIG="runtime/south/platform/x86/cc_config_x86_test.h"
+  fi
 fi
 
 exit_code+=$?
@@ -49,8 +74,9 @@ exit_code+=$?
 kill -9 $RT1_PID
 kill -9 $RT2_PID
 if [[ ${CHECKOUT} == "yes" ]]; then
-	cd calvin-base
-	git checkout calvin/csparser/parsetab.py
+  pushd calvin-base
+  git checkout calvin/csparser/parsetab.py
+  popd
 fi
 
 exit $exit_code

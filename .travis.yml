@@ -8,4 +8,4 @@ install:
 
 script:
   - ./test/test.sh
-  - ./test/test.sh mpy
+  - ./test/test.sh -m
