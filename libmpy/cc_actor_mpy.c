@@ -421,23 +421,24 @@ char *cc_actor_mpy_get_path_from_type(char *type, uint32_t type_len, const char 
 	int i = 0, len = 0;
 
 	if (add_modules_dir) {
-	  len = type_len + strlen(CC_ACTOR_MODULES_DIR);
-	  if (cc_platform_mem_alloc((void **)&path, len + strlen(extension) + 1) != CC_SUCCESS) {
+	  len = strlen(CC_ACTOR_MODULES_DIR) + 7 + type_len + strlen(extension) + 1; // 7 for actors/
+	  if (cc_platform_mem_alloc((void **)&path, len) != CC_SUCCESS) {
 	    cc_log_error("Failed to allocate memory");
 	    return NULL;
 	  }
+		memset(path, 0, len);
 	  strncpy(path, CC_ACTOR_MODULES_DIR, strlen(CC_ACTOR_MODULES_DIR));
-	  strncpy(path + strlen(CC_ACTOR_MODULES_DIR), type, type_len);
-	  path[len] = '\0';
+		strncpy(path + strlen(path), "actors/", 7);
+	  strncpy(path + strlen(path), type, type_len);
 	} else {
-		if (cc_platform_mem_alloc((void **)&path, type_len + strlen(extension) + 1) != CC_SUCCESS) {
+		len = 7 + type_len + strlen(extension) + 1; // 7 for actors/
+		if (cc_platform_mem_alloc((void **)&path, len) != CC_SUCCESS) {
 			cc_log_error("Failed to allocate memory");
 			return NULL;
 		}
-
-		strncpy(path, type, type_len);
-		path[type_len] = '\0';
-		len = type_len;
+		memset(path, 0, len);
+		strncpy(path + strlen(path), "actors/", 7);
+		strncpy(path + strlen(path), type, type_len);
 	}
 
 	while (i < len) {
@@ -446,23 +447,21 @@ char *cc_actor_mpy_get_path_from_type(char *type, uint32_t type_len, const char 
 		i++;
 	}
 
-	for (i = 0; i < strlen(extension); i++)
-		path[len + i] = extension[i];
-	path[len + strlen(extension)] = '\0';
+	strncpy(path + strlen(path), extension, strlen(extension));
 
 	return path;
 }
 
 cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 {
-	char *type = actor->type, *class = NULL, instance_name[30];
+	char *type = NULL, *class = NULL, instance_name[30];
 	qstr actor_type_qstr, actor_class_qstr;
 	mp_obj_t args[2];
 	cc_actor_mpy_state_t *state = NULL;
 	mp_obj_t actor_module;
 	mp_obj_t actor_class_ref[2];
 	static int counter;
-	uint8_t pos = strlen(actor->type), class_len = 0;
+	uint8_t pos = 0, class_len = 0;
 
 	sprintf(instance_name, "actor_obj%d", counter++);
 
@@ -472,6 +471,18 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 	}
 	memset(state, 0, sizeof(cc_actor_mpy_state_t));
 	actor->instance_state = (void *)state;
+
+	// + 7 for actor/
+	if (cc_platform_mem_alloc((void **)&type, strlen(actor->type) + 7 + 1) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		cc_platform_mem_free(state);
+		return CC_FAIL;
+	}
+
+	memset(type, 0, 7 + strlen(actor->type) + 1);
+	strncpy(type, "actors.", 7);
+	strncpy(type + strlen(type), actor->type, strlen(actor->type));
+	pos = strlen(type);
 
 	// get the class name (the part after the last "." in the passed module type string
 	while (pos-- > 0) {
@@ -483,12 +494,13 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 	}
 
 	if (class == NULL) {
-		cc_log_error("Expected '.' as class delimiter");
+		cc_log_error("Failed to get python class name from '%s'", type);
 		cc_platform_mem_free(state);
+		cc_platform_mem_free(type);
 		return CC_FAIL;
 	}
 
-	actor_type_qstr = qstr_from_strn(type, strlen(actor->type));
+	actor_type_qstr = qstr_from_strn(type, strlen(type));
 	actor_class_qstr = qstr_from_strn(class, class_len);
 
 	// load the module
@@ -496,10 +508,11 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 	// to the module instance, otherwise it will return a reference to the top-level package
 	actor_module = mp_import_name(actor_type_qstr, mp_const_true, MP_OBJ_NEW_SMALL_INT(0));
 	if (actor_module != MP_OBJ_NULL) {
-		mp_store_global(qstr_from_strn(type, strlen(actor->type)), actor_module);
+		mp_store_global(qstr_from_strn(type, strlen(type)), actor_module);
 	} else {
-		cc_log_error("No actor of type '%s'", actor->type);
+		cc_log_error("Failed to import '%s'", type);
 		cc_platform_mem_free(state);
+		cc_platform_mem_free(type);
 		return CC_FAIL;
 	}
 
@@ -529,6 +542,8 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 	actor->did_migrate = cc_actor_mpy_did_migrate;
 	actor->did_replicate = cc_actor_mpy_did_replicate;
 	actor->get_requires = cc_actor_mpy_get_requires;
+
+	cc_platform_mem_free(type);
 
 	return CC_SUCCESS;
 }
