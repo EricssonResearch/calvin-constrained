@@ -542,7 +542,7 @@ def testSleepWithoutTimers():
     global constrained_process
     script_name = "testSleepWithoutTimers"
     script = """
-    src : std.CountTimer(sleep=4)
+    src : std.CountTimer(sleep=10)
     id : std.Identity()
     snk : test.Sink(store_tokens=1, quiet=1)
     src.integer > id.token
@@ -562,9 +562,8 @@ def testSleepWithoutTimers():
 
     # wait for constrained enterring sleep
     constrained_process.wait()
-
     assert constrained_process.poll() is not None
-
+    time.sleep(5)
     constrained_process = subprocess.Popen(calvin_command, shell=True)
 
     # verify data
@@ -579,7 +578,7 @@ def testSleepWithTimer():
     global constrained_process
     script_name = "testSleepWithTimer"
     script = """
-    temp : sensor.Temperature(period=4)
+    temp : sensor.Temperature(period=10)
     snk : test.Sink(store_tokens=1, quiet=1)
     temp.centigrade > snk.token
 
@@ -597,23 +596,14 @@ def testSleepWithTimer():
 
     # wait for constrained enterring sleep
     constrained_process.wait()
-
+    assert constrained_process.poll() is not None
+    time.sleep(5)
     constrained_process = subprocess.Popen(calvin_command, shell=True)
 
     # verify data
     wait_for_tokens(request_handler, runtime1, snk_id, 1, 10)
     actual = request_handler.report(runtime1, snk_id)
     assert len(actual) >= 1
-
-    # wait for constrained enterring sleep
-    constrained_process.wait()
-
-    constrained_process = subprocess.Popen(calvin_command, shell=True)
-
-    # verify data
-    wait_for_tokens(request_handler, runtime1, snk_id, 2, 10)
-    actual = request_handler.report(runtime1, snk_id)
-    assert len(actual) >= 2
 
     # remove app
     request_handler.delete_application(runtime1, resp['application_id'])

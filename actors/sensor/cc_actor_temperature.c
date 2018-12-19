@@ -67,7 +67,7 @@ static cc_result_t cc_actor_temperature_init(cc_actor_t *actor, cc_list_t *manag
 	strncpy(state->temperature, obj_ref, strlen(obj_ref));
 	state->temperature[strlen(obj_ref)] = '\0';
 
-	if (cc_list_add(&attributes, "period", "\x00", 1) == NULL) {
+	if (cc_list_add(&attributes, "period", state->period, state->period_size) == NULL) {
 		cc_log_error("Failed to add 'period'");
 		return CC_FAIL;
 	}

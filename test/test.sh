@@ -67,7 +67,7 @@ fi
 exit_code+=$?
 
 # run test
-PYTHONPATH=$PP py.test -p no:twisted -sv test/test.py test/test_replication.py
+PYTHONPATH=$PP py.test -p no:twisted -sv test/test.py
 exit_code+=$?
 
 # clean up

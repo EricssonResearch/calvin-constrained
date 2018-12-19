@@ -26,6 +26,8 @@ struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node,
 #define CC_USE_GETOPT (1)
 #define CC_USE_SLEEP (1)
 #define CC_USE_STORAGE (1)
+#define CC_INACTIVITY_TIMEOUT (5)
+#define CC_SLEEP_TIME (30)
 
 #define _CC_CAPABILITIES \
 	{ "io.temperature", cc_test_temperature_open, cc_test_temperature_open, NULL, NULL, false }, \

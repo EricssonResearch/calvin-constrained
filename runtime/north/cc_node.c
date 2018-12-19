@@ -500,6 +500,8 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 	cc_list_t *tmp_list = NULL;
 	bool new_proxy = true;
 
+	cc_log("Node: Connecting to proxy with '%s'", uri);
+
 	if (node->transport_client == NULL) {
 		node->transport_client = cc_transport_create(node, uri);
 		if (node->transport_client == NULL)
@@ -803,6 +805,11 @@ static void cc_node_free(cc_node_t *node, bool cleanup)
 	cc_platform_mem_free(node->mpy_heap);
 #endif
 
+	if (node->transport_client != NULL) {
+		node->transport_client->disconnect(node, node->transport_client);
+		node->transport_client->free(node->transport_client);
+	}
+
 	cc_platform_mem_free((void *)node);
 }
 
@@ -838,11 +845,6 @@ static void cc_node_enter_sleep(cc_node_t *node, uint32_t seconds_to_sleep)
 #else
 	cc_log("Going to sleep without serializing node state");
 #endif
-
-	if (node->transport_client != NULL) {
-		node->transport_client->disconnect(node, node->transport_client);
-		node->transport_client->free(node->transport_client);
-	}
 
 	cc_platform_stop(node);
 	cc_node_free(node, false);
@@ -962,11 +964,7 @@ static void cc_node_dump_info(cc_node_t *node)
 cc_result_t cc_node_run(cc_node_t *node)
 {
 	cc_list_t *item = NULL;
-	uint32_t timeout = 0, timer_timeout = 0;
-#if CC_USE_SLEEP
-	uint8_t connect_failures = 0;
-	uint32_t seconds_to_sleep = 0;
-#endif
+	uint32_t wait_timeout = 0, next_timer_timeout = 0;
 	cc_platform_evt_wait_status_t waitstatus = CC_PLATFORM_EVT_WAIT_DATA_READ;
 
 	if (node->fire_actors == NULL) {
@@ -976,85 +974,61 @@ cc_result_t cc_node_run(cc_node_t *node)
 
 	cc_node_dump_info(node);
 
+	if (node->proxy_uris == NULL) {
+		// No uris, run without proxy
+		node->state = CC_NODE_STARTED;
+	}
+
 	while (node->state != CC_NODE_STOP) {
-		item = node->proxy_uris;
-		while (item != NULL && node->state != CC_NODE_STOP) {
-			node->state = CC_NODE_DO_START;
-			cc_log("Node: Connecting to proxy with '%s'", item->id);
-			if (cc_node_connect_to_proxy(node, item->id) == CC_SUCCESS) {
-#if CC_USE_SLEEP
-				connect_failures = 0;
-#endif
-				while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_ENABLED) {
-					if (node->state != CC_NODE_STARTED || node->actors == NULL) {
-						waitstatus = cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
-						if (waitstatus == CC_PLATFORM_EVT_WAIT_FAIL)
-							break;
-						else
-							continue;
-					}
-
-					if (node->fire_actors(node))
-						continue;
-
-					timeout = CC_INACTIVITY_TIMEOUT;
-					if (cc_calvinsys_timer_get_nexttrigger(node, &timer_timeout) == CC_SUCCESS) {
-						if (timer_timeout < CC_INACTIVITY_TIMEOUT) {
-							// timer active and < CC_INACTIVITY_TIMEOUT, use as timeout
-							timeout = timer_timeout;
-						}
-					}
-
-					waitstatus = cc_platform_evt_wait(node, timeout);
-					if (waitstatus == CC_PLATFORM_EVT_WAIT_FAIL)
-						break;
-					else if (waitstatus == CC_PLATFORM_EVT_WAIT_DATA_READ)
-						continue;
-
-					cc_log_debug("Idle for '%ld' seconds", timeout);
-
-#if CC_USE_SLEEP
-					// idle, enter sleep
-					seconds_to_sleep = CC_SLEEP_TIME;
-					if (cc_calvinsys_timer_get_nexttrigger(node, &seconds_to_sleep) == CC_SUCCESS) {
-						if (seconds_to_sleep < CC_INACTIVITY_TIMEOUT) {
-							// timer about to trigger, continue exection
-							continue;
-						}
-					}
-					cc_node_enter_sleep(node, seconds_to_sleep);
-#endif
+		if (node->proxy_uris != NULL &&
+				(node->transport_client == NULL || (node->transport_client != NULL && node->transport_client->state != CC_TRANSPORT_ENABLED))) {
+			item = node->proxy_uris;
+			while (item != NULL && node->state != CC_NODE_STOP) {
+				node->state = CC_NODE_DO_START;
+				if (cc_node_connect_to_proxy(node, item->id) == CC_SUCCESS) {
+					break;
 				}
-
-				if (node->state == CC_NODE_STOP)
-					cc_node_stop(node);
-			} else {
-#if CC_USE_SLEEP
-				connect_failures++;
-#endif
+				item = item->next;
 			}
-
-			if (node->transport_client != NULL) {
-				cc_transport_disconnect(node, node->transport_client);
-				node->transport_client->free(node->transport_client);
-				node->transport_client = NULL;
-			}
-			item = item->next;
 		}
 
-		if (node->state != CC_NODE_STOP) {
+		// update timers and fire actors
+		cc_calvinsys_timers_check(node, &next_timer_timeout);
+		if (node->fire_actors(node)) {
+			continue;
+		}
+
+		// get wait timeout, if no active timers about to fire use CC_INACTIVITY_TIMEOUT
+		wait_timeout = CC_INACTIVITY_TIMEOUT;
+		cc_calvinsys_timers_check(node, &wait_timeout);
+
+		// wait for platform event
+		waitstatus = cc_platform_evt_wait(node, wait_timeout);
+		switch (waitstatus) {
+			case CC_PLATFORM_EVT_WAIT_TIMEOUT:
 #if CC_USE_SLEEP
-			if (connect_failures >= 5) {
-				cc_log("Node: No proxy found, enterring sleep");
-				cc_node_set_state(node, true);
-				cc_platform_deepsleep(CC_SLEEP_TIME);
-			}
+				// timeout, try to enter sleep
+				cc_log("Node: Idle for '%ld' seconds, trying sleep", wait_timeout);
+				wait_timeout = CC_SLEEP_TIME;
+				cc_calvinsys_timers_check(node, &wait_timeout);
+				if (wait_timeout < CC_INACTIVITY_TIMEOUT) {
+					continue;
+				}
+				cc_node_enter_sleep(node, wait_timeout);
 #endif
-			cc_log("Node: No proxy found, waiting '%d' seconds", CC_RECONNECT_TIMEOUT);
-			cc_platform_evt_wait(node, CC_RECONNECT_TIMEOUT);
+				break;
+			case CC_PLATFORM_EVT_WAIT_DATA_READ:
+				// platform event triggered, continue
+				break;
+			case CC_PLATFORM_EVT_WAIT_FAIL:
+				cc_log_error("Platform wait failed");
+				if (node->transport_client != NULL)
+					node->transport_client->state = CC_TRANSPORT_DISCONNECTED;
+				break;
 		}
 	}
 
+	cc_node_stop(node);
 #if CC_USE_STORAGE
 	cc_node_set_state(node, false);
 #endif

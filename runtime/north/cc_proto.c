@@ -735,7 +735,7 @@ cc_result_t cc_proto_send_remove_actor(cc_node_t *node, cc_actor_t*actor, cc_msg
 
 cc_result_t cc_proto_send_remove_replica(cc_node_t *node, cc_actor_t *actor, bool node_also, cc_msg_handler_t handler)
 {
-	char buffer[1000], *w = NULL, key[80], msg_uuid[CC_UUID_BUFFER_SIZE];
+	char buffer[1000], *w = NULL, key[80], id[40], msg_uuid[CC_UUID_BUFFER_SIZE];
 	int key_len = 0;
 	char *replication_id = NULL;
 	uint32_t replication_id_len = 0;
@@ -748,8 +748,15 @@ cc_result_t cc_proto_send_remove_replica(cc_node_t *node, cc_actor_t *actor, boo
 			return CC_FAIL;
 	}
 
+	strncpy(id, replication_id, replication_id_len);
+	id[replication_id_len] = '\0';
+
+	cc_log_error("BANAN: '%s'", actor->id);
+	cc_log_error("BANAN: '%ld'", replication_id_len);
+	cc_log_error("BANAN: '%.*s'", replication_id_len, replication_id);
+
 	memset(key, 0, 80);
-	key_len = snprintf(key, 17 + replication_id_len, "replicas/actors/%s", replication_id);
+	key_len = snprintf(key, 17 + replication_id_len, "replicas/actors/%s", id);
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 
@@ -786,7 +793,7 @@ cc_result_t cc_proto_send_remove_replica(cc_node_t *node, cc_actor_t *actor, boo
 	}
 	memset(buffer, 0, 1000);
 	memset(key, 0, 80);
-	key_len = snprintf(key, 16 + replication_id_len, "replicas/nodes/%s", replication_id);
+	key_len = snprintf(key, 16 + replication_id_len, "replicas/nodes/%s", id);
 
 	cc_gen_uuid(msg_uuid, "MSGID_");
 

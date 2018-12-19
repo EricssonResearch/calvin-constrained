@@ -20,6 +20,8 @@
 
 #define CC_USE_GETOPT (1)
 #define CC_USE_SLEEP (1)
+#define CC_INACTIVITY_TIMEOUT (5)
+#define CC_SLEEP_TIME (30)
 #define CC_USE_STORAGE (1)
 
 struct cc_calvinsys_obj_t;

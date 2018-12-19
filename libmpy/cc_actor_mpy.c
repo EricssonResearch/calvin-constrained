@@ -463,6 +463,8 @@ cc_result_t cc_actor_mpy_init_from_type(cc_actor_t *actor)
 	static int counter;
 	uint8_t pos = 0, class_len = 0;
 
+	cc_log("Loading Python actor '%s'", actor->type);
+
 	sprintf(instance_name, "actor_obj%d", counter++);
 
 	if (cc_platform_mem_alloc((void **)&state, sizeof(cc_actor_mpy_state_t)) != CC_SUCCESS) {

@@ -23,12 +23,23 @@
 
 typedef struct cc_calvinsys_timer_t {
 	uint32_t timeout;
-  uint32_t nexttrigger;
+	bool armed;
+  uint32_t next_time;
 	bool repeats;
-	bool active;
+	bool triggered;
 } cc_calvinsys_timer_t;
 
+/**
+ * cc_calvinsys_timer_create() - Create calvinsys timer objects
+ * @calvinsys Calvinsys object
+ */
+
 cc_result_t cc_calvinsys_timer_create(cc_calvinsys_t **calvinsys);
-cc_result_t cc_calvinsys_timer_get_nexttrigger(struct cc_node_t *node, uint32_t *nexttrigger);
+/**
+ * cc_calvinsys_timers_check() - Updates timers and gets next timeout
+ * @node the node object
+ * @timeout timeout value for next timer
+ */
+void cc_calvinsys_timers_check(struct cc_node_t *node, uint32_t *timeout);
 
 #endif /* CC_CALVINSYS_TIMER_H */
