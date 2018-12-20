@@ -1151,10 +1151,13 @@ static cc_result_t proto_parse_destroy(cc_node_t *node, char *root)
 	}
 
 	node->state = CC_NODE_STOP;
-	if (strncmp(method, "migrate", 7) == 0)
+	if (strncmp(method, "/migrate", 8) == 0) {
+		cc_log("Proto: Received stop node with migrate");
 		node->stop_method = CC_NODE_STOP_MIGRATE;
-	else
+	} else {
+		cc_log("Proto: Received stop node");
 		node->stop_method = CC_NODE_STOP_CLEAN;
+	}
 
 	memset(respbuffer, 0, 400);
 	w = respbuffer + node->transport_client->prefix_len;
