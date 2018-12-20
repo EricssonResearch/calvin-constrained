@@ -16,6 +16,7 @@ CC_SRC_C += \
 	runtime/north/cc_port.c \
 	runtime/north/cc_fifo.c \
 	runtime/north/cc_token.c \
+	runtime/north/cc_app_manager.c \
 	msgpuck/msgpuck.c \
 	runtime/north/coder/cc_coder_msgpuck.c \
 	calvinsys/cc_calvinsys.c \

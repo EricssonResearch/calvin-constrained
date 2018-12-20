@@ -71,6 +71,7 @@ static cc_result_t cc_calvinsys_timer_write(struct cc_calvinsys_obj_t *obj, char
 
 static cc_result_t cc_calvinsys_timer_close(struct cc_calvinsys_obj_t *obj)
 {
+	cc_log("Timer '%s' closed.", obj->id);
 	cc_platform_mem_free((void *)obj->state);
 	return CC_SUCCESS;
 }
@@ -252,7 +253,7 @@ void cc_calvinsys_timers_check(cc_node_t *node, uint32_t *timeout)
 					timer->triggered = true;
 					timer->armed = false;
 					*timeout = 0;
-				} else if ((timer->next_time - now) < *timeout) {
+				} else {
 					*timeout = timer->next_time - now;
 				}
 			}
