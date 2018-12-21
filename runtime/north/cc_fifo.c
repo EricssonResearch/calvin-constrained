@@ -129,6 +129,34 @@ cc_fifo_t *cc_fifo_init(char *obj_fifo, char* obj_properties)
 	return fifo;
 }
 
+cc_fifo_t *cc_fifo_init_empty()
+{
+	cc_fifo_t *fifo = NULL;
+	uint32_t i_token = 0;
+
+	if (cc_platform_mem_alloc((void **)&fifo, sizeof(cc_fifo_t)) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return NULL;
+	}
+
+	fifo->size = 4;
+	fifo->write_pos = 0;
+	fifo->read_pos = 0;
+	fifo->tentative_read_pos = 0;
+
+	if (cc_platform_mem_alloc((void **)&fifo->tokens, sizeof(cc_token_t) * fifo->size) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return NULL;
+	}
+
+	for (i_token = 0; i_token < fifo->size; i_token++) {
+		fifo->tokens[i_token].value = NULL;
+		fifo->tokens[i_token].size = 0;
+	}
+
+	return fifo;
+}
+
 void cc_fifo_free(cc_fifo_t *fifo)
 {
 	uint32_t i_token = 0;

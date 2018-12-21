@@ -25,7 +25,6 @@
 static cc_port_t *cc_port_get_from_peer_port_id(struct cc_node_t *node, const char *peer_port_id, uint32_t peer_port_id_len);
 static void cc_port_set_state(cc_port_t *port, cc_port_state_t state);
 static cc_result_t cc_port_get_tunnel(cc_node_t *node, cc_port_t *port);
-static cc_result_t cc_port_connect_local(cc_node_t *node, cc_port_t *port);
 
 static cc_result_t cc_port_remove_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
@@ -510,7 +509,7 @@ static void cc_port_do_peer_lookup(cc_node_t *node, cc_port_t *port)
 		cc_port_set_state(port, CC_PORT_PENDING_LOOKUP);
 }
 
-static cc_result_t cc_port_connect_local(cc_node_t *node, cc_port_t *port)
+cc_result_t cc_port_connect_local(cc_node_t *node, cc_port_t *port)
 {
 	cc_port_t *peer_port = NULL;
 

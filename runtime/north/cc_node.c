@@ -33,15 +33,17 @@
 #include "libmpy/cc_mpy_port.h"
 #endif
 #include "jsmn/jsmn.h"
+#include "cc_app_manager.h"
 
 #if CC_USE_STORAGE
 static cc_result_t cc_node_get_state(cc_node_t *node)
 {
 	char *buffer = NULL, *value = NULL, *array_value = NULL;
+	char *tmp = NULL;
 	uint32_t i = 0, value_len = 0, array_size = 0, state = 0;
 	cc_link_t *link = NULL;
 	cc_tunnel_t *tunnel = NULL;
-	cc_actor_t*actor = NULL;
+	cc_actor_t *actor = NULL;
 	size_t size;
 
 	if (cc_platform_file_read(CC_STATE_FILE, &buffer, &size) != CC_SUCCESS)
@@ -58,20 +60,27 @@ static cc_result_t cc_node_get_state(cc_node_t *node)
 	node->id[value_len] = '\0';
 
 	if (node->attributes == NULL && cc_coder_has_key(buffer, "attributes")) {
-		if (cc_coder_decode_string_from_map(buffer, "attributes", &value, &value_len) != CC_SUCCESS) {
-			cc_log_error("Failed to decode 'attributes'");
-			cc_platform_mem_free(buffer);
+		if (cc_coder_get_value_from_map(buffer, "attributes", &tmp) != CC_SUCCESS) {
+			cc_log("Failed to get 'attributes'");
 			return CC_FAIL;
 		}
 
-		if (cc_platform_mem_alloc((void **)&node->attributes, value_len + 1) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			cc_platform_mem_free(buffer);
-			return CC_FAIL;
-		}
+		if (cc_coder_type_of(tmp) == CC_CODER_STR) {
+			if (cc_coder_decode_string_from_map(buffer, "attributes", &value, &value_len) != CC_SUCCESS) {
+				cc_log_error("Failed to decode 'attributes'");
+				cc_platform_mem_free(buffer);
+				return CC_FAIL;
+			}
 
-		strncpy(node->attributes, value, value_len);
-		node->attributes[value_len] = '\0';
+			if (cc_platform_mem_alloc((void **)&node->attributes, value_len + 1) != CC_SUCCESS) {
+				cc_log_error("Failed to allocate memory");
+				cc_platform_mem_free(buffer);
+				return CC_FAIL;
+			}
+
+			strncpy(node->attributes, value, value_len);
+			node->attributes[value_len] = '\0';
+		}
 	}
 
 	if (node->proxy_uris == NULL && cc_coder_has_key(buffer, "proxy_uris")) {
@@ -184,8 +193,14 @@ void cc_node_set_state(cc_node_t *node, bool include_state)
 	tmp = cc_coder_encode_map(tmp, nbr_of_attributes);
 	{
 		tmp = cc_coder_encode_kv_str(tmp, "id", node->id, strlen(node->id));
-		tmp = cc_coder_encode_kv_str(tmp, "attributes", node->attributes, strnlen(node->attributes, CC_MAX_ATTRIBUTES_LEN));
-		nbr_of_items = cc_list_count(node->proxy_uris);
+		if (node->attributes != NULL)
+			tmp = cc_coder_encode_kv_str(tmp, "attributes", node->attributes, strnlen(node->attributes, CC_MAX_ATTRIBUTES_LEN));
+		else
+			tmp = cc_coder_encode_kv_nil(tmp, "attributes");
+		if (node->proxy_uris == NULL)
+			nbr_of_items = 0;
+		else
+			nbr_of_items = cc_list_count(node->proxy_uris);
 		tmp = cc_coder_encode_kv_array(tmp, "proxy_uris", nbr_of_items);
 		{
 			item = node->proxy_uris;
@@ -724,11 +739,6 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 		return CC_FAIL;
 	}
 
-	if (cc_list_count(node->proxy_uris) == 0) {
-		cc_log_error("No proxy(s) set");
-		return CC_FAIL;
-	}
-
 	return CC_SUCCESS;
 }
 
@@ -822,20 +832,22 @@ uint32_t cc_node_get_time(cc_node_t *node)
 #if CC_USE_SLEEP
 static void cc_node_enter_sleep(cc_node_t *node, uint32_t seconds_to_sleep)
 {
-	if (cc_proto_send_sleep_request(node, seconds_to_sleep, cc_node_enter_sleep_reply_handler) != CC_SUCCESS) {
-		cc_log_error("Failed to send sleep request");
-		node->state = CC_NODE_STARTED;
-		return;
-	}
+	if (node->transport_client != NULL && node->transport_client->state == CC_TRANSPORT_ENABLED) {
+		if (cc_proto_send_sleep_request(node, seconds_to_sleep, cc_node_enter_sleep_reply_handler) != CC_SUCCESS) {
+			cc_log_error("Failed to send sleep request");
+			node->state = CC_NODE_STARTED;
+			return;
+		}
 
-	cc_log("Node: Sleep requested for %ld seconds", seconds_to_sleep);
+		cc_log("Node: Sleep requested for %ld seconds", seconds_to_sleep);
 
-	node->state = CC_NODE_PENDING;
-	cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
-	if (node->state != CC_NODE_DO_SLEEP) {
-		cc_log("Sleep request denied");
-		node->state = CC_NODE_STARTED;
-		return;
+		node->state = CC_NODE_PENDING;
+		cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
+		if (node->state != CC_NODE_DO_SLEEP) {
+			cc_log("Sleep request denied");
+			node->state = CC_NODE_STARTED;
+			return;
+		}
 	}
 
 	cc_log("Node: Enterring sleep for %ld seconds", seconds_to_sleep);
@@ -961,11 +973,14 @@ static void cc_node_dump_info(cc_node_t *node)
 #endif
 }
 
-cc_result_t cc_node_run(cc_node_t *node)
+cc_result_t cc_node_run(cc_node_t *node, const char *script)
 {
 	cc_list_t *item = NULL;
 	uint32_t wait_timeout = 0, next_timer_timeout = 0;
 	cc_platform_evt_wait_status_t waitstatus = CC_PLATFORM_EVT_WAIT_DATA_READ;
+#if CC_USE_SLEEP
+	uint32_t sleep_timeout = 0;
+#endif
 
 	if (node->fire_actors == NULL) {
 		cc_log_error("No actor scheduler set");
@@ -977,6 +992,13 @@ cc_result_t cc_node_run(cc_node_t *node)
 	if (node->proxy_uris == NULL) {
 		// No uris, run without proxy
 		node->state = CC_NODE_STARTED;
+	}
+
+	if (script != NULL) {
+		if (cc_app_manager_load_script(node, script) != CC_SUCCESS) {
+			cc_log_error("Failed to load script");
+			return CC_FAIL;
+		}
 	}
 
 	while (node->state != CC_NODE_STOP) {
@@ -1002,19 +1024,23 @@ cc_result_t cc_node_run(cc_node_t *node)
 		wait_timeout = CC_INACTIVITY_TIMEOUT;
 		cc_calvinsys_timers_check(node, &wait_timeout);
 
+#if CC_USE_SLEEP
+		// Wait CC_INACTIVITY_TIMEOUT, if timeout try sleep
+		if (wait_timeout > CC_INACTIVITY_TIMEOUT)
+			wait_timeout = CC_INACTIVITY_TIMEOUT;
+#endif
+
 		// wait for platform event
 		waitstatus = cc_platform_evt_wait(node, wait_timeout);
 		switch (waitstatus) {
 			case CC_PLATFORM_EVT_WAIT_TIMEOUT:
 #if CC_USE_SLEEP
-				// timeout, try to enter sleep
-				cc_log("Node: Idle for '%ld' seconds, trying sleep", wait_timeout);
-				wait_timeout = CC_SLEEP_TIME;
-				cc_calvinsys_timers_check(node, &wait_timeout);
-				if (wait_timeout < CC_INACTIVITY_TIMEOUT) {
-					continue;
+				sleep_timeout = CC_SLEEP_TIME;
+				cc_calvinsys_timers_check(node, &sleep_timeout);
+				if (sleep_timeout > CC_INACTIVITY_TIMEOUT) {
+					cc_log("Node: Idle for '%ld' seconds, trying sleep for '%ld' seconds", wait_timeout, sleep_timeout);
+					cc_node_enter_sleep(node, sleep_timeout);
 				}
-				cc_node_enter_sleep(node, wait_timeout);
 #endif
 				break;
 			case CC_PLATFORM_EVT_WAIT_DATA_READ:

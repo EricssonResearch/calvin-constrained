@@ -20,7 +20,7 @@
 #include "runtime/north/cc_node.h"
 
 cc_result_t cc_api_runtime_init(cc_node_t **node, const char *attributes, const char *uris, const char *platform_args);
-cc_result_t cc_api_runtime_start(cc_node_t *node);
+cc_result_t cc_api_runtime_start(cc_node_t *node, const char *script);
 cc_result_t cc_api_runtime_stop(cc_node_t *node);
 cc_result_t cc_api_runtime_serialize_and_stop(cc_node_t *node);
 cc_result_t cc_api_reconnect(cc_node_t *node);

@@ -1,0 +1,69 @@
+{
+    "connections": {
+        "test:src.integer": [
+            "test:id.token"
+        ], 
+        "test:id.token": [
+            "test:log.data"
+        ]
+    }, 
+    "port_properties": {
+        "test:src": [
+            {
+                "direction": "out", 
+                "port": "integer", 
+                "properties": {
+                    "nbr_peers": 1
+                }
+            }
+        ], 
+        "test:log": [
+            {
+                "direction": "in", 
+                "port": "data", 
+                "properties": {
+                    "nbr_peers": 1
+                }
+            }
+        ], 
+        "test:id": [
+            {
+                "direction": "out", 
+                "port": "token", 
+                "properties": {
+                    "nbr_peers": 1
+                }
+            }, 
+            {
+                "direction": "in", 
+                "port": "token", 
+                "properties": {
+                    "nbr_peers": 1
+                }
+            }
+        ]
+    }, 
+    "valid": true, 
+    "actors": {
+        "test:src": {
+            "args": {
+                "sleep": 1
+            }, 
+            "actor_type": "std.CountTimer", 
+            "signature": "3bf2bdf645bf20cb21bd6134d016106923c2697f8694137a471b9121b12cb6aa"
+        }, 
+        "test:log": {
+            "args": {
+                "loglevel": "INFO"
+            }, 
+            "actor_type": "io.Log", 
+            "signature": "e73ce6ca0ccc9bce14f8d546e930f53cb69e466eb3325e1cc24d64e8b0bb97b5"
+        }, 
+        "test:id": {
+            "args": {}, 
+            "actor_type": "std.Identity", 
+            "signature": "1cd0b1f440ac8a5d1ed69108ebce63902b0383778da8ac2d9aa817f021665168"
+        }
+    }, 
+    "name": "test"
+}

@@ -64,9 +64,9 @@ cc_result_t cc_api_runtime_init(cc_node_t **node, const char *attributes, const 
 	return CC_SUCCESS;
 }
 
-cc_result_t cc_api_runtime_start(cc_node_t *node)
+cc_result_t cc_api_runtime_start(cc_node_t *node, const char *script)
 {
-	cc_node_run(node);
+	cc_node_run(node, script);
 	return CC_SUCCESS;
 }
 

@@ -1,0 +1,5 @@
+src : std.CountTimer(sleep=1)
+id : std.Identity()
+log : io.Log(loglevel="INFO")
+src.integer > id.token
+id.token > log.data

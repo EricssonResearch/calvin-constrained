@@ -29,6 +29,7 @@ typedef struct cc_fifo_t {
 } cc_fifo_t;
 
 cc_fifo_t *cc_fifo_init(char *obj_fifo, char *obj_properties);
+cc_fifo_t *cc_fifo_init_empty();
 void cc_fifo_free(cc_fifo_t *fifo);
 void cc_fifo_cancel(cc_fifo_t *fifo);
 cc_token_t *cc_fifo_peek(cc_fifo_t *fifo);

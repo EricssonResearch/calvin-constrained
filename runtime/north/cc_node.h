@@ -86,7 +86,7 @@ void cc_node_handle_token_reply(cc_node_t *node, char *port_id, uint32_t port_id
 cc_result_t cc_node_handle_message(cc_node_t *node, char *buffer, size_t len);
 cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *proxy_uris);
 uint32_t cc_node_get_time(cc_node_t *node);
-cc_result_t cc_node_run(cc_node_t *node);
+cc_result_t cc_node_run(cc_node_t *node, const char *script);
 #if CC_USE_STORAGE
 void cc_node_set_state(cc_node_t *node, bool include_state);
 #endif

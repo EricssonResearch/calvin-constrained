@@ -42,13 +42,11 @@ static cc_result_t cc_actor_log_init(cc_actor_t *actor, cc_list_t *managed_attri
 
 	item = cc_list_get(managed_attributes, "loglevel");
 	if (item == NULL) {
-		cc_log_error("Failed to get 'loglevel'");
-		return CC_FAIL;
-	}
-
-	if (cc_platform_mem_alloc((void **)&state->loglevel, item->data_len) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
+	} else {
+		if (cc_platform_mem_alloc((void **)&state->loglevel, item->data_len) != CC_SUCCESS) {
+			cc_log_error("Failed to allocate memory");
+			return CC_FAIL;
+		}	
 	}
 
 	memcpy(state->loglevel, item->data, item->data_len);

@@ -67,12 +67,15 @@ typedef struct cc_actor_t{
 
 cc_result_t cc_actor_req_match_reply_handler(struct cc_node_t *node, char *data, size_t data_len, void *msg_data);
 cc_actor_t *cc_actor_create(struct cc_node_t *node, char *root);
+cc_actor_t *cc_actor_create_from_type(struct cc_node_t *node, char *type, uint32_t type_len);
 void cc_actor_free(struct cc_node_t *node, cc_actor_t *actor, bool remove_from_registry);
 cc_actor_t *cc_actor_get(struct cc_node_t *node, const char *actor_id, uint32_t actor_id_len);
+cc_actor_t *cc_actor_get_from_name(struct cc_node_t *node, const char *name, uint32_t name_len);
 void cc_actor_port_state_changed(cc_actor_t *actor);
 void cc_actor_disconnect(struct cc_node_t *node, cc_actor_t *actor, bool unref_tunnel);
 void cc_actor_connect_ports(struct cc_node_t *node, cc_actor_t *actor);
 cc_result_t cc_actor_migrate(struct cc_node_t *node, cc_actor_t *actor, char *to_rt_uuid, uint32_t to_rt_uuid_len);
 char *cc_actor_serialize(const struct cc_node_t *node, cc_actor_t *actor, char *buffer, bool include_state);
+void cc_actor_free_attribute_list(cc_list_t *managed_attributes);
 
 #endif /* CC_ACTOR_H */

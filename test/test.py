@@ -542,7 +542,7 @@ def testSleepWithoutTimers():
     global constrained_process
     script_name = "testSleepWithoutTimers"
     script = """
-    src : std.CountTimer(sleep=10)
+    src : std.CountTimer(sleep=15)
     id : std.Identity()
     snk : test.Sink(store_tokens=1, quiet=1)
     src.integer > id.token
@@ -563,7 +563,7 @@ def testSleepWithoutTimers():
     # wait for constrained enterring sleep
     constrained_process.wait()
     assert constrained_process.poll() is not None
-    time.sleep(5)
+    time.sleep(10)
     constrained_process = subprocess.Popen(calvin_command, shell=True)
 
     # verify data
@@ -578,7 +578,7 @@ def testSleepWithTimer():
     global constrained_process
     script_name = "testSleepWithTimer"
     script = """
-    temp : sensor.Temperature(period=10)
+    temp : sensor.Temperature(period=15)
     snk : test.Sink(store_tokens=1, quiet=1)
     temp.centigrade > snk.token
 
@@ -597,7 +597,7 @@ def testSleepWithTimer():
     # wait for constrained enterring sleep
     constrained_process.wait()
     assert constrained_process.poll() is not None
-    time.sleep(5)
+    time.sleep(10)
     constrained_process = subprocess.Popen(calvin_command, shell=True)
 
     # verify data

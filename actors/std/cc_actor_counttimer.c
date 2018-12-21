@@ -15,6 +15,7 @@
  */
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include "runtime/north/cc_actor_store.h"
 #include "runtime/north/cc_fifo.h"
 #include "runtime/north/cc_token.h"
@@ -26,12 +27,9 @@
 
 typedef struct cc_actor_counttimer_state_t {
 	char timer[CC_UUID_BUFFER_SIZE];
-	char *sleep;
-	size_t sleep_size;
-  char *start;
-	size_t start_size;
-  char *steps;
-	size_t steps_size;
+	uint32_t sleep;
+  uint32_t start;
+  uint32_t steps;
   uint32_t count;
   bool stopped;
 } cc_actor_counttimer_state_t;
@@ -39,8 +37,9 @@ typedef struct cc_actor_counttimer_state_t {
 static cc_result_t cc_actor_counttimer_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
 	cc_actor_counttimer_state_t *state = NULL;
-	char *obj_ref = NULL;
+	char *obj_ref = NULL, *data = NULL;
 	cc_list_t *item = NULL, *attributes = NULL;
+	uint32_t size = 0;
 
 	if (cc_platform_mem_alloc((void **)&state, sizeof(cc_actor_counttimer_state_t)) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
@@ -52,58 +51,43 @@ static cc_result_t cc_actor_counttimer_init(cc_actor_t *actor, cc_list_t *manage
 
 	item = cc_list_get(managed_attributes, "sleep");
 	if (item == NULL) {
-		cc_log_error("Failed to get 'sleep'");
-		return CC_FAIL;
-	}
-
-	if (cc_platform_mem_alloc((void **)&state->sleep, item->data_len) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
-	}
-
-	memcpy(state->sleep, item->data, item->data_len);
-	state->sleep_size = item->data_len;
-
-	if (cc_list_add(&attributes, "sleep", state->sleep, state->sleep_size) == NULL) {
-		cc_log_error("Failed to add 'sleep'");
-		return CC_FAIL;
+		state->sleep = 1;
+	} else {
+		if (cc_coder_decode_uint(item->data, &state->sleep) != CC_SUCCESS) {
+			cc_log_error("Failed to decode 'sleep'");
+			return false;
+		}
 	}
 
   item = cc_list_get(managed_attributes, "start");
 	if (item == NULL) {
-		cc_log_error("Failed to get 'start'");
-		return CC_FAIL;
-	}
-
-	if (cc_platform_mem_alloc((void **)&state->start, item->data_len) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
-	}
-
-	memcpy(state->start, item->data, item->data_len);
-	state->start_size = item->data_len;
-
-	if (cc_list_add(&attributes, "start", state->start, state->start_size) == NULL) {
-		cc_log_error("Failed to add 'start'");
-		return CC_FAIL;
+		state->start = 1;
+	} else {
+		if (cc_coder_decode_uint(item->data, &state->start) != CC_SUCCESS) {
+			cc_log_error("Failed to decode 'start'");
+			return false;
+		}
 	}
 
   item = cc_list_get(managed_attributes, "steps");
 	if (item == NULL) {
-		cc_log_error("Failed to get 'steps'");
-		return CC_FAIL;
+		state->steps = UINT32_MAX;
+	} else {
+		if (cc_coder_decode_uint(item->data, &state->steps) != CC_SUCCESS) {
+			cc_log_error("Failed to decode 'steps'");
+			return false;
+		}
 	}
 
-	if (cc_platform_mem_alloc((void **)&state->steps, item->data_len) != CC_SUCCESS) {
+	size = cc_coder_sizeof_uint(state->sleep);
+	if (cc_platform_mem_alloc((void **)&data, size) != CC_SUCCESS) {
 		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
+		return false;
 	}
+	cc_coder_encode_uint(data, state->sleep);
 
-	memcpy(state->steps, item->data, item->data_len);
-	state->steps_size = item->data_len;
-
-	if (cc_list_add(&attributes, "period", state->sleep, state->sleep_size) == NULL) {
-		cc_log_error("Failed to add 'sleep'");
+	if (cc_list_add(&attributes, "period", data, size) == NULL) {
+		cc_log_error("Failed to add 'period'");
 		return CC_FAIL;
 	}
 
@@ -118,14 +102,13 @@ static cc_result_t cc_actor_counttimer_init(cc_actor_t *actor, cc_list_t *manage
 
   item = cc_list_get(managed_attributes, "count");
   if (item == NULL) {
-    cc_log_error("Failed to get 'count'");
-    return CC_FAIL;
-  }
-
-  if (cc_coder_decode_uint(item->data, &state->count) != CC_SUCCESS) {
-    cc_log_error("Failed to decode 'count'");
-    return false;
-  }
+		state->count = state->start;
+  } else {
+		if (cc_coder_decode_uint(item->data, &state->count) != CC_SUCCESS) {
+	    cc_log_error("Failed to decode 'count'");
+	    return false;
+	  }
+	}
 
   state->stopped = false;
 
@@ -166,13 +149,10 @@ static cc_result_t cc_actor_counttimer_set_state(cc_actor_t *actor, cc_list_t *m
 		return CC_FAIL;
 	}
 
-	if (cc_platform_mem_alloc((void **)&state->sleep, item->data_len) != CC_SUCCESS) {
-		cc_log_error("Failed to allocate memory");
-		return CC_FAIL;
+	if (cc_coder_decode_uint(item->data, &state->sleep) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'sleep'");
+		return false;
 	}
-
-	memcpy(state->sleep, item->data, item->data_len);
-	state->sleep_size = item->data_len;
 
   item = cc_list_get(managed_attributes, "start");
   if (item == NULL) {
@@ -180,13 +160,10 @@ static cc_result_t cc_actor_counttimer_set_state(cc_actor_t *actor, cc_list_t *m
     return CC_FAIL;
   }
 
-  if (cc_platform_mem_alloc((void **)&state->start, item->data_len) != CC_SUCCESS) {
-    cc_log_error("Failed to allocate memory");
-    return CC_FAIL;
-  }
-
-  memcpy(state->start, item->data, item->data_len);
-  state->start_size = item->data_len;
+	if (cc_coder_decode_uint(item->data, &state->start) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'start'");
+		return false;
+	}
 
   item = cc_list_get(managed_attributes, "steps");
   if (item == NULL) {
@@ -194,13 +171,10 @@ static cc_result_t cc_actor_counttimer_set_state(cc_actor_t *actor, cc_list_t *m
     return CC_FAIL;
   }
 
-  if (cc_platform_mem_alloc((void **)&state->steps, item->data_len) != CC_SUCCESS) {
-    cc_log_error("Failed to allocate memory");
-    return CC_FAIL;
-  }
-
-  memcpy(state->steps, item->data, item->data_len);
-  state->steps_size = item->data_len;
+	if (cc_coder_decode_uint(item->data, &state->steps) != CC_SUCCESS) {
+		cc_log_error("Failed to decode 'steps'");
+		return false;
+	}
 
   item = cc_list_get(managed_attributes, "count");
   if (item == NULL) {
@@ -222,37 +196,29 @@ static bool cc_actor_counttimer_step_no_periodic(struct cc_actor_t *actor)
 {
   cc_port_t *outport = (cc_port_t *)actor->out_ports->data;
 	cc_actor_counttimer_state_t *state = (cc_actor_counttimer_state_t *)actor->instance_state;
-  uint32_t steps = 0, start = 0;
   size_t size = 0;
   char *data = NULL, *obj_ref = NULL;
   cc_list_t *attributes = NULL;
 
-  if (cc_coder_decode_uint(state->steps, &steps) != CC_SUCCESS) {
-    cc_log_error("Failed to decode steps");
+  if (state->count >= state->start + 3 || state->count >= state->steps || !cc_calvinsys_can_read(actor->calvinsys, state->timer)) {
     return false;
   }
-
-  if (cc_coder_decode_uint(state->start, &start) != CC_SUCCESS) {
-    cc_log_error("Failed to decode start");
-    return false;
-  }
-
-  if (state->count >= start + 3 || state->count >= steps || !cc_calvinsys_can_read(actor->calvinsys, state->timer)) {
-    return false;
-  }
-
-  cc_log("Firing cc_actor_counttimer_step_no_periodic start: %ld count: %ld steps: %ld", start, state->count, steps);
 
   cc_calvinsys_read(actor->calvinsys, state->timer, &data, &size);
 
-  if (state->count == start + 2) {
+  if (state->count == state->start + 2) {
     cc_calvinsys_close(actor->calvinsys, state->timer);
 
-    if (cc_list_add(&attributes, "period", state->sleep, state->sleep_size) == NULL) {
-      cc_log_error("Failed to add 'sleep'");
+		size = cc_coder_sizeof_uint(state->sleep);
+	  if (cc_platform_mem_alloc((void **)&data, size) != CC_SUCCESS) {
+	    cc_log_error("Failed to allocate memory");
+	    return false;
+	  }
+	  cc_coder_encode_uint(data, state->sleep);
+    if (cc_list_add(&attributes, "period", data, size) == NULL) {
+      cc_log_error("Failed to add 'period'");
       return CC_FAIL;
     }
-
     obj_ref = cc_calvinsys_open(actor, "sys.timer.repeating", attributes);
     cc_list_remove(&attributes, "period");
     if (obj_ref == NULL) {
@@ -275,7 +241,14 @@ static bool cc_actor_counttimer_step_no_periodic(struct cc_actor_t *actor)
     return false;
   }
 
-  if (cc_calvinsys_write(actor->calvinsys, state->timer, state->sleep, state->sleep_size) != CC_SUCCESS)
+	size = cc_coder_sizeof_uint(state->sleep);
+	if (cc_platform_mem_alloc((void **)&data, size) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return false;
+	}
+	cc_coder_encode_uint(data, state->sleep);
+
+  if (cc_calvinsys_write(actor->calvinsys, state->timer, data, size) != CC_SUCCESS)
     cc_log_debug("Failed to set timer %s", state->timer);
 
   state->count++;
@@ -287,20 +260,12 @@ static bool cc_actor_counttimer_step_periodic(struct cc_actor_t *actor)
 {
   cc_port_t *outport = (cc_port_t *)actor->out_ports->data;
 	cc_actor_counttimer_state_t *state = (cc_actor_counttimer_state_t *)actor->instance_state;
-  uint32_t steps = 0;
   size_t size = 0;
   char *data = NULL;
 
-  if (cc_coder_decode_uint(state->steps, &steps) != CC_SUCCESS) {
-    cc_log_error("Failed to decode steps");
+  if (state->count >= state->steps || !cc_calvinsys_can_read(actor->calvinsys, state->timer)) {
     return false;
   }
-
-  if (state->count >= steps || !cc_calvinsys_can_read(actor->calvinsys, state->timer)) {
-    return false;
-  }
-
-  cc_log("Firing step_periodic count: %ld steps: %ld", state->count, state->steps);
 
   cc_calvinsys_read(actor->calvinsys, state->timer, &data, &size);
 
@@ -324,18 +289,11 @@ static bool cc_actor_counttimer_step_periodic(struct cc_actor_t *actor)
 static bool cc_actor_counttimer_stop(struct cc_actor_t *actor)
 {
 	cc_actor_counttimer_state_t *state = (cc_actor_counttimer_state_t *)actor->instance_state;
-  uint32_t steps = 0;
 
-  if (state->stopped == true)
+  if (state->stopped)
     return false;
 
-  if (cc_coder_decode_uint(state->steps, &steps) != CC_SUCCESS) {
-    cc_log_error("Failed to decode steps");
-    return false;
-  }
-
-  if (state->count == steps) {
-    cc_log("Fired stop count: %ld steps %ld", state->count, steps);
+  if (state->count == state->steps) {
     cc_calvinsys_close(actor->calvinsys, state->timer);
     state->stopped = true;
     return true;
@@ -365,12 +323,6 @@ static void cc_actor_counttimer_free(cc_actor_t *actor)
 	cc_actor_counttimer_state_t *state = (cc_actor_counttimer_state_t *)actor->instance_state;
 
 	if (state != NULL) {
-		if (state->sleep != NULL)
-			cc_platform_mem_free(state->sleep);
-    if (state->start != NULL)
-  		cc_platform_mem_free(state->start);
-    if (state->steps != NULL)
-    	cc_platform_mem_free(state->steps);
 		cc_platform_mem_free(state);
 	}
 }
@@ -395,23 +347,41 @@ static cc_result_t cc_actor_counttimer_get_attributes(cc_actor_t *actor, cc_list
 		return CC_FAIL;
 	}
 
-	if (cc_list_add_n(managed_attributes, "sleep", 5, state->sleep, state->sleep_size) == NULL) {
+	size = cc_coder_sizeof_uint(state->sleep);
+	if (cc_platform_mem_alloc((void **)&data, size) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+	cc_coder_encode_uint(data, state->sleep);
+
+	if (cc_list_add_n(managed_attributes, "sleep", 5, data, size) == NULL) {
 		cc_log_error("Failed to add 'sleep' to managed attributes");
 		return CC_FAIL;
 	}
-	state->sleep = NULL;
 
-  if (cc_list_add_n(managed_attributes, "start", 5, state->start, state->start_size) == NULL) {
+	size = cc_coder_sizeof_uint(state->start);
+	if (cc_platform_mem_alloc((void **)&data, size) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+	cc_coder_encode_uint(data, state->start);
+
+  if (cc_list_add_n(managed_attributes, "start", 5, data, size) == NULL) {
 		cc_log_error("Failed to add 'start' to managed attributes");
 		return CC_FAIL;
 	}
-	state->start = NULL;
 
-  if (cc_list_add_n(managed_attributes, "steps", 5, state->steps, state->steps_size) == NULL) {
+	size = cc_coder_sizeof_uint(state->steps);
+	if (cc_platform_mem_alloc((void **)&data, size) != CC_SUCCESS) {
+		cc_log_error("Failed to allocate memory");
+		return CC_FAIL;
+	}
+	cc_coder_encode_uint(data, state->steps);
+
+  if (cc_list_add_n(managed_attributes, "steps", 5, data, size) == NULL) {
 		cc_log_error("Failed to add 'steps' to managed attributes");
 		return CC_FAIL;
 	}
-	state->steps = NULL;
 
   size = cc_coder_sizeof_uint(state->count);
   if (cc_platform_mem_alloc((void **)&data, size) != CC_SUCCESS) {

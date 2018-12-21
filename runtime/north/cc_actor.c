@@ -30,8 +30,6 @@
 #include "libmpy/cc_actor_mpy.h"
 #endif
 
-static void cc_actor_free_attribute_list(cc_list_t *managed_attributes);
-
 cc_result_t cc_actor_req_match_reply_handler(cc_node_t *node, char *data, size_t data_len, void *msg_data)
 {
 	char *value = NULL, *obj_data = NULL, *actor_id = NULL, *possible_placements = NULL, *peer_id = NULL;
@@ -294,7 +292,7 @@ static cc_result_t cc_actor_get_compiled_actor_reply_handler(cc_node_t *node, ch
 }
 #endif
 
-static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32_t type_len)
+cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32_t type_len)
 {
 	cc_actor_t *actor = NULL;
 	cc_list_t *item = NULL;
@@ -352,7 +350,7 @@ static cc_actor_t *cc_actor_create_from_type(cc_node_t *node, char *type, uint32
 	return NULL;
 }
 
-static void cc_actor_free_attribute_list(cc_list_t *attributes)
+void cc_actor_free_attribute_list(cc_list_t *attributes)
 {
 	cc_list_t *tmp_list = NULL;
 
@@ -796,6 +794,21 @@ cc_actor_t *cc_actor_get(cc_node_t *node, const char *actor_id, uint32_t actor_i
 	item = cc_list_get_n(node->actors, actor_id, actor_id_len);
 	if (item != NULL)
 		return (cc_actor_t *)item->data;
+
+	return NULL;
+}
+
+cc_actor_t *cc_actor_get_from_name(cc_node_t *node, const char *name, uint32_t name_len)
+{
+	cc_actor_t *actor = NULL;
+	cc_list_t *actors = node->actors;
+
+	while (actors != NULL) {
+		actor = (cc_actor_t *)actors->data;
+		if (strncmp(actor->name, name, name_len) == 0)
+			return actor;
+		actors = actors->next;
+	}
 
 	return NULL;
 }

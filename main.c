@@ -25,17 +25,19 @@
 int main(int argc, char **argv)
 {
 	char *attr = NULL, *uris = NULL, *platform_args = NULL;
+	char *script = NULL;
 	cc_node_t *node = NULL;
 #if (CC_USE_GETOPT == 1)
 	int c = 0;
 	static struct option long_options[] = {
-		{"attr", required_argument, NULL, 'a'},
-		{"uris", required_argument, NULL, 'u'},
-		{"platform_data", required_argument, NULL, 'p'},
+		{"attr", optional_argument, NULL, 'a'},
+		{"uris", optional_argument, NULL, 'u'},
+		{"platform_data", optional_argument, NULL, 'p'},
+		{"platform_data", optional_argument, NULL, 's'},
 		{NULL, 0, NULL, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "a:u:p:", long_options, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "a:u:p:s:", long_options, NULL)) != -1) {
 		switch (c) {
 		case 'a':
 			attr = optarg;
@@ -46,6 +48,9 @@ int main(int argc, char **argv)
 		case 'p':
 			platform_args = optarg;
 			break;
+		case 's':
+			script = optarg;
+			break;
 		default:
 			break;
 		}
@@ -55,7 +60,7 @@ int main(int argc, char **argv)
 	if (cc_api_runtime_init(&node, attr, uris, platform_args) != CC_SUCCESS)
 		return EXIT_FAILURE;
 
-	if (cc_api_runtime_start(node) != CC_SUCCESS)
+	if (cc_api_runtime_start(node, script) != CC_SUCCESS)
 		return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;
