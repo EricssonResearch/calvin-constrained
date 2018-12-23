@@ -32,8 +32,8 @@ runtime1 = None
 runtime2 = None
 constrained_id = None
 constrained_process = None
-calvin_command = "exec ./calvin_c"
-#calvin_command = "exec valgrind --leak-check=full ./calvin_c"
+#calvin_command = "exec ./calvin_c"
+calvin_command = "exec valgrind --leak-check=full ./calvin_c"
 
 def verify_actor_placement(request_handler, rt, actor_id, rt_id):
     retry = 0
@@ -241,7 +241,7 @@ def testMigration():
     # delete application
     request_handler.delete_application(runtime1, resp['application_id'])
 
-def testTemperature():
+def testActorWithCalvinsys():
     script_name = "testTemperature"
     script = """
     temp : sensor.Temperature(period=1)
@@ -274,7 +274,7 @@ def testTemperature():
     # delete application
     request_handler.delete_application(runtime1, resp['application_id'])
 
-def testTemperatureFromShadow():
+def testActorWithCalvinsysFromShadow():
     script_name = "testTemperatureFromShadow"
     script = """
     temp : sensor.Temperature(period=1)
@@ -305,204 +305,6 @@ def testTemperatureFromShadow():
     assert verify_actor_placement(request_handler, runtime1, temp_id, runtime1.id)
 
     # delete application
-    request_handler.delete_application(runtime2, resp['application_id'])
-
-def testTriggeredTemperature():
-    script_name = "testTriggeredTemperature"
-    script = """
-    src : std.CountTimer(sleep=0.1)
-    temp : sensor.TriggeredTemperature()
-    snk : test.Sink(store_tokens=1, quiet=1)
-
-    src.integer > temp.trigger
-    temp.centigrade > snk.token
-
-    rule first: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "first", "name": "runtime1"}])
-    rule constrained: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "rest", "name": "constrained"}])
-    apply src, snk: first
-    apply temp: constrained
-    """
-    resp = request_handler.deploy_application(runtime1,
-                                              script_name,
-                                              script)
-    temp_id = resp['actor_map'][script_name + ':temp']
-    snk_id = resp['actor_map'][script_name + ':snk']
-
-    # verify actor placement and data
-    assert verify_actor_placement(request_handler, runtime1, temp_id, constrained_id)
-    wait_for_tokens(request_handler, runtime1, snk_id, 5, 20)
-    actual = request_handler.report(runtime1, snk_id)
-    assert len(actual) >= 5
-
-    # migrate temp back to runtime1
-    request_handler.migrate(runtime1, temp_id, runtime1.id)
-
-    # verify placement
-    assert verify_actor_placement(request_handler, runtime1, temp_id, runtime1.id)
-
-    # destroy application
-    request_handler.delete_application(runtime1, resp['application_id'])
-
-def testTriggeredTemperatureFromShadow():
-    script_name = "testTriggeredTemperatureFromShadow"
-    script = """
-    src : std.CountTimer(sleep=0.1)
-    temp : sensor.TriggeredTemperature()
-    snk : test.Sink(store_tokens=1, quiet=1)
-
-    src.integer > temp.trigger
-    temp.centigrade > snk.token
-
-    rule second: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "rest", "name": "runtime2"}])
-    rule constrained: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "rest", "name": "constrained"}])
-    apply src, snk: second
-    apply temp: constrained
-    """
-    resp = request_handler.deploy_application(runtime2,
-                                              script_name,
-                                              script)
-    temp_id = resp['actor_map'][script_name + ':temp']
-    snk_id = resp['actor_map'][script_name + ':snk']
-
-    # verify actor placement and data
-    assert verify_actor_placement(request_handler, runtime2, temp_id, constrained_id)
-    wait_for_tokens(request_handler, runtime2, snk_id, 5, 20)
-    actual = request_handler.report(runtime2, snk_id)
-    assert len(actual) >= 5
-
-    # migrate temp to runtime1
-    request_handler.migrate(runtime2, temp_id, runtime1.id)
-
-    # verify placement and data
-    assert verify_actor_placement(request_handler, runtime1, temp_id, runtime1.id)
-
-    # destroy application
-    request_handler.delete_application(runtime2, resp['application_id'])
-
-def testLight():
-    script_name = "testLight"
-    script = """
-    src : std.CountTimer(sleep=0.1)
-    seq : std.ConstSequencer(sequence=[0, 1])
-    led : io.Light()
-
-    src.integer > seq.in
-    seq.out > led.on
-
-    rule first: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "first", "name": "runtime1"}])
-    rule constrained: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "rest", "name": "constrained"}])
-    apply src, seq: first
-    apply led: constrained
-    """
-    resp = request_handler.deploy_application(runtime1,
-                                              script_name,
-                                              script)
-    led_id = resp['actor_map'][script_name + ':led']
-
-    # verify actor placement
-    assert verify_actor_placement(request_handler, runtime1, led_id, constrained_id)
-
-    time.sleep(1)
-
-    # migrate led to runtime1
-    request_handler.migrate(runtime1, led_id, runtime1.id)
-
-    # verify actor placement
-    assert verify_actor_placement(request_handler, runtime1, led_id, runtime1.id)
-
-    # destroy application
-    request_handler.delete_application(runtime1, resp['application_id'])
-
-def testLightFromShadow():
-    script_name = "testLightFromShadow"
-    script = """
-    src : std.CountTimer(sleep=0.1)
-    seq : std.ConstSequencer(sequence=[0, 1])
-    led : io.Light()
-
-    src.integer > seq.in
-    seq.out > led.on
-
-    rule second: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "rest", "name": "runtime2"}])
-    rule constrained: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "rest", "name": "constrained"}])
-    apply src, seq: second
-    apply led: constrained
-    """
-    resp = request_handler.deploy_application(runtime2,
-                                              script_name,
-                                              script)
-    led_id = resp['actor_map'][script_name + ':led']
-
-    # verify actor placement
-    assert verify_actor_placement(request_handler, runtime2, led_id, constrained_id)
-
-    time.sleep(1)
-
-    # migrate light to runtime1
-    request_handler.migrate(runtime2, led_id, runtime1.id)
-
-    # verify actor placement
-    assert verify_actor_placement(request_handler, runtime1, led_id, runtime1.id)
-
-    # destroy application
-    request_handler.delete_application(runtime2, resp['application_id'])
-
-def testButton():
-    script_name = "testButton"
-    script = """
-    button : io.Button(text="Ok")
-    snk : test.Sink(store_tokens=1, quiet=1)
-
-    button.state > snk.token
-
-    rule first: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "first", "name": "runtime1"}])
-    rule constrained: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "rest", "name": "constrained"}])
-    apply snk: first
-    apply button: constrained
-    """
-    resp = request_handler.deploy_application(runtime1,
-                                              script_name,
-                                              script)
-    button_id = resp['actor_map'][script_name + ':button']
-
-    # verify actor placement
-    assert verify_actor_placement(request_handler, runtime1, button_id, constrained_id)
-
-    # migrate button to runtime1
-    request_handler.migrate(runtime1, button_id, runtime1.id)
-
-    # verify actor placement
-    assert verify_actor_placement(request_handler, runtime1, button_id, runtime1.id)
-
-    # destroy application
-    request_handler.delete_application(runtime1, resp['application_id'])
-
-def testButtonFromShadow():
-    script_name = "testButtonFromShadow"
-    script = """
-    button : io.Button(text="Ok")
-    snk : test.Sink(store_tokens=1, quiet=1)
-
-    button.state > snk.token
-
-    rule second: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "rest", "name": "runtime2"}])
-    rule constrained: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "rest", "name": "constrained"}])
-    apply snk: second
-    apply button: constrained
-    """
-    resp = request_handler.deploy_application(runtime2, script_name, script)
-    button_id = resp['actor_map'][script_name + ':button']
-
-    # verify actor placement
-    assert verify_actor_placement(request_handler, runtime2, button_id, constrained_id)
-
-    # migrate button to runtime1
-    request_handler.migrate(runtime2, button_id, runtime1.id)
-
-    # verify actor placement
-    assert verify_actor_placement(request_handler, runtime1, button_id, runtime1.id)
-
-    # destroy application
     request_handler.delete_application(runtime2, resp['application_id'])
 
 def testLocalConnections():

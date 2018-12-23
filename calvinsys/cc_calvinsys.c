@@ -67,6 +67,7 @@ cc_result_t cc_calvinsys_add_capabilities(cc_calvinsys_t *calvinsys, size_t n_ca
 		capability->calvinsys = calvinsys;
 		capability->name = item->id;
 		capability->free_init_args = false;
+		capability->python_module = capabilities[i].python_module;
 	}
 
 	return CC_SUCCESS;
@@ -124,6 +125,8 @@ char *cc_calvinsys_open(cc_actor_t *actor, const char *name, cc_list_t *kwargs)
 	cc_calvinsys_obj_t *obj = NULL;
 	char id[CC_UUID_BUFFER_SIZE];
 	cc_list_t *item = NULL;
+	char *init_args = NULL, *key = NULL;
+	uint32_t i = 0, init_args_count = 0, key_len = 0, value_len = 0;
 
 	cc_gen_uuid(id, NULL);
 
@@ -156,6 +159,31 @@ char *cc_calvinsys_open(cc_actor_t *actor, const char *name, cc_list_t *kwargs)
 	obj->capability = capability;
 	obj->actor = actor;
 	obj->id = item->id;
+
+	if (capability->init_args != NULL) {
+		init_args = capability->init_args;
+		init_args_count = cc_coder_decode_map(&init_args);
+		for (i = 0; i < init_args_count; i++) {
+			// TODO: Ensure platform attributes take precedence
+			if (cc_coder_decode_str(init_args, &key, &key_len) != CC_SUCCESS) {
+		    cc_log_error("Failed to decode key");
+				cc_platform_mem_free((void *)obj);
+		    return NULL;
+		  }
+
+			cc_coder_decode_map_next(&init_args);
+			if (cc_list_get_n(kwargs, key, key_len) == NULL) {
+				value_len = cc_coder_get_size_of_value(init_args);
+				if (cc_list_add_n(&kwargs, key, key_len, init_args, value_len) == NULL) {
+					cc_log_error("Failed to add init arg");
+					cc_platform_mem_free((void *)obj);
+			    return NULL;
+				}
+			}
+
+			cc_coder_decode_map_next(&init_args);
+		}
+	}
 
 	if (capability->open(obj, kwargs) != CC_SUCCESS) {
 		cc_log_error("Failed to open '%s'", name);
@@ -266,7 +294,7 @@ cc_result_t cc_calvinsys_get_attributes(cc_calvinsys_t *calvinsys, cc_actor_t *a
 	cc_list_t *item = calvinsys->objects;
 	cc_calvinsys_obj_t *obj = NULL;
 	uint32_t nbr_of_items = cc_calvinsys_get_number_of_attributes(calvinsys, actor);
-	char *buffer = NULL, *w = NULL;
+	char *buffer = NULL, *w = NULL, *w_obj = NULL;
 
 	if (nbr_of_items == 0) {
 		if (cc_platform_mem_alloc((void **)&buffer, 10) != CC_SUCCESS) {
@@ -282,6 +310,8 @@ cc_result_t cc_calvinsys_get_attributes(cc_calvinsys_t *calvinsys, cc_actor_t *a
 			cc_platform_mem_free((void *)buffer);
 			return CC_FAIL;
 		}
+
+		cc_log("Serialized empty calvinsys");
 
 		return CC_SUCCESS;
 	}
@@ -301,12 +331,11 @@ cc_result_t cc_calvinsys_get_attributes(cc_calvinsys_t *calvinsys, cc_actor_t *a
 			{
 				w = cc_coder_encode_kv_str(w, "name", obj->capability->name, strlen(obj->capability->name));
 				if (obj->serialize != NULL) {
-					w = obj->serialize(item->id, obj, w);
-					if (w == NULL) {
-						cc_log_error("Failed to serialize object");
-						cc_platform_mem_free((void *)buffer);
-						return CC_FAIL;
-					}
+					w_obj = obj->serialize(item->id, obj, w);
+					if (w_obj == NULL) {
+						w = cc_coder_encode_kv_map(w, "obj", 0);
+					} else
+						w = w_obj;
 				} else
 					w = cc_coder_encode_kv_map(w, "obj", 0);
 				// TODO: Handle args

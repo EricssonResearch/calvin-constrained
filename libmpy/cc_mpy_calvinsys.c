@@ -20,6 +20,7 @@
 #include "runtime/north/cc_actor.h"
 #include "runtime/south/platform/cc_platform.h"
 #include "cc_actor_mpy.h"
+#include "cc_mpy_common.h"
 #include "runtime/north/coder/cc_coder.h"
 
 static mp_obj_t cc_mp_obj_can_write(mp_obj_t arg_calvinsys, mp_obj_t arg_obj)
@@ -42,7 +43,7 @@ static mp_obj_t cc_mp_obj_write(mp_obj_t arg_calvinsys, mp_obj_t arg_obj, mp_obj
 	cc_calvinsys_t *calvinsys = MP_OBJ_TO_PTR(arg_calvinsys);
 	const char *obj_ref = mp_obj_str_get_str(arg_obj);
 
-	if (cc_actor_mpy_encode_from_mpy_obj(arg_data, &data, &size) == CC_SUCCESS) {
+	if (cc_mpy_encode_from_mpy_obj(arg_data, &data, &size, true) == CC_SUCCESS) {
 		if (cc_calvinsys_write(calvinsys, (char *)obj_ref, data, size) == CC_SUCCESS)
 			result = true;
 		cc_platform_mem_free((void *)data);
@@ -76,7 +77,7 @@ static mp_obj_t cc_mp_obj_read(mp_obj_t arg_calvinsys, mp_obj_t arg_obj)
 	if (cc_calvinsys_read(calvinsys, (char *)obj_ref, &data, &size) == CC_SUCCESS) {
 		if (data == NULL)
 			return mp_const_none;
-		if (cc_actor_mpy_decode_to_mpy_obj(data, &value) == CC_SUCCESS) {
+		if (cc_mpy_decode_to_mpy_obj(data, &value) == CC_SUCCESS) {
 			cc_platform_mem_free((void *)data);
 			return value;
 		} else
@@ -107,8 +108,8 @@ static mp_obj_t cc_mp_calvinsys_open(size_t n_args, const mp_obj_t *pos_args, mp
 
 		const char *str = mp_obj_str_get_str(kw_args->table[0].key);
 
-		if (cc_actor_mpy_encode_from_mpy_obj(kw_args->table[i].value, &value, &value_len) != CC_SUCCESS) {
-			cc_log_error("Failed to decode '%s'", str);
+		if (cc_mpy_encode_from_mpy_obj(kw_args->table[i].value, &value, &value_len, true) != CC_SUCCESS) {
+			cc_log_error("Failed to encode '%s'", str);
 			result = CC_FAIL;
 			break;
 		}

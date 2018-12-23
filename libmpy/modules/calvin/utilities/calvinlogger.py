@@ -14,12 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-critical = 50
-error    = 40
-warning  = 30
-info     = 20
-debug    = 10
-notset   = 0
+exception = 60
+critical  = 50
+error     = 40
+warning   = 30
+info      = 20
+debug     = 10
+notset    = 0
 
 _level_dict = {
     critical: "CRIT",
@@ -27,6 +28,7 @@ _level_dict = {
     warning: "WARN",
     info: "INFO",
     debug: "DEBUG",
+    exception: "EXCEPTION",
 }
 
 _log = None
@@ -57,6 +59,8 @@ class Logger:
     def critical(self, msg, *args):
         self.log(critical, msg, *args)
 
+    def exception(self, msg, *args):
+        self.log(exception, msg, *args)
 
 def _create_logger(filename=None):
     global _log

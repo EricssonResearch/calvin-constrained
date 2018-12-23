@@ -17,6 +17,9 @@
 import functools
 import cc_mp_port
 import cc_mp_calvinsys
+from calvin.utilities import calvinlogger
+
+_log = calvinlogger.get_logger(__name__)
 
 def manage(include=None, exclude=None):
     if include and type(include) is not list or exclude and type(exclude) is not list:

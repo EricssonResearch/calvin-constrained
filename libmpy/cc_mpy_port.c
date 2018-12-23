@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include "cc_config.h"
 #include "cc_actor_mpy.h"
+#include "cc_mpy_common.h"
 #include "runtime/north/cc_actor.h"
 #include "runtime/north/cc_port.h"
 #include "runtime/north/cc_fifo.h"
@@ -194,7 +195,7 @@ STATIC mp_obj_t mpy_port_ccmp_peek_token(mp_obj_t mp_actor, mp_obj_t mp_port_nam
 	port = cc_port_get_from_name(actor, port_name, strlen(port_name), CC_PORT_DIRECTION_IN);
 	if (port != NULL) {
 		token = cc_fifo_peek(port->fifo);
-		if (cc_actor_mpy_decode_to_mpy_obj(token->value, &value) == CC_SUCCESS)
+		if (cc_mpy_decode_to_mpy_obj(token->value, &value) == CC_SUCCESS)
 			return value;
 	}	else
 		cc_log_error("No port with name '%s'", port_name);
@@ -231,7 +232,7 @@ STATIC mp_obj_t mpy_port_ccmp_write_token(mp_obj_t mp_actor, mp_obj_t mp_port_na
 
 	port = cc_port_get_from_name(actor, port_name, strlen(port_name), CC_PORT_DIRECTION_OUT);
 	if (port != NULL) {
-		if (cc_actor_mpy_encode_from_mpy_obj(mp_value, &value, &size) == CC_SUCCESS) {
+		if (cc_mpy_encode_from_mpy_obj(mp_value, &value, &size, true) == CC_SUCCESS) {
 			if (cc_fifo_write(port->fifo, value, size) != CC_SUCCESS) {
 				cc_log_error("Failed to write token to port '%s'", port_name);
 				cc_platform_mem_free((void *)value);

@@ -19,8 +19,8 @@ struct cc_calvinsys_obj_t;
 struct cc_transport_client_t;
 struct cc_node_t;
 
-cc_result_t cc_test_temperature_open(struct cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
-cc_result_t cc_test_gpio_open(struct cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
+cc_result_t cc_mpy_calvinsys_object_open(struct cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
+cc_result_t cc_mpy_calvinsys_object_deserialize(struct cc_calvinsys_obj_t *obj, cc_list_t *kwargs);
 struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node, char *uri);
 
 #define CC_USE_GETOPT (1)
@@ -30,9 +30,7 @@ struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node,
 #define CC_SLEEP_TIME (30)
 
 #define _CC_CAPABILITIES \
-	{ "io.temperature", cc_test_temperature_open, cc_test_temperature_open, NULL, NULL, false }, \
-	{ "io.light", cc_test_gpio_open, cc_test_gpio_open, NULL, "\x82\xa9" "direction" "\xa3" "out" "\xa3" "pin" "\x00", false }, \
-	{ "io.button", cc_test_gpio_open, cc_test_gpio_open, NULL, "\x82\xa9" "direction" "\xa2" "in" "\xa3" "pin" "\x01", false }
+	{ "io.temperature", cc_mpy_calvinsys_object_open, cc_mpy_calvinsys_object_deserialize, NULL, "\x81\xa4\x64\x61\x74\x61\x96\x01\x02\x03\x04\x05\x06", false, "test.Test" }
 
 #define CC_CAPABILITIES _CC_CAPABILITIES
 

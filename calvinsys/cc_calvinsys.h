@@ -39,6 +39,7 @@ typedef struct cc_calvinsys_capability_t {
 	struct cc_calvinsys_t *calvinsys;
 	void *init_args;
 	bool free_init_args;
+	char *python_module;
 } cc_calvinsys_capability_t;
 
 typedef struct cc_calvinsys_t {

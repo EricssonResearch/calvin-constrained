@@ -17,6 +17,7 @@
 #include <stddef.h>
 #include <string.h>
 #include "cc_actor_mpy.h"
+#include "cc_mpy_common.h"
 #include "runtime/north/cc_actor.h"
 #include "runtime/south/platform/cc_platform.h"
 #include "runtime/north/coder/cc_coder.h"
@@ -27,151 +28,6 @@ typedef struct cc_actor_mpy_state_t {
 	mp_obj_t actor_class_instance;
 	mp_obj_t actor_fire_method[2];
 } cc_actor_mpy_state_t;
-
-cc_result_t cc_actor_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value)
-{
-	cc_result_t result = CC_FAIL;
-	char *tmp_string = NULL;
-	uint32_t len = 0, u_num = 0;
-	int32_t num = 0;
-	bool b = false;
-	float f = 0;
-	double d = 0;
-
-	switch (cc_coder_type_of(buffer)) {
-	case CC_CODER_NIL:
-		*value = mp_const_none;
-		return CC_SUCCESS;
-	case CC_CODER_STR:
-		result = cc_coder_decode_str(buffer, &tmp_string, &len);
-		if (result == CC_SUCCESS) {
-			*value = mp_obj_new_str(tmp_string, len);
-			return CC_SUCCESS;
-		}
-		break;
-	case CC_CODER_UINT:
-		result = cc_coder_decode_uint(buffer, &u_num);
-		if (result == CC_SUCCESS) {
-			*value = mp_obj_new_int_from_uint(u_num);
-			return CC_SUCCESS;
-		}
-		break;
-	case CC_CODER_INT:
-		result = cc_coder_decode_int(buffer, &num);
-		if (result == CC_SUCCESS) {
-			*value = mp_obj_new_int(num);
-			return CC_SUCCESS;
-		}
-		break;
-	case CC_CODER_BOOL:
-		result = cc_coder_decode_bool(buffer, &b);
-		if (result == CC_SUCCESS) {
-			*value = mp_obj_new_bool(b);
-			return CC_SUCCESS;
-		}
-		break;
-	case CC_CODER_FLOAT:
-		result = cc_coder_decode_float(buffer, &f);
-		if (result == CC_SUCCESS) {
-#if CC_PYTHON_FLOATS
-			*value = mp_obj_new_float(f);
-#else
-			*value = mp_obj_new_int((int)f);
-#endif
-			return CC_SUCCESS;
-		}
-		break;
-	case CC_CODER_DOUBLE:
-		result = cc_coder_decode_double(buffer, &d);
-		if (result == CC_SUCCESS) {
-#if CC_PYTHON_FLOATS
-			*value = mp_obj_new_float(d);
-#else
-			*value = mp_obj_new_int((int)d);
-#endif
-			return CC_SUCCESS;
-		}
-		break;
-	default:
-		cc_log_error("Unsupported type");
-	}
-
-	return result;
-}
-
-cc_result_t cc_actor_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size_t *size)
-{
-	char *pos = NULL;
-	size_t to_alloc = 0;
-
-	if (MP_OBJ_IS_SMALL_INT(input)) {
-		int value = MP_OBJ_SMALL_INT_VALUE(input);
-		to_alloc = cc_coder_sizeof_uint(value);
-		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			return CC_FAIL;
-		}
-		pos = *buffer;
-		pos = cc_coder_encode_uint(pos, value);
-	} else if (MP_OBJ_IS_INT(input)) {
-		int32_t value = mp_obj_get_int(input);
-		to_alloc = cc_coder_sizeof_int(value);
-		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			return CC_FAIL;
-		} else
-		pos = *buffer;
-		pos = cc_coder_encode_int(pos, value);
-	}
-#if CC_PYTHON_FLOATS
-	else if (mp_obj_is_float(input)) {
-		float value = mp_obj_float_get(input);
-		to_alloc = cc_coder_sizeof_float(value);
-		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			return CC_FAIL;
-		}
-		pos = *buffer;
-		pos = cc_coder_encode_float(pos, value);
-	}
-#endif
-	else if (MP_OBJ_IS_TYPE(input, &mp_type_bool)) {
-		bool value = false;
-		if (input == mp_const_true)
-			value = true;
-		to_alloc = cc_coder_sizeof_bool(value);
-		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			return CC_FAIL;
-		}
-		pos = *buffer;
-		pos = cc_coder_encode_bool(pos, value);
-	} else if (MP_OBJ_IS_TYPE(input, &mp_type_NoneType)) {
-		to_alloc = cc_coder_sizeof_nil();
-		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			return CC_FAIL;
-		}
-		pos = *buffer;
-		pos = cc_coder_encode_nil(pos);
-	} else if (MP_OBJ_IS_STR(input)) {
-		const char *str = mp_obj_str_get_str(input);
-		to_alloc = cc_coder_sizeof_str(strlen(str));
-		if (cc_platform_mem_alloc((void **)buffer, to_alloc) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			return CC_FAIL;
-		}
-		pos = *buffer;
-		pos = cc_coder_encode_str(pos, str, strlen(str));
-	} else {
-		cc_log_error("Unsupported type");
-		return CC_FAIL;
-	}
-
-	*size = pos - *buffer;
-
-	return CC_SUCCESS;
-}
 
 static cc_result_t cc_actor_mpy_init(cc_actor_t *actor, cc_list_t *managed_attributes)
 {
@@ -196,7 +52,7 @@ static cc_result_t cc_actor_mpy_init(cc_actor_t *actor, cc_list_t *managed_attri
 		tmp = mp_obj_new_str(list->id, list->id_len);
 		j += 2;
 		args[j] = tmp;
-		if (cc_actor_mpy_decode_to_mpy_obj(list->data, &tmp) != CC_SUCCESS) {
+		if (cc_mpy_decode_to_mpy_obj(list->data, &tmp) != CC_SUCCESS) {
 			cc_log_error("Failed to decode value from managed attribute");
 			return CC_FAIL;
 		}
@@ -231,7 +87,7 @@ static cc_result_t cc_actor_mpy_set_state(cc_actor_t *actor, cc_list_t *managed_
 	while (list != NULL) {
 		q_attr = qstr_from_strn(list->id, list->id_len);
 		attr = mp_obj_new_str(list->id, list->id_len);
-		if (cc_actor_mpy_decode_to_mpy_obj((char *)list->data, &value) != CC_SUCCESS) {
+		if (cc_mpy_decode_to_mpy_obj((char *)list->data, &value) != CC_SUCCESS) {
 			cc_log_error("Failed to decode value from managed attribute");
 			return CC_FAIL;
 		}
@@ -280,7 +136,7 @@ static cc_result_t cc_actor_mpy_get_attributes(cc_actor_t *actor, cc_list_t **ma
 			return CC_FAIL;
 		}
 
-		if (cc_actor_mpy_encode_from_mpy_obj(mpy_attr[0], &packed_value, &size) != CC_SUCCESS) {
+		if (cc_mpy_encode_from_mpy_obj(mpy_attr[0], &packed_value, &size, true) != CC_SUCCESS) {
 			cc_log_error("Failed to encode attribute");
 			return CC_FAIL;
 		}
