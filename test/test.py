@@ -32,8 +32,8 @@ runtime1 = None
 runtime2 = None
 constrained_id = None
 constrained_process = None
-#calvin_command = "exec ./calvin_c"
-calvin_command = "exec valgrind --leak-check=full ./calvin_c"
+calvin_command = "exec ./calvin_c"
+#calvin_command = "exec valgrind --leak-check=full ./calvin_c"
 
 def verify_actor_placement(request_handler, rt, actor_id, rt_id):
     retry = 0
