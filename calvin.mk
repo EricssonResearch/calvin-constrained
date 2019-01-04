@@ -22,6 +22,7 @@ CC_SRC_C += \
 	calvinsys/cc_calvinsys.c \
 	calvinsys/common/cc_calvinsys_timer.c \
 	calvinsys/common/cc_calvinsys_attribute.c \
+	calvinsys/common/cc_calvinsys_schedule.c \
 	jsmn/jsmn.c
 
 # Prefix with CC_PATH
@@ -37,5 +38,5 @@ CC_LIBS += -lmicropython -lm
 CC_LDFLAGS += -L$(CC_PATH)libmpy
 CC_CFLAGS += -DCC_USE_PYTHON=1 -std=gnu99
 CC_CFLAGS += -I$(CC_PATH)libmpy/build -I$(CC_PATH)micropython -I$(CC_PATH)libmpy
-CC_SRC_C += $(addprefix $(CC_PATH),libmpy/cc_mpy_common.c libmpy/cc_actor_mpy.c libmpy/cc_mpy_calvinsys_capability.c libmpy/cc_mpy_port.c libmpy/cc_mpy_calvinsys.c)
+CC_SRC_C += $(addprefix $(CC_PATH),libmpy/cc_mpy_common.c libmpy/cc_actor_mpy.c libmpy/cc_mpy_calvinsys_capability.c libmpy/cc_mpy_port.c libmpy/cc_mpy_calvinsys.c libmpy/cc_mpy_socket.c)
 endif

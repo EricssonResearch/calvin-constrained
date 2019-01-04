@@ -96,6 +96,29 @@ cc_result_t cc_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 				cc_log_error("Failed to decode object");
 		}
 		break;
+	case CC_CODER_MAP:
+	{
+		char *temp = buffer;
+		mp_obj_t dict_key = MP_OBJ_NULL, dict_value = MP_OBJ_NULL;
+		len = cc_coder_decode_map(&temp);
+		*value = mp_obj_new_dict(len);
+		for (size_t i = 0; i < len && result == CC_SUCCESS; ++i) {
+			if (cc_mpy_decode_to_mpy_obj(temp, &dict_key) != CC_SUCCESS) {
+				cc_log_error("Failed to decode key");
+				result = CC_FAIL;
+				break;
+			}
+			cc_coder_decode_map_next(&temp);
+			if (cc_mpy_decode_to_mpy_obj(temp, &dict_value) != CC_SUCCESS) {
+				cc_log_error("Failed to decode value");
+				result = CC_FAIL;
+				break;
+			}
+			cc_coder_decode_map_next(&temp);
+			mp_obj_dict_store(*value, dict_key, dict_value);
+		}
+	}
+	break;
 	default:
 		cc_log_error("Unsupported type");
 		result = CC_FAIL;
@@ -195,10 +218,13 @@ cc_result_t cc_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size_t *si
 		uint kw_dict_len;
 		kw_dict_len = mp_obj_dict_len(input);
 
-		// TODO: Calculate buffer size
-		if (alloc && cc_platform_mem_alloc((void **)buffer, 200) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			return CC_FAIL;
+		// TODO: Try to calculate buffer size
+		if (alloc) {
+			if (cc_platform_mem_alloc((void **)buffer, 10000) != CC_SUCCESS) {
+				cc_log_error("Failed to allocate memory");
+				return CC_FAIL;
+			}
+			memset(*buffer, 0, 10000);
 		}
 
 		pos = *buffer;

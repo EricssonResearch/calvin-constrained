@@ -28,9 +28,13 @@ struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node,
 #define CC_USE_STORAGE (1)
 #define CC_INACTIVITY_TIMEOUT (5)
 #define CC_SLEEP_TIME (30)
+#define CC_PYTHON_HEAP_SIZE (100 * 1024)
+#define CC_PYTHON_STACK_SIZE (100 * 1024)
 
 #define _CC_CAPABILITIES \
-	{ "io.temperature", cc_mpy_calvinsys_object_open, cc_mpy_calvinsys_object_deserialize, NULL, "\x81\xa4\x64\x61\x74\x61\x96\x01\x02\x03\x04\x05\x06", false, "test.Test" }
+	{ "io.temperature", cc_mpy_calvinsys_object_open, cc_mpy_calvinsys_object_deserialize, NULL, "\x81\xa4\x64\x61\x74\x61\x96\x01\x02\x03\x04\x05\x06", false, "test.Test" }, \
+	{ "http.get", cc_mpy_calvinsys_object_open, cc_mpy_calvinsys_object_deserialize, NULL, NULL, false, "web.http.Command" }, \
+	{ "io.stdout", cc_mpy_calvinsys_object_open, cc_mpy_calvinsys_object_deserialize, NULL, NULL, false, "io.Stdout" }
 
 #define CC_CAPABILITIES _CC_CAPABILITIES
 

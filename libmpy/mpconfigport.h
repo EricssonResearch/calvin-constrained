@@ -41,7 +41,7 @@
 #define MICROPY_PY_COLLECTIONS        (0)
 #define MICROPY_PY_STRUCT             (0)
 #define MICROPY_ENABLE_DOC_STRING     (0)
-#define MICROPY_PY_BUILTINS_PROPERTY  (0)
+#define MICROPY_PY_BUILTINS_PROPERTY  (1)
 #define MICROPY_PY_BUILTINS_REVERSED  (0)
 #define MICROPY_PY_BUILTINS_SLICE     (0)
 #define MICROPY_LONGINT_IMPL          (MICROPY_LONGINT_IMPL_MPZ)
@@ -55,9 +55,16 @@
 
 extern const struct _mp_obj_module_t cc_mp_module_port;
 extern const struct _mp_obj_module_t cc_mp_module_calvinsys;
+extern const struct _mp_obj_module_t cc_mp_module_socket;
+
+#define MICROPY_PY_CC_PORT { MP_ROM_QSTR(MP_QSTR_cc_mp_port), MP_ROM_PTR(&cc_mp_module_port) },
+#define MICROPY_PY_CC_CALVINSYS { MP_ROM_QSTR(MP_QSTR_cc_mp_calvinsys), MP_ROM_PTR(&cc_mp_module_calvinsys) },
+#define MICROPY_PY_CC_SOCKET { MP_ROM_QSTR(MP_QSTR_usocket), MP_ROM_PTR(&cc_mp_module_socket) },
+
 #define MICROPY_PORT_BUILTIN_MODULES \
-	{ MP_OBJ_NEW_QSTR(MP_QSTR_cc_mp_port), (mp_obj_t)&cc_mp_module_port }, \
-	{ MP_OBJ_NEW_QSTR(MP_QSTR_cc_mp_calvinsys), (mp_obj_t)&cc_mp_module_calvinsys }, \
+    MICROPY_PY_CC_PORT \
+    MICROPY_PY_CC_CALVINSYS \
+    MICROPY_PY_CC_SOCKET \
 
 #define MP_PLAT_PRINT_STRN(str, len) cc_log(str)
 

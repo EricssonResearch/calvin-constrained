@@ -29,11 +29,15 @@
 #endif
 #include "calvinsys/common/cc_calvinsys_timer.h"
 #include "calvinsys/common/cc_calvinsys_attribute.h"
+#include "calvinsys/common/cc_calvinsys_schedule.h"
 #if CC_USE_PYTHON
 #include "libmpy/cc_mpy_port.h"
+#include "libmpy/cc_mpy_socket.h"
 #endif
 #include "jsmn/jsmn.h"
 #include "cc_app_manager.h"
+
+#define CONNECT_TIMEOUT 10
 
 #if CC_USE_STORAGE
 static cc_result_t cc_node_get_state(cc_node_t *node)
@@ -524,7 +528,7 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 	}
 
 	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_INTERFACE_DOWN) {
-		if (cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
+		if (cc_platform_evt_wait(node, CONNECT_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
 			return CC_FAIL;
 	}
 
@@ -532,7 +536,7 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 		return CC_FAIL;
 
 	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_PENDING) {
-		if (cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
+		if (cc_platform_evt_wait(node, CONNECT_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
 			return CC_FAIL;
 	}
 
@@ -540,7 +544,7 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 		return CC_FAIL;
 
 	while (node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_PENDING) {
-		if (cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
+		if (cc_platform_evt_wait(node, CONNECT_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
 			return CC_FAIL;
 	}
 
@@ -608,7 +612,7 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 
 	while ((node->storage_tunnel->state == CC_TUNNEL_PENDING || node->proxy_tunnel->state == CC_TUNNEL_PENDING)
 		&& node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_ENABLED) {
-		if (cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
+		if (cc_platform_evt_wait(node, CONNECT_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
 			return CC_FAIL;
 	}
 
@@ -631,7 +635,7 @@ static cc_result_t cc_node_connect_to_proxy(cc_node_t *node, char *uri)
 	}
 
 	while (node->state != CC_NODE_STARTED && node->state != CC_NODE_STOP && node->transport_client->state == CC_TRANSPORT_ENABLED) {
-		if (cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
+		if (cc_platform_evt_wait(node, CONNECT_TIMEOUT) == CC_PLATFORM_EVT_WAIT_FAIL)
 			return CC_FAIL;
 	}
 
@@ -714,13 +718,22 @@ cc_result_t cc_node_init(cc_node_t *node, const char *attributes, const char *pr
 		return CC_FAIL;
 	}
 
+#if CC_USE_PYTHON
+	cc_mpy_socket_set_calvinsys(node->calvinsys);
+#endif
+
 	if (cc_calvinsys_timer_create(&node->calvinsys) != CC_SUCCESS) {
-		cc_log_error("Failed to create calvinsys 'timer'");
+		cc_log_error("Failed to create capability 'sys.timer'");
 		return CC_FAIL;
 	}
 
 	if (cc_calvinsys_attribute_create(&node->calvinsys) != CC_SUCCESS) {
-		cc_log_error("Failed to create calvinsys 'attribute'");
+		cc_log_error("Failed to create capability 'sys.attribute.indexed'");
+		return CC_FAIL;
+	}
+
+	if (cc_calvinsys_schedule_create(&node->calvinsys) != CC_SUCCESS) {
+		cc_log_error("Failed to create capability 'sys.schedule'");
 		return CC_FAIL;
 	}
 
@@ -842,7 +855,7 @@ static void cc_node_enter_sleep(cc_node_t *node, uint32_t seconds_to_sleep)
 		cc_log("Node: Sleep requested for %ld seconds", seconds_to_sleep);
 
 		node->state = CC_NODE_PENDING;
-		cc_platform_evt_wait(node, CC_INDEFINITELY_TIMEOUT);
+		cc_platform_evt_wait(node, CONNECT_TIMEOUT);
 		if (node->state != CC_NODE_DO_SLEEP) {
 			cc_log("Sleep request denied");
 			node->state = CC_NODE_STARTED;
@@ -1008,6 +1021,7 @@ cc_result_t cc_node_run(cc_node_t *node, const char *script)
 			while (item != NULL && node->state != CC_NODE_STOP) {
 				node->state = CC_NODE_DO_START;
 				if (cc_node_connect_to_proxy(node, item->id) == CC_SUCCESS) {
+					cc_log("Connected to proxy");
 					break;
 				}
 				item = item->next;
@@ -1017,6 +1031,8 @@ cc_result_t cc_node_run(cc_node_t *node, const char *script)
 		// update timers and fire actors
 		cc_calvinsys_timers_check(node, &next_timer_timeout);
 		if (node->fire_actors(node)) {
+			// handle platform events
+			cc_platform_evt_wait(node, 1);
 			continue;
 		}
 

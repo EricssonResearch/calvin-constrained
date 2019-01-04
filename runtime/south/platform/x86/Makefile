@@ -4,8 +4,8 @@ PROJECT_NAME = calvin_c
 BUILD = build
 
 CC_CFLAGS  = -Wall
-#CC_CFLAGS += -Os -fdata-sections -ffunction-sections
-CC_CFLAGS += -ggdb -Og -g3 -fno-omit-frame-pointer
+CC_CFLAGS += -Os -fdata-sections -ffunction-sections
+#CC_CFLAGS += -ggdb -Og -g3 -fno-omit-frame-pointer
 CC_CFLAGS += -I.
 CC_CFLAGS += -DCC_USE_FDS=1
 ifeq ($(PLATFORM), Darwin)

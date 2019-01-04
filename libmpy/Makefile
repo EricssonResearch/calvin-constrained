@@ -25,7 +25,7 @@ MP_TOP = micropython
 FROZEN_MPY_DIR = libmpy/modules
 
 # Add the names of the files for QSTR extraction
-EXT_SRC_C = cc_mpy_port.c cc_mpy_calvinsys.c
+EXT_SRC_C = cc_mpy_port.c cc_mpy_calvinsys.c cc_mpy_socket.c
 
 lib:
 	@echo "Making micropython library for x86"
