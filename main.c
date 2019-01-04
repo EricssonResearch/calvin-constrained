@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 		{"attr", optional_argument, NULL, 'a'},
 		{"uris", optional_argument, NULL, 'u'},
 		{"platform_data", optional_argument, NULL, 'p'},
-		{"platform_data", optional_argument, NULL, 's'},
+		{"script", optional_argument, NULL, 's'},
 		{NULL, 0, NULL, 0}
 	};
 
