@@ -100,13 +100,12 @@ static mp_obj_t cc_mp_calvinsys_open(size_t n_args, const mp_obj_t *pos_args, mp
 	cc_result_t result = CC_SUCCESS;
 
 	for (i = 0; i < kw_args->alloc; i++) {
-		if (MP_OBJ_IS_TYPE(kw_args->table[0].key, &mp_type_str)) {
+		if (MP_OBJ_IS_TYPE(kw_args->table[i].key, &mp_type_str)) {
 			cc_log_error("Expected string as key");
 			result = CC_FAIL;
 			break;
 		}
-
-		const char *str = mp_obj_str_get_str(kw_args->table[0].key);
+		const char *str = mp_obj_str_get_str(kw_args->table[i].key);
 
 		if (cc_mpy_encode_from_mpy_obj(kw_args->table[i].value, &value, &value_len, true) != CC_SUCCESS) {
 			cc_log_error("Failed to encode '%s'", str);

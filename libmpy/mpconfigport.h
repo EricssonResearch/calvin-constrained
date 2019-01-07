@@ -20,38 +20,39 @@
 #include <stdint.h>
 #include "../runtime/south/platform/cc_platform.h"
 
-#define MICROPY_ENABLE_GC             (1)
-#define MICROPY_PY_GC                 (1)
-#define MICROPY_ENABLE_COMPILER       (0)
-#define MICROPY_ERROR_REPORTING       (MICROPY_ERROR_REPORTING_DETAILED)
-#define MICROPY_ERROR_PRINTER         (&cc_log_error)
-#define MICROPY_CPYTHON_COMPAT        (1)
-#define MICROPY_MODULE_FROZEN_MPY     (1)
-#define MICROPY_PY_ASYNC_AWAIT        (0)
-#define MICROPY_PY_BUILTINS_EVAL_EXEC (0)
-#define MICROPY_PY___FILE__           (0)
-#define MICROPY_PY_IO                 (0)
-#define MICROPY_PY_IO_BYTESIO         (0)
-#define MICROPY_PY_SYS                (0)
-#define MICROPY_PY_SYS_MODULES        (0)
-#define MICROPY_PY_SYS_EXIT           (0)
-#define MICROPY_PY_UERRNO_ERRORCODE   (0)
-#define MICROPY_PY_ARRAY              (0)
-#define MICROPY_PY_BUILTINS_ENUMERATE (0)
-#define MICROPY_PY_COLLECTIONS        (0)
-#define MICROPY_PY_STRUCT             (0)
-#define MICROPY_ENABLE_DOC_STRING     (0)
-#define MICROPY_PY_BUILTINS_PROPERTY  (1)
-#define MICROPY_PY_BUILTINS_REVERSED  (0)
-#define MICROPY_PY_BUILTINS_SLICE     (0)
-#define MICROPY_LONGINT_IMPL          (MICROPY_LONGINT_IMPL_MPZ)
-#define MICROPY_FLOAT_IMPL            (MICROPY_FLOAT_IMPL_DOUBLE)
-#define MICROPY_PY_MATH               (0)
-#define MICROPY_PY_CMATH              (0)
-#define MICROPY_USE_INTERNAL_PRINTF   (0)
-#define MICROPY_PERSISTENT_CODE_LOAD  (1)
-#define MICROPY_PERSISTENT_CODE_SAVE  (0)
+#define MICROPY_ENABLE_GC               (1)
+#define MICROPY_PY_GC                   (1)
+#define MICROPY_ENABLE_COMPILER         (0)
+#define MICROPY_ERROR_REPORTING         (MICROPY_ERROR_REPORTING_DETAILED)
+#define MICROPY_ERROR_PRINTER           (&cc_log_error)
+#define MICROPY_CPYTHON_COMPAT          (1)
+#define MICROPY_MODULE_FROZEN_MPY       (1)
+#define MICROPY_PY_ASYNC_AWAIT          (0)
+#define MICROPY_PY_BUILTINS_EVAL_EXEC   (0)
+#define MICROPY_PY___FILE__             (0)
+#define MICROPY_PY_IO                   (0)
+#define MICROPY_PY_IO_BYTESIO           (0)
+#define MICROPY_PY_SYS                  (0)
+#define MICROPY_PY_SYS_MODULES          (0)
+#define MICROPY_PY_SYS_EXIT             (0)
+#define MICROPY_PY_UERRNO_ERRORCODE     (0)
+#define MICROPY_PY_ARRAY                (0)
+#define MICROPY_PY_BUILTINS_ENUMERATE   (0)
+#define MICROPY_PY_COLLECTIONS          (0)
+#define MICROPY_ENABLE_DOC_STRING       (0)
+#define MICROPY_PY_BUILTINS_PROPERTY    (1)
+#define MICROPY_PY_BUILTINS_REVERSED    (0)
+#define MICROPY_PY_BUILTINS_SLICE       (0)
+#define MICROPY_LONGINT_IMPL            (MICROPY_LONGINT_IMPL_MPZ)
+#define MICROPY_FLOAT_IMPL              (MICROPY_FLOAT_IMPL_DOUBLE)
+#define MICROPY_PY_MATH                 (0)
+#define MICROPY_PY_CMATH                (0)
+#define MICROPY_USE_INTERNAL_PRINTF     (0)
+#define MICROPY_PERSISTENT_CODE_LOAD    (1)
+#define MICROPY_PERSISTENT_CODE_SAVE    (0)
 #define MICROPY_PY_BUILTINS_STR_UNICODE (1)
+#define MICROPY_PY_STRUCT               (1)
+#define MICROPY_PY_UBINASCII            (1)
 
 extern const struct _mp_obj_module_t cc_mp_module_port;
 extern const struct _mp_obj_module_t cc_mp_module_calvinsys;
@@ -62,9 +63,13 @@ extern const struct _mp_obj_module_t cc_mp_module_socket;
 #define MICROPY_PY_CC_SOCKET { MP_ROM_QSTR(MP_QSTR_usocket), MP_ROM_PTR(&cc_mp_module_socket) },
 
 #define MICROPY_PORT_BUILTIN_MODULES \
-    MICROPY_PY_CC_PORT \
-    MICROPY_PY_CC_CALVINSYS \
-    MICROPY_PY_CC_SOCKET \
+  MICROPY_PY_CC_PORT \
+  MICROPY_PY_CC_CALVINSYS \
+  MICROPY_PY_CC_SOCKET \
+
+#define MICROPY_PORT_BUILTIN_MODULE_WEAK_LINKS \
+  { MP_ROM_QSTR(MP_QSTR_binascii), MP_ROM_PTR(&mp_module_ubinascii) }, \
+  { MP_ROM_QSTR(MP_QSTR_struct), MP_ROM_PTR(&mp_module_ustruct) }, \
 
 #define MP_PLAT_PRINT_STRN(str, len) cc_log(str)
 
@@ -75,11 +80,11 @@ extern const struct _mp_obj_module_t cc_mp_module_socket;
 // Define to 1 to use undertested inefficient GC helper implementation
 // (if more efficient arch-specific one is not available).
 #ifndef MICROPY_GCREGS_SETJMP
-    #ifdef __mips__
-        #define MICROPY_GCREGS_SETJMP (1)
-    #else
-        #define MICROPY_GCREGS_SETJMP (0)
-    #endif
+  #ifdef __mips__
+    #define MICROPY_GCREGS_SETJMP (1)
+  #else
+    #define MICROPY_GCREGS_SETJMP (0)
+  #endif
 #endif
 
 // type definitions for the specific machine

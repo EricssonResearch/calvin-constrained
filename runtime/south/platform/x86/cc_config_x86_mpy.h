@@ -24,7 +24,7 @@ cc_result_t cc_mpy_calvinsys_object_deserialize(struct cc_calvinsys_obj_t *obj, 
 struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node, char *uri);
 
 #define CC_USE_GETOPT (1)
-#define CC_USE_SLEEP (1)
+#define CC_USE_SLEEP (0)
 #define CC_USE_STORAGE (1)
 #define CC_INACTIVITY_TIMEOUT (5)
 #define CC_SLEEP_TIME (30)
@@ -34,7 +34,8 @@ struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node,
 #define _CC_CAPABILITIES \
 	{ "io.temperature", cc_mpy_calvinsys_object_open, cc_mpy_calvinsys_object_deserialize, NULL, "\x81\xa4\x64\x61\x74\x61\x96\x01\x02\x03\x04\x05\x06", false, "test.Test" }, \
 	{ "http.get", cc_mpy_calvinsys_object_open, cc_mpy_calvinsys_object_deserialize, NULL, NULL, false, "web.http.Command" }, \
-	{ "io.stdout", cc_mpy_calvinsys_object_open, cc_mpy_calvinsys_object_deserialize, NULL, NULL, false, "io.Stdout" }
+	{ "io.stdout", cc_mpy_calvinsys_object_open, cc_mpy_calvinsys_object_deserialize, NULL, NULL, false, "io.Stdout" }, \
+	{ "mqtt.subscribe", cc_mpy_calvinsys_object_open, cc_mpy_calvinsys_object_deserialize, NULL, NULL, false, "web.mqtt.Subscribe" }
 
 #define CC_CAPABILITIES _CC_CAPABILITIES
 

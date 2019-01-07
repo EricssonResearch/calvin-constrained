@@ -17,6 +17,11 @@
 #include "cc_mpy_common.h"
 #include "runtime/north/coder/cc_coder.h"
 #include "py/objlist.h"
+#include "py/obj.h"
+#include "py/runtime.h"
+#include "py/builtin.h"
+#include "py/objtype.h"
+
 
 cc_result_t cc_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 {
@@ -119,6 +124,19 @@ cc_result_t cc_mpy_decode_to_mpy_obj(char *buffer, mp_obj_t *value)
 		}
 	}
 	break;
+	case CC_CODER_BIN:
+	{
+		char *temp = buffer, *val = NULL;
+		uint32_t len = 0;
+
+		if (cc_coder_decode_bin(temp, &val, &len) != CC_SUCCESS) {
+			cc_log_error("Failed to decode bin");
+			return CC_FAIL;
+		}
+
+		*value = mp_obj_new_bytes((const byte *)val, len);
+	}
+	break;
 	default:
 		cc_log_error("Unsupported type");
 		result = CC_FAIL;
@@ -191,8 +209,22 @@ cc_result_t cc_mpy_encode_from_mpy_obj(mp_obj_t input, char **buffer, size_t *si
 		}
 		pos = *buffer;
 		pos = cc_coder_encode_str(pos, str, strlen(str));
-	} else if (MP_OBJ_IS_TYPE(input, &mp_type_tuple)) {
-		cc_log_error("Tuple not implemented");
+	} else if (MP_OBJ_IS_TYPE(input, &mp_type_bytes)) {
+		mp_buffer_info_t bufinfo;
+		if (!mp_get_buffer(input, &bufinfo, MP_BUFFER_READ)) {
+			cc_log_error("Failed to get buffer");
+			return CC_FAIL;
+		}
+
+		if (alloc && cc_platform_mem_alloc((void **)buffer, bufinfo.len + 10) != CC_SUCCESS) {
+			cc_log_error("Failed to allocate memory");
+			return CC_FAIL;
+		}
+
+		pos = *buffer;
+		pos = cc_coder_encode_bin(pos, bufinfo.buf, bufinfo.len);
+
+		return CC_SUCCESS;
 	} else if (MP_OBJ_IS_TYPE(input, &mp_type_list)) {
 		mp_obj_list_t *list = MP_OBJ_TO_PTR(input);
 

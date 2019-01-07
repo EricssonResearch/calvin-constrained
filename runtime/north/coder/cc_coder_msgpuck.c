@@ -106,6 +106,11 @@ char *cc_coder_encode_str(char *buffer, const char *data, uint32_t len)
 	return mp_encode_str(buffer, data, len);
 }
 
+char *cc_coder_encode_bin(char *buffer, const char *data, uint32_t len)
+{
+	return mp_encode_bin(buffer, data, len);
+}
+
 char *cc_coder_encode_uint(char *buffer, uint32_t data)
 {
 	return mp_encode_uint(buffer, data);

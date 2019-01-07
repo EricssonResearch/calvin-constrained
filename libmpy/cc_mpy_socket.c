@@ -21,6 +21,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "cc_mpy_socket.h"
 #include "py/objstr.h"
 #include "py/runtime.h"
@@ -169,6 +170,25 @@ STATIC mp_obj_t cc_mpy_socket_recv(size_t n_args, const mp_obj_t *args)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(cc_mpy_socket_recv_obj, 2, 3, cc_mpy_socket_recv);
 
+STATIC mp_obj_t socket_setblocking(mp_obj_t self_in, mp_obj_t flag_in)
+{
+  mp_obj_socket_t *self = MP_OBJ_TO_PTR(self_in);
+  int val = mp_obj_is_true(flag_in);
+  int flags = fcntl(self->fd, F_GETFL, 0);
+
+  if (val) {
+    flags &= ~O_NONBLOCK;
+  } else {
+    flags |= O_NONBLOCK;
+  }
+  flags = fcntl(self->fd, F_SETFL, flags);
+
+  self->blocking = val;
+
+  return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(socket_setblocking_obj, socket_setblocking);
+
 STATIC mp_obj_t cc_mpy_socket_close(mp_obj_t self_arg)
 {
   mp_obj_socket_t *self = MP_OBJ_TO_PTR(self_arg);
@@ -195,6 +215,7 @@ STATIC const mp_rom_map_elem_t socket_locals_dict_table[] = {
   { MP_ROM_QSTR(MP_QSTR_read), MP_ROM_PTR(&mp_stream_read_obj) },
   { MP_ROM_QSTR(MP_QSTR_readinto), MP_ROM_PTR(&mp_stream_readinto_obj) },
   { MP_ROM_QSTR(MP_QSTR_readline), MP_ROM_PTR(&mp_stream_unbuffered_readline_obj) },
+  { MP_ROM_QSTR(MP_QSTR_setblocking), MP_ROM_PTR(&socket_setblocking_obj) },
   { MP_ROM_QSTR(MP_QSTR_close), MP_ROM_PTR(&cc_mpy_socket_close_obj) },
 };
 

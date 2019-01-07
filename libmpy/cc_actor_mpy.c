@@ -44,10 +44,7 @@ static cc_result_t cc_actor_mpy_init(cc_actor_t *actor, cc_list_t *managed_attri
 
 	args[0] = actor_init_method[0];
 	args[1] = actor_init_method[1];
-/*
-	py_managed_list = mp_obj_new_list(nbr_of_attributes, NULL);
-	mp_store_attr(state->actor_class_instance, QSTR_FROM_STR_STATIC("_managed"), py_managed_list);
-*/
+
 	while (list != NULL && result == CC_SUCCESS) {
 		tmp = mp_obj_new_str(list->id, list->id_len);
 		j += 2;
@@ -57,7 +54,6 @@ static cc_result_t cc_actor_mpy_init(cc_actor_t *actor, cc_list_t *managed_attri
 			return CC_FAIL;
 		}
 		args[j + 1] = tmp;
-		cc_log_debug("Added managed attribute '%s'", list->id);
 		list = list->next;
 	}
 

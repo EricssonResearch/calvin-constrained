@@ -46,6 +46,7 @@ size_t cc_coder_get_size_of_value(char *value);
 uint32_t cc_coder_get_size_of_array(char *buffer);
 char *cc_coder_encode_map(char *buffer, uint32_t items);
 char *cc_coder_encode_str(char *buffer, const char *data, uint32_t len);
+char *cc_coder_encode_bin(char *buffer, const char *data, uint32_t len);
 char *cc_coder_encode_uint(char *buffer, uint32_t data);
 char *cc_coder_encode_int(char *buffer, uint32_t data);
 char *cc_coder_encode_double(char *buffer, double data);
