@@ -1,0 +1,5 @@
+mqtt : net.MQTTPublisher(hostname="test.mosquitto.org", port=1883, settings=null)
+counter : std.CountTimer(sleep=2.0)
+
+"home/garden/fountain" > mqtt.topic
+counter.integer > mqtt.payload

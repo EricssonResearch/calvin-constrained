@@ -1,0 +1,4 @@
+mqtt : net.MQTTSubscriber(topics=["home/garden/fountain"], hostname="test.mosquitto.org", port=8883, settings={"tls": {"keyfile": "calvin_scripts/client.key", "certfile": "calvin_scripts/client.crt"}})
+out: io.Print()
+
+mqtt.message > out.token

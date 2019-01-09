@@ -27,6 +27,8 @@
 #include "py/runtime.h"
 #include "py/stream.h"
 
+// TODO: Use constrained platform networking functions
+
 typedef struct _mp_obj_socket_t {
   mp_obj_base_t base;
   int fd;

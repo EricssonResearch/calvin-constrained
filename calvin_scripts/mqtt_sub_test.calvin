@@ -1,0 +1,4 @@
+mqtt : net.MQTTSubscriber(topics=["home/garden/fountain"], hostname="test.mosquitto.org", port=1883, settings=null)
+out: io.Print()
+
+mqtt.message > out.token

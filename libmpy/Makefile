@@ -25,24 +25,34 @@ MP_TOP = micropython
 FROZEN_MPY_DIR = libmpy/modules
 
 # Add the names of the files for QSTR extraction
-EXT_SRC_C = cc_mpy_port.c cc_mpy_calvinsys.c cc_mpy_socket.c
+EXT_SRC_C = cc_mpy_port.c cc_mpy_calvinsys.c cc_mpy_socket.c cc_mpy_file.c
 
-lib:
+lib: libmedtls mpy-cross
 	@echo "Making micropython library for x86"
 	$(MAKE) -f Makefile.upylib MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
 
-esp8266:
+esp8266: mpy-cross
 	@echo "Making micropython library for esp8266"
 	$(MAKE) -f Makefile.upylib.esp8266 MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
 
-android:
+android: mpy-cross
 	@echo "Making micropython library for android"
 	$(MAKE) -f Makefile.upylib.android MPTOP=$(CC_TOP)/$(MP_TOP) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
 
-libarm:
+libarm: mpy-cross
 	@echo "Making micropython library for ARM"
 	$(MAKE) -f Makefile.upylib.arm MPTOP=$(CC_TOP)/$(MP_TOP) CONFIGFILE=$(CONFIGFILE) FROZEN_MPY_DIR=$(CC_TOP)/$(FROZEN_MPY_DIR) DEBUG=DEBUG EXT_SRC_C="$(EXT_SRC_C)"
 
 clean:
 	@rm -rf *.a
 	@rm -rf build libmpy micropython
+
+.PHONY: libmedtls
+libmedtls:
+	@echo "Building mbedtls"
+	$(MAKE) -C ../mbedtls
+
+.PHONY: mpy-cross
+mpy-cross:
+	@echo "Building the MicroPython cross compiler"
+	$(MAKE) -C ../micropython/mpy-cross

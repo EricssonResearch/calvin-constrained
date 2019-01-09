@@ -22,6 +22,7 @@
 
 #define MICROPY_ENABLE_GC               (1)
 #define MICROPY_PY_GC                   (1)
+//#define MICROPY_PY_GC_COLLECT_RETVAL    (1)
 #define MICROPY_ENABLE_COMPILER         (0)
 #define MICROPY_ERROR_REPORTING         (MICROPY_ERROR_REPORTING_DETAILED)
 #define MICROPY_ERROR_PRINTER           (&cc_log_error)
@@ -30,7 +31,6 @@
 #define MICROPY_PY_ASYNC_AWAIT          (0)
 #define MICROPY_PY_BUILTINS_EVAL_EXEC   (0)
 #define MICROPY_PY___FILE__             (0)
-#define MICROPY_PY_IO                   (0)
 #define MICROPY_PY_IO_BYTESIO           (0)
 #define MICROPY_PY_SYS                  (0)
 #define MICROPY_PY_SYS_MODULES          (0)
@@ -53,6 +53,11 @@
 #define MICROPY_PY_BUILTINS_STR_UNICODE (1)
 #define MICROPY_PY_STRUCT               (1)
 #define MICROPY_PY_UBINASCII            (1)
+#define MICROPY_PY_USSL                 (1)
+#define MICROPY_SSL_MBEDTLS             (1)
+#define MICROPY_PY_IO                   (1)
+#define MICROPY_PY_IO_IOBASE            (1)
+#define MICROPY_PY_IO_FILEIO            (1)
 
 extern const struct _mp_obj_module_t cc_mp_module_port;
 extern const struct _mp_obj_module_t cc_mp_module_calvinsys;
@@ -70,6 +75,9 @@ extern const struct _mp_obj_module_t cc_mp_module_socket;
 #define MICROPY_PORT_BUILTIN_MODULE_WEAK_LINKS \
   { MP_ROM_QSTR(MP_QSTR_binascii), MP_ROM_PTR(&mp_module_ubinascii) }, \
   { MP_ROM_QSTR(MP_QSTR_struct), MP_ROM_PTR(&mp_module_ustruct) }, \
+
+#define MICROPY_PORT_BUILTINS \
+  { MP_ROM_QSTR(MP_QSTR_open), MP_ROM_PTR(&mp_builtin_open_obj) },
 
 #define MP_PLAT_PRINT_STRN(str, len) cc_log(str)
 

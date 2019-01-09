@@ -33,6 +33,7 @@ INC +=  -I.
 INC +=  -I..
 INC +=  -I$(MPTOP)
 INC +=  -I$(BUILD)
+INC +=  -I../mbedtls/include
 
 CWARN = -Wall -Werror
 CFLAGS = $(INC) $(CWARN) -ansi -std=gnu99 -DUNIX -nostdlib $(COPT)
@@ -87,6 +88,7 @@ OBJ += $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(SRC_S:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(LIB_SRC_C:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(STMHAL_SRC_C:.c=.o))
+OBJ += $(wildcard ../mbedtls/library/*.o)
 
 # List of sources for qstr extraction
 SRC_QSTR += $(SRC_C) $(LIB_SRC_C) $(EXT_SRC_C)

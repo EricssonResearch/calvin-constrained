@@ -1,0 +1,5 @@
+mqtt : net.MQTTPublisher(hostname="test.mosquitto.org", port=8883, settings={"tls": {"keyfile": "calvin_scripts/client.key", "certfile": "calvin_scripts/client.crt"}})
+counter : std.CountTimer(sleep=2.0)
+
+"home/garden/fountain" > mqtt.topic
+counter.integer > mqtt.payload

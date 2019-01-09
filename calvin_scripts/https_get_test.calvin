@@ -1,0 +1,17 @@
+client : net.HTTPGet()
+status : io.Print()
+
+/* Connections */
+"https://www.example.com" > client.URL
+{} > client.headers
+{} > client.params
+{} > client.auth
+
+client.status > status.token
+client.data > voidport
+client.headers > voidport
+
+rule first: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "first", "name": "runtime1"}])
+rule constrained: node_attr_match(index=["node_name", {"organization": "com.ericsson", "purpose": "distributed-test", "group": "rest", "name": "constrained"}])
+apply status: first
+apply client: constrained

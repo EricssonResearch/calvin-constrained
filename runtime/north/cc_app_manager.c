@@ -243,6 +243,11 @@ cc_result_t cc_app_manager_load_script(cc_node_t *node, const char *script)
     return result;
   }
 
+  if (size <= 0) {
+    cc_log_error("Empty script");
+    return result;
+  }
+
   buffer = file_buffer;
 
   if (result == CC_SUCCESS && (result = cc_coder_decode_string_from_map(buffer, "name", &script_name, &script_name_len)) != CC_SUCCESS)
