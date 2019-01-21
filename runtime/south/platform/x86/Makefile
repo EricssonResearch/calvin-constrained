@@ -4,8 +4,8 @@ PROJECT_NAME = calvin_c
 BUILD = build
 
 CC_CFLAGS  = -Wall
-CC_CFLAGS += -Os -fdata-sections -ffunction-sections
-#CC_CFLAGS += -ggdb -Og -g3 -fno-omit-frame-pointer
+#CC_CFLAGS += -Os -fdata-sections -ffunction-sections
+CC_CFLAGS += -ggdb -Og -g3 -fno-omit-frame-pointer
 CC_CFLAGS += -I.
 CC_CFLAGS += -DCC_USE_FDS=1
 ifeq ($(PLATFORM), Darwin)
@@ -24,7 +24,9 @@ CC_SRC_C += runtime/south/platform/x86/calvinsys/cc_test_temperature.c
 
 ifeq ($(LIBCOAP),1)
 CC_SRC_C += runtime/south/platform/x86/calvinsys/cc_libcoap_client.c
-CC_CFLAGS += -DCC_USE_LIBCOAP_CLIENT=1
+#CC_CFLAGS += -DCC_USE_LIBCOAP_CLIENT=1
+#CC_CFLAGS += -I/usr/local/include/coap2
+#CC_LDFLAGS += -L/usr/local/lib -lcoap-2
 CC_CFLAGS += $(shell pkg-config --cflags-only-I libcoap-1)
 CC_LDFLAGS += $(shell pkg-config --libs-only-L libcoap-1)
 CC_LIBS += $(shell pkg-config --libs-only-l libcoap-1)

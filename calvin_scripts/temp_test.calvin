@@ -1,0 +1,4 @@
+src : sensor.Temperature(period=1)
+snk : io.Log(loglevel="INFO")
+
+src.centigrade > snk.data

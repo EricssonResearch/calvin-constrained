@@ -15,11 +15,17 @@
  */
 #include "runtime/north/cc_common.h"
 
-#define CC_USE_GETOPT (1)
+#define CC_USE_GETOPT  (1)
+#define CC_USE_STORAGE (1)
 
 struct cc_transport_client_t;
 struct cc_node_t;
+struct cc_actor_type_t;
 struct cc_transport_client_t *cc_transport_socket_create(struct cc_node_t *node, char *uri);
+cc_result_t cc_actor_log_setup(struct cc_actor_type_t *type);
+
+#define CC_C_ACTORS \
+	{ "io.Log", cc_actor_log_setup }
 
 #define CC_TRANSPORTS \
 	{ "calvinip", cc_transport_socket_create }, \

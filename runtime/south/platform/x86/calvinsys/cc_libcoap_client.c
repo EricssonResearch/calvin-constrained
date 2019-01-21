@@ -23,7 +23,7 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <errno.h>
-#include <coap/coap.h>
+#include <coap.h>
 #include "cc_libcoap_client.h"
 #include "runtime/north/cc_node.h"
 #include "runtime/north/coder/cc_coder.h"
@@ -38,10 +38,6 @@ typedef struct cc_coap_state_t {
 	coap_uri_t uri;
 	uint16_t message_id;
 } cc_coap_state_t;
-
-typedef struct cc_coap_init_args_t {
-	char uri[100];
-} cc_coap_init_args_t;
 
 static cc_result_t cc_coap_send_pdu(struct cc_calvinsys_obj_t *obj, bool start)
 {
@@ -60,11 +56,17 @@ static cc_result_t cc_coap_send_pdu(struct cc_calvinsys_obj_t *obj, bool start)
 	}
 
 	if (coap_pdu_encode_header(request, COAP_PROTO_UDP)) {
-		if (start)
-			coap_add_option(request, COAP_OPTION_OBSERVE, coap_encode_var_bytes(buf, COAP_OBSERVE_ESTABLISH), buf);
-		else
-			coap_add_option(request, COAP_OPTION_OBSERVE, coap_encode_var_bytes(buf, COAP_OBSERVE_CANCEL), buf);
-		coap_add_option(request, COAP_OPTION_URI_PORT, coap_encode_var_bytes(buf, state->uri.port), buf);
+		if (start) {
+			coap_add_option(request, COAP_OPTION_OBSERVE, coap_encode_var_safe(buf, sizeof(buf), COAP_OBSERVE_ESTABLISH), buf);
+		} else {
+			coap_add_option(request, COAP_OPTION_OBSERVE, coap_encode_var_safe(buf, sizeof(buf), COAP_OBSERVE_CANCEL), buf);
+		}
+
+		if (state->uri.port != COAP_DEFAULT_PORT) {
+			unsigned char portbuf[2];
+			coap_add_option(request, COAP_OPTION_URI_PORT, coap_encode_var_safe(portbuf, sizeof(portbuf), state->uri.port), portbuf);
+		}
+
 		if (state->uri.path.length) {
 			res = coap_split_path(state->uri.path.s, state->uri.path.length, buf, &buflen);
 			while (res--) {
@@ -72,7 +74,7 @@ static cc_result_t cc_coap_send_pdu(struct cc_calvinsys_obj_t *obj, bool start)
 				buf += coap_opt_size(buf);
 			}
 		}
-		coap_add_option(request, COAP_OPTION_CONTENT_FORMAT, coap_encode_var_bytes(buf, COAP_MEDIATYPE_TEXT_PLAIN), buf);
+		coap_add_option(request, COAP_OPTION_CONTENT_FORMAT, coap_encode_var_safe(buf, sizeof(buf), COAP_MEDIATYPE_TEXT_PLAIN), buf);
 		coap_add_option(request, COAP_OPTION_ACCEPT, 0, buf);
 		if (send(state->fd, request->token - request->hdr_size, request->used_size + request->hdr_size, 0) <= 0) {
 			cc_log_error("Failed to send data");
@@ -90,7 +92,7 @@ static cc_result_t cc_coap_send_pdu(struct cc_calvinsys_obj_t *obj, bool start)
 
 static bool cc_coap_can_read(struct cc_calvinsys_obj_t *obj)
 {
-	return FD_ISSET(((cc_coap_state_t *)obj->state)->fd, &obj->capability->calvinsys->node->fds) > 0;
+	return FD_ISSET(((cc_coap_state_t *)obj->state)->fd, &obj->capability->calvinsys->node->fds) != 0;
 }
 
 static cc_result_t cc_coap_send_ack(int fd, coap_pdu_t *request)
@@ -265,18 +267,27 @@ static cc_result_t cc_coap_setup(int *fd, char *ip, char *port)
 			close(*fd);
 			return CC_FAIL;
 		}
+	} else {
+		cc_log_error("Failed to setup");
 	}
 
 	return result;
 }
 
-static cc_result_t cc_coap_init(cc_coap_init_args_t *init_args, cc_coap_state_t *state)
+static cc_result_t cc_coap_init(char *init_args, cc_coap_state_t *state)
 {
 	char ip[40] = {0};
 	char port[10] = {0};
+	char *uri = NULL;
+	uint32_t len = 0;
 
-	if (coap_split_uri((unsigned char *)init_args->uri, strlen(init_args->uri), &state->uri) < 0) {
-		cc_log_error("Invalid URI '%s'", init_args->uri);
+	if (cc_coder_decode_string_from_map(init_args, "uri", &uri, &len) != CC_SUCCESS) {
+		cc_log_error("Failed to get uri");
+		return CC_FAIL;
+	}
+
+	if (coap_split_uri((unsigned char *)uri, len, &state->uri) < 0) {
+		cc_log_error("Invalid URI '%.*s'", len, uri);
 		return CC_FAIL;
 	}
 
@@ -294,7 +305,7 @@ static cc_result_t cc_coap_init(cc_coap_init_args_t *init_args, cc_coap_state_t 
 static cc_result_t cc_calvinsys_coap_open(cc_calvinsys_obj_t *obj, cc_list_t *kwargs)
 {
 	cc_coap_state_t *state = NULL;
-	cc_coap_init_args_t *init_args = (cc_coap_init_args_t *)obj->capability->init_args;
+	char *init_args = (char *)obj->capability->init_args;
 	cc_calvinsys_t *sys = obj->capability->calvinsys;
 	int i = 0, fd_pos = -1;
 
@@ -338,9 +349,8 @@ cc_result_t cc_libcoap_create(cc_calvinsys_t *calvinsys, const char *args)
 	int i = 0, j = 0, r = 0;
 	jsmn_parser parser;
 	jsmntok_t tokens[128], *obj_coap = NULL, *obj_actors = NULL, *obj_capabilities = NULL;
-	char name[100] = {0}, requires[100] = {0};
+	char name[100] = {0}, requires[100] = {0}, *init_args = NULL, *tmp = NULL;
 	size_t len = 0;
-	cc_coap_init_args_t *init_args = NULL;
 	cc_actor_type_t *type = NULL;
 
 	jsmn_init(&parser);
@@ -410,20 +420,19 @@ cc_result_t cc_libcoap_create(cc_calvinsys_t *calvinsys, const char *args)
 	}
 
 	for (i = 0, j = 0; i < obj_capabilities->size; i++) {
-		if (cc_platform_mem_alloc((void **)&init_args, sizeof(cc_coap_init_args_t)) != CC_SUCCESS) {
-			cc_log_error("Failed to allocate memory");
-			return CC_FAIL;
-		}
-		memset(init_args, 0, sizeof(cc_coap_init_args_t));
-
 		j++;
 		len = obj_capabilities[j].end - obj_capabilities[j].start;
 		strncpy(name, args + obj_capabilities[j].start, len);
 		name[len] = '\0';
 		j++;
 		len = obj_capabilities[j].end - obj_capabilities[j].start;
-		strncpy(init_args->uri, args + obj_capabilities[j].start, len);
-		init_args->uri[len] = '\0';
+		if (cc_platform_mem_alloc((void **)&init_args, cc_coder_sizeof_str(len) + 10) != CC_SUCCESS) {
+			cc_log_error("Failed to allocate memory");
+			return CC_FAIL;
+		}
+		tmp = init_args;
+		tmp = cc_coder_encode_map(tmp, 1);
+		tmp = cc_coder_encode_kv_str(tmp, "uri", args + obj_capabilities[j].start, len);
 
 		if (cc_calvinsys_create_capability(calvinsys, name, cc_calvinsys_coap_open, cc_calvinsys_coap_open, (void *)init_args, true) != CC_SUCCESS) {
 			cc_log_error("Failed to add capability '%s'", name);

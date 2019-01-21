@@ -76,7 +76,7 @@ cc_result_t cc_platform_node_started(struct cc_node_t *node)
 
 cc_platform_evt_wait_status_t cc_platform_evt_wait(cc_node_t *node, uint32_t timeout_seconds)
 {
-	int transport_fd = 0, res = 0, max_fd = 0, i = 0;
+	int transport_fd = 0, res = 0, max_fd = -1, i = 0;
 	struct timeval tv, *tv_ref = NULL;
 	cc_calvinsys_t *sys = node->calvinsys;
 
@@ -92,15 +92,17 @@ cc_platform_evt_wait_status_t cc_platform_evt_wait(cc_node_t *node, uint32_t tim
 		transport_fd = ((cc_transport_socket_client_t *)node->transport_client->client_state)->fd;
 		max_fd = transport_fd;
 		FD_SET(transport_fd, &node->fds);
+	}
 
-		for (i = 0; i < CC_CALVINSYS_MAX_FDS; i++) {
-			if (sys->fds[i] != -1) {
-				FD_SET(sys->fds[i], &node->fds);
-				if (sys->fds[i] > max_fd)
-					max_fd = sys->fds[i];
-			}
+	for (i = 0; i < CC_CALVINSYS_MAX_FDS; i++) {
+		if (sys->fds[i] != -1) {
+			FD_SET(sys->fds[i], &node->fds);
+			if (sys->fds[i] > max_fd)
+				max_fd = sys->fds[i];
 		}
+	}
 
+	if (max_fd >= 0) {
 		res = select(max_fd + 1, &node->fds, NULL, NULL, tv_ref);
 		if (res < 0) {
 			cc_log_error("select failed");
