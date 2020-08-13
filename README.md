@@ -1,3 +1,11 @@
+# Calvin is no longer actively maintained.
+
+Since the base version of Calvin has been retired, we unfortunately have to retire this repository as well. It will be kept in an archived state for the time being. You are welcome to fork, clone, and work on it, but it is unlikely there will be any further official releases and updates from our side.
+
+It's been fun. Take care.
+
+Cheers.
+
 # calvin-constrained
 
 calvin-constrained is a C based implementation of Calvin, https://github.com/EricssonResearch/calvin-base, targeting devices with constraints on memory, processing power and power consumption.
